@@ -160,17 +160,18 @@ Config.Drying = {
 	promptDistance = 10,
 	-- Ogrodzony plac suszarni na lewo od chatki (patrząc od lasu). Suszarnie stoją w dwóch
 	-- rzędach przodem do alejki, a brama jest na końcu alejki od strony lasu (z2).
-	yard = { x1 = -62, x2 = -30, z1 = -52, z2 = 16, aisleX = -46 },
+	-- Plac odsunięty od brzegu mapy, żeby korony sosen z obrzeża nie wisiały nad suszarniami
+	yard = { x1 = -58, x2 = -26, z1 = -47, z2 = 21, aisleX = -42 },
 	-- Ile miejsc, tylu graczy ma suszarnię, więc ustaw rozmiar serwera na tyle samo (8)
 	plots = {
-		{ x = -54.5, z = -42 },
-		{ x = -37.5, z = -42 },
-		{ x = -54.5, z = -27 },
-		{ x = -37.5, z = -27 },
-		{ x = -54.5, z = -12 },
-		{ x = -37.5, z = -12 },
-		{ x = -54.5, z = 3 },
-		{ x = -37.5, z = 3 },
+		{ x = -50.5, z = -37 },
+		{ x = -33.5, z = -37 },
+		{ x = -50.5, z = -22 },
+		{ x = -33.5, z = -22 },
+		{ x = -50.5, z = -7 },
+		{ x = -33.5, z = -7 },
+		{ x = -50.5, z = 8 },
+		{ x = -33.5, z = 8 },
 	},
 }
 
