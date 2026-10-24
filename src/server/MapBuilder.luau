@@ -17,6 +17,7 @@ local Props = require(World:WaitForChild("Props"))
 local Cabin = require(World:WaitForChild("Cabin"))
 local Grove = require(World:WaitForChild("Grove"))
 local Rack = require(World:WaitForChild("Rack"))
+local DryingYard = require(World:WaitForChild("DryingYard"))
 
 export type Spot = {
 	id: string,
@@ -359,9 +360,9 @@ local function buildGroveSpots(): { Spot }
 	return spots
 end
 
--- Suszarnie na polanie, każda zwrócona do środka (ścieżki)
+-- Suszarnie na placu, każda przodem do alejki na środku
 local function rackCFrame(plot: { x: number, z: number }): CFrame
-	return CFrame.lookAt(Vector3.new(plot.x, 0, plot.z), Vector3.new(0, 0, plot.z))
+	return CFrame.lookAt(Vector3.new(plot.x, 0, plot.z), Vector3.new(Config.Drying.yard.aisleX, 0, plot.z))
 end
 
 local function buildRacks(parent: Instance): { RackInfo }
@@ -472,10 +473,14 @@ function MapBuilder.build(): MapInfo
 		table.insert(reserved, { x1 = -9.5, x2 = 9.5, z1 = zone.startZ - 2.5, z2 = zone.startZ + 2.5 })
 	end
 
-	-- Suszarnie wokół chatki: wolne miejsce wokół każdej
-	for _, plot in Config.Drying.plots do
-		table.insert(reserved, { x1 = plot.x - 5, x2 = plot.x + 5, z1 = plot.z - 5, z2 = plot.z + 5 })
-	end
+	-- Plac suszarni obok chatki: na placu i na ścieżce do bramy nic nie rośnie
+	local yard = Config.Drying.yard
+	table.insert(reserved, { x1 = yard.x1 - 3, x2 = yard.x2 + 3, z1 = yard.z1 - 3, z2 = yard.z2 + 3 })
+	local porchFront = Vector3.new(-3.5, 0, Cabin.FRONT_Z + 7.5)
+	-- Ścieżka z ganku do bramy na końcu alejki: najpierw ukośnie do rogu placu, potem wzdłuż płotu
+	table.insert(reserved, { x1 = yard.x2 - 1, x2 = porchFront.X, z1 = porchFront.Z - 3, z2 = yard.z2 + 6 })
+	table.insert(reserved, { x1 = yard.aisleX - 5, x2 = yard.x2 + 4, z1 = yard.z2, z2 = yard.z2 + 7 })
+	DryingYard.build(map, yard, porchFront, Random.new(Config.SpotSeed + 3))
 	local racks = buildRacks(map)
 
 	-- Gniazdo Leszego: w środku i za kręgiem (posąg) nic nie rośnie

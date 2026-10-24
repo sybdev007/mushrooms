@@ -157,18 +157,20 @@ Config.Drying = {
 	bonus = 1, -- w pełni suchy grzyb jest wart (1 + bonus) razy więcej
 	stealCooldown = 25, -- po kradzieży suszarnia jest chroniona przez tyle sekund
 	thiefCooldown = 8, -- ten sam złodziej może kraść co tyle sekund
-	promptDistance = 9,
-	-- Miejsca na suszarnie na polanie wokół chatki. Ile miejsc, tylu graczy ma suszarnię,
-	-- więc ustaw rozmiar serwera w ustawieniach gry na tyle samo (8).
+	promptDistance = 10,
+	-- Ogrodzony plac suszarni na lewo od chatki (patrząc od lasu). Suszarnie stoją w dwóch
+	-- rzędach przodem do alejki, a brama jest na końcu alejki od strony lasu (z2).
+	yard = { x1 = -62, x2 = -30, z1 = -52, z2 = 16, aisleX = -46 },
+	-- Ile miejsc, tylu graczy ma suszarnię, więc ustaw rozmiar serwera na tyle samo (8)
 	plots = {
-		{ x = -22, z = -28 },
-		{ x = 22, z = -28 },
-		{ x = -24, z = -8 },
-		{ x = 24, z = -8 },
-		{ x = -22, z = 12 },
-		{ x = 22, z = 12 },
-		{ x = -13, z = 28 },
-		{ x = 13, z = 28 },
+		{ x = -54.5, z = -42 },
+		{ x = -37.5, z = -42 },
+		{ x = -54.5, z = -27 },
+		{ x = -37.5, z = -27 },
+		{ x = -54.5, z = -12 },
+		{ x = -37.5, z = -12 },
+		{ x = -54.5, z = 3 },
+		{ x = -37.5, z = 3 },
 	},
 }
 

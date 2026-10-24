@@ -260,6 +260,39 @@ test("miejsca na suszarnie nie wchodzą na chatkę ani ścieżkę", function()
 	end
 end)
 
+test("zarobek na minutę: stały podczas suszenia, zero po wyschnięciu", function()
+	local minutes = Config.Drying.seconds / 60
+	local porcini = { s = "porcini", g = false, t = 0 }
+	eq(Economy.dryRatePerMinute(porcini, 0), 75 * Config.Drying.bonus / minutes, "świeży borowik")
+	eq(Economy.dryRatePerMinute(porcini, Config.Drying.seconds - 1), 75 * Config.Drying.bonus / minutes, "prawie suchy")
+	eq(Economy.dryRatePerMinute(porcini, Config.Drying.seconds), 0, "suchy")
+	eq(Economy.dryRatePerMinute({ s = "porcini", g = true, t = 0 }, 0), 225 * Config.Drying.bonus / minutes, "złoty")
+	-- Suma zarobków przez cały czas suszenia = przyrost wartości
+	local gained = Economy.dryRatePerMinute(porcini, 0) * minutes
+	eq(math.floor(gained + 0.5), Economy.dryingValue(porcini, Config.Drying.seconds) - Economy.dryingValue(porcini, 0), "zgodność z wartością")
+end)
+
+test("plac suszarni: na polanie, obok chatki, suszarnie w środku i nie na alejce", function()
+	local yard = Config.Drying.yard
+	eq(Economy.zoneIndexAt(yard.z1), 1, "przód placu poza polaną")
+	eq(Economy.zoneIndexAt(yard.z2), 1, "tył placu poza polaną")
+	check(yard.x1 > -Config.ForestHalfWidth + 6, "plac wchodzi w drzewa na brzegu mapy")
+	check(yard.x2 < -13 - 10, "plac za blisko chatki")
+	check(yard.aisleX > yard.x1 + 8 and yard.aisleX < yard.x2 - 8, "alejka (i brama) za blisko płotu")
+	-- Suszarnia ma 11,4 x 7,75 studs (+ słupek z latarnią): 7,75 w poprzek (oś X), 11,4 wzdłuż (oś Z)
+	local halfDepth, halfWidth = 3.9, 6.3
+	for i, plot in Config.Drying.plots do
+		check(plot.x - halfDepth > yard.x1 + 1 and plot.x + halfDepth < yard.x2 - 1, "suszarnia " .. i .. " wystaje za płot (X)")
+		check(plot.z - halfWidth > yard.z1 + 1 and plot.z + halfWidth < yard.z2 - 1, "suszarnia " .. i .. " wystaje za płot (Z)")
+		check(math.abs(plot.x - yard.aisleX) - halfDepth >= 3, "suszarnia " .. i .. " na alejce")
+		for j, other in Config.Drying.plots do
+			if j > i and other.x == plot.x then
+				check(math.abs(other.z - plot.z) >= halfWidth * 2 + 2, string.format("suszarnie %d i %d za blisko", i, j))
+			end
+		end
+	end
+end)
+
 test("kłódka: złodziej trzyma przycisk dłużej z każdym poziomem", function()
 	eq(Economy.upgradeStat("lock", 0), 2, "bez kłódki")
 	check(Economy.upgradeStat("lock", Config.Upgrades.lock.maxLevel) <= 10, "kradzież nie może trwać wieczność")
@@ -372,6 +405,7 @@ test("każdy klucz HUD_/MSG_/ENGULF_/ZONE_ użyty w kodzie jest w CSV", function
 		"src/server/World/Props.luau",
 		"src/server/World/Cabin.luau",
 		"src/server/World/Grove.luau",
+		"src/server/World/DryingYard.luau",
 		"src/server/DryingService.luau",
 		"src/server/LeszyService.luau",
 		"src/client/RackPrompts.luau",
@@ -380,7 +414,7 @@ test("każdy klucz HUD_/MSG_/ENGULF_/ZONE_ użyty w kodzie jest w CSV", function
 		local source = fs.readFile(path)
 		for key in string.gmatch(source, '"((%u+)_[%u_]+)"') do
 			local prefix = string.match(key, "^(%u+)_")
-			local checked = { HUD = true, MSG = true, ENGULF = true, ZONE = true, RACK = true, CAUGHT = true, GROVE = true }
+			local checked = { HUD = true, MSG = true, ENGULF = true, ZONE = true, RACK = true, CAUGHT = true, GROVE = true, YARD = true }
 			if checked[prefix] then
 				check(csvKeys[key], path .. ": brak " .. key)
 			end

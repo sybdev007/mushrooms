@@ -135,6 +135,15 @@ function Economy.dryingValue(item: DryingItem, now: number): number
 	return Economy.mushroomValue(item.s, item.g, Economy.dryMultiplier(now - item.t))
 end
 
+-- Ile monet na minutę zyskuje grzyb, dopóki schnie (0, gdy już suchy)
+function Economy.dryRatePerMinute(item: DryingItem, now: number): number
+	if Economy.dryProgress(now - item.t) >= 1 then
+		return 0
+	end
+	local fresh = Economy.mushroomValue(item.s, item.g)
+	return fresh * Config.Drying.bonus / (Config.Drying.seconds / 60)
+end
+
 function Economy.rackValue(rack: { DryingItem }, now: number): number
 	local sum = 0
 	for _, item in rack do

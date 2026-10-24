@@ -1,22 +1,31 @@
 --!strict
--- Drewniana suszarnia na grzyby przed chatką: dwa słupki, daszek, dwa sznurki.
--- Miejsca na grzyby to Attachmenty "Slot1".."SlotN" w części "Beam".
--- Grzyby na sznurkach i napis z właścicielem dokłada DryingService.
+-- Suszarnia gracza: drewniany podest z sześcioma osobnymi stanowiskami w dwóch rzędach
+-- (tylny rząd stoi stopień wyżej, żeby było go widać zza przedniego).
+-- Każde stanowisko ma płytkę "Pad<i>" i własną ramkę z poprzeczką, pod którą wisi grzyb
+-- w miejscu Attachmentu "Slot<i>". Przód suszarni (lokalne -Z) patrzy na alejkę.
+-- Grzyby, tabliczki z cenami i podświetlenie płytek dokłada DryingService.
 
 local Palette = require(script.Parent.Palette)
+local Props = require(script.Parent.Props)
 
 local Rack = {}
 
-local WIDTH = 7
-local HEIGHT = 5.2
+local COLS = 3
+local PAD = 3.2 -- bok płytki stanowiska
+local GAP = 0.45
+local STEP = 1 -- o tyle wyżej stoi tylny rząd
+local FRAME_H = 3.8 -- wysokość ramki nad płytką
 
-local function make(m: Model, name: string, size: Vector3, cf: CFrame, color: Color3): Part
+Rack.PAD_EMPTY = Color3.fromRGB(96, 70, 50)
+
+local function make(m: Instance, name: string, size: Vector3, cf: CFrame, color: Color3, collide: boolean?): Part
 	local p = Instance.new("Part")
 	p.Name = name
 	p.Size = size
 	p.CFrame = cf
 	p.Color = color
 	p.Anchored = true
+	p.CanCollide = collide ~= false
 	p.Material = Enum.Material.SmoothPlastic
 	p.TopSurface = Enum.SurfaceType.Smooth
 	p.BottomSurface = Enum.SurfaceType.Smooth
@@ -28,49 +37,69 @@ function Rack.build(parent: Instance, cf: CFrame, slots: number): Model
 	local m = Instance.new("Model")
 	m.Name = "DryingRack"
 
-	for _, side in { -1, 1 } do
-		make(m, "Post", Vector3.new(0.5, HEIGHT, 0.5), cf * CFrame.new(side * WIDTH / 2, HEIGHT / 2, 0), Palette.plankDark)
-	end
-	local beam = make(m, "Beam", Vector3.new(WIDTH + 0.8, 0.4, 0.4), cf * CFrame.new(0, HEIGHT - 0.2, 0), Palette.plankDark)
-	beam.CanCollide = false
+	local rows = math.ceil(slots / COLS)
+	local width = COLS * PAD + (COLS + 1) * GAP
+	local depth = rows * PAD + (rows + 1) * GAP
 
-	-- Daszek z desek, żeby suszarnia czytała się z daleka
-	local roof = make(m, "Roof", Vector3.new(WIDTH + 1.6, 0.3, 2.6), cf * CFrame.new(0, HEIGHT + 0.5, 0) * CFrame.Angles(math.rad(-10), 0, 0), Palette.roof)
-	roof.CanCollide = false
-
-	-- Dwa sznurki, po połowie miejsc na każdym
-	local perRow = math.ceil(slots / 2)
-	local rows = { HEIGHT - 1.1, HEIGHT - 2.6 }
-	for _, y in rows do
-		local rope = make(m, "Rope", Vector3.new(WIDTH, 0.08, 0.08), cf * CFrame.new(0, y, 0), Color3.fromRGB(200, 190, 170))
-		rope.CanCollide = false
-		rope.CanQuery = false
-		rope.CastShadow = false
+	-- Rząd 1 to przód (bliżej alejki, lokalne -Z)
+	local function rowZ(row: number): number
+		return -depth / 2 + GAP + PAD / 2 + (row - 1) * (PAD + GAP)
 	end
+	local function rowTop(row: number): number
+		return 0.5 + (row - 1) * STEP
+	end
+
+	-- Podest: osobny blok na każdy rząd, tylny wyższy
+	for row = 1, rows do
+		local top = rowTop(row)
+		make(m, "Deck", Vector3.new(width, top, PAD + GAP * 2), cf * CFrame.new(0, top / 2, rowZ(row)), Palette.plankDark)
+	end
+	-- Ciemniejsza listwa na krawędzi każdego stopnia
+	for row = 1, rows do
+		make(m, "Trim", Vector3.new(width + 0.1, 0.18, 0.25), cf * CFrame.new(0, rowTop(row) - 0.09, rowZ(row) - PAD / 2 - GAP), Palette.roofEdge, false)
+	end
+
 	local index = 0
-	for row, y in rows do
-		for i = 1, perRow do
+	for row = 1, rows do
+		local top = rowTop(row)
+		for col = 1, COLS do
 			index += 1
 			if index > slots then
 				break
 			end
-			local x = -WIDTH / 2 + WIDTH * i / (perRow + 1) + (row - 1) * 0.5
+			local x = -width / 2 + GAP + PAD / 2 + (col - 1) * (PAD + GAP)
+			local z = rowZ(row)
+			local base = cf * CFrame.new(x, top, z)
+
+			-- Płytka stanowiska: kolor zmienia DryingService (pusta / zajęta / złota)
+			local pad = make(m, "Pad" .. index, Vector3.new(PAD, 0.16, PAD), base * CFrame.new(0, 0.08, 0), Rack.PAD_EMPTY)
+			pad.CanCollide = false
+
+			-- Ramka: dwa słupki i poprzeczka, na poprzeczce sznurek do grzyba
+			for _, side in { -1, 1 } do
+				make(m, "SlotPost", Vector3.new(0.28, FRAME_H, 0.28), base * CFrame.new(side * (PAD / 2 - 0.25), FRAME_H / 2, PAD / 2 - 0.4), Palette.plank)
+			end
+			make(m, "SlotBar", Vector3.new(PAD - 0.2, 0.3, 0.3), base * CFrame.new(0, FRAME_H, PAD / 2 - 0.4), Palette.plank, false)
+			local arm = make(m, "SlotArm", Vector3.new(0.18, 0.18, PAD / 2), base * CFrame.new(0, FRAME_H - 0.05, PAD / 4 - 0.4), Palette.plankDark, false)
+			arm.CanQuery = false
+
 			local attachment = Instance.new("Attachment")
 			attachment.Name = "Slot" .. index
-			-- Pozycja względem belki
-			attachment.CFrame = beam.CFrame:ToObjectSpace(cf * CFrame.new(x, y - 0.5, 0))
-			attachment.Parent = beam
+			-- Grzyb wisi nad środkiem płytki, pod ramieniem
+			attachment.CFrame = pad.CFrame:ToObjectSpace(base * CFrame.new(0, FRAME_H - 0.65, 0))
+			attachment.Parent = pad
 		end
 	end
 
-	-- Niewidoczny punkt dla przycisków akcji (ProximityPrompt) i tabliczki z właścicielem
-	local hub = make(m, "Hub", Vector3.new(1, 1, 1), cf * CFrame.new(0, 2.5, 0), Palette.plank)
-	hub.Transparency = 1
-	hub.CanCollide = false
-	hub.CanQuery = false
+	-- Słupek z latarnią w przednim rogu: suszarnie są widoczne nocą
+	local postAt = cf * CFrame.new(width / 2 + 0.6, 0, -depth / 2)
+	make(m, "LampPost", Vector3.new(0.4, 6.4, 0.4), postAt * CFrame.new(0, 3.2, 0), Palette.plankDark)
+	Props.hangingLantern(m, (postAt * CFrame.new(0, 6.4, 0)).Position, 14)
 
-	-- Skrzynka pod suszarnią
-	make(m, "Crate", Vector3.new(2, 1.2, 1.4), cf * CFrame.new(-1.6, 0.6, 0.6) * CFrame.Angles(0, math.rad(8), 0), Palette.plank)
+	-- Niewidoczny punkt przed środkiem suszarni: przyciski akcji i tabliczka z właścicielem
+	local hub = make(m, "Hub", Vector3.new(1, 1, 1), cf * CFrame.new(0, 2.4, -depth / 2 - 1.2), Palette.plank, false)
+	hub.Transparency = 1
+	hub.CanQuery = false
 
 	m.PrimaryPart = hub
 	m.Parent = parent

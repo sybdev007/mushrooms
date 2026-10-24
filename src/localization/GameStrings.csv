@@ -67,3 +67,4 @@ MSG_RACK_ALERT,{1} is robbing your drying rack!,,,{1} kradnie z twojej suszarni!
 MSG_RACK_PROTECTED,This rack was just robbed. Try later.,,,Tę suszarnię ktoś przed chwilą okradł. Spróbuj później.
 MSG_OWNER_GUARDING,The owner is guarding this rack!,,,Właściciel pilnuje suszarni!
 MSG_NO_RACK,No free drying rack on this server.,,,Na tym serwerze nie ma wolnej suszarni.
+YARD_SIGN,Drying Yard,,,Suszarnia

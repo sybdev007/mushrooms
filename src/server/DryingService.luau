@@ -33,6 +33,8 @@ type RackState = {
 	model: Model,
 	hub: BasePart,
 	slots: { Attachment },
+	pads: { BasePart? },
+	slotLabels: { TextLabel },
 	visuals: Folder,
 	label: TextLabel,
 	owner: Player?,
@@ -46,6 +48,11 @@ local VISUAL_REFRESH = 4
 local GUARD_RADIUS = 10 -- właściciel bliżej swojej suszarni = nie da się z niej kraść
 local STEAL_RANGE = 12 -- serwer jest łagodniejszy niż prompt przez opóźnienie sieci
 local DRY_COLOR = Color3.fromRGB(92, 60, 36)
+local PAD_EMPTY = Color3.fromRGB(96, 70, 50)
+local PAD_FULL = Color3.fromRGB(88, 128, 66)
+local PAD_GOLD = Color3.fromRGB(214, 170, 60)
+local RATE_COLOR = "#A6F06A"
+local DRY_DONE_COLOR = "#FFD75A"
 
 local api: Api
 local racks: { RackState } = {}
@@ -107,7 +114,7 @@ local function buildLabel(hub: BasePart): TextLabel
 	local billboard = Instance.new("BillboardGui")
 	billboard.Name = "OwnerTag"
 	billboard.Size = UDim2.fromOffset(180, 54)
-	billboard.StudsOffset = Vector3.new(0, 5.2, 0)
+	billboard.StudsOffset = Vector3.new(0, 7, 0)
 	billboard.MaxDistance = 70
 	billboard.LightInfluence = 0
 	billboard.Parent = hub
@@ -125,6 +132,53 @@ local function buildLabel(hub: BasePart): TextLabel
 	stroke.Color = Color3.fromRGB(50, 30, 16)
 	stroke.Parent = label
 	return label
+end
+
+-- Tabliczka nad stanowiskiem: ile grzyb jest teraz wart i ile zyskuje na minutę.
+-- To ona zachęca innych do kradzieży, więc widać ją z daleka.
+local function buildSlotLabel(slot: Attachment): TextLabel
+	local billboard = Instance.new("BillboardGui")
+	billboard.Name = "SlotTag"
+	billboard.Size = UDim2.fromOffset(96, 42)
+	billboard.StudsOffset = Vector3.new(0, 1.9, 0)
+	billboard.MaxDistance = 45
+	billboard.LightInfluence = 0
+	billboard.Enabled = false
+	billboard.Parent = slot
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.fromScale(1, 1)
+	label.BackgroundColor3 = Color3.fromRGB(40, 28, 20)
+	label.BackgroundTransparency = 0.25
+	label.TextColor3 = Color3.fromRGB(255, 226, 140)
+	label.Font = Enum.Font.FredokaOne
+	label.TextScaled = true
+	label.RichText = true
+	label.Text = ""
+	label.Parent = billboard
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 8)
+	corner.Parent = label
+	local padding = Instance.new("UIPadding")
+	padding.PaddingTop = UDim.new(0, 3)
+	padding.PaddingBottom = UDim.new(0, 3)
+	padding.Parent = label
+	local stroke = Instance.new("UIStroke")
+	stroke.Thickness = 1.5
+	stroke.Color = Color3.fromRGB(200, 146, 74)
+	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	stroke.Parent = label
+	return label
+end
+
+local function slotText(item: Economy.DryingItem, now: number): string
+	local value = Economy.dryingValue(item, now)
+	local rate = Economy.dryRatePerMinute(item, now)
+	if rate > 0 then
+		-- Jedno miejsce po przecinku tylko dla małych stawek, żeby nie było „+0/min”
+		local rateText = if rate < 10 then string.format("%.1f", rate) else string.format("%d", math.floor(rate + 0.5))
+		return string.format('💰 %d\n<font color="%s">+%s/min</font>', value, RATE_COLOR, rateText)
+	end
+	return string.format('💰 %d\n<font color="%s">✓ MAX</font>', value, DRY_DONE_COLOR)
 end
 
 local STEM_COLOR = Color3.fromRGB(226, 214, 190)
@@ -197,6 +251,13 @@ local function refreshRack(rack: RackState)
 		rackKeys[rack.id] = nil
 		rack.label.Text = ""
 		rack.model:SetAttribute("Count", 0)
+		for index, label in rack.slotLabels do
+			(label.Parent :: BillboardGui).Enabled = false
+			local pad = rack.pads[index]
+			if pad then
+				pad.Color = PAD_EMPTY
+			end
+		end
 		return
 	end
 	local now = os.time()
@@ -217,6 +278,19 @@ local function refreshRack(rack: RackState)
 		local slot = rack.slots[index]
 		if group and group:IsA("Model") and slot then
 			styleMushroom(group, item, slot, now)
+		end
+	end
+	-- Tabliczki i kolor płytek: zajęte stanowiska świecą zielenią, złote grzyby złotem
+	for index, label in rack.slotLabels do
+		local item = data.drying[index]
+		local billboard = label.Parent :: BillboardGui
+		billboard.Enabled = item ~= nil
+		if item then
+			label.Text = slotText(item, now)
+		end
+		local pad = rack.pads[index]
+		if pad then
+			pad.Color = if not item then PAD_EMPTY elseif item.g then PAD_GOLD else PAD_FULL
 		end
 	end
 	local count = #data.drying
@@ -392,10 +466,16 @@ function DryingService.start(rackInfos: { { id: number, model: Model } }, servic
 			continue
 		end
 		local slots: { Attachment } = {}
+		local pads: { BasePart? } = {}
+		local slotLabels: { TextLabel } = {}
 		for i = 1, Config.Drying.slots do
 			local slot = model:FindFirstChild("Slot" .. i, true)
 			if slot and slot:IsA("Attachment") then
 				table.insert(slots, slot)
+				-- Płytka stanowiska to część, w której siedzi Attachment (własne modele mogą jej nie mieć)
+				local pad = slot.Parent
+				pads[#slots] = if pad and pad:IsA("BasePart") and string.find(pad.Name, "^Pad") then pad else nil
+				table.insert(slotLabels, buildSlotLabel(slot))
 			end
 		end
 		local visuals = Instance.new("Folder")
@@ -415,6 +495,8 @@ function DryingService.start(rackInfos: { { id: number, model: Model } }, servic
 			model = model,
 			hub = hub,
 			slots = slots,
+			pads = pads,
+			slotLabels = slotLabels,
 			visuals = visuals,
 			label = buildLabel(hub),
 			owner = nil,
