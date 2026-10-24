@@ -52,7 +52,7 @@ rojo build -o lantern-forager.rbxlx
 - **Grzyby** są osobne dla każdego gracza (nikt nikomu nie wyzbiera), odrastają po 90 s, 3% szans na złotą mutację (×3 wartości).
 - W **Gęstwinie i Jarze** widać tylko grzyby w zasięgu latarni. Złote i Świecący Muchomor widać zawsze, jako przynętę.
 - **Chatka**: panel sprzedaży i 4 ulepszeń (latarnia, zbiornik oleju, koszyk, buty).
-- **Sterowanie**: przycisk ZBIERZ nad przyciskiem skoku na telefonie, `E` na klawiaturze, `X` na padzie.
+- **Sterowanie**: przycisk ZBIERZ obok przycisku skoku na telefonie, `E` na klawiaturze, `X` na padzie.
 - **Język**: domyślnie z ustawień konta, przycisk w prawym górnym rogu przełącza EN/PL.
 
 Serwer jest jedynym źródłem prawdy: klient tylko prosi („zbierz ten grzyb”), a serwer sprawdza odległość, pojemność koszyka, strefę i monety.

@@ -37,6 +37,7 @@ type Session = {
 local TICK_SECONDS = 0.2
 local AUTOSAVE_SECONDS = 120
 local ACTION_COOLDOWN = 0.3
+local LANTERN_ATTACHMENT = "LanternAttachment" -- klient szuka światła pod tą nazwą (migotanie przy końcu oleju)
 
 local StateUpdate = Remotes.get("StateUpdate")
 local MushroomSync = Remotes.get("MushroomSync")
@@ -136,7 +137,17 @@ local function applyCharacterStats(session: Session)
 	end
 	local root = getRoot(session.player)
 	if root then
-		local existing = root:FindFirstChild("Lantern")
+		-- Światło wisi przed głową, a nie w środku postaci. Gdy było w HumanoidRootPart,
+		-- ręce i nogi rzucały cienie na ziemię przy każdym kroku i obraz migotał.
+		local attachment = root:FindFirstChild(LANTERN_ATTACHMENT)
+		if not (attachment and attachment:IsA("Attachment")) then
+			local newAttachment = Instance.new("Attachment")
+			newAttachment.Name = LANTERN_ATTACHMENT
+			newAttachment.Position = Vector3.new(0, 2.2, -1.6)
+			newAttachment.Parent = root
+			attachment = newAttachment
+		end
+		local existing = (attachment :: Attachment):FindFirstChild("Lantern")
 		local lantern: PointLight
 		if existing and existing:IsA("PointLight") then
 			lantern = existing
@@ -146,7 +157,7 @@ local function applyCharacterStats(session: Session)
 			lantern.Color = Color3.fromRGB(255, 205, 140)
 			lantern.Brightness = 2
 			lantern.Shadows = true
-			lantern.Parent = root
+			lantern.Parent = attachment
 		end
 		lantern.Range = math.min(stat(session, "lantern"), 60) -- 60 to limit Robloxa dla PointLight
 	end
@@ -167,20 +178,6 @@ local function engulf(session: Session)
 	end
 	session.zone = 1
 	notify(session, "MSG_ENGULFED", { lost })
-end
-
-local function updateLanternFlicker(session: Session)
-	local root = getRoot(session.player)
-	local lantern = root and root:FindFirstChild("Lantern")
-	if lantern and lantern:IsA("PointLight") then
-		local fraction = session.oil / stat(session, "oil")
-		if fraction < Config.OilLowFraction then
-			-- Im mniej oleju, tym słabsze i bardziej nierówne światło
-			lantern.Brightness = 0.4 + fraction * 4 + session.rng:NextNumber() * 0.6
-		else
-			lantern.Brightness = 2
-		end
-	end
 end
 
 local function tick(step: number)
@@ -204,7 +201,6 @@ local function tick(step: number)
 					engulf(session)
 				end
 			end
-			updateLanternFlicker(session)
 		end
 		syncReadySpots(session, now)
 		pushState(session)

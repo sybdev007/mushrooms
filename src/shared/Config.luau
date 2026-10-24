@@ -91,6 +91,8 @@ Config.GoldenMultiplier = 3
 
 Config.EngulfLossFraction = 0.5 -- jaką część koszyka zabiera las, gdy zgaśnie latarnia
 
+Config.StartingCoins = 0
+
 Config.SpotSeed = 2026 -- ziarno losowania miejsc na grzyby (stała mapa)
 
 Config.Species = {

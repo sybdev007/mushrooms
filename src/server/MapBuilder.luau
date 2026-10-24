@@ -50,7 +50,7 @@ local function buildCabin(parent: Instance)
 	local wallColor = Color3.fromRGB(120, 85, 55)
 
 	part({ Name = "Floor", Size = Vector3.new(36, 1, 28), Position = Vector3.new(0, 0.5, -24), Color = floorColor, Parent = cabin })
-	part({ Name = "BackWall", Size = Vector3.new(36, 14, 1), Position = Vector3.new(0, 8, -38), Color = wallColor, Parent = cabin })
+	part({ Name = "BackWall", Size = Vector3.new(35, 14, 1), Position = Vector3.new(0, 8, -38), Color = wallColor, Parent = cabin })
 	part({ Name = "LeftWall", Size = Vector3.new(1, 14, 28), Position = Vector3.new(-18, 8, -24), Color = wallColor, Parent = cabin })
 	part({ Name = "RightWall", Size = Vector3.new(1, 14, 28), Position = Vector3.new(18, 8, -24), Color = wallColor, Parent = cabin })
 	part({
@@ -88,7 +88,6 @@ local function buildTree(parent: Instance, position: Vector3, rng: Random, darkn
 		Size = Vector3.new(height, rng:NextNumber(1.6, 2.6), rng:NextNumber(1.6, 2.6)),
 		CFrame = CFrame.new(position + Vector3.new(0, height / 2, 0)) * CFrame.Angles(0, 0, math.rad(90)),
 		Color = Color3.fromRGB(90, 65, 45),
-		Material = Enum.Material.Wood,
 		Parent = parent,
 	})
 	trunk.CastShadow = true
@@ -101,7 +100,6 @@ local function buildTree(parent: Instance, position: Vector3, rng: Random, darkn
 		Size = Vector3.new(crownSize, crownSize, crownSize),
 		Position = position + Vector3.new(0, height + crownSize * 0.25, 0),
 		Color = leafColor,
-		Material = Enum.Material.Grass,
 		CanCollide = false,
 		Parent = parent,
 	})
@@ -119,7 +117,6 @@ local function buildForest(parent: Instance): { Spot }
 			Size = Vector3.new(halfWidth * 2, 2, length),
 			Position = Vector3.new(0, -1, zone.startZ + length / 2),
 			Color = ZONE_GROUND_COLORS[zoneIndex] or Color3.fromRGB(60, 60, 60),
-			Material = Enum.Material.Grass,
 			Parent = parent,
 		})
 

@@ -102,6 +102,10 @@ function DataService.load(player: Player): (Data, boolean)
 			return reconcile(result), true
 		end
 		warn(string.format("[DataService] Wczytanie %s nieudane (próba %d): %s", player.Name, attempt, tostring(result)))
+		-- Brak dostępu do API w Studio (błąd 403) nie minie od ponawiania, a gracz czekałby kilka sekund
+		if string.find(tostring(result), "403", 1, true) then
+			break
+		end
 		task.wait(attempt)
 	end
 	return DataService.defaultData(), false

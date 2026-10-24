@@ -1,6 +1,6 @@
 --!strict
 -- Interfejs budowany kodem, projektowany najpierw pod telefon:
--- duży przycisk ZBIERZ nad przyciskiem skoku, panel chatki na dole ekranu.
+-- duży przycisk ZBIERZ obok przycisku skoku, panel chatki na dole ekranu.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -62,6 +62,7 @@ local function label(name: string, parent: Instance, size: UDim2, position: UDim
 	l.TextColor3 = COLORS.text
 	l.Font = FONT
 	l.TextScaled = true
+	l.Text = ""
 	l.Parent = parent
 	corner(l)
 	local constraint = Instance.new("UITextSizeConstraint")
@@ -158,13 +159,15 @@ oilText.TextStrokeTransparency = 0.4
 oilText.Font = FONT
 oilText.TextScaled = true
 oilText.ZIndex = 2
+oilText.Text = ""
 oilText.Parent = oilBack
 local oilTextConstraint = Instance.new("UITextSizeConstraint")
 oilTextConstraint.MaxTextSize = 16
 oilTextConstraint.Parent = oilText
 
--- Przycisk ZBIERZ: nad mobilnym przyciskiem skoku, żeby się nie nakładały
-local pickButton = button("Pick", gui, UDim2.new(0, 110, 0, 110), UDim2.new(1, -24, 1, -190), Vector2.new(1, 1))
+-- Przycisk ZBIERZ: na lewo od mobilnego przycisku skoku. Skok na dużych ekranach zajmuje
+-- ok. 50-170 px od prawej i 90-210 px od dołu, więc stajemy obok, a nie nad nim.
+local pickButton = button("Pick", gui, UDim2.new(0, 110, 0, 110), UDim2.new(1, -190, 1, -40), Vector2.new(1, 1))
 pickButton.BackgroundColor3 = COLORS.pick
 corner(pickButton, UDim.new(0.5, 0))
 local pickStroke = Instance.new("UIStroke")
@@ -194,6 +197,7 @@ panelPadding.PaddingBottom = UDim.new(0, 8)
 panelPadding.Parent = cabinPanel
 
 local sellButton = button("Sell", cabinPanel, UDim2.new(1, 0, 0, 46), UDim2.new(0, 0, 0, 0))
+sellButton.Text = ""
 sellButton.BackgroundColor3 = Color3.fromRGB(180, 120, 40)
 
 local grid = Instance.new("Frame")
@@ -211,6 +215,7 @@ gridLayout.Parent = grid
 local upgradeButtons: { [string]: TextButton } = {}
 for order, id in Config.UpgradeOrder do
 	local b = button("Upgrade_" .. id, grid, UDim2.new(), UDim2.new())
+	b.Text = "" -- zanim przyjdzie stan z serwera, zamiast domyślnego „Button”
 	b.LayoutOrder = order
 	upgradeButtons[id] = b
 	b.Activated:Connect(function()

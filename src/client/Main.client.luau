@@ -23,12 +23,34 @@ local SellBasket = Remotes.get("SellBasket")
 local BuyUpgrade = Remotes.get("BuyUpgrade")
 
 local lanternRange = Economy.upgradeStat("lantern", 0)
+local oilFraction = 1
 local targetId: string? = nil
+
+local LANTERN_BRIGHTNESS = 2
 
 Remotes.get("StateUpdate").OnClientEvent:Connect(function(state)
 	lanternRange = state.lanternRange
+	oilFraction = if state.oilMax > 0 then math.clamp(state.oil / state.oilMax, 0, 1) else 1
 	Hud.update(state)
 end)
+
+-- Gdy kończy się olej, własna latarnia słabnie i płynnie drga (szum, a nie losowe skoki,
+-- które wyglądały jak stroboskop). Liczone lokalnie, więc nie obciąża sieci.
+local function updateLanternFlicker(root: BasePart, time: number)
+	local attachment = root:FindFirstChild("LanternAttachment")
+	local lantern = attachment and attachment:FindFirstChild("Lantern")
+	if not (lantern and lantern:IsA("PointLight")) then
+		return
+	end
+	local low = Config.OilLowFraction
+	if oilFraction >= low then
+		lantern.Brightness = LANTERN_BRIGHTNESS
+		return
+	end
+	local strength = 0.35 + 0.65 * (oilFraction / low)
+	local wobble = 0.85 + 0.15 * math.noise(time * 4, 0.5)
+	lantern.Brightness = LANTERN_BRIGHTNESS * strength * wobble
+end
 
 Remotes.get("MushroomSync").OnClientEvent:Connect(function(list)
 	MushroomView.add(list)
@@ -85,6 +107,7 @@ RunService.RenderStepped:Connect(function(dt)
 	local zoneDef = Config.Zones[zone]
 
 	Atmosphere.update(zone, lanternRange, dt)
+	updateLanternFlicker(root, os.clock())
 	MushroomView.updateVisibility(position, lanternRange, zoneDef.darkness)
 
 	if zone == 1 then
