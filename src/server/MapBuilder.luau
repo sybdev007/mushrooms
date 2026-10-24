@@ -232,6 +232,13 @@ function MapBuilder.build(): MapInfo
 		existing:Destroy()
 	end
 
+	-- Domyślna płyta z szablonu Baseplate leży na tej samej wysokości co nasza ziemia (y = 0).
+	-- Dwie powierzchnie w jednym miejscu walczą o widoczność i tekstury migoczą.
+	local baseplate = Workspace:FindFirstChild("Baseplate")
+	if baseplate and baseplate:IsA("BasePart") then
+		baseplate:Destroy()
+	end
+
 	local map = Instance.new("Folder")
 	map.Name = "Map"
 
