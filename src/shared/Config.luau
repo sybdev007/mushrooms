@@ -89,7 +89,7 @@ Config.RespawnSeconds = 90 -- po ilu sekundach grzyb odrasta w tym samym miejscu
 Config.GoldenChance = 0.03 -- szansa na złotą mutację
 Config.GoldenMultiplier = 3
 
-Config.EngulfLossFraction = 0.5 -- jaką część koszyka zabiera las, gdy zgaśnie latarnia
+Config.EngulfLossFraction = 1 -- jaką część koszyka zabiera las, gdy zgaśnie latarnia (1 = wszystko)
 
 Config.StartingCoins = 0
 

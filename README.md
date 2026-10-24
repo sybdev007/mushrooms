@@ -48,7 +48,7 @@ rojo build -o lantern-forager.rbxlx
 
 - **Strefy** ciągną się wzdłuż osi +Z: Chatka → Skraj lasu → Gęstwina → Mroczny Jar. Na granicach stoją świecące słupki.
 - **Olej** spada w lesie (im głębiej, tym szybciej) i sam się uzupełnia w chatce. Poniżej 25% latarnia migocze.
-- **Latarnia zgaśnie** → ekran ciemnieje, gracz wraca do chatki i traci połowę koszyka.
+- **Latarnia zgaśnie** → ekran ciemnieje, gracz wraca do chatki i traci wszystkie grzyby z koszyka.
 - **Grzyby** są osobne dla każdego gracza (nikt nikomu nie wyzbiera), odrastają po 90 s, 3% szans na złotą mutację (×3 wartości).
 - W **Gęstwinie i Jarze** widać tylko grzyby w zasięgu latarni. Złote i Świecący Muchomor widać zawsze, jako przynętę.
 - **Chatka**: panel sprzedaży i 4 ulepszeń (latarnia, zbiornik oleju, koszyk, buty).
