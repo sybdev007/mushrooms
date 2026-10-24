@@ -1,0 +1,36 @@
+Key,Source,Context,Example,pl
+HUD_COINS,Coins: {1},,,Monety: {1}
+HUD_OIL,Lantern oil,,,Olej w latarni
+HUD_BASKET,Basket {1}/{2},,,Koszyk {1}/{2}
+HUD_PICK,PICK,,,ZBIERZ
+HUD_SELL,Sell basket (+{1}),,,Sprzedaj koszyk (+{1})
+HUD_SELL_EMPTY,Basket is empty,,,Koszyk jest pusty
+HUD_LEVEL,Lv. {1},,,Poz. {1}
+HUD_COST,Cost: {1},,,Koszt: {1}
+HUD_MAX,MAX,,,MAKS
+HUD_LANGUAGE,PL,,,EN
+UPG_LANTERN,Lantern,,,Latarnia
+UPG_OIL,Oil tank,,,Zbiornik oleju
+UPG_BASKET,Basket,,,Koszyk
+UPG_BOOTS,Boots,,,Buty
+ZONE_CABIN,Cabin,,,Chatka
+ZONE_EDGE,Forest Edge,,,Skraj lasu
+ZONE_THICKET,Thicket,,,Gęstwina
+ZONE_RAVINE,Dark Ravine,,,Mroczny Jar
+MUSH_HONEY,Honey Fungus,,,Opieńka
+MUSH_CHANTERELLE,Chanterelle,,,Kurka
+MUSH_SLIPPERY_JACK,Slippery Jack,,,Maślak
+MUSH_BAY_BOLETE,Bay Bolete,,,Podgrzybek
+MUSH_PARASOL,Parasol,,,Kania
+MUSH_SAFFRON,Saffron Milk Cap,,,Rydz
+MUSH_ASPEN,Red Aspen Bolete,,,Koźlarz czerwony
+MUSH_PORCINI,Porcini,,,Borowik
+MUSH_GLOWING,Glowing Fly Agaric,,,Świecący Muchomor
+MSG_ENGULFED,The forest swallowed you... Mushrooms lost: {1},,,Las cię pochłonął... Utracone grzyby: {1}
+MSG_BASKET_FULL,Basket full! Go back to the cabin.,,,Koszyk pełny! Wracaj do chatki.
+MSG_OIL_LOW,Your lantern is flickering!,,,Twoja latarnia zaczyna migać!
+MSG_GOLDEN,Golden mutation: {1}!,,,Złota mutacja: {1}!
+MSG_SOLD,Sold! Coins: +{1},,,Sprzedane! Monety: +{1}
+MSG_NOT_ENOUGH,Not enough coins.,,,Za mało monet.
+MSG_UPGRADED,Upgraded: {1}!,,,Ulepszono: {1}!
+MSG_NO_SAVE,Progress is not being saved in this session.,,,Postęp nie jest zapisywany w tej sesji.
