@@ -26,7 +26,7 @@ MUSH_SAFFRON,Saffron Milk Cap,,,Rydz
 MUSH_ASPEN,Red Aspen Bolete,,,Koźlarz czerwony
 MUSH_PORCINI,Porcini,,,Borowik
 MUSH_GLOWING,Glowing Fly Agaric,,,Świecący Muchomor
-MSG_ENGULFED,The forest swallowed you! Mushrooms lost: {1},,,Las cię pochłonął... Utracone grzyby: {1}
+MSG_ENGULFED,Mushrooms lost: {1},,,Utracone grzyby: {1}
 MSG_BASKET_FULL,Basket full! Head back to the cabin.,,,Koszyk pełny! Wracaj do chatki.
 MSG_OIL_LOW,Your lantern is running low on oil!,,,Kończy się olej w latarni!
 MSG_GOLDEN,Golden {1}!,,,Złota mutacja: {1}!
@@ -34,3 +34,12 @@ MSG_SOLD,Sold for {1} coins!,,,Sprzedane! Monety: +{1}
 MSG_NOT_ENOUGH,Not enough coins.,,,Za mało monet.
 MSG_UPGRADED,{1} upgraded!,,,Ulepszono: {1}!
 MSG_NO_SAVE,Progress won't be saved in this session.,,,Postęp nie jest zapisywany w tej sesji.
+HUD_LEVEL_OF,Lv {1}/{2},,,Poz. {1}/{2}
+HUD_TURN_BACK,Head back to the cabin!,,,Wracaj do chatki!
+HUD_DISTANCE,{1} m to the cabin,,,{1} m do chatki
+UPG_LANTERN_DESC,Bigger circle of light,,,Większy krąg światła
+UPG_OIL_DESC,Longer trips,,,Dłuższe wyprawy
+UPG_BASKET_DESC,Carry more mushrooms,,,Więcej grzybów naraz
+UPG_BOOTS_DESC,Walk faster,,,Szybszy chód
+ENGULF_TITLE,The forest swallowed you...,,,Las cię pochłonął...
+MSG_OIL_HALF,Half your oil is gone. Mind the way back!,,,Połowa oleju za tobą. Pamiętaj o powrocie!

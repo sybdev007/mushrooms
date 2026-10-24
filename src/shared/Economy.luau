@@ -100,6 +100,32 @@ function Economy.basketValue(basket: { BasketItem }): number
 	return sum
 end
 
+-- Ile oleju zużyje powrót prosto do chatki z pozycji z przy danej prędkości chodu.
+-- Liczy każdą strefę osobno, bo im głębiej, tym szybciej pali się olej.
+function Economy.returnOilNeeded(z: number, speed: number): number
+	if speed <= 0 then
+		return math.huge
+	end
+	local zones = Config.Zones
+	local current = Economy.zoneIndexAt(z)
+	local oil = 0
+	for index = current, 2, -1 do
+		local zone = zones[index]
+		local from = if index == current then math.min(z, zone.endZ) else zone.endZ
+		local distance = math.max(from - zone.startZ, 0)
+		oil += distance / speed * zone.oilDrain
+	end
+	return oil
+end
+
+-- Czy już czas wracać: olej na powrót z zapasem przekracza to, co zostało w latarni
+function Economy.shouldTurnBack(z: number, speed: number, oil: number): boolean
+	if Economy.zoneIndexAt(z) == 1 then
+		return false
+	end
+	return Economy.returnOilNeeded(z, speed) * Config.ReturnMargin >= oil
+end
+
 -- Ile grzybów las zabiera z koszyka, gdy zgaśnie latarnia
 function Economy.engulfLoss(count: number): number
 	return math.floor(count * Config.EngulfLossFraction)

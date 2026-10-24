@@ -183,6 +183,31 @@ test("z pełnymi ulepszeniami da się przejść cały las", function()
 	check(roundTripOil(#Config.Zones, speed) < oil, "las za długi nawet na maks.")
 end)
 
+print("Powrót do chatki")
+test("returnOilNeeded: zero w chatce, rośnie z głębokością", function()
+	eq(Economy.returnOilNeeded(0, 16), 0, "chatka")
+	eq(Economy.returnOilNeeded(40, 16), 0, "granica lasu")
+	-- 80 studs w skraju (1.0/s) przy 16 studs/s = 5 oleju
+	eq(Economy.returnOilNeeded(120, 16), 5, "skraj lasu")
+	-- cała gęstwina 140 studs * 1.8 / 16 = 15.75 + cały skraj 120/16 = 7.5
+	eq(Economy.returnOilNeeded(300, 16), 23.25, "koniec gęstwiny")
+	check(Economy.returnOilNeeded(400, 16) > Economy.returnOilNeeded(300, 16), "jar droższy niż gęstwina")
+	check(Economy.returnOilNeeded(200, 28) < Economy.returnOilNeeded(200, 16), "szybsze buty = mniej oleju")
+end)
+
+test("shouldTurnBack: nigdy w chatce, ostrzega z zapasem", function()
+	eq(Economy.shouldTurnBack(-20, 16, 0), false, "chatka, nawet bez oleju")
+	local need = Economy.returnOilNeeded(120, 16)
+	eq(Economy.shouldTurnBack(120, 16, need * 2), false, "dużo oleju")
+	eq(Economy.shouldTurnBack(120, 16, need * Config.ReturnMargin - 0.01), true, "olej ledwo na powrót z zapasem")
+	eq(Economy.shouldTurnBack(120, 16, need), true, "olej dokładnie na powrót")
+end)
+
+test("progi ostrzeżeń są w dobrej kolejności", function()
+	check(Config.OilWarnFraction > Config.OilLowFraction, "50% przed 25%")
+	check(Config.ReturnMargin > 1, "zapas na powrót > 1")
+end)
+
 print("Tłumaczenia")
 local csvKeys: { [string]: boolean } = {}
 do
@@ -213,19 +238,25 @@ test("każdy klucz z Config jest w CSV", function()
 	end
 	for _, def in Config.Upgrades do
 		check(csvKeys[def.key], "brak " .. def.key)
+		check(csvKeys[def.key .. "_DESC"], "brak opisu " .. def.key .. "_DESC")
 	end
 end)
 
-test("każdy klucz HUD_/MSG_ użyty w kodzie jest w CSV", function()
+test("każdy klucz HUD_/MSG_/ENGULF_/ZONE_ użyty w kodzie jest w CSV", function()
 	local files = {
 		"src/server/GameService.luau",
 		"src/client/Hud.luau",
 		"src/client/Main.client.luau",
+		"src/client/Warnings.luau",
+		"src/client/Signs.luau",
+		"src/server/World/Props.luau",
+		"src/server/World/Cabin.luau",
 	}
 	for _, path in files do
 		local source = fs.readFile(path)
 		for key in string.gmatch(source, '"((%u+)_[%u_]+)"') do
-			if string.sub(key, 1, 4) == "HUD_" or string.sub(key, 1, 4) == "MSG_" then
+			local prefix = string.match(key, "^(%u+)_")
+			if prefix == "HUD" or prefix == "MSG" or prefix == "ENGULF" or prefix == "ZONE" then
 				check(csvKeys[key], path .. ": brak " .. key)
 			end
 		end
@@ -314,6 +345,35 @@ test("nieobsługiwany język gracza = angielski, nieznany klucz = klucz", functi
 	eq(Localize.getLocale(), "en", "niemiecki")
 	eq(Localize.t("NIE_MA_TAKIEGO"), "NIE_MA_TAKIEGO")
 	eq(Localize.t("HUD_COINS"), "Coins: {1}", "brak argumentu zostaje widoczny")
+end)
+
+print("Skala interfejsu (UiScale.luau)")
+
+local UiScale = loadModule("src/client/UiScale.luau", {
+	game = {
+		GetService = function(_, name)
+			return { Name = name }
+		end,
+	},
+})
+
+local function size(x: number, y: number)
+	return { X = x, Y = y }
+end
+
+test("pełna skala na komputerze, mniejsza na telefonie, z dolną granicą", function()
+	eq(UiScale.compute(size(1920, 1080)), 1, "Full HD")
+	eq(UiScale.compute(size(1000, 560)), 1, "rozmiar projektowy")
+	local phone = UiScale.compute(size(705, 338))
+	assert(phone > 0.59 and phone < 0.61, "Galaxy A06: " .. phone)
+	eq(UiScale.compute(size(300, 150)), 0.55, "dolna granica")
+end)
+
+test("mały ekran = krótszy bok do 500 px (wtedy Roblox daje mały przycisk skoku)", function()
+	eq(UiScale.isSmallScreen(size(705, 338)), true, "telefon poziomo")
+	eq(UiScale.isSmallScreen(size(338, 705)), true, "telefon pionowo")
+	eq(UiScale.isSmallScreen(size(1376, 1012)), false, "tablet")
+	eq(UiScale.isSmallScreen(size(1920, 1080)), false, "komputer")
 end)
 
 print(string.format("\n%d ok, %d błędów", passed, failed))

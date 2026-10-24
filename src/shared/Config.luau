@@ -79,7 +79,10 @@ Config.Zones = {
 
 Config.ForestHalfWidth = 70 -- las ma szerokość 2 * 70 studs
 Config.OilRefillPerSecond = 25 -- tankowanie latarni w chatce
-Config.OilLowFraction = 0.25 -- poniżej tego progu gracz dostaje ostrzeżenie
+Config.OilWarnFraction = 0.5 -- pierwsze, spokojne ostrzeżenie: połowa oleju za tobą
+Config.OilLowFraction = 0.25 -- pilne ostrzeżenie: latarnia zaczyna migać
+-- „Wracaj teraz”: olej potrzebny na drogę do chatki × ten zapas >= olej w latarni
+Config.ReturnMargin = 1.3
 
 Config.PickRadiusClient = 8 -- z jakiej odległości klient podświetla grzyb
 Config.PickRadiusServer = 12 -- serwer jest łagodniejszy przez opóźnienie sieci

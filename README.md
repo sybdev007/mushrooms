@@ -1,9 +1,10 @@
 # Lantern Forager (nazwa robocza)
 
-Grzybobranie z latarnią w ciemnym lesie. Szary prototyp pętli:
+Grzybobranie z latarnią w ciemnym lesie. Pętla:
 **wchodzisz do lasu → zbierasz grzyby → wracasz, zanim zgaśnie latarnia → sprzedajesz → ulepszasz → idziesz głębiej.**
 
-Wszystko jest z klocków. Celem tej wersji jest sprawdzenie, czy sama pętla wciąga, zanim wydamy czas na modele.
+Świat jest kreskówkowym low-poly budowanym kodem (bez importowanych modeli): chatka z bali, jesienny las,
+ścieżka z latarniami, bramy stref, świecące grzyby, świetliki i mgła. Działa od razu po `rojo serve`.
 
 ## Start (raz na komputer)
 
@@ -34,26 +35,39 @@ rojo build -o lantern-forager.rbxlx
 | `src/shared/Config.luau` | ReplicatedStorage.Shared | **Cały balans**: strefy, grzyby, ceny, ulepszenia |
 | `src/shared/Economy.luau` | ReplicatedStorage.Shared | Czyste funkcje: koszty, losowanie gatunku, wartość koszyka |
 | `src/shared/Remotes.luau` | ReplicatedStorage.Shared | Nazwy RemoteEventów |
-| `src/server/MapBuilder.luau` | ServerScriptService.Server | Buduje szarą mapę: chatka + 3 strefy lasu |
+| `src/shared/Sounds.luau` | ReplicatedStorage.Shared | ID dźwięków (sprawdzone, że się ładują) |
+| `src/server/MapBuilder.luau` | ServerScriptService.Server | Rozkłada las: drzewa, krzaki, ścieżkę, bramy, miejsca na grzyby |
+| `src/server/World/Cabin.luau` | ServerScriptService.Server | Chatka z bali z gankiem, kominkiem, ladą i suszarką |
+| `src/server/World/Props.luau` | ServerScriptService.Server | Klocki świata: sosny, brzozy, dęby, kamienie, latarnie, tabliczki |
+| `src/server/World/Palette.luau` | ServerScriptService.Server | Wszystkie kolory świata w jednym miejscu |
 | `src/server/DataService.luau` | ServerScriptService.Server | Zapis postępu (DataStore) |
 | `src/server/GameService.luau` | ServerScriptService.Server | Olej, zbieranie, sprzedaż, ulepszenia, „las cię pochłania” |
-| `src/client/Hud.luau` | StarterPlayerScripts.Client | Interfejs pod telefon |
+| `src/client/Hud.luau` | StarterPlayerScripts.Client | Interfejs pod telefon, deszcz monet po sprzedaży |
+| `src/client/UiScale.luau` | StarterPlayerScripts.Client | Skala interfejsu zależna od ekranu |
 | `src/client/MushroomView.luau` | StarterPlayerScripts.Client | Rysowanie grzybów (każdy gracz ma własne) |
-| `src/client/Atmosphere.luau` | StarterPlayerScripts.Client | Mrok i mgła zależne od strefy |
+| `src/client/Atmosphere.luau` | StarterPlayerScripts.Client | Mrok, mgła, kolory i niebo zależne od strefy |
+| `src/client/Effects.luau` | StarterPlayerScripts.Client | Dźwięki, świetliki, iskry i „+N” przy zbieraniu, pierścień ulepszenia |
+| `src/client/Warnings.luau` | StarterPlayerScripts.Client | Czerwona winieta, baner „Wracaj!” ze strzałką, oczy Leszego |
+| `src/client/Signs.luau` | StarterPlayerScripts.Client | Napisy na tabliczkach w języku gracza |
 | `src/client/Localize.luau` | StarterPlayerScripts.Client | Tłumaczenia EN/PL |
 | `src/localization/GameStrings.csv` | LocalizationService | Wszystkie teksty po angielsku i polsku |
 | `tests/economy.spec.luau` | — | Testy logiki i balansu (Lune) |
 
 ## Jak działa prototyp
 
-- **Strefy** ciągną się wzdłuż osi +Z: Chatka → Skraj lasu → Gęstwina → Mroczny Jar. Na granicach stoją świecące słupki.
-- **Olej** spada w lesie (im głębiej, tym szybciej) i sam się uzupełnia w chatce. Poniżej 25% latarnia migocze.
+- **Strefy** ciągną się wzdłuż osi +Z: Chatka → Skraj lasu → Gęstwina → Mroczny Jar. Na granicach stoją bramy z tabliczkami.
+- **Olej** spada w lesie (im głębiej, tym szybciej) i sam się uzupełnia w chatce.
+- **Ostrzeżenia**: przy 50% oleju komunikat, przy 25% latarnia migocze, pasek pulsuje, słychać serce, a brzegi ekranu czerwienieją.
+  Niezależnie od procentów baner **„Wracaj do chatki!”** ze strzałką i odległością pojawia się, gdy oleju zostaje
+  tyle, ile potrzeba na powrót (z 30% zapasu, `Config.ReturnMargin`). Liczy to `Economy.shouldTurnBack`.
+- Gdy olej prawie się kończy w Gęstwinie lub Jarze, z ciemności patrzą **czerwone oczy Leszego**.
 - **Latarnia zgaśnie** → ekran ciemnieje, gracz wraca do chatki i traci wszystkie grzyby z koszyka.
 - **Grzyby** są osobne dla każdego gracza (nikt nikomu nie wyzbiera), odrastają po 90 s, 3% szans na złotą mutację (×3 wartości).
 - W **Gęstwinie i Jarze** widać tylko grzyby w zasięgu latarni. Złote i Świecący Muchomor widać zawsze, jako przynętę.
 - **Chatka**: panel sprzedaży i 4 ulepszeń (latarnia, zbiornik oleju, koszyk, buty).
 - **Sterowanie**: przycisk ZBIERZ obok przycisku skoku na telefonie, `E` na klawiaturze, `X` na padzie.
-- **Język**: domyślnie z ustawień konta, przycisk w prawym górnym rogu przełącza EN/PL.
+- **Język**: domyślnie z ustawień konta, przycisk pod licznikiem monet przełącza EN/PL (także napisy na tabliczkach).
+- **Lista graczy** pokazuje monety wszystkich na serwerze (kolumna 💰).
 
 Serwer jest jedynym źródłem prawdy: klient tylko prosi („zbierz ten grzyb”), a serwer sprawdza odległość, pojemność koszyka, strefę i monety.
 
@@ -85,6 +99,7 @@ Granice stref nadal wynikają z osi Z w `Config.Zones`.
 ## Co dalej (kolejność do ustalenia)
 
 1. **Zagrać 15 minut na telefonie** i sprawdzić, czy chce się zrobić „jeszcze jedno wejście”.
+   Mapa ma ok. 7 tys. części; jeśli słabszy telefon klatkuje, pierwsze do odchudzenia są rzędy sosen na brzegach.
 2. Suszarnia w chatce (dochód pasywny, powód do powrotu za kilka godzin).
 3. Wysyp i pogoda wspólna dla wszystkich serwerów, z prognozą na tablicy w chatce.
 4. Atlas grzybów (`data.atlas` już zapisuje odkryte gatunki).

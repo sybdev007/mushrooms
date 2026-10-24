@@ -28,6 +28,7 @@ type Session = {
 	oil: number,
 	zone: number,
 	oilWarned: boolean,
+	oilHalfWarned: boolean,
 	lastPick: number,
 	lastAction: number,
 	rng: Random,
@@ -81,8 +82,15 @@ local function notify(session: Session, key: string, args: { any }?, nameKey: st
 	Notify:FireClient(session.player, { key = key, args = args, nameKey = nameKey })
 end
 
+local LEADERSTAT_COINS = "💰" -- kolumna na liście graczy; emoji, żeby działała w obu językach
+
 local function pushState(session: Session)
 	local data = session.data
+	local leaderstats = session.player:FindFirstChild("leaderstats")
+	local coinsStat = leaderstats and leaderstats:FindFirstChild(LEADERSTAT_COINS)
+	if coinsStat and coinsStat:IsA("IntValue") then
+		coinsStat.Value = data.coins
+	end
 	StateUpdate:FireClient(session.player, {
 		coins = data.coins,
 		oil = math.max(session.oil, 0),
@@ -126,6 +134,47 @@ local function syncReadySpots(session: Session, now: number)
 	end
 end
 
+-- Latarnia trzymana w prawej ręce (tylko wygląd: światło wisi w LanternAttachment).
+-- Szybka nazywa się "LanternGlass", żeby klient mógł ją przyciemniać przy końcu oleju.
+local function attachHandLantern(character: Model)
+	if character:FindFirstChild("HandLantern") then
+		return
+	end
+	local hand = character:FindFirstChild("RightHand") or character:FindFirstChild("Right Arm")
+	if not (hand and hand:IsA("BasePart")) then
+		return
+	end
+	local model = Instance.new("Model")
+	model.Name = "HandLantern"
+	local isR6 = hand.Name == "Right Arm"
+	local top = hand.CFrame * CFrame.new(0, if isR6 then -1.2 else -0.25, 0)
+	local metal = Color3.fromRGB(52, 50, 48)
+	local function piece(name: string, size: Vector3, offsetY: number, color: Color3, material: Enum.Material?): BasePart
+		local p = Instance.new("Part")
+		p.Name = name
+		p.Size = size
+		p.CFrame = top * CFrame.new(0, offsetY, 0)
+		p.Color = color
+		p.Material = material or Enum.Material.SmoothPlastic
+		p.CanCollide = false
+		p.CanTouch = false
+		p.CanQuery = false
+		p.Massless = true
+		p.CastShadow = false
+		p.Parent = model
+		local weld = Instance.new("WeldConstraint")
+		weld.Part0 = hand
+		weld.Part1 = p
+		weld.Parent = p
+		return p
+	end
+	piece("Handle", Vector3.new(0.08, 0.5, 0.08), -0.25, metal)
+	piece("Cap", Vector3.new(0.75, 0.18, 0.75), -0.55, metal)
+	piece("LanternGlass", Vector3.new(0.55, 0.7, 0.55), -1, Color3.fromRGB(255, 206, 120), Enum.Material.Neon)
+	piece("Base", Vector3.new(0.7, 0.16, 0.7), -1.42, metal)
+	model.Parent = character
+end
+
 local function applyCharacterStats(session: Session)
 	local character = session.player.Character
 	if not character then
@@ -161,6 +210,7 @@ local function applyCharacterStats(session: Session)
 		end
 		lantern.Range = math.min(stat(session, "lantern"), 60) -- 60 to limit Robloxa dla PointLight
 	end
+	attachHandLantern(character)
 end
 
 -- Latarnia zgasła: las zabiera część koszyka i wyrzuca gracza do chatki
@@ -172,6 +222,7 @@ local function engulf(session: Session)
 	end
 	session.oil = stat(session, "oil")
 	session.oilWarned = false
+	session.oilHalfWarned = false
 	local character = session.player.Character
 	if character then
 		character:PivotTo(map.spawnCFrame)
@@ -191,8 +242,13 @@ local function tick(step: number)
 			if zone == 1 then
 				session.oil = math.min(oilMax, session.oil + Config.OilRefillPerSecond * step)
 				session.oilWarned = false
+				session.oilHalfWarned = false
 			else
 				session.oil -= Config.Zones[zone].oilDrain * step
+				if not session.oilHalfWarned and session.oil <= oilMax * Config.OilWarnFraction then
+					session.oilHalfWarned = true
+					notify(session, "MSG_OIL_HALF")
+				end
 				if not session.oilWarned and session.oil <= oilMax * Config.OilLowFraction then
 					session.oilWarned = true
 					notify(session, "MSG_OIL_LOW")
@@ -215,6 +271,7 @@ local function onCharacterAdded(session: Session, character: Model)
 	end
 	session.oil = stat(session, "oil")
 	session.oilWarned = false
+	session.oilHalfWarned = false
 	applyCharacterStats(session)
 	pushState(session)
 end
@@ -232,12 +289,22 @@ local function onPlayerAdded(player: Player)
 		oil = 0,
 		zone = 1,
 		oilWarned = false,
+		oilHalfWarned = false,
 		lastPick = 0,
 		lastAction = 0,
 		rng = Random.new(),
 		spots = {},
 	}
 	session.oil = stat(session, "oil")
+
+	-- Lista graczy w prawym górnym rogu pokazuje monety wszystkich na serwerze
+	local leaderstats = Instance.new("Folder")
+	leaderstats.Name = "leaderstats"
+	local coinsStat = Instance.new("IntValue")
+	coinsStat.Name = LEADERSTAT_COINS
+	coinsStat.Value = data.coins
+	coinsStat.Parent = leaderstats
+	leaderstats.Parent = player
 
 	-- Każdy gracz ma własne grzyby: nikt nikomu nie wyzbiera wysypu
 	for _, spot in map.spots do
