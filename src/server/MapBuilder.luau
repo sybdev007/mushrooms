@@ -16,8 +16,7 @@ local Palette = require(World:WaitForChild("Palette"))
 local Props = require(World:WaitForChild("Props"))
 local Cabin = require(World:WaitForChild("Cabin"))
 local Grove = require(World:WaitForChild("Grove"))
-local Rack = require(World:WaitForChild("Rack"))
-local DryingYard = require(World:WaitForChild("DryingYard"))
+local Garden = require(World:WaitForChild("Garden"))
 
 export type Spot = {
 	id: string,
@@ -104,13 +103,19 @@ local RECIPES: { [number]: Recipe } = {
 	},
 }
 
+-- Promień korony drzewa przy skali 1 (studs). Drzewa stoją tak, żeby korony się nie stykały;
+-- krzaki, paprocie i grzyby mogą rosnąć pod koroną, byle nie w pniu.
+local CANOPY: { [string]: number } = { pine = 5.2, birch = 5, oak = 6.8, deadTree = 4.5 }
+local TRUNK = 1.3
+
 local CLEARING_TREES = 34
 local LANTERN_POSTS_Z = { 8, 30, 52, 74, 96 }
 local PATH_END_Z = 125
 
 -- ===== Pilnowanie, żeby rzeczy na siebie nie nachodziły =====
 
-type Occupant = { x: number, z: number, r: number }
+-- r: zajęty promień (dla drzew: korona), trunk: promień pnia (tylko drzewa)
+type Occupant = { x: number, z: number, r: number, trunk: number? }
 type Rect = { x1: number, x2: number, z1: number, z2: number }
 
 local occupants: { Occupant } = {}
@@ -121,18 +126,30 @@ local function resetSpace()
 	reserved = {}
 end
 
-local function isFree(x: number, z: number, r: number, ignorePath: boolean?): boolean
+-- trunk podany = sprawdzamy drzewo: jego korona (r) nie może wejść na koronę innego drzewa
+-- ani na zarezerwowane miejsca, a do krzaków i grzybów liczy się tylko pień.
+local function isFree(x: number, z: number, r: number, trunk: number?): boolean
 	for _, rect in reserved do
 		if x + r > rect.x1 and x - r < rect.x2 and z + r > rect.z1 and z - r < rect.z2 then
 			return false
 		end
 	end
-	if not ignorePath and z < PATH_END_Z and z > -6 and math.abs(x - Props.pathX(z)) < 2.6 + r then
+	local self = trunk or r
+	if z < PATH_END_Z and z > -6 and math.abs(x - Props.pathX(z)) < 2.6 + self then
 		return false
 	end
 	for _, o in occupants do
 		local dx, dz = o.x - x, o.z - z
-		local min = o.r + r
+		local min
+		if trunk and o.trunk then
+			min = o.r + r -- korona przy koronie
+		elseif o.trunk then
+			min = o.trunk + r -- krzak przy pniu
+		elseif trunk then
+			min = o.r + trunk -- pień przy krzaku albo grzybie
+		else
+			min = o.r + r
+		end
 		if dx * dx + dz * dz < min * min then
 			return false
 		end
@@ -140,8 +157,8 @@ local function isFree(x: number, z: number, r: number, ignorePath: boolean?): bo
 	return true
 end
 
-local function occupy(x: number, z: number, r: number)
-	table.insert(occupants, { x = x, z = z, r = r })
+local function occupy(x: number, z: number, r: number, trunk: number?)
+	table.insert(occupants, { x = x, z = z, r = r, trunk = trunk })
 end
 
 local function pickTree(mix: TreeMix, rng: Random): (string, number)
@@ -168,12 +185,13 @@ local function findSpot(
 	z1: number,
 	z2: number,
 	r: number,
-	accept: ((number, number) -> boolean)?
+	accept: ((number, number) -> boolean)?,
+	trunk: number?
 ): (number?, number?)
 	for _ = 1, 30 do
 		local x = rng:NextNumber(x1, x2)
 		local z = rng:NextNumber(z1, z2)
-		if (not accept or accept(x, z)) and isFree(x, z, r) then
+		if (not accept or accept(x, z)) and isFree(x, z, r, trunk) then
 			return x, z
 		end
 	end
@@ -232,7 +250,9 @@ local function buildWalls(parent: Instance)
 	end
 end
 
--- Gęsty rząd dużych drzew na brzegach mapy: zasłania niewidzialne ściany
+-- Rząd dużych drzew na brzegach mapy: zasłania niewidzialne ściany.
+-- Drzewa stoją korona przy koronie (bez nachodzenia), więc rząd wygląda jak gęsta ściana lasu.
+-- Stawiamy je przed resztą lasu i zajmujemy ich miejsce, żeby las wewnątrz omijał obrzeże.
 local function buildBorder(parent: Instance, rng: Random)
 	local folder = Instance.new("Folder")
 	folder.Name = "Border"
@@ -240,32 +260,59 @@ local function buildBorder(parent: Instance, rng: Random)
 	local first = Config.Zones[1]
 	local last = Config.Zones[#Config.Zones]
 	local function darknessAt(z: number): number
-		return Config.Zones[math.max(2, Economy.zoneIndexAt(z))].darkness
+		return if z < first.endZ then 0.2 else Config.Zones[math.max(2, Economy.zoneIndexAt(z))].darkness
 	end
-	-- Wewnętrzny rząd co ~11 studs, zewnętrzny (za ścianą, większe drzewa) co drugi raz.
-	-- Mniej części = płynniej na telefonach; mgła i tak ukrywa dalsze drzewa.
-	for _, side in { -1, 1 } do
-		local z = first.startZ
-		local i = 0
-		while z < last.endZ do
-			local dark = if z < first.endZ then 0.2 else darknessAt(z)
-			Props.pine(folder, Vector3.new(side * (halfWidth - 3 + rng:NextNumber(-1.5, 1)), 0, z), rng:NextNumber(1.6, 2.1), rng, dark)
-			if i % 2 == 0 then
-				Props.pine(folder, Vector3.new(side * (halfWidth + 7 + rng:NextNumber(-2, 2)), 0, z + 5), rng:NextNumber(2.2, 2.8), rng, dark)
+	local GAP = 0.3
+
+	-- Pnie nie mogą stać w miejscach zarezerwowanych (gniazdo, chatka); korony mogą nad nimi wisieć
+	local function free(x: number, z: number, canopy: number): boolean
+		for _, rect in reserved do
+			if x + TRUNK > rect.x1 and x - TRUNK < rect.x2 and z + TRUNK > rect.z1 and z - TRUNK < rect.z2 then
+				return false
 			end
-			z += rng:NextNumber(10, 12)
-			i += 1
+		end
+		for _, o in occupants do
+			local dx, dz = o.x - x, o.z - z
+			-- Korona nie wchodzi na inne korony; grzyby i krzaki mogą być pod nią
+			local min = if o.trunk then o.r + canopy else o.r + TRUNK
+			if dx * dx + dz * dz < min * min then
+				return false
+			end
+		end
+		return true
+	end
+
+	local function plant(kind: string, x: number, z: number, scale: number, dark: number): boolean
+		local canopy = CANOPY[kind] * scale
+		if not free(x, z, canopy) then
+			return false
+		end
+		TREE_BUILDERS[kind](folder, Vector3.new(x, 0, z), scale, rng, dark)
+		occupy(x, z, canopy, TRUNK * scale)
+		return true
+	end
+
+	-- Przód i tył mapy (w poprzek), potem boki (wzdłuż); narożniki zajmuje ten, kto pierwszy
+	for _, edge in { { z = first.startZ + 3, dead = false }, { z = last.endZ - 3, dead = true } } do
+		local x = -halfWidth + 2
+		while x < halfWidth - 2 do
+			local kind = if edge.dead and rng:NextNumber() < 0.4 then "deadTree" else "pine"
+			local scale = rng:NextNumber(1.5, 1.9)
+			local canopy = CANOPY[kind] * scale
+			plant(kind, x + canopy, edge.z, scale, darknessAt(edge.z))
+			x += canopy * 2 + GAP
 		end
 	end
-	for _, edge in { { z = first.startZ + 3, dark = 0.2 }, { z = last.endZ - 3, dark = 1 } } do
-		local x = -halfWidth
-		while x < halfWidth do
-			if edge.dark >= 1 and rng:NextNumber() < 0.4 then
-				Props.deadTree(folder, Vector3.new(x, 0, edge.z), rng:NextNumber(1.3, 1.7), rng, edge.dark)
+	for _, side in { -1, 1 } do
+		local z = first.startZ
+		while z < last.endZ do
+			local scale = rng:NextNumber(1.5, 1.9)
+			local canopy = CANOPY.pine * scale
+			if plant("pine", side * (halfWidth - 3), z + canopy, scale, darknessAt(z)) then
+				z += canopy * 2 + GAP
 			else
-				Props.pine(folder, Vector3.new(x, 0, edge.z + rng:NextNumber(-1.5, 1.5)), rng:NextNumber(1.6, 2.1), rng, edge.dark)
+				z += 2 -- miejsce zajęte (narożnik): szukamy dalej
 			end
-			x += rng:NextNumber(7, 9)
 		end
 	end
 	folder.Parent = parent
@@ -293,11 +340,14 @@ local function buildZoneDecor(parent: Instance, zoneIndex: number, rng: Random)
 	end
 
 	for _ = 1, treeCount do
-		local x, z = findSpot(rng, -halfWidth, halfWidth, z1, z2, 4.5, accept)
+		-- Najpierw gatunek i rozmiar, bo od nich zależy, ile miejsca zajmuje korona
+		local kind, scale = pickTree(recipe.trees, rng)
+		local canopy = CANOPY[kind] * scale
+		local trunk = TRUNK * scale
+		local x, z = findSpot(rng, -halfWidth, halfWidth, z1, z2, canopy, accept, trunk)
 		if x and z then
-			local kind, scale = pickTree(recipe.trees, rng)
 			TREE_BUILDERS[kind](folder, Vector3.new(x, 0, z), scale, rng, zone.darkness)
-			occupy(x, z, 4.5 * scale)
+			occupy(x, z, canopy, trunk)
 		end
 	end
 
@@ -360,18 +410,31 @@ local function buildGroveSpots(): { Spot }
 	return spots
 end
 
--- Suszarnie na placu, każda przodem do alejki na środku
-local function rackCFrame(plot: { x: number, z: number }): CFrame
-	return CFrame.lookAt(Vector3.new(plot.x, 0, plot.z), Vector3.new(Config.Drying.yard.aisleX, 0, plot.z))
+-- Ogródki graczy po bokach chatki, każdy furtką w stronę środka polany (x = 0)
+local function gardenCFrame(plot: { x: number, z: number }): CFrame
+	return CFrame.lookAt(Vector3.new(plot.x, 0, plot.z), Vector3.new(0, 0, plot.z))
 end
 
-local function buildRacks(parent: Instance): { RackInfo }
+local function reserveGardens()
+	local half = Config.Drying.gardenSize / 2
+	for _, plot in Config.Drying.plots do
+		-- Ogródek z zapasem i miejsce przed furtką (od strony środka polany)
+		local toward = if plot.x < 0 then 1 else -1
+		local x1 = math.min(plot.x - half - 2, plot.x + toward * (half + 7))
+		local x2 = math.max(plot.x + half + 2, plot.x + toward * (half + 7))
+		table.insert(reserved, { x1 = x1, x2 = x2, z1 = plot.z - half - 2, z2 = plot.z + half + 2 })
+	end
+end
+
+local function buildGardens(parent: Instance): { RackInfo }
 	local folder = Instance.new("Folder")
-	folder.Name = "DryingRacks"
+	folder.Name = "Gardens"
+	local rng = Random.new(Config.SpotSeed + 3)
 	local racks: { RackInfo } = {}
 	for index, plot in Config.Drying.plots do
-		local model = Rack.build(folder, rackCFrame(plot), Config.Drying.slots)
+		local model = Garden.build(folder, gardenCFrame(plot), Config.Drying.gardenSize, Config.Drying.slots, rng)
 		model.Name = "DryingRack_" .. index
+		;(model.Parent :: Instance).Name = "Garden_" .. index
 		table.insert(racks, { id = index, model = model })
 	end
 	folder.Parent = parent
@@ -413,7 +476,7 @@ local function readExistingMap(map: Folder): MapInfo?
 			end
 		end
 	else
-		racks = buildRacks(map)
+		racks = buildGardens(map)
 	end
 	return {
 		spawnCFrame = spawnPart.CFrame + Vector3.new(0, 3, 0),
@@ -473,15 +536,9 @@ function MapBuilder.build(): MapInfo
 		table.insert(reserved, { x1 = -9.5, x2 = 9.5, z1 = zone.startZ - 2.5, z2 = zone.startZ + 2.5 })
 	end
 
-	-- Plac suszarni obok chatki: na placu i na ścieżce do bramy nic nie rośnie
-	local yard = Config.Drying.yard
-	table.insert(reserved, { x1 = yard.x1 - 3, x2 = yard.x2 + 3, z1 = yard.z1 - 3, z2 = yard.z2 + 3 })
-	local porchFront = Vector3.new(-3.5, 0, Cabin.FRONT_Z + 7.5)
-	-- Ścieżka z ganku do bramy na końcu alejki: najpierw ukośnie do rogu placu, potem wzdłuż płotu
-	table.insert(reserved, { x1 = yard.x2 - 1, x2 = porchFront.X, z1 = porchFront.Z - 3, z2 = yard.z2 + 6 })
-	table.insert(reserved, { x1 = yard.aisleX - 5, x2 = yard.x2 + 4, z1 = yard.z2, z2 = yard.z2 + 7 })
-	DryingYard.build(map, yard, porchFront, Random.new(Config.SpotSeed + 3))
-	local racks = buildRacks(map)
+	-- Ogródki graczy z suszarniami po obu stronach chatki
+	reserveGardens()
+	local racks = buildGardens(map)
 
 	-- Gniazdo Leszego: w środku i za kręgiem (posąg) nic nie rośnie
 	local center = groveCenter()
@@ -504,10 +561,11 @@ function MapBuilder.build(): MapInfo
 	for _, spot in buildGroveSpots() do
 		table.insert(spots, spot)
 	end
+	-- Obrzeże przed lasem: las wewnątrz omija korony obrzeża
+	buildBorder(map, decorRng)
 	for zoneIndex = 1, #Config.Zones do
 		buildZoneDecor(map, zoneIndex, decorRng)
 	end
-	buildBorder(map, decorRng)
 
 	-- Miejsce startu: w chatce, twarzą do drzwi i lasu
 	local spawn = Instance.new("SpawnLocation")

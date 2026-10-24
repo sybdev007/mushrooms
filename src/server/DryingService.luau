@@ -8,6 +8,7 @@
 -- Serwer tworzy wszystkie, a klient (src/client/RackPrompts.luau) pokazuje tylko te,
 -- które dotyczą danego gracza. Każdą akcję i tak sprawdza serwer.
 
+local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -37,6 +38,7 @@ type RackState = {
 	slotLabels: { TextLabel },
 	visuals: Folder,
 	label: TextLabel,
+	ownerSign: TextLabel?, -- napis na furtce ogródka (własne mapy mogą jej nie mieć)
 	owner: Player?,
 	protectedUntil: number,
 	stealPrompt: ProximityPrompt,
@@ -170,6 +172,31 @@ local function buildSlotLabel(slot: Attachment): TextLabel
 	return label
 end
 
+-- Napis na tabliczce furtki: imię właściciela albo listek, gdy ogródek jest wolny
+local function buildOwnerSign(sign: BasePart): TextLabel
+	local gui = Instance.new("SurfaceGui")
+	gui.Name = "OwnerText"
+	gui.Face = Enum.NormalId.Front
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	gui.PixelsPerStud = 50
+	gui.LightInfluence = 0.2
+	gui.Parent = sign
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(1, -16, 1, -8)
+	label.Position = UDim2.fromOffset(8, 4)
+	label.BackgroundTransparency = 1
+	label.TextColor3 = Color3.fromRGB(255, 236, 190)
+	label.Font = Enum.Font.FredokaOne
+	label.TextScaled = true
+	label.Text = "🌿"
+	label.Parent = gui
+	local stroke = Instance.new("UIStroke")
+	stroke.Thickness = 2.5
+	stroke.Color = Color3.fromRGB(60, 36, 20)
+	stroke.Parent = label
+	return label
+end
+
 local function slotText(item: Economy.DryingItem, now: number): string
 	local value = Economy.dryingValue(item, now)
 	local rate = Economy.dryRatePerMinute(item, now)
@@ -246,6 +273,9 @@ local rackKeys: { [number]: string } = {}
 local function refreshRack(rack: RackState)
 	local owner = rack.owner
 	local data = owner and api.getData(owner)
+	if rack.ownerSign then
+		rack.ownerSign.Text = if owner then owner.DisplayName else "🌿"
+	end
 	if not owner or not data then
 		rack.visuals:ClearAllChildren()
 		rackKeys[rack.id] = nil
@@ -481,6 +511,10 @@ function DryingService.start(rackInfos: { { id: number, model: Model } }, servic
 		local visuals = Instance.new("Folder")
 		visuals.Name = "Drying"
 		visuals.Parent = model
+		local signPart = model:FindFirstChild("OwnerSign", true)
+		local ownerSign = if signPart and signPart:IsA("BasePart") then buildOwnerSign(signPart) else nil
+		-- Po tym tagu klient (RackPrompts) znajduje suszarnie, gdziekolwiek stoją
+		CollectionService:AddTag(model, "DryingRack")
 
 		local hang = makePrompt(hub, "Hang", "RACK_HANG", Enum.KeyCode.E, 0)
 		local collect = makePrompt(hub, "Collect", "RACK_COLLECT", Enum.KeyCode.F, 1)
@@ -499,6 +533,7 @@ function DryingService.start(rackInfos: { { id: number, model: Model } }, servic
 			slotLabels = slotLabels,
 			visuals = visuals,
 			label = buildLabel(hub),
+			ownerSign = ownerSign,
 			owner = nil,
 			protectedUntil = 0,
 			stealPrompt = steal,

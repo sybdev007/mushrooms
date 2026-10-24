@@ -272,22 +272,24 @@ test("zarobek na minutę: stały podczas suszenia, zero po wyschnięciu", functi
 	eq(math.floor(gained + 0.5), Economy.dryingValue(porcini, Config.Drying.seconds) - Economy.dryingValue(porcini, 0), "zgodność z wartością")
 end)
 
-test("plac suszarni: na polanie, obok chatki, suszarnie w środku i nie na alejce", function()
-	local yard = Config.Drying.yard
-	eq(Economy.zoneIndexAt(yard.z1), 1, "przód placu poza polaną")
-	eq(Economy.zoneIndexAt(yard.z2), 1, "tył placu poza polaną")
-	check(yard.x1 > -Config.ForestHalfWidth + 6, "plac wchodzi w drzewa na brzegu mapy")
-	check(yard.x2 < -13 - 10, "plac za blisko chatki")
-	check(yard.aisleX > yard.x1 + 8 and yard.aisleX < yard.x2 - 8, "alejka (i brama) za blisko płotu")
-	-- Suszarnia ma 11,4 x 7,75 studs (+ słupek z latarnią): 7,75 w poprzek (oś X), 11,4 wzdłuż (oś Z)
-	local halfDepth, halfWidth = 3.9, 6.3
+test("ogródki: na polanie, obok chatki, bez nachodzenia na siebie, drzewa z obrzeża i ścieżkę", function()
+	local half = Config.Drying.gardenSize / 2
+	-- Suszarnia (11,4 x 7,75) musi się zmieścić z grządkami po bokach
+	check(half >= 8.5, "ogródek za mały na suszarnię i grządki")
+	-- Korona drzewa z obrzeża sięga do ok. halfWidth - 3 - 5,2 * 1,9
+	local borderReach = Config.ForestHalfWidth - 3 - 5.2 * 1.9
 	for i, plot in Config.Drying.plots do
-		check(plot.x - halfDepth > yard.x1 + 1 and plot.x + halfDepth < yard.x2 - 1, "suszarnia " .. i .. " wystaje za płot (X)")
-		check(plot.z - halfWidth > yard.z1 + 1 and plot.z + halfWidth < yard.z2 - 1, "suszarnia " .. i .. " wystaje za płot (Z)")
-		check(math.abs(plot.x - yard.aisleX) - halfDepth >= 3, "suszarnia " .. i .. " na alejce")
+		eq(Economy.zoneIndexAt(plot.z - half), 1, "ogródek " .. i .. " (przód) poza polaną")
+		eq(Economy.zoneIndexAt(plot.z + half), 1, "ogródek " .. i .. " (tył) poza polaną")
+		check(math.abs(plot.x) + half < borderReach, "ogródek " .. i .. " pod drzewami z obrzeża")
+		check(math.abs(plot.x) - half > 17, "ogródek " .. i .. " na chatce")
+		-- Przed furtką (od strony środka) zostaje 7 studs wolnego miejsca, ścieżka do lasu biegnie przy x = 0
+		check(math.abs(plot.x) - half - 7 > 4, "furtka ogródka " .. i .. " za blisko ścieżki")
+		check(plot.z + half < Config.Zones[2].startZ - 3, "ogródek " .. i .. " na bramie do lasu")
 		for j, other in Config.Drying.plots do
-			if j > i and other.x == plot.x then
-				check(math.abs(other.z - plot.z) >= halfWidth * 2 + 2, string.format("suszarnie %d i %d za blisko", i, j))
+			if j > i then
+				local apart = math.abs(other.x - plot.x) >= half * 2 + 1 or math.abs(other.z - plot.z) >= half * 2 + 1
+				check(apart, string.format("ogródki %d i %d na sobie", i, j))
 			end
 		end
 	end
@@ -405,7 +407,7 @@ test("każdy klucz HUD_/MSG_/ENGULF_/ZONE_ użyty w kodzie jest w CSV", function
 		"src/server/World/Props.luau",
 		"src/server/World/Cabin.luau",
 		"src/server/World/Grove.luau",
-		"src/server/World/DryingYard.luau",
+		"src/server/World/Garden.luau",
 		"src/server/DryingService.luau",
 		"src/server/LeszyService.luau",
 		"src/client/RackPrompts.luau",

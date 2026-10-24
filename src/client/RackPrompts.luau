@@ -5,8 +5,8 @@
 --   cudza suszarnia   -> „Podkradnij” (tylko gdy coś na niej wisi)
 -- Teksty przycisków są w języku gracza i zmieniają się razem z przełącznikiem EN/PL.
 
+local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
-local Workspace = game:GetService("Workspace")
 
 local Localize = require(script.Parent.Localize)
 
@@ -70,17 +70,11 @@ local function track(rack: Instance)
 end
 
 function RackPrompts.start()
-	task.spawn(function()
-		local map = Workspace:WaitForChild("Map")
-		local folder = map:WaitForChild("DryingRacks", 30)
-		if not folder then
-			return
-		end
-		for _, rack in folder:GetChildren() do
-			track(rack)
-		end
-		folder.ChildAdded:Connect(track)
-	end)
+	-- Serwer oznacza każdą suszarnię tagiem "DryingRack" (w ogródkach albo na własnej mapie)
+	for _, rack in CollectionService:GetTagged("DryingRack") do
+		track(rack)
+	end
+	CollectionService:GetInstanceAddedSignal("DryingRack"):Connect(track)
 	Localize.onChanged(function()
 		for rack in tracked do
 			refresh(rack)

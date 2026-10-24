@@ -158,20 +158,19 @@ Config.Drying = {
 	stealCooldown = 25, -- po kradzieży suszarnia jest chroniona przez tyle sekund
 	thiefCooldown = 8, -- ten sam złodziej może kraść co tyle sekund
 	promptDistance = 10,
-	-- Ogrodzony plac suszarni na lewo od chatki (patrząc od lasu). Suszarnie stoją w dwóch
-	-- rzędach przodem do alejki, a brama jest na końcu alejki od strony lasu (z2).
-	-- Plac odsunięty od brzegu mapy, żeby korony sosen z obrzeża nie wisiały nad suszarniami
-	yard = { x1 = -58, x2 = -26, z1 = -47, z2 = 21, aisleX = -42 },
-	-- Ile miejsc, tylu graczy ma suszarnię, więc ustaw rozmiar serwera na tyle samo (8)
+	-- Każdy gracz ma własny ogródek z suszarnią: po cztery z każdej strony chatki,
+	-- furtką do ścieżki prowadzącej do lasu. Ile ogródków, tylu graczy ma suszarnię,
+	-- więc ustaw rozmiar serwera na tyle samo (8).
+	gardenSize = 18,
 	plots = {
-		{ x = -50.5, z = -37 },
-		{ x = -33.5, z = -37 },
-		{ x = -50.5, z = -22 },
-		{ x = -33.5, z = -22 },
-		{ x = -50.5, z = -7 },
-		{ x = -33.5, z = -7 },
-		{ x = -50.5, z = 8 },
-		{ x = -33.5, z = 8 },
+		{ x = -38, z = -35 },
+		{ x = 38, z = -35 },
+		{ x = -38, z = -15 },
+		{ x = 38, z = -15 },
+		{ x = -38, z = 5 },
+		{ x = 38, z = 5 },
+		{ x = -38, z = 25 },
+		{ x = 38, z = 25 },
 	},
 }
 

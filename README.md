@@ -5,7 +5,7 @@ Grzybobranie z latarnią w ciemnym lesie. Pętla:
 
 Dwa haki ponad podstawową pętlą:
 - **Gniazdo Leszego** na końcu Mrocznego Jaru: zerwiesz Koronę Leszego, a on cię goni aż do chatki.
-- **Suszarnie przed chatką**: grzyby schną i drożeją, ale inni gracze mogą je podkraść, gdy nie pilnujesz.
+- **Ogródki z suszarniami**: każdy gracz ma własny ogródek przy chatce. Grzyby schną i drożeją, ale inni gracze mogą je podkraść, gdy nie pilnujesz.
 
 Świat jest kreskówkowym low-poly budowanym kodem (bez importowanych modeli): chatka z bali, jesienny las,
 ścieżka z latarniami, bramy stref, świecące grzyby, świetliki i mgła. Działa od razu po `rojo serve`.
@@ -50,7 +50,8 @@ rojo build -o lantern-forager.rbxlx
 | `src/server/DryingService.luau` | ServerScriptService.Server | Suszarnie: wieszanie, sprzedaż suszonych, kradzież |
 | `src/server/World/Grove.luau` | ServerScriptService.Server | Gniazdo Leszego: krąg kamieni, tabliczka, uśpiony posąg |
 | `src/server/World/Leszy.luau` | ServerScriptService.Server | Model Leszego z klocków |
-| `src/server/World/Rack.luau` | ServerScriptService.Server | Model suszarni |
+| `src/server/World/Rack.luau` | ServerScriptService.Server | Model suszarni: 6 stanowisk na dwupoziomowym podeście |
+| `src/server/World/Garden.luau` | ServerScriptService.Server | Ogródek gracza: płot, furtka z imieniem, grządki, suszarnia |
 | `src/client/Hud.luau` | StarterPlayerScripts.Client | Interfejs pod telefon, deszcz monet po sprzedaży |
 | `src/client/UiScale.luau` | StarterPlayerScripts.Client | Skala interfejsu zależna od ekranu |
 | `src/client/MushroomView.luau` | StarterPlayerScripts.Client | Rysowanie grzybów (każdy gracz ma własne) |
@@ -79,11 +80,14 @@ rojo build -o lantern-forager.rbxlx
   odrastają po 4 min). Zerwanie budzi Leszego: rusza z gniazda po 2 s, przenika przez drzewa i biegnie 22 studs/s.
   Złapie = tracisz koszyk. Dobiegniesz do polany = ucieczka. Bez ulepszeń butów nie da się uciec, od poziomu 3 już tak
   (pilnują tego testy, `Economy.escapesLeszy`). Wszyscy na serwerze widzą, kogo goni.
-- **Suszarnie** (`Config.Drying`): 8 miejsc na polanie, każdy gracz dostaje jedną z tabliczką z imieniem.
-  Właściciel: „Rozwieś grzyby” (najcenniejsze świeże z koszyka, do 6 sztuk) i „Sprzedaj suszone”.
-  Grzyb schnie 10 min (także offline) i wtedy jest wart 2×. Inni gracze: „Podkradnij” zabiera najcenniejszy grzyb
-  do ich koszyka. Trzeba trzymać przycisk (2 s + poziom kłódki), nie da się, gdy właściciel stoi przy suszarni,
-  a po kradzieży suszarnia ma 25 s ochrony. Właściciel dostaje alarm, gdy ktoś zaczyna kraść.
+- **Ogródki z suszarniami** (`Config.Drying`): 8 ogródków po bokach chatki, po 4 z każdej strony, furtką do środka polany.
+  Każdy gracz dostaje własny, z imieniem na furtce. W środku suszarnia z 6 osobnymi stanowiskami; nad każdym grzybem
+  tabliczka z wartością i zarobkiem `+X/min`. Właściciel: „Rozwieś grzyby” (najcenniejsze świeże z koszyka)
+  i „Sprzedaj suszone”. Grzyb schnie 10 min (także offline) i wtedy jest wart 2×. Inni gracze: „Podkradnij” zabiera
+  najcenniejszy grzyb do ich koszyka. Trzeba trzymać przycisk (2 s + poziom kłódki), nie da się, gdy właściciel stoi
+  przy suszarni, a po kradzieży suszarnia ma 25 s ochrony. Właściciel dostaje alarm, gdy ktoś zaczyna kraść.
+- **Las**: drzewa stoją korona przy koronie, bez nachodzenia (`CANOPY` w `MapBuilder`). Obrzeże mapy jest stawiane
+  pierwsze, a reszta lasu je omija.
 - **Sterowanie**: przycisk ZBIERZ obok przycisku skoku na telefonie, `E` na klawiaturze, `X` na padzie.
 - **Język**: domyślnie z ustawień konta, przycisk pod licznikiem monet przełącza EN/PL (także napisy na tabliczkach).
 - **Lista graczy** pokazuje monety wszystkich na serwerze (kolumna 💰).
@@ -106,9 +110,9 @@ Lint: `selene src`
 
 ## Rozmiar serwera
 
-Suszarni jest 8, więc ustaw serwer na **8 graczy**: w Studio File → Game Settings → Places → (…) przy miejscu →
+Ogródków jest 8, więc ustaw serwer na **8 graczy**: w Studio File → Game Settings → Places → (…) przy miejscu →
 Server Size / Max Players, albo w Creator Hub w ustawieniach miejsca. Gracz ponad limit suszarni dostaje komunikat,
-że nie ma wolnej. Małe serwery to też większa szansa, że okradnie cię ktoś, kogo potem rozpoznasz.
+że nie ma wolnego ogródka. Małe serwery to też większa szansa, że okradnie cię ktoś, kogo potem rozpoznasz.
 
 ## Zapis w Studio
 
