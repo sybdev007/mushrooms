@@ -145,6 +145,126 @@ test("las zabiera cały koszyk", function()
 	eq(Economy.engulfLoss(35), 35)
 end)
 
+print("Gniazdo Leszego")
+test("Korona Leszego rośnie tylko w gnieździe", function()
+	local grove = Economy.groveSpecies()
+	check(#grove >= 1, "brak gatunków gniazda")
+	for zone = 1, #Config.Zones do
+		for _, species in Economy.speciesForZone(zone) do
+			check(not species.grove, species.id .. " z gniazda losuje się w zwykłej strefie")
+		end
+		for r = 0, 0.99, 0.01 do
+			local rolled = Economy.rollSpecies(zone, r)
+			check(rolled == nil or not rolled.grove, "rollSpecies zwrócił grzyb z gniazda")
+		end
+	end
+end)
+
+test("korona jest warta więcej niż najdroższy zwykły grzyb", function()
+	local best = 0
+	for _, species in Config.Species do
+		if not species.grove then
+			best = math.max(best, species.value)
+		end
+	end
+	for _, species in Economy.groveSpecies() do
+		check(species.value > best, species.id .. " nieopłacalna przy takim ryzyku")
+	end
+end)
+
+test("gniazdo leży w Mrocznym Jarze, w granicach mapy", function()
+	local g = Config.Grove
+	eq(Economy.zoneIndexAt(g.centerZ - g.radius), #Config.Zones, "przód kręgu")
+	local last = Config.Zones[#Config.Zones]
+	check(g.centerZ + g.radius + 8 < last.endZ, "posąg za ścianą mapy")
+	check(math.abs(g.centerX) + g.radius < Config.ForestHalfWidth - 6, "krąg za szeroki")
+end)
+
+-- Droga z gniazda do polany (strefa 1 kończy się na zones[2].startZ)
+local groveDistance = Config.Grove.centerZ - Config.Zones[2].startZ
+
+test("bez butów Leszy łapie, z pełnymi butami da się uciec", function()
+	check(not Economy.escapesLeszy(groveDistance, Economy.upgradeStat("boots", 0)), "ucieczka bez ulepszeń")
+	check(Economy.escapesLeszy(groveDistance, Economy.upgradeStat("boots", Config.Upgrades.boots.maxLevel)), "brak ucieczki na maks.")
+end)
+
+test("jest próg butów, od którego ucieczka się udaje (cel: poziom 2-5)", function()
+	local first: number? = nil
+	for level = 0, Config.Upgrades.boots.maxLevel do
+		if Economy.escapesLeszy(groveDistance, Economy.upgradeStat("boots", level)) then
+			first = level
+			break
+		end
+	end
+	check(first ~= nil, "nie da się uciec na żadnym poziomie")
+	check((first :: number) >= 2 and (first :: number) <= 5, "próg ucieczki: poziom " .. tostring(first))
+end)
+
+test("escapesLeszy: szybszy gracz zawsze ucieka, krótsza droga pomaga", function()
+	eq(Economy.escapesLeszy(10000, Config.Leszy.speed + 0.1), true, "szybszy od Leszego")
+	eq(Economy.escapesLeszy(10000, Config.Leszy.speed), true, "równy Leszemu")
+	eq(Economy.escapesLeszy(5, 16), true, "tuż przy polanie")
+	eq(Economy.escapesLeszy(100, 0), false, "stoi w miejscu")
+end)
+
+print("Suszarnia")
+test("mnożnik suszenia rośnie od 1 do 1 + bonus", function()
+	eq(Economy.dryMultiplier(0), 1, "świeży")
+	eq(Economy.dryMultiplier(-50), 1, "czas z przyszłości")
+	eq(Economy.dryMultiplier(Config.Drying.seconds / 2), 1 + Config.Drying.bonus / 2, "w połowie")
+	eq(Economy.dryMultiplier(Config.Drying.seconds), 1 + Config.Drying.bonus, "suchy")
+	eq(Economy.dryMultiplier(Config.Drying.seconds * 10), 1 + Config.Drying.bonus, "nie rośnie w nieskończoność")
+end)
+
+test("wartość suszonego grzyba i suszarni", function()
+	local half = Config.Drying.seconds / 2
+	eq(Economy.dryingValue({ s = "porcini", g = false, t = 100 }, 100), 75, "świeży borowik")
+	eq(Economy.dryingValue({ s = "porcini", g = false, t = 0 }, Config.Drying.seconds), 150, "suchy borowik")
+	eq(Economy.dryingValue({ s = "honey", g = false, t = 0 }, half), 6, "opieńka w połowie (4 * 1.5)")
+	eq(Economy.rackValue({ { s = "porcini", g = false, t = 0 }, { s = "honey", g = true, t = 0 } }, Config.Drying.seconds), 150 + 24, "suszarnia")
+	eq(Economy.basketValue({ { s = "porcini", g = false, d = 2 } }), 150, "ukradziony suchy borowik w koszyku")
+end)
+
+test("złodziej bierze najcenniejszy grzyb", function()
+	local rack = {
+		{ s = "honey", g = false, t = 0 },
+		{ s = "porcini", g = false, t = 500 },
+		{ s = "aspen_bolete", g = false, t = 0 },
+	}
+	-- t=600: borowik 75 * (1 + 100/600) = 87,5, koźlarz suchy 50 * 2 = 100
+	eq(Economy.mostValuableIndex(rack, 600), 3, "suchy koźlarz bije świeżego borowika")
+	eq(Economy.mostValuableIndex({}, 0), nil, "pusta")
+end)
+
+test("na suszarnię idą najcenniejsze świeże grzyby, bez ukradzionych", function()
+	local basket = {
+		{ s = "honey", g = false },
+		{ s = "porcini", g = false, d = 2 },
+		{ s = "parasol", g = false },
+		{ s = "chanterelle", g = true },
+	}
+	local chosen = Economy.pickForDrying(basket, 2)
+	eq(#chosen, 2, "liczba")
+	eq(chosen[1], 3, "kania (24) pierwsza")
+	eq(chosen[2], 4, "złota kurka (18) druga")
+	eq(#Economy.pickForDrying(basket, 10), 3, "ukradziony suchy borowik zostaje w koszyku")
+	eq(#Economy.pickForDrying(basket, 0), 0, "brak miejsca")
+end)
+
+test("miejsca na suszarnie nie wchodzą na chatkę ani ścieżkę", function()
+	for i, plot in Config.Drying.plots do
+		check(math.abs(plot.x) >= 10, "suszarnia " .. i .. " na ścieżce")
+		local onCabin = math.abs(plot.x) < 19 and plot.z > -42 and plot.z < -1
+		check(not onCabin, "suszarnia " .. i .. " w chatce")
+		eq(Economy.zoneIndexAt(plot.z), 1, "suszarnia " .. i .. " poza polaną")
+	end
+end)
+
+test("kłódka: złodziej trzyma przycisk dłużej z każdym poziomem", function()
+	eq(Economy.upgradeStat("lock", 0), 2, "bez kłódki")
+	check(Economy.upgradeStat("lock", Config.Upgrades.lock.maxLevel) <= 10, "kradzież nie może trwać wieczność")
+end)
+
 print("Balans")
 test("pierwszy pełny koszyk wystarcza na najtańsze ulepszenie", function()
 	local cheapestFish = math.huge
@@ -251,12 +371,17 @@ test("każdy klucz HUD_/MSG_/ENGULF_/ZONE_ użyty w kodzie jest w CSV", function
 		"src/client/Signs.luau",
 		"src/server/World/Props.luau",
 		"src/server/World/Cabin.luau",
+		"src/server/World/Grove.luau",
+		"src/server/DryingService.luau",
+		"src/server/LeszyService.luau",
+		"src/client/RackPrompts.luau",
 	}
 	for _, path in files do
 		local source = fs.readFile(path)
 		for key in string.gmatch(source, '"((%u+)_[%u_]+)"') do
 			local prefix = string.match(key, "^(%u+)_")
-			if prefix == "HUD" or prefix == "MSG" or prefix == "ENGULF" or prefix == "ZONE" then
+			local checked = { HUD = true, MSG = true, ENGULF = true, ZONE = true, RACK = true, CAUGHT = true, GROVE = true }
+			if checked[prefix] then
 				check(csvKeys[key], path .. ": brak " .. key)
 			end
 		end

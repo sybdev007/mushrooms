@@ -7,21 +7,38 @@ local Config = require(script.Parent.Config)
 export type BasketItem = {
 	s: string, -- id gatunku
 	g: boolean, -- czy złota mutacja
+	d: number?, -- mnożnik suszenia (grzyb ukradziony z suszarni); brak = świeży
+}
+
+export type DryingItem = {
+	s: string,
+	g: boolean,
+	t: number, -- os.time(), kiedy grzyb zawisł na suszarni
 }
 
 local Economy = {}
 
 local speciesById: { [string]: Config.SpeciesDef } = {}
 local speciesByZone: { [number]: { Config.SpeciesDef } } = {}
+local groveSpecies: { Config.SpeciesDef } = {}
 
 for _, species in Config.Species do
 	speciesById[species.id] = species
-	local list = speciesByZone[species.zone]
-	if not list then
-		list = {}
-		speciesByZone[species.zone] = list
+	if species.grove then
+		table.insert(groveSpecies, species)
+	else
+		local list = speciesByZone[species.zone]
+		if not list then
+			list = {}
+			speciesByZone[species.zone] = list
+		end
+		table.insert(list, species)
 	end
-	table.insert(list, species)
+end
+
+-- Gatunki, które rosną tylko w Gnieździe Leszego
+function Economy.groveSpecies(): { Config.SpeciesDef }
+	return groveSpecies
 end
 
 function Economy.getSpecies(id: string): Config.SpeciesDef?
@@ -84,20 +101,101 @@ function Economy.rollSpecies(zone: number, r: number): Config.SpeciesDef?
 	return list[#list]
 end
 
-function Economy.mushroomValue(speciesId: string, golden: boolean): number
+-- dried: mnożnik suszenia (1 = świeży). Wynik zaokrąglony do pełnej monety.
+function Economy.mushroomValue(speciesId: string, golden: boolean, dried: number?): number
 	local species = speciesById[speciesId]
 	if not species then
 		return 0
 	end
-	return species.value * (if golden then Config.GoldenMultiplier else 1)
+	local value = species.value * (if golden then Config.GoldenMultiplier else 1) * (dried or 1)
+	return math.floor(value + 0.5)
 end
 
 function Economy.basketValue(basket: { BasketItem }): number
 	local sum = 0
 	for _, item in basket do
-		sum += Economy.mushroomValue(item.s, item.g)
+		sum += Economy.mushroomValue(item.s, item.g, item.d)
 	end
 	return sum
+end
+
+-- ===== Suszarnia =====
+
+-- Mnożnik wartości po `elapsed` sekundach suszenia: od 1 do (1 + bonus), liniowo
+function Economy.dryMultiplier(elapsed: number): number
+	local progress = math.clamp(elapsed / Config.Drying.seconds, 0, 1)
+	return 1 + Config.Drying.bonus * progress
+end
+
+function Economy.dryProgress(elapsed: number): number
+	return math.clamp(elapsed / Config.Drying.seconds, 0, 1)
+end
+
+function Economy.dryingValue(item: DryingItem, now: number): number
+	return Economy.mushroomValue(item.s, item.g, Economy.dryMultiplier(now - item.t))
+end
+
+function Economy.rackValue(rack: { DryingItem }, now: number): number
+	local sum = 0
+	for _, item in rack do
+		sum += Economy.dryingValue(item, now)
+	end
+	return sum
+end
+
+-- Indeks najcenniejszego grzyba na suszarni (to bierze złodziej). nil = pusta.
+function Economy.mostValuableIndex(rack: { DryingItem }, now: number): number?
+	local best: number? = nil
+	local bestValue = -1
+	for index, item in rack do
+		local value = Economy.dryingValue(item, now)
+		if value > bestValue then
+			best = index
+			bestValue = value
+		end
+	end
+	return best
+end
+
+-- Które grzyby z koszyka zawiesić: najcenniejsze, najwyżej `free` sztuk. Zwraca indeksy koszyka.
+function Economy.pickForDrying(basket: { BasketItem }, free: number): { number }
+	local order = {}
+	for index, item in basket do
+		-- Ukradzione suszone grzyby już nie schną drugi raz
+		if not item.d then
+			table.insert(order, index)
+		end
+	end
+	table.sort(order, function(a, b)
+		local va = Economy.mushroomValue(basket[a].s, basket[a].g)
+		local vb = Economy.mushroomValue(basket[b].s, basket[b].g)
+		if va ~= vb then
+			return va > vb
+		end
+		return a < b
+	end)
+	local result = {}
+	for i = 1, math.min(free, #order) do
+		table.insert(result, order[i])
+	end
+	return result
+end
+
+-- ===== Leszy =====
+
+-- Czy gracz biegnący prosto z prędkością `speed` dobiegnie `distance` studs do chatki,
+-- zanim dogoni go Leszy, który rusza z tego samego miejsca po Config.Leszy.wakeDelay sekundach.
+function Economy.escapesLeszy(distance: number, speed: number): boolean
+	local leszy = Config.Leszy
+	if speed <= 0 then
+		return false
+	end
+	if leszy.speed <= speed then
+		return true
+	end
+	-- Leszy w chwili t jest na L*(t - delay), gracz na v*t. Łapie, gdy różnica <= catchRadius.
+	local catchTime = (leszy.speed * leszy.wakeDelay - leszy.catchRadius) / (leszy.speed - speed)
+	return distance / speed < catchTime
 end
 
 -- Ile oleju zużyje powrót prosto do chatki z pozycji z przy danej prędkości chodu.

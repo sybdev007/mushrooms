@@ -15,10 +15,11 @@ export type Data = {
 	upgrades: { [string]: number },
 	atlas: { [string]: boolean }, -- odkryte gatunki (pod przyszły Atlas grzybów)
 	basket: { Economy.BasketItem },
+	drying: { Economy.DryingItem }, -- grzyby na suszarni (schną także offline)
 }
 
 local STORE_NAME = "LanternForager_Prototype_v1"
-local DATA_VERSION = 1
+local DATA_VERSION = 2
 local MAX_ATTEMPTS = 3
 
 local DataService = {}
@@ -50,6 +51,7 @@ function DataService.defaultData(): Data
 		upgrades = upgrades,
 		atlas = {},
 		basket = {},
+		drying = {},
 	}
 end
 
@@ -80,7 +82,20 @@ local function reconcile(raw: any): Data
 	if typeof(raw.basket) == "table" then
 		for _, item in raw.basket do
 			if typeof(item) == "table" and typeof(item.s) == "string" and Economy.getSpecies(item.s) then
-				table.insert(data.basket, { s = item.s, g = item.g == true })
+				-- d: mnożnik suszenia ukradzionego grzyba, w granicach tego, co daje suszarnia
+				local dried = if typeof(item.d) == "number" then math.clamp(item.d, 1, 1 + Config.Drying.bonus) else nil
+				table.insert(data.basket, { s = item.s, g = item.g == true, d = dried })
+			end
+		end
+	end
+	if typeof(raw.drying) == "table" then
+		local now = os.time()
+		for _, item in raw.drying do
+			if #data.drying >= Config.Drying.slots then
+				break
+			end
+			if typeof(item) == "table" and typeof(item.s) == "string" and Economy.getSpecies(item.s) and typeof(item.t) == "number" then
+				table.insert(data.drying, { s = item.s, g = item.g == true, t = math.min(math.floor(item.t), now) })
 			end
 		end
 	end

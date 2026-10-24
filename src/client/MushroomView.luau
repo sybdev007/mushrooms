@@ -50,6 +50,8 @@ local SHAPES: { [string]: Shape } = {
 	aspen_bolete = { stemH = 1.8, stemD = 0.7, capW = 2.1, capH = 1.0, cap = rgb(205, 72, 30), stem = rgb(228, 222, 210) },
 	porcini = { stemH = 1.4, stemD = 1.1, capW = 2.3, capH = 1.05, cap = rgb(140, 90, 50), stem = rgb(232, 218, 190) },
 	glowing_agaric = { stemH = 1.6, stemD = 0.5, capW = 2.0, capH = 0.8, cap = rgb(230, 40, 40), spots = true, glow = true },
+	-- Korona Leszego: wysoka, seledynowa, świeci z daleka jak przynęta
+	leszy_crown = { stemH = 2.2, stemD = 0.6, capW = 2.6, capH = 1.1, cap = rgb(120, 255, 190), stem = rgb(200, 255, 230), spots = true, glow = true, cluster = 3 },
 }
 local DEFAULT_SHAPE: Shape = { stemH = 1, stemD = 0.5, capW = 1.6, capH = 0.6, cap = rgb(160, 120, 80) }
 

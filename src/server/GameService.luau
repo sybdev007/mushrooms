@@ -13,6 +13,8 @@ local Economy = require(Shared.Economy)
 local Remotes = require(Shared.Remotes)
 local DataService = require(script.Parent.DataService)
 local MapBuilder = require(script.Parent.MapBuilder)
+local LeszyService = require(script.Parent.LeszyService)
+local DryingService = require(script.Parent.DryingService)
 
 type SpotState = {
 	speciesId: string,
@@ -101,11 +103,18 @@ local function pushState(session: Session)
 		lanternRange = stat(session, "lantern"),
 		zone = session.zone,
 		upgrades = table.clone(data.upgrades),
+		chased = LeszyService.isChased(session.player),
 	})
 end
 
-local function rollSpot(session: Session, zone: number): (string?, boolean)
-	local species = Economy.rollSpecies(zone, session.rng:NextNumber())
+local function rollSpot(session: Session, spot: MapBuilder.Spot): (string?, boolean)
+	local species
+	if spot.grove then
+		local list = Economy.groveSpecies()
+		species = list[session.rng:NextInteger(1, math.max(#list, 1))]
+	else
+		species = Economy.rollSpecies(spot.zone, session.rng:NextNumber())
+	end
 	if not species then
 		return nil, false
 	end
@@ -213,8 +222,10 @@ local function applyCharacterStats(session: Session)
 	attachHandLantern(character)
 end
 
--- Latarnia zgasła: las zabiera część koszyka i wyrzuca gracza do chatki
-local function engulf(session: Session)
+-- Latarnia zgasła albo Leszy złapał gracza: las zabiera część koszyka i wyrzuca gracza do chatki.
+-- messageKey mówi klientowi, który ekran pokazać (MSG_ENGULFED albo MSG_CAUGHT).
+local function engulf(session: Session, messageKey: string?)
+	LeszyService.stop(session.player)
 	local basket = session.data.basket
 	local lost = Economy.engulfLoss(#basket)
 	for _ = 1, lost do
@@ -228,7 +239,7 @@ local function engulf(session: Session)
 		character:PivotTo(map.spawnCFrame)
 	end
 	session.zone = 1
-	notify(session, "MSG_ENGULFED", { lost })
+	notify(session, messageKey or "MSG_ENGULFED", { lost })
 end
 
 local function tick(step: number)
@@ -308,13 +319,14 @@ local function onPlayerAdded(player: Player)
 
 	-- Każdy gracz ma własne grzyby: nikt nikomu nie wyzbiera wysypu
 	for _, spot in map.spots do
-		local speciesId, golden = rollSpot(session, spot.zone)
+		local speciesId, golden = rollSpot(session, spot)
 		if speciesId then
 			session.spots[spot.id] = { speciesId = speciesId, golden = golden, readyAt = 0, visible = false }
 		end
 	end
 
 	sessions[player] = session
+	DryingService.assign(player)
 
 	player.CharacterAdded:Connect(function(character)
 		onCharacterAdded(session, character)
@@ -342,6 +354,8 @@ local function onPlayerRemoving(player: Player)
 		return
 	end
 	sessions[player] = nil
+	LeszyService.stop(player)
+	DryingService.release(player)
 	saveSession(session)
 end
 
@@ -385,13 +399,17 @@ local function onPick(player: Player, spotId: unknown)
 	end
 
 	-- Grzyb odrośnie później i może to być inny gatunek
-	local speciesId, golden = rollSpot(session, spot.zone)
+	local speciesId, golden = rollSpot(session, spot)
 	state.visible = false
-	state.readyAt = now + Config.RespawnSeconds
+	state.readyAt = now + (if spot.grove then Config.Grove.respawnSeconds else Config.RespawnSeconds)
 	state.speciesId = speciesId or state.speciesId
 	state.golden = golden
 
 	MushroomRemoved:FireClient(player, spotId)
+	-- Korona Leszego budzi właściciela gniazda
+	if spot.grove and LeszyService.startChase(player, spot.position) then
+		notify(session, "MSG_LESZY_WOKE")
+	end
 	pushState(session)
 end
 
@@ -442,6 +460,8 @@ local function onBuy(player: Player, upgradeId: unknown)
 	session.data.upgrades[upgradeId] = level + 1
 	if upgradeId == "oil" then
 		session.oil = stat(session, "oil")
+	elseif upgradeId == "lock" then
+		DryingService.refresh(player)
 	end
 	applyCharacterStats(session)
 	notify(session, "MSG_UPGRADED", nil, def.key)
@@ -450,6 +470,50 @@ end
 
 function GameService.start(mapInfo: MapBuilder.MapInfo)
 	map = mapInfo
+
+	LeszyService.start(map.groveCenter, map.leszyStatue, {
+		onCaught = function(player: Player)
+			local session = sessions[player]
+			if session then
+				engulf(session, "MSG_CAUGHT")
+			end
+		end,
+		onEscaped = function(player: Player)
+			local session = sessions[player]
+			if session then
+				notify(session, "MSG_ESCAPED", { Economy.basketValue(session.data.basket) })
+			end
+		end,
+		onGaveUp = function(player: Player)
+			local session = sessions[player]
+			if session then
+				notify(session, "MSG_LESZY_GAVE_UP")
+			end
+		end,
+	})
+
+	DryingService.start(map.racks, {
+		getData = function(player: Player)
+			local session = sessions[player]
+			return if session then session.data else nil
+		end,
+		basketMax = function(player: Player): number
+			local session = sessions[player]
+			return if session then stat(session, "basket") else 0
+		end,
+		notify = function(player: Player, key: string, args: { any }?, nameKey: string?)
+			local session = sessions[player]
+			if session then
+				notify(session, key, args, nameKey)
+			end
+		end,
+		pushState = function(player: Player)
+			local session = sessions[player]
+			if session then
+				pushState(session)
+			end
+		end,
+	})
 
 	PickMushroom.OnServerEvent:Connect(onPick)
 	SellBasket.OnServerEvent:Connect(onSell)

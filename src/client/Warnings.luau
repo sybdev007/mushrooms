@@ -122,8 +122,10 @@ UiScale.onChanged(function()
 	banner.Position = UDim2.new(0.5, 0, 0, UiScale.topInset() + 8 + math.floor(66 * uiScale) + 8)
 end)
 
+local chaseBanner = false
+
 local function refreshTexts()
-	bannerText.Text = "⚠ " .. Localize.t("HUD_TURN_BACK")
+	bannerText.Text = if chaseBanner then "👹 " .. Localize.t("HUD_LESZY_CHASE") else "⚠ " .. Localize.t("HUD_TURN_BACK")
 end
 refreshTexts()
 Localize.onChanged(refreshTexts)
@@ -194,9 +196,25 @@ end
 
 local pulseTime = 0
 
--- oilFraction 0-1, turnBack: czy pokazać baner, zone: strefa gracza
-function Warnings.update(dt: number, rootPosition: Vector3, oilFraction: number, turnBack: boolean, zone: number, lanternRange: number)
+-- oilFraction 0-1, turnBack: czy pokazać baner, zone: strefa gracza, chased: goni go Leszy
+function Warnings.update(
+	dt: number,
+	rootPosition: Vector3,
+	oilFraction: number,
+	turnBack: boolean,
+	zone: number,
+	lanternRange: number,
+	chased: boolean?
+)
 	pulseTime += dt
+	-- Podczas pościgu baner zawsze prowadzi do chatki, z innym napisem
+	if (chased == true) ~= chaseBanner then
+		chaseBanner = chased == true
+		refreshTexts()
+	end
+	if chaseBanner then
+		turnBack = true
+	end
 
 	-- Winieta: od 25% oleju w dół coraz mocniej, z pulsowaniem jak bicie serca
 	local danger = 0
@@ -204,7 +222,7 @@ function Warnings.update(dt: number, rootPosition: Vector3, oilFraction: number,
 		danger = 1 - oilFraction / Config.OilLowFraction
 	end
 	if turnBack then
-		danger = math.max(danger, 0.25)
+		danger = math.max(danger, if chaseBanner then 0.7 else 0.25)
 	end
 	local pulse = 0.5 + 0.5 * math.sin(pulseTime * (4 + danger * 4))
 	local strength = danger * (0.55 + 0.45 * pulse)

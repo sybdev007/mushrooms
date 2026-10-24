@@ -1,7 +1,11 @@
 # Lantern Forager (nazwa robocza)
 
 Grzybobranie z latarnią w ciemnym lesie. Pętla:
-**wchodzisz do lasu → zbierasz grzyby → wracasz, zanim zgaśnie latarnia → sprzedajesz → ulepszasz → idziesz głębiej.**
+**wchodzisz do lasu → zbierasz grzyby → wracasz, zanim zgaśnie latarnia → sprzedajesz albo suszysz → ulepszasz → idziesz głębiej.**
+
+Dwa haki ponad podstawową pętlą:
+- **Gniazdo Leszego** na końcu Mrocznego Jaru: zerwiesz Koronę Leszego, a on cię goni aż do chatki.
+- **Suszarnie przed chatką**: grzyby schną i drożeją, ale inni gracze mogą je podkraść, gdy nie pilnujesz.
 
 Świat jest kreskówkowym low-poly budowanym kodem (bez importowanych modeli): chatka z bali, jesienny las,
 ścieżka z latarniami, bramy stref, świecące grzyby, świetliki i mgła. Działa od razu po `rojo serve`.
@@ -42,6 +46,11 @@ rojo build -o lantern-forager.rbxlx
 | `src/server/World/Palette.luau` | ServerScriptService.Server | Wszystkie kolory świata w jednym miejscu |
 | `src/server/DataService.luau` | ServerScriptService.Server | Zapis postępu (DataStore) |
 | `src/server/GameService.luau` | ServerScriptService.Server | Olej, zbieranie, sprzedaż, ulepszenia, „las cię pochłania” |
+| `src/server/LeszyService.luau` | ServerScriptService.Server | Pościg Leszego po zerwaniu Korony |
+| `src/server/DryingService.luau` | ServerScriptService.Server | Suszarnie: wieszanie, sprzedaż suszonych, kradzież |
+| `src/server/World/Grove.luau` | ServerScriptService.Server | Gniazdo Leszego: krąg kamieni, tabliczka, uśpiony posąg |
+| `src/server/World/Leszy.luau` | ServerScriptService.Server | Model Leszego z klocków |
+| `src/server/World/Rack.luau` | ServerScriptService.Server | Model suszarni |
 | `src/client/Hud.luau` | StarterPlayerScripts.Client | Interfejs pod telefon, deszcz monet po sprzedaży |
 | `src/client/UiScale.luau` | StarterPlayerScripts.Client | Skala interfejsu zależna od ekranu |
 | `src/client/MushroomView.luau` | StarterPlayerScripts.Client | Rysowanie grzybów (każdy gracz ma własne) |
@@ -49,6 +58,7 @@ rojo build -o lantern-forager.rbxlx
 | `src/client/Effects.luau` | StarterPlayerScripts.Client | Dźwięki, świetliki, iskry i „+N” przy zbieraniu, pierścień ulepszenia |
 | `src/client/Warnings.luau` | StarterPlayerScripts.Client | Czerwona winieta, baner „Wracaj!” ze strzałką, oczy Leszego |
 | `src/client/Signs.luau` | StarterPlayerScripts.Client | Napisy na tabliczkach w języku gracza |
+| `src/client/RackPrompts.luau` | StarterPlayerScripts.Client | Pokazuje graczowi właściwe przyciski przy suszarniach |
 | `src/client/Localize.luau` | StarterPlayerScripts.Client | Tłumaczenia EN/PL |
 | `src/localization/GameStrings.csv` | LocalizationService | Wszystkie teksty po angielsku i polsku |
 | `tests/economy.spec.luau` | — | Testy logiki i balansu (Lune) |
@@ -64,7 +74,16 @@ rojo build -o lantern-forager.rbxlx
 - **Latarnia zgaśnie** → ekran ciemnieje, gracz wraca do chatki i traci wszystkie grzyby z koszyka.
 - **Grzyby** są osobne dla każdego gracza (nikt nikomu nie wyzbiera), odrastają po 90 s, 3% szans na złotą mutację (×3 wartości).
 - W **Gęstwinie i Jarze** widać tylko grzyby w zasięgu latarni. Złote i Świecący Muchomor widać zawsze, jako przynętę.
-- **Chatka**: panel sprzedaży i 4 ulepszeń (latarnia, zbiornik oleju, koszyk, buty).
+- **Chatka**: panel sprzedaży i 5 ulepszeń (latarnia, zbiornik oleju, koszyk, buty, kłódka suszarni).
+- **Gniazdo Leszego** (koniec Jaru, `Config.Grove`): krąg kamieni z 3 Koronami Leszego (220 monet, każdy gracz ma własne,
+  odrastają po 4 min). Zerwanie budzi Leszego: rusza z gniazda po 2 s, przenika przez drzewa i biegnie 22 studs/s.
+  Złapie = tracisz koszyk. Dobiegniesz do polany = ucieczka. Bez ulepszeń butów nie da się uciec, od poziomu 3 już tak
+  (pilnują tego testy, `Economy.escapesLeszy`). Wszyscy na serwerze widzą, kogo goni.
+- **Suszarnie** (`Config.Drying`): 8 miejsc na polanie, każdy gracz dostaje jedną z tabliczką z imieniem.
+  Właściciel: „Rozwieś grzyby” (najcenniejsze świeże z koszyka, do 6 sztuk) i „Sprzedaj suszone”.
+  Grzyb schnie 10 min (także offline) i wtedy jest wart 2×. Inni gracze: „Podkradnij” zabiera najcenniejszy grzyb
+  do ich koszyka. Trzeba trzymać przycisk (2 s + poziom kłódki), nie da się, gdy właściciel stoi przy suszarni,
+  a po kradzieży suszarnia ma 25 s ochrony. Właściciel dostaje alarm, gdy ktoś zaczyna kraść.
 - **Sterowanie**: przycisk ZBIERZ obok przycisku skoku na telefonie, `E` na klawiaturze, `X` na padzie.
 - **Język**: domyślnie z ustawień konta, przycisk pod licznikiem monet przełącza EN/PL (także napisy na tabliczkach).
 - **Lista graczy** pokazuje monety wszystkich na serwerze (kolumna 💰).
@@ -85,6 +104,12 @@ Testy pilnują m.in., żeby:
 
 Lint: `selene src`
 
+## Rozmiar serwera
+
+Suszarni jest 8, więc ustaw serwer na **8 graczy**: w Studio File → Game Settings → Places → (…) przy miejscu →
+Server Size / Max Players, albo w Creator Hub w ustawieniach miejsca. Gracz ponad limit suszarni dostaje komunikat,
+że nie ma wolnej. Małe serwery to też większa szansa, że okradnie cię ktoś, kogo potem rozpoznasz.
+
 ## Zapis w Studio
 
 Żeby zapis działał przy testach w Studio: Game Settings → Security → **Enable Studio Access to API Services**.
@@ -100,8 +125,8 @@ Granice stref nadal wynikają z osi Z w `Config.Zones`.
 
 1. **Zagrać 15 minut na telefonie** i sprawdzić, czy chce się zrobić „jeszcze jedno wejście”.
    Mapa ma ok. 7 tys. części; jeśli słabszy telefon klatkuje, pierwsze do odchudzenia są rzędy sosen na brzegach.
-2. Suszarnia w chatce (dochód pasywny, powód do powrotu za kilka godzin).
+2. ~~Suszarnia~~ zrobione (przed chatką, z kradzieżą). Dalej: więcej miejsc na suszarni jako ulepszenie.
 3. Wysyp i pogoda wspólna dla wszystkich serwerów, z prognozą na tablicy w chatce.
 4. Atlas grzybów (`data.atlas` już zapisuje odkryte gatunki).
-5. Grzyby-mimiki i Leszy w Mrocznym Jarze.
+5. ~~Leszy~~ zrobione (pościg z gniazda). Dalej: grzyby-mimiki.
 6. Przed publikacją: ProfileStore zamiast prostego DataStore, rzadsze wysyłanie stanu do klienta.

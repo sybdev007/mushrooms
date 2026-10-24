@@ -46,7 +46,7 @@ local THEME = {
 local TITLE_FONT = Enum.Font.FredokaOne
 local BODY_FONT = Enum.Font.GothamBold
 
-local UPGRADE_ICONS = { lantern = "🔦", oil = "🛢️", basket = "🧺", boots = "🥾" }
+local UPGRADE_ICONS = { lantern = "🔦", oil = "🛢️", basket = "🧺", boots = "🥾", lock = "🔒" }
 
 local callbacks = {
 	pick = {} :: { () -> () },
@@ -227,10 +227,13 @@ pickCaptionStroke.Thickness = 1.5
 pickCaptionStroke.Color = Color3.fromRGB(90, 40, 10)
 pickCaptionStroke.Parent = pickCaption
 
--- Panel chatki: sprzedaż i ulepszenia
-local cabinPanel = panel("CabinPanel", gui, UDim2.new(0.94, 0, 0, 200), UDim2.new(0.5, 0, 1, -14), Vector2.new(0.5, 1))
+-- Panel chatki: sprzedaż i ulepszenia (karty po dwie w rzędzie, rzędów tyle, ile trzeba)
+local UPGRADE_ROWS = math.ceil(#Config.UpgradeOrder / 2)
+local CARD_ROW_HEIGHT = 56
+local PANEL_HEIGHT = 16 + 56 + UPGRADE_ROWS * CARD_ROW_HEIGHT
+local cabinPanel = panel("CabinPanel", gui, UDim2.new(0.94, 0, 0, PANEL_HEIGHT), UDim2.new(0.5, 0, 1, -14), Vector2.new(0.5, 1))
 local panelSize = Instance.new("UISizeConstraint")
-panelSize.MaxSize = Vector2.new(600, 200)
+panelSize.MaxSize = Vector2.new(600, PANEL_HEIGHT)
 panelSize.Parent = cabinPanel
 local panelPadding = Instance.new("UIPadding")
 panelPadding.PaddingLeft = UDim.new(0, 8)
@@ -266,7 +269,7 @@ grid.Position = UDim2.new(0, 0, 0, 56)
 grid.BackgroundTransparency = 1
 grid.Parent = cabinPanel
 local gridLayout = Instance.new("UIGridLayout")
-gridLayout.CellSize = UDim2.new(0.5, -4, 0.5, -4)
+gridLayout.CellSize = UDim2.new(0.5, -4, 1 / UPGRADE_ROWS, -6)
 gridLayout.CellPadding = UDim2.new(0, 8, 0, 8)
 gridLayout.SortOrder = Enum.SortOrder.LayoutOrder
 gridLayout.Parent = grid

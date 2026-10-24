@@ -272,4 +272,10 @@ function Effects.engulf()
 	Effects.play("engulf")
 end
 
+-- Leszy się budzi: niskie, zwolnione szepty lasu
+function Effects.leszyWoke()
+	Effects.play("engulf", 0.6, 1.3)
+	task.delay(0.4, Effects.play, "engulf", 0.45, 1)
+end
+
 return Effects

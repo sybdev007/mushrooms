@@ -43,3 +43,27 @@ UPG_BASKET_DESC,Carry more mushrooms,,,Więcej grzybów naraz
 UPG_BOOTS_DESC,Walk faster,,,Szybszy chód
 ENGULF_TITLE,The forest swallowed you...,,,Las cię pochłonął...
 MSG_OIL_HALF,Half your oil is gone. Mind the way back!,,,Połowa oleju za tobą. Pamiętaj o powrocie!
+MUSH_LESZY_CROWN,Leshy's Crown,,,Korona Leszego
+GROVE_SIGN,Leshy's Nest. Turn back!,,,Gniazdo Leszego. Zawróć!
+MSG_LESZY_WOKE,The Leshy woke up! Run to the cabin!,,,Leszy się obudził! Uciekaj do chatki!
+HUD_LESZY_CHASE,The Leshy is chasing you!,,,Leszy cię goni!
+MSG_ESCAPED,You escaped the Leshy! Basket: {1} coins,,,Uciekłeś Leszemu! W koszyku: {1} monet
+MSG_LESZY_GAVE_UP,The Leshy gave up... for now.,,,Leszy odpuścił... na razie.
+MSG_CAUGHT,Mushrooms taken by the Leshy: {1},,,Leszy zabrał grzyby: {1}
+CAUGHT_TITLE,The Leshy caught you!,,,Leszy cię dopadł!
+UPG_LOCK,Rack Lock,,,Kłódka suszarni
+UPG_LOCK_DESC,Thieves need longer,,,Złodziej kradnie dłużej
+RACK_HANG,Hang mushrooms,,,Rozwieś grzyby
+RACK_COLLECT,Sell dried,,,Sprzedaj suszone
+RACK_STEAL,Steal,,,Podkradnij
+RACK_YOURS,Your drying rack,,,Twoja suszarnia
+RACK_OF,{1}'s rack,,,Suszarnia: {1}
+MSG_HUNG,Hung to dry: {1}. They gain value over time!,,,Suszy się: {1}. Z czasem będą droższe!
+MSG_RACK_FULL,Your drying rack is full.,,,Suszarnia jest pełna.
+MSG_NOTHING_TO_HANG,No fresh mushrooms in your basket.,,,Nie masz świeżych grzybów w koszyku.
+MSG_STOLE,You stole a dried {1}!,,,Łup z suszarni: {1}!
+MSG_ROBBED,{2} stole your dried {1}!,,,{2} podkradł ci: {1}!
+MSG_RACK_ALERT,{1} is robbing your drying rack!,,,{1} kradnie z twojej suszarni!
+MSG_RACK_PROTECTED,This rack was just robbed. Try later.,,,Tę suszarnię ktoś przed chwilą okradł. Spróbuj później.
+MSG_OWNER_GUARDING,The owner is guarding this rack!,,,Właściciel pilnuje suszarni!
+MSG_NO_RACK,No free drying rack on this server.,,,Na tym serwerze nie ma wolnej suszarni.

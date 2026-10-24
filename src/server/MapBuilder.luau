@@ -15,17 +15,28 @@ local World = script.Parent:WaitForChild("World")
 local Palette = require(World:WaitForChild("Palette"))
 local Props = require(World:WaitForChild("Props"))
 local Cabin = require(World:WaitForChild("Cabin"))
+local Grove = require(World:WaitForChild("Grove"))
+local Rack = require(World:WaitForChild("Rack"))
 
 export type Spot = {
 	id: string,
 	zone: number,
 	position: Vector3,
+	grove: boolean?, -- miejsce w Gnieździe Leszego (rośnie tam Korona Leszego)
+}
+
+export type RackInfo = {
+	id: number,
+	model: Model,
 }
 
 export type MapInfo = {
 	spawnCFrame: CFrame,
 	spots: { Spot },
 	spotById: { [string]: Spot },
+	groveCenter: Vector3?, -- skąd rusza Leszy; nil = mapa bez gniazda
+	leszyStatue: Model?,
+	racks: { RackInfo },
 }
 
 type Builder = (Instance, Vector3, number, Random, number) -> ()
@@ -331,6 +342,41 @@ local function buildSpots(rng: Random): { Spot }
 	return spots
 end
 
+-- Gniazdo Leszego: miejsca na korony w kole wokół środka
+local function groveCenter(): Vector3
+	return Vector3.new(Config.Grove.centerX, 0, Config.Grove.centerZ)
+end
+
+local function buildGroveSpots(): { Spot }
+	local spots: { Spot } = {}
+	local center = groveCenter()
+	for i = 1, Config.Grove.spots do
+		local angle = (i - 1) / Config.Grove.spots * math.pi * 2 + math.pi / Config.Grove.spots
+		local position = center + Vector3.new(math.sin(angle), 0, math.cos(angle)) * Config.Grove.spotRadius
+		occupy(position.X, position.Z, 3)
+		table.insert(spots, { id = "grove_" .. i, zone = Economy.zoneIndexAt(position.Z), position = position, grove = true })
+	end
+	return spots
+end
+
+-- Suszarnie na polanie, każda zwrócona do środka (ścieżki)
+local function rackCFrame(plot: { x: number, z: number }): CFrame
+	return CFrame.lookAt(Vector3.new(plot.x, 0, plot.z), Vector3.new(0, 0, plot.z))
+end
+
+local function buildRacks(parent: Instance): { RackInfo }
+	local folder = Instance.new("Folder")
+	folder.Name = "DryingRacks"
+	local racks: { RackInfo } = {}
+	for index, plot in Config.Drying.plots do
+		local model = Rack.build(folder, rackCFrame(plot), Config.Drying.slots)
+		model.Name = "DryingRack_" .. index
+		table.insert(racks, { id = index, model = model })
+	end
+	folder.Parent = parent
+	return racks
+end
+
 local function readExistingMap(map: Folder): MapInfo?
 	local spawnPart = map:FindFirstChild("SpawnPoint")
 	local spotsFolder = map:FindFirstChild("Spots")
@@ -338,10 +384,16 @@ local function readExistingMap(map: Folder): MapInfo?
 		return nil
 	end
 	local spots: { Spot } = {}
+	local grove: Vector3? = nil
 	for i, child in spotsFolder:GetChildren() do
 		local zone = child:GetAttribute("Zone")
 		if child:IsA("BasePart") and typeof(zone) == "number" then
-			table.insert(spots, { id = "custom_" .. i, zone = zone, position = child.Position })
+			-- Atrybut Grove = true: miejsce na Koronę Leszego (Leszy rusza z pierwszego takiego miejsca)
+			local isGrove = child:GetAttribute("Grove") == true
+			table.insert(spots, { id = "custom_" .. i, zone = zone, position = child.Position, grove = isGrove })
+			if isGrove and not grove then
+				grove = child.Position
+			end
 			child.Transparency = 1
 			child.CanCollide = false
 		end
@@ -350,7 +402,25 @@ local function readExistingMap(map: Folder): MapInfo?
 	for _, spot in spots do
 		spotById[spot.id] = spot
 	end
-	return { spawnCFrame = spawnPart.CFrame + Vector3.new(0, 3, 0), spots = spots, spotById = spotById }
+	-- Suszarnie: własne modele z folderu Map/DryingRacks albo nasze na domyślnych miejscach
+	local racks: { RackInfo } = {}
+	local racksFolder = map:FindFirstChild("DryingRacks")
+	if racksFolder then
+		for index, child in racksFolder:GetChildren() do
+			if child:IsA("Model") and child.PrimaryPart then
+				table.insert(racks, { id = index, model = child })
+			end
+		end
+	else
+		racks = buildRacks(map)
+	end
+	return {
+		spawnCFrame = spawnPart.CFrame + Vector3.new(0, 3, 0),
+		spots = spots,
+		spotById = spotById,
+		groveCenter = grove,
+		racks = racks,
+	}
 end
 
 -- Usuwa to, co wkłada szablon Baseplate w Studio, a co psuje naszą mapę
@@ -402,6 +472,18 @@ function MapBuilder.build(): MapInfo
 		table.insert(reserved, { x1 = -9.5, x2 = 9.5, z1 = zone.startZ - 2.5, z2 = zone.startZ + 2.5 })
 	end
 
+	-- Suszarnie wokół chatki: wolne miejsce wokół każdej
+	for _, plot in Config.Drying.plots do
+		table.insert(reserved, { x1 = plot.x - 5, x2 = plot.x + 5, z1 = plot.z - 5, z2 = plot.z + 5 })
+	end
+	local racks = buildRacks(map)
+
+	-- Gniazdo Leszego: w środku i za kręgiem (posąg) nic nie rośnie
+	local center = groveCenter()
+	local groveR = Config.Grove.radius
+	table.insert(reserved, { x1 = center.X - groveR - 3, x2 = center.X + groveR + 3, z1 = center.Z - groveR - 5, z2 = center.Z + groveR + 8 })
+	local leszyStatue = Grove.build(map, center, groveR, Random.new(Config.SpotSeed + 2))
+
 	-- Ścieżka z latarniami od ganku w głąb skraju lasu
 	local decorRng = Random.new(Config.SpotSeed + 1)
 	Props.path(map, Cabin.FRONT_Z + 9, PATH_END_Z, decorRng)
@@ -414,6 +496,9 @@ function MapBuilder.build(): MapInfo
 
 	-- Grzyby najpierw (stałe ziarno), potem las omija je szerokim łukiem
 	local spots = buildSpots(Random.new(Config.SpotSeed))
+	for _, spot in buildGroveSpots() do
+		table.insert(spots, spot)
+	end
 	for zoneIndex = 1, #Config.Zones do
 		buildZoneDecor(map, zoneIndex, decorRng)
 	end
@@ -443,6 +528,9 @@ function MapBuilder.build(): MapInfo
 		spawnCFrame = spawnCFrame,
 		spots = spots,
 		spotById = spotById,
+		groveCenter = center,
+		leszyStatue = leszyStatue,
+		racks = racks,
 	}
 end
 

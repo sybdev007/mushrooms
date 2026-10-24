@@ -18,6 +18,7 @@ local Atmosphere = require(script.Parent.Atmosphere)
 local Effects = require(script.Parent.Effects)
 local Warnings = require(script.Parent.Warnings)
 local Signs = require(script.Parent.Signs)
+local RackPrompts = require(script.Parent.RackPrompts)
 
 local player = Players.LocalPlayer
 
@@ -32,14 +33,17 @@ local LANTERN_GLASS = Color3.fromRGB(255, 206, 120)
 local lanternRange = Economy.upgradeStat("lantern", 0)
 local oil = Economy.upgradeStat("oil", 0)
 local oilMax = oil
+local chased = false
 local targetId: string? = nil
 
 Signs.start()
+RackPrompts.start()
 
 Remotes.get("StateUpdate").OnClientEvent:Connect(function(state)
 	lanternRange = state.lanternRange
 	oil = state.oil
 	oilMax = state.oilMax
+	chased = state.chased == true
 	Hud.update(state)
 end)
 
@@ -68,20 +72,49 @@ local TOAST_KIND: { [string]: string } = {
 	MSG_BASKET_FULL = "warn",
 	MSG_NOT_ENOUGH = "warn",
 	MSG_ENGULFED = "warn",
+	MSG_LESZY_WOKE = "warn",
+	MSG_ROBBED = "warn",
+	MSG_RACK_ALERT = "warn",
+	MSG_RACK_FULL = "warn",
+	MSG_NOTHING_TO_HANG = "warn",
+	MSG_RACK_PROTECTED = "warn",
+	MSG_OWNER_GUARDING = "warn",
+	MSG_NO_RACK = "warn",
+	MSG_ESCAPED = "gold",
+	MSG_STOLE = "gold",
+}
+
+-- Komunikaty, po których gracz ląduje w chatce z czarnym ekranem: klucz -> tytuł
+local BLACKOUT_TITLE: { [string]: string } = {
+	MSG_ENGULFED = "ENGULF_TITLE",
+	MSG_CAUGHT = "CAUGHT_TITLE",
 }
 
 Remotes.get("Notify").OnClientEvent:Connect(function(payload)
 	local args = payload.args
 	if payload.nameKey then
-		args = { Localize.t(payload.nameKey) }
+		-- Nazwa (grzyba, ulepszenia) zawsze jako {1}, dalsze argumenty przesuwają się na {2}, {3}...
+		local localized = { Localize.t(payload.nameKey) }
+		for _, value in args or {} do
+			table.insert(localized, value)
+		end
+		args = localized
 	end
 	local text = Localize.t(payload.key, args)
-	if payload.key == "MSG_ENGULFED" then
-		Hud.engulf(Localize.t("ENGULF_TITLE"), text)
+	local blackoutTitle = BLACKOUT_TITLE[payload.key]
+	if blackoutTitle then
+		Hud.engulf(Localize.t(blackoutTitle), text)
 		Effects.engulf()
 		return
 	end
 	Hud.toast(text, TOAST_KIND[payload.key])
+	if payload.key == "MSG_LESZY_WOKE" then
+		Effects.leszyWoke()
+	elseif payload.key == "MSG_ROBBED" or payload.key == "MSG_RACK_ALERT" then
+		Effects.play("engulf", 1.4, 0.5)
+	elseif payload.key == "MSG_STOLE" or payload.key == "MSG_ESCAPED" then
+		Effects.play("upgrade", 1.2)
+	end
 	if payload.key == "MSG_SOLD" then
 		Effects.sold()
 		Hud.coinShower(tonumber(payload.args and payload.args[1]) or 0)
@@ -168,8 +201,9 @@ RunService.RenderStepped:Connect(function(dt)
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
 	local speed = if humanoid then humanoid.WalkSpeed else Economy.upgradeStat("boots", 0)
 	local turnBack = Economy.shouldTurnBack(position.Z, speed, oil)
-	Warnings.update(dt, position, oilFraction, turnBack, zone, lanternRange)
-	Effects.setHeartbeat(if zone ~= 1 and oilFraction < Config.OilLowFraction then 1 - oilFraction / Config.OilLowFraction * 0.6 else 0)
+	Warnings.update(dt, position, oilFraction, turnBack, zone, lanternRange, chased)
+	local heartbeat = if zone ~= 1 and oilFraction < Config.OilLowFraction then 1 - oilFraction / Config.OilLowFraction * 0.6 else 0
+	Effects.setHeartbeat(if chased then 1 else heartbeat)
 
 	-- Panel sprzedaży tylko przy chatce, żeby nie zasłaniał ekranu na całej polanie
 	Hud.setInCabin(zone == 1 and position.Z < CABIN_PANEL_MAX_Z)
