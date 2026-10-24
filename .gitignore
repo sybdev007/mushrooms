@@ -1,0 +1,10 @@
+# Pliki miejsc generowane przez Rojo
+*.rbxl
+*.rbxlx
+*.rbxl.lock
+*.rbxlx.lock
+
+# Wygenerowana biblioteka standardowa Selene
+roblox.yml
+
+.DS_Store

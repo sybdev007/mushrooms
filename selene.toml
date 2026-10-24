@@ -1,0 +1,5 @@
+std = "roblox"
+
+[lints]
+# Luau w Robloxie pozwala na `for _, x in tabela do` bez ipairs
+incorrect_standard_library_use = "warn"
