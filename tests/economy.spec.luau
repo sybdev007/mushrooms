@@ -232,6 +232,90 @@ test("każdy klucz HUD_/MSG_ użyty w kodzie jest w CSV", function()
 	end
 end)
 
+-- Ładuje prawdziwy src/client/Localize.luau z podstawionymi usługami Robloxa.
+-- Wpisy mają kształt jak z LocalizationTable:GetEntries() (Key, Source, Values).
+local function loadLocalize(playerLocale: string): any
+	local csv = fs.readFile("src/localization/GameStrings.csv")
+	local robloxEntries = {}
+	local first = true
+	for line in string.gmatch(csv, "[^\r\n]+") do
+		if first then
+			first = false
+		else
+			local c = string.split(line, ",")
+			table.insert(robloxEntries, { Key = c[1], Source = c[2], Context = c[3], Example = c[4], Values = { ["pl-pl"] = c[5] } })
+		end
+	end
+	local stringsTable = {
+		IsA = function(_, className)
+			return className == "LocalizationTable"
+		end,
+		GetEntries = function()
+			return robloxEntries
+		end,
+	}
+	local services = {
+		LocalizationService = {
+			RobloxLocaleId = "en-us",
+			WaitForChild = function(_, name)
+				return if name == "GameStrings" then stringsTable else nil
+			end,
+		},
+		Players = { LocalPlayer = { LocaleId = playerLocale } },
+	}
+	return loadModule("src/client/Localize.luau", {
+		game = {
+			GetService = function(_, name)
+				return services[name]
+			end,
+		},
+		warn = function(...)
+			error("Localize ostrzegł: " .. table.concat({ ... }, " "))
+		end,
+		task = { spawn = function(fn)
+			fn()
+		end },
+	})
+end
+
+print("Odczyt tłumaczeń w grze (Localize.luau)")
+test("angielski gracz dostaje angielskie teksty, nie klucze", function()
+	local Localize = loadLocalize("en-us")
+	eq(Localize.getLocale(), "en", "język")
+	eq(Localize.t("HUD_PICK"), "COLLECT")
+	eq(Localize.t("HUD_COINS", { 42 }), "Coins: 42")
+	eq(Localize.t("HUD_BASKET", { 3, 5 }), "Basket: 3/5")
+	eq(Localize.t("ZONE_CABIN"), "Forager's Cabin")
+end)
+
+test("polski gracz dostaje polskie teksty", function()
+	local Localize = loadLocalize("pl-pl")
+	eq(Localize.getLocale(), "pl", "język")
+	eq(Localize.t("HUD_PICK"), "ZBIERZ")
+	eq(Localize.t("HUD_COINS", { 42 }), "Monety: 42")
+	eq(Localize.t("MUSH_GLOWING"), "Świecący Muchomor")
+end)
+
+test("przełącznik zmienia język i woła odświeżenie", function()
+	local Localize = loadLocalize("en-us")
+	local refreshed = 0
+	Localize.onChanged(function()
+		refreshed += 1
+	end)
+	Localize.toggle()
+	eq(Localize.t("HUD_PICK"), "ZBIERZ", "po przełączeniu na PL")
+	Localize.toggle()
+	eq(Localize.t("HUD_PICK"), "COLLECT", "po powrocie na EN")
+	eq(refreshed, 2, "odświeżenia HUD")
+end)
+
+test("nieobsługiwany język gracza = angielski, nieznany klucz = klucz", function()
+	local Localize = loadLocalize("de-de")
+	eq(Localize.getLocale(), "en", "niemiecki")
+	eq(Localize.t("NIE_MA_TAKIEGO"), "NIE_MA_TAKIEGO")
+	eq(Localize.t("HUD_COINS"), "Coins: {1}", "brak argumentu zostaje widoczny")
+end)
+
 print(string.format("\n%d ok, %d błędów", passed, failed))
 if failed > 0 then
 	process.exit(1)
