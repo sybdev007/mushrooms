@@ -88,13 +88,17 @@ rojo build -o lantern-forager.rbxlx
 - **Latarnia zgaśnie** → ekran ciemnieje, gracz wraca do chatki i traci wszystkie grzyby z koszyka.
 - **Grzyby** są osobne dla każdego gracza (nikt nikomu nie wyzbiera), odrastają po 90 s. Mutacje: Srebro ×1,5, Złoto ×3, Tęcza ×8, plus cechy od miejsca (Mech, Blask).
 - W **Gęstwinie i Jarze** widać tylko grzyby w zasięgu latarni. Złote i Świecący Muchomor widać zawsze, jako przynętę.
-- **Chatka**: za ladą stoi skupywacz **Pan Borowik** (`Config.Merchant`). Przycisk „Sprzedaj grzyby” otwiera panel
+- **Chatka** (36 x 32 studs): na środku tylnej ściany, za ladą, stoi skupywacz **Pan Borowik** (`Config.Merchant`). Przycisk „Sprzedaj grzyby” otwiera panel
   z kartami grzybów z koszyka (kapelusz w kolorze gatunku lub mutacji, nazwa w kolorze klasy, cena): można sprzedać
   jeden, zaznaczone albo wszystko. Serwer sprawdza odległość od skupywacza i odcisk koszyka. W obozowiskach panel
   otwiera się w kręgu przy kramiku. W chatce są też półki ze świecącymi słoikami, stolik z lampką-muchomorem,
   a na ganku ławka i doniczki.
-- **Ulepszenia**: zielony przycisk „Ulepszenia” przy prawej krawędzi ekranu (ikona rośnie i robi obrót po najechaniu).
-  Panel ma zakładki Las / Jaskinia / Bagna; kupuje się w bezpiecznej strefie danego świata (leśne w chatce i na polanie).
+- **Ulepszenia**: fioletowy przycisk „Ulepszenia” przy prawej krawędzi ekranu albo klawisz **R** (Y na padzie).
+  Czerwona kropka pokazuje, na ile ulepszeń gracza stać. Panel ma kolorowe karty (ikona, opis, kropki poziomów,
+  wartość „x1 » x1.25”, przycisk z ceną) i zakładki Las / Jaskinia / Bagna, gdy są odblokowane; kupuje się
+  w bezpiecznej strefie danego świata (leśne w chatce i na polanie).
+- **Ikony**: dwa arkusze z Figmy, `assets/ui-icons.png` i `assets/ui-icons-2.png` (ramka „sprite/ui-icons-2”, źródła SVG
+  w `assets/icons2/`). Numery obrazków są w `Config.UiIcons` i `Config.UiIcons2`; bez numeru UiKit pokazuje emoji.
 - **Gniazdo Leszego** (koniec Jaru, `Config.Grove`): krąg kamieni z 3 Koronami Leszego (220 monet, każdy gracz ma własne,
   odrastają po 4 min). Zerwanie budzi Leszego: rusza z gniazda po 2 s, przenika przez drzewa i biegnie 22 studs/s.
   Złapie = tracisz koszyk, a Leszy odnosi zabrane korony do **skarbca** na środku gniazda (`HoardService`). Skarbiec jest wspólny:

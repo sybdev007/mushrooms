@@ -213,20 +213,22 @@ bubble.BackgroundColor3 = Color3.new(1, 1, 1)
 bubble.Parent = window
 corner(bubble, UDim.new(0, 12))
 stroke(bubble, OUTLINE, 2.5)
+bubble.ZIndex = 2
+-- Ogonek dymka pod dymkiem (biały środek dymka zakrywa jego połowę)
 local tail = Instance.new("Frame")
 tail.Name = "Tail"
 tail.Size = UDim2.fromOffset(14, 14)
 tail.AnchorPoint = Vector2.new(0.5, 0.5)
-tail.Position = UDim2.new(0, 0, 0.5, 0)
+tail.Position = UDim2.fromOffset(113, 88)
 tail.Rotation = 45
 tail.BackgroundColor3 = Color3.new(1, 1, 1)
-tail.ZIndex = 0
-tail.Parent = bubble
+tail.ZIndex = 1
+tail.Parent = window
 stroke(tail, OUTLINE, 2.5)
 local speech = label(bubble, "Speech", UDim2.new(1, -20, 1, -8), UDim2.fromOffset(10, 4), BODY_FONT, 17)
 speech.TextColor3 = Color3.fromRGB(60, 40, 24)
 speech.TextXAlignment = Enum.TextXAlignment.Left
-speech.ZIndex = 2
+speech.ZIndex = 3
 
 local close = Instance.new("TextButton")
 close.Name = "Close"

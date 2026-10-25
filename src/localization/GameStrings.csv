@@ -217,7 +217,7 @@ NPC_HELLO_2,Ooh fresh from the forest! Let me see.,,,O! Prosto z lasu! Pokaż no
 NPC_HELLO_3,I pay well for the rare ones!,,,Za rzadkie płacę najlepiej!
 NPC_EMPTY,Your basket is empty. Come back with mushrooms!,,,Koszyk pusty. Wracaj z grzybami!
 SELL_ONE,Sell,,,Sprzedaj
-SELL_SELECTED,Sell selected ({1}),,,Sprzedaj zaznaczone ({1})
+SELL_SELECTED,Selected ({1}),,,Zaznaczone ({1})
 SELL_ALL,Sell all,,,Sprzedaj wszystko
 SELL_SELECT_ALL,Select all,,,Zaznacz wszystko
 SELL_UNSELECT_ALL,Unselect,,,Odznacz

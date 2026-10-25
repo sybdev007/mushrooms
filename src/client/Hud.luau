@@ -694,7 +694,7 @@ for order, id in ALL_UPGRADES do
 	local iconScale = Instance.new("UIScale")
 	iconScale.Parent = icon
 
-	local desc = label("Desc", body, UDim2.new(1, -18, 0, 34), UDim2.fromOffset(9, 148), BODY_FONT, 14)
+	local desc = label("Desc", body, UDim2.new(1, -12, 0, 36), UDim2.fromOffset(6, 146), BODY_FONT, 16)
 	desc.TextWrapped = true
 	desc.ZIndex = 14
 	UiKit.outline(desc, 1.5)
