@@ -617,7 +617,7 @@ local function buildPortalPlaza(parent: Instance, rng: Random): Vector3
 				local post = Instance.new("Part")
 				post.Anchored = true
 				post.Size = Vector3.new(0.4, 4, 0.4)
-				post.Position = Vector3.new(x + side * 2.6, 2.8, z + 5)
+				post.Position = Vector3.new(x + side * 2.6, 2.8, z + 4.6) -- za tabliczką, żeby nie zasłaniać napisu
 				post.Color = Palette.log
 				post.Parent = folder
 			end

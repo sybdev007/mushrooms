@@ -301,10 +301,11 @@ function Cave.portal(parent: Instance, cf: CFrame, signKey: string, color: Color
 		Props.glowCluster(m, (cf * CFrame.new(side * (openW / 2 + 3.2), 0, -1.6)).Position, rng)
 	end
 
-	-- Szyld na dwóch słupkach z przodu, z boku ścieżki
+	-- Szyld na dwóch słupkach z przodu, z boku ścieżki. Słupki stoją ZA tabliczką
+	-- (wcześniej przebijały ją i zasłaniały pierwsze litery napisu).
 	local signCf = cf * CFrame.new(openW / 2 + 5.5, 0, -3)
 	for _, side in { -1, 1 } do
-		make("Part", { Size = Vector3.new(0.4, 4.6, 0.4), CFrame = signCf * CFrame.new(side * 3.2, 2.3, 0), Color = Palette.log, Parent = m })
+		make("Part", { Size = Vector3.new(0.4, 4.6, 0.4), CFrame = signCf * CFrame.new(side * 3.2, 2.3, 0.4), Color = Palette.log, Parent = m })
 	end
 	Props.signBoard(m, signCf * CFrame.new(0, 3.8, 0), Vector3.new(7.4, 1.6, 0.3), signKey, Enum.NormalId.Front)
 	m.Parent = parent
@@ -428,7 +429,7 @@ local function buildCamp(parent: Instance)
 	drip.Acceleration = Vector3.new(0, -12, 0)
 	drip.Parent = tap
 	for _, side in { -1, 1 } do
-		make("Part", { Size = Vector3.new(0.4, 6.4, 0.4), CFrame = oilCf * CFrame.new(side * 3.4, 3.2, 3.2), Color = Palette.plankDark, Parent = m })
+		make("Part", { Size = Vector3.new(0.4, 6.4, 0.4), CFrame = oilCf * CFrame.new(side * 3.4, 3.2, 3.6), Color = Palette.plankDark, Parent = m })
 	end
 	Props.signBoard(m, oilCf * CFrame.new(0, 6.6, 3.2), Vector3.new(7, 1.5, 0.3), "SIGN_OIL", Enum.NormalId.Front)
 	Props.hangingLantern(m, (oilCf * CFrame.new(3.4, 6.2, 2.6)).Position, 16)
@@ -1013,12 +1014,28 @@ local function buildLair(parent: Instance, rng: Random): Model
 	-- Tabliczka ostrzegawcza przed kręgiem, od strony nadchodzącego gracza
 	local signZ = center.Z - lair.radius - 3
 	for _, side in { -1, 1 } do
-		make("Part", { Size = Vector3.new(0.4, 4.4, 0.4), Position = Vector3.new(center.X + 7 + side * 2.8, 2.2, signZ), Color = Palette.log, Parent = m })
+		make("Part", { Size = Vector3.new(0.4, 4.6, 0.4), Position = Vector3.new(center.X + 7 + side * 4.2, 2.3, signZ + 0.4), Color = Palette.log, Parent = m })
 	end
-	Props.signBoard(m, CFrame.new(center.X + 7, 3.7, signZ), Vector3.new(6.6, 1.6, 0.3), "SIGN_LAIR", Enum.NormalId.Front)
+	Props.signBoard(m, CFrame.new(center.X + 7, 3.8, signZ), Vector3.new(9.6, 2.2, 0.3), "SIGN_LAIR", Enum.NormalId.Front)
 	m.Parent = parent
-	-- Posąg Skarbnika za kręgiem, twarzą do gracza
-	local statuePos = center + Vector3.new(0, 0, lair.radius + 4)
+	-- Posąg Skarbnika za kręgiem, na skalnym cokole, twarzą do gracza, oświetlony od dołu na zielono
+	local statueBase = center + Vector3.new(0, 0, lair.radius + 4)
+	local pedestal = make("Part", {
+		Name = "Pedestal",
+		Size = Vector3.new(7, 2.4, 5),
+		CFrame = CFrame.new(statueBase + Vector3.new(0, 1.2, 0)),
+		Color = Color3.fromRGB(84, 72, 60),
+		Material = Enum.Material.Slate,
+		Parent = m,
+	})
+	local uplight = Instance.new("SpotLight")
+	uplight.Face = Enum.NormalId.Top
+	uplight.Color = Color3.fromRGB(120, 255, 150)
+	uplight.Range = 16
+	uplight.Angle = 70
+	uplight.Brightness = 2
+	uplight.Parent = pedestal
+	local statuePos = statueBase + Vector3.new(0, 2.4, 0)
 	return Skarbnik.build(parent, CFrame.lookAt(statuePos, statuePos - Vector3.new(0, 0, 1)), false)
 end
 
