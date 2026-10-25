@@ -122,8 +122,10 @@ function Economy.variantRank(id: string?): number
 end
 
 -- Wariant dla liczby r z [0, 1). minRank > 0 wymusza co najmniej taką rangę (gwarancja).
-function Economy.rollVariant(r: number, minRank: number?): string?
+-- luck: mnożnik szans na warianty (Wysyp, mikstura szczęścia); 1 = zwykłe szanse
+function Economy.rollVariant(r: number, minRank: number?, luck: number?): string?
 	local floor = minRank or 0
+	r /= math.max(luck or 1, 1)
 	local acc = 0
 	for _, variant in variantsRarestFirst do
 		acc += variant.chance

@@ -505,6 +505,42 @@ test("jaskinia: do końca Sztolni da się dojść z maks. knotem", function()
 	check(need * Config.ReturnMargin < oil, "sztolnia za daleko: " .. need)
 end)
 
+print("Zakupy za Robuxy")
+
+test("szczęście (Wysyp, mikstura) mnoży szanse na warianty", function()
+	-- r tuż ponad szansą Tęczy: bez szczęścia nic rzadkiego, z ×2 już Tęcza
+	local rainbow = 0
+	for _, v in Config.Variants do
+		if v.id == "rainbow" then
+			rainbow = v.chance
+		end
+	end
+	local r = rainbow * 1.5
+	check(Economy.rollVariant(r, nil, 1) ~= "rainbow", "bez szczęścia")
+	eq(Economy.rollVariant(r, nil, 2), "rainbow", "z miksturą")
+	eq(Economy.rollVariant(0.999, nil, 0.5), Economy.rollVariant(0.999), "szczęście < 1 nic nie psuje")
+	check(Config.Boom.regrowFactor > 0 and Config.Boom.regrowFactor < 1, "wysyp przyspiesza odrost")
+	check(Config.Rescue.serverSeconds > Config.Rescue.buttonSeconds, "serwer czeka dłużej niż widać przycisk")
+end)
+
+test("każdy produkt ma nazwę i opis po angielsku i polsku, sklep zna każdy produkt", function()
+	local entries = {}
+	for line in string.gmatch(fs.readFile("src/localization/GameStrings.csv"), "[^\n]+") do
+		local key = string.match(line, "^([^,]+),")
+		if key then
+			entries[key] = true
+		end
+	end
+	for id, def in Config.Products do
+		check(entries[def.key] == true, "brak tekstu " .. def.key)
+		check(entries[def.key .. "_DESC"] == true, "brak opisu " .. def.key)
+		check(def.id >= 0, "zły numer produktu " .. id)
+	end
+	for _, id in Config.ShopOrder do
+		check(Config.Products[id] ~= nil, "sklep zna nieistniejący produkt " .. id)
+	end
+end)
+
 print("Bagna")
 
 -- Wyprawa z przystani do końca strefy bagien i powrót, z knotem z sitowia

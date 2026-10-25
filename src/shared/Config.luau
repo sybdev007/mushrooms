@@ -461,6 +461,31 @@ Config.PortalPlaza = {
 	worlds = { [0] = "cave", [-24] = "swamp" } :: { [number]: string },
 }
 
+-- ===== Zakupy za Robuxy (developer products) =====
+-- id: numer produktu z Creator Hub (Monetization → Developer Products). 0 = jeszcze nie utworzony:
+-- w Studio przycisk i tak działa (serwer daje rzecz za darmo, żeby dało się testować),
+-- w prawdziwej grze przycisk jest ukryty.
+export type ProductDef = { id: number, key: string, icon: string }
+Config.Products = {
+	rescue = { id = 0, key = "PRODUCT_RESCUE", icon = "💾" }, -- uratuj koszyk po zgaśnięciu latarni / złapaniu
+	boom = { id = 0, key = "PRODUCT_BOOM", icon = "🍄" }, -- Wysyp dla całego serwera
+	oil = { id = 0, key = "PRODUCT_OIL", icon = "🛢️" }, -- pełna latarnia od razu, w dowolnym miejscu
+	dry = { id = 0, key = "PRODUCT_DRY", icon = "⚡" }, -- wszystko na suszarni od razu suche
+	luck = { id = 0, key = "PRODUCT_LUCK", icon = "🍀" }, -- mikstura szczęścia: więcej mutacji
+} :: { [string]: ProductDef }
+-- Kolejność kart w sklepie (ratunek ma własny przycisk na czarnym ekranie)
+Config.ShopOrder = { "boom", "luck", "oil", "dry" }
+
+-- Ile sekund po zgaśnięciu latarni / złapaniu da się jeszcze uratować koszyk.
+-- buttonSeconds: jak długo widać przycisk; serverSeconds: zapas na okno płatności Robloxa.
+Config.Rescue = { buttonSeconds = 15, serverSeconds = 40 }
+
+-- Wysyp: przez tyle sekund grzyby u wszystkich na serwerze odrastają szybciej i częściej mutują
+Config.Boom = { seconds = 600, regrowFactor = 0.35, luck = 1.5 }
+
+-- Mikstura szczęścia: przez tyle sekund mutacje u kupującego są dwa razy częstsze
+Config.LuckPotion = { seconds = 900, luck = 2 }
+
 -- Kamera: bez limitu dało się oddalić widok i oglądać las z góry
 Config.CameraMaxZoom = 22
 

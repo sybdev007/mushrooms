@@ -20,6 +20,7 @@ local Warnings = require(script.Parent.Warnings)
 local Signs = require(script.Parent.Signs)
 local PortalView = require(script.Parent.PortalView)
 local DevPanel = require(script.Parent.DevPanel)
+local ShopPanel = require(script.Parent.ShopPanel)
 local RackPrompts = require(script.Parent.RackPrompts)
 
 local player = Players.LocalPlayer
@@ -53,6 +54,7 @@ Remotes.get("StateUpdate").OnClientEvent:Connect(function(state)
 	upgrades = state.upgrades
 	PortalView.setUnlocked({ cave = state.caveUnlocked == true, swamp = state.swampUnlocked == true })
 	DevPanel.setEnabled(state.dev == true)
+	ShopPanel.update(state, Economy.isSafeZone(state.zone))
 	Hud.update(state)
 end)
 
@@ -131,6 +133,11 @@ local TOAST_KIND: { [string]: string } = {
 	MSG_SWAMP_ENTER = "info",
 	MSG_PORTAL_FIND_SWAMP = "warn",
 	MSG_MIMIC = "warn",
+	MSG_BOOM = "gold",
+	MSG_LUCK = "gold",
+	MSG_RESCUED = "gold",
+	MSG_OIL_BOUGHT = "info",
+	MSG_DRIED = "info",
 	MSG_HOARD_DROP_SKARBNIK = "gold",
 	MSG_ROBBED = "warn",
 	MSG_RACK_ALERT = "warn",
@@ -162,6 +169,13 @@ local BLACKOUT_TITLE: { [string]: string } = {
 
 Remotes.get("Notify").OnClientEvent:Connect(function(payload)
 	local args = payload.args
+	-- Okazja do uratowania koszyka: przycisk na czarnym ekranie, bez komunikatu
+	if payload.key == "RESCUE_OFFER" then
+		ShopPanel.offerRescue(tonumber(args and args[1]) or 0, tonumber(args and args[2]) or 10)
+		return
+	elseif payload.key == "MSG_RESCUED" then
+		ShopPanel.hideRescue()
+	end
 	if payload.nameKey then
 		-- Nazwa (grzyba, ulepszenia) zawsze jako {1}, dalsze argumenty przesuwają się na {2}, {3}...
 		local localized = { Localize.t(payload.nameKey) }

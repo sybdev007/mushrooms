@@ -19,6 +19,8 @@ export type Data = {
 	pity: number, -- odrosty od ostatniego Złota (albo lepszego), do gwarancji mutacji
 	caveUnlocked: boolean, -- portal do jaskini raz otwarty zostaje otwarty
 	swampUnlocked: boolean, -- to samo dla bagien
+	luckUntil: number, -- os.time(), do kiedy działa mikstura szczęścia
+	receipts: { string }, -- ostatnie obsłużone zakupy (Roblox może przysłać ten sam drugi raz)
 }
 
 local STORE_NAME = "LanternForager_Prototype_v1"
@@ -58,6 +60,8 @@ function DataService.defaultData(): Data
 		pity = 0,
 		caveUnlocked = false,
 		swampUnlocked = false,
+		luckUntil = 0,
+		receipts = {},
 	}
 end
 
@@ -135,6 +139,16 @@ local function reconcile(raw: any): Data
 	end
 	data.caveUnlocked = raw.caveUnlocked == true
 	data.swampUnlocked = raw.swampUnlocked == true
+	if typeof(raw.luckUntil) == "number" then
+		data.luckUntil = math.floor(raw.luckUntil)
+	end
+	if typeof(raw.receipts) == "table" then
+		for _, id in raw.receipts do
+			if typeof(id) == "string" and #data.receipts < 50 then
+				table.insert(data.receipts, id)
+			end
+		end
+	end
 	return data
 end
 

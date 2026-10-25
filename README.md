@@ -66,6 +66,8 @@ rojo build -o lantern-forager.rbxlx
 | `src/client/Effects.luau` | StarterPlayerScripts.Client | Dźwięki, świetliki, iskry i „+N” przy zbieraniu, pierścień ulepszenia |
 | `src/client/Warnings.luau` | StarterPlayerScripts.Client | Czerwona winieta, baner „Wracaj!” ze strzałką, oczy Leszego |
 | `src/client/Signs.luau` | StarterPlayerScripts.Client | Napisy na tabliczkach w języku gracza |
+| `src/client/ShopPanel.luau` | StarterPlayerScripts.Client | Sklep za Robuxy, ratunek koszyka, szybki olej, liczniki Wysypu i mikstury |
+| `src/client/Purchases.luau` | StarterPlayerScripts.Client | Okno płatności Robloxa i ceny produktów |
 | `src/client/RackPrompts.luau` | StarterPlayerScripts.Client | Pokazuje graczowi właściwe przyciski przy suszarniach |
 | `src/client/Localize.luau` | StarterPlayerScripts.Client | Tłumaczenia EN/PL |
 | `src/localization/GameStrings.csv` | LocalizationService | Wszystkie teksty po angielsku i polsku |
@@ -138,6 +140,19 @@ Testy pilnują m.in., żeby:
 - każdy tekst miał wersję EN i PL.
 
 Lint: `selene src`
+
+## Zakupy za Robuxy
+
+Pięć produktów (`Config.Products`): **Zachowaj grzyby** (przycisk na czarnym ekranie po zgaśnięciu latarni
+lub złapaniu przez strażnika, przez 15 s), **Wysyp dla wszystkich** (10 min szybszego odrostu i więcej mutacji
+na całym serwerze, z ogłoszeniem, kto zafundował), **Butelka oleju** (też szybki przycisk przy pasku oleju,
+gdy w lesie spada poniżej 40%), **Natychmiastowe suszenie** i **Mikstura szczęścia** (15 min, 2× mutacje).
+Sklep otwiera przycisk 🛒 pod przełącznikiem języka.
+
+Jak podpiąć: Creator Hub → gra → Monetization → **Developer Products** → utwórz 5 produktów (nazwa, ikonka, cena),
+skopiuj ich numery do `Config.Products` (pole `id`). Dopóki `id = 0`, w Studio zakup działa za darmo (do testów),
+a w prawdziwej grze przycisk jest ukryty. Serwer obsługuje zakupy w `ProcessReceipt` i zapamiętuje ostatnie
+numery zakupów, więc ten sam zakup nigdy nie da rzeczy dwa razy.
 
 ## Rozmiar serwera
 

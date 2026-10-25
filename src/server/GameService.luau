@@ -3,6 +3,7 @@
 -- Serwer jest jedynym źródłem prawdy: olej, koszyk, monety i ulepszenia liczymy tutaj.
 -- Klient tylko pokazuje stan i wysyła prośby (zbierz / sprzedaj / kup).
 
+local MarketplaceService = game:GetService("MarketplaceService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -43,6 +44,15 @@ type Session = {
 	rng: Random,
 	spots: { [string]: SpotState },
 	portalNoticeAt: number, -- kiedy ostatnio mówiliśmy „portal zamknięty” (żeby nie spamować)
+	rescue: Rescue?, -- koszyk do uratowania za Robuxy (przez chwilę po zgaśnięciu latarni / złapaniu)
+}
+
+type Rescue = {
+	items: { any }, -- wszystko, co gracz stracił
+	reclaimed: { any }, -- z tego: grzyby strażnika (trafią do legowiska, jeśli nikt nie uratuje)
+	guardian: string?,
+	expiresAt: number,
+	drop: () -> (), -- oddaje grzyby strażnika do legowiska (gdy nikt nie uratował)
 }
 
 local TICK_SECONDS = 0.2
@@ -188,6 +198,25 @@ local function basketMax(session: Session): number
 end
 
 -- Mnożnik spalania oleju w świecie strefy (knot z jaskini albo z bagien)
+-- Wysyp (kupiony za Robuxy) działa dla całego serwera; czas w os.time(), żeby klienci mogli odliczać
+local boomUntil = 0
+
+local function boomActive(): boolean
+	return os.time() < boomUntil
+end
+
+-- Mnożnik szans na mutacje: Wysyp dla wszystkich, mikstura szczęścia dla kupującego
+local function luckFactor(session: Session): number
+	local luck = 1
+	if boomActive() then
+		luck *= Config.Boom.luck
+	end
+	if os.time() < session.data.luckUntil then
+		luck *= Config.LuckPotion.luck
+	end
+	return luck
+end
+
 local function oilScale(session: Session, zone: number): number
 	local upgrade = Economy.worldOilUpgrade(Economy.zoneWorld(zone))
 	return if upgrade then stat(session, upgrade) else 1
@@ -235,6 +264,8 @@ local function pushState(session: Session)
 		chaser = chasedBy(session.player),
 		caveUnlocked = data.caveUnlocked,
 		swampUnlocked = data.swampUnlocked,
+		luckUntil = data.luckUntil,
+		boomUntil = boomUntil,
 		dev = isDeveloper(session.player),
 	})
 end
@@ -257,14 +288,15 @@ local function rollSpot(session: Session, spot: MapBuilder.Spot, countPity: bool
 	-- Gwarancja: po Config.PityRolls odrostach bez Złota (albo lepszego) wymuszamy co najmniej Złoto
 	local data = session.data
 	local forced = countPity and data.pity >= Config.PityRolls
-	local variant = Economy.rollVariant(session.rng:NextNumber(), if forced then 2 else nil)
+	local luck = luckFactor(session)
+	local variant = Economy.rollVariant(session.rng:NextNumber(), if forced then 2 else nil, luck)
 	if countPity then
 		data.pity = if Economy.variantRank(variant) >= 2 then 0 else data.pity + 1
 	end
 
 	local tags: { string }? = nil
 	for _, tag in Economy.tagsForZone(spot.zone) do
-		if session.rng:NextNumber() < tag.chance then
+		if session.rng:NextNumber() < tag.chance * luck then
 			tags = tags or {}
 			table.insert(tags :: { string }, tag.id)
 		end
@@ -391,8 +423,9 @@ local function engulf(session: Session, messageKey: string?, guardian: string?)
 	end
 
 	local lost = Economy.engulfLoss(#basket)
+	local removed: { any } = table.clone(reclaimed)
 	for _ = 1, lost do
-		table.remove(basket)
+		table.insert(removed, table.remove(basket))
 	end
 	lost += #reclaimed
 	session.oil = stat(session, "oil")
@@ -411,16 +444,44 @@ local function engulf(session: Session, messageKey: string?, guardian: string?)
 	local gate = WORLD_GATES[world]
 	notify(session, messageKey or (if gate then gate.engulfed else "MSG_ENGULFED"), { lost })
 
-	local hoard = if guardian then hoards[guardian] else nil
-	if #reclaimed > 0 and hoard and guardian then
-		local placed = hoard.drop(reclaimed)
-		if placed > 0 then
-			-- Cały serwer wie, że w legowisku leży coś do zgarnięcia
-			for _, other in sessions do
-				notify(other, GUARDIANS[guardian].hoardDrop, { session.player.DisplayName, placed })
+	-- Grzyby strażnika trafiają do legowiska dopiero, gdy minie czas na uratowanie koszyka
+	local function dropToHoard()
+		local hoard = if guardian then hoards[guardian] else nil
+		if #reclaimed > 0 and hoard and guardian then
+			local placed = hoard.drop(reclaimed)
+			if placed > 0 then
+				-- Cały serwer wie, że w legowisku leży coś do zgarnięcia
+				for _, other in sessions do
+					notify(other, GUARDIANS[guardian].hoardDrop, { session.player.DisplayName, placed })
+				end
 			end
 		end
 	end
+
+	-- Poprzednia okazja do ratunku przepada od razu (jej grzyby strażnika idą do legowiska)
+	local previous = session.rescue
+	if previous then
+		session.rescue = nil
+		previous.drop()
+	end
+	if #removed == 0 then
+		return
+	end
+	local rescue: Rescue = {
+		items = removed,
+		reclaimed = reclaimed,
+		guardian = guardian,
+		expiresAt = os.clock() + Config.Rescue.serverSeconds,
+		drop = dropToHoard,
+	}
+	session.rescue = rescue
+	notify(session, "RESCUE_OFFER", { Economy.basketValue(removed :: any), Config.Rescue.buttonSeconds })
+	task.delay(Config.Rescue.serverSeconds, function()
+		if session.rescue == rescue then
+			session.rescue = nil
+			dropToHoard()
+		end
+	end)
 end
 
 -- Portale: wejście do świata (za strażnikiem poprzedniego świata), skrót na Placu Portali
@@ -607,6 +668,12 @@ local function onPlayerRemoving(player: Player)
 	end
 	sessions[player] = nil
 	stopChases(player)
+	-- Wyszedł z niewykorzystaną okazją do ratunku: grzyby strażnika wracają do legowiska od razu
+	local rescue = session.rescue
+	if rescue then
+		session.rescue = nil
+		rescue.drop()
+	end
 	DryingService.release(player)
 	saveSession(session)
 end
@@ -641,7 +708,8 @@ local function onPick(player: Player, spotId: unknown)
 		-- Grzyb odrośnie później i może to być inny gatunek
 		local speciesId, variant, tags = rollSpot(session, spot, true)
 		state.visible = false
-		state.readyAt = now + (if guardian then GUARDIANS[guardian].respawn else Config.RespawnSeconds)
+		local seconds = if guardian then GUARDIANS[guardian].respawn else Config.RespawnSeconds
+		state.readyAt = now + seconds * (if boomActive() then Config.Boom.regrowFactor else 1)
 		state.speciesId = speciesId or state.speciesId
 		state.variant = variant
 		state.tags = tags
@@ -834,6 +902,106 @@ local function onDevAction(player: Player, action: unknown)
 	pushState(session)
 end
 
+-- ===== Zakupy za Robuxy =====
+
+-- Daje graczowi kupioną rzecz. Zwraca false, gdy nie da się jej teraz dać (Roblox spróbuje później,
+-- a jeśli się nie uda, odda Robuxy).
+local function grantProduct(session: Session, key: string): boolean
+	local player = session.player
+	local data = session.data
+	if key == "rescue" then
+		local rescue = session.rescue
+		if not rescue or os.clock() > rescue.expiresAt then
+			return false
+		end
+		session.rescue = nil
+		for _, item in rescue.items do
+			table.insert(data.basket, item)
+		end
+		notify(session, "MSG_RESCUED", { Economy.basketValue(rescue.items :: any) })
+	elseif key == "boom" then
+		boomUntil = math.max(os.time(), boomUntil) + Config.Boom.seconds
+		-- Grzyby, które właśnie odrastają, też przyspieszają
+		local now = os.clock()
+		for _, other in sessions do
+			for _, state in other.spots do
+				if not state.visible and state.readyAt > now then
+					state.readyAt = now + (state.readyAt - now) * Config.Boom.regrowFactor
+				end
+			end
+			notify(other, "MSG_BOOM", { player.DisplayName, math.floor(Config.Boom.seconds / 60) })
+			pushState(other)
+		end
+	elseif key == "oil" then
+		session.oil = stat(session, "oil")
+		session.oilWarned = false
+		session.oilHalfWarned = false
+		notify(session, "MSG_OIL_BOUGHT")
+	elseif key == "dry" then
+		if #data.drying == 0 then
+			return false
+		end
+		-- Czas rozwieszenia cofamy tak, jakby grzyby wisiały już pełne 10 minut
+		local driedAt = os.time() - Config.Drying.seconds
+		for _, item in data.drying do
+			item.t = math.min(item.t, driedAt)
+		end
+		DryingService.refresh(player)
+		notify(session, "MSG_DRIED")
+	elseif key == "luck" then
+		data.luckUntil = math.max(os.time(), data.luckUntil) + Config.LuckPotion.seconds
+		notify(session, "MSG_LUCK", { math.floor(Config.LuckPotion.seconds / 60) })
+	else
+		return false
+	end
+	pushState(session)
+	return true
+end
+
+local productById: { [number]: string } = {}
+for key, def in Config.Products do
+	if def.id ~= 0 then
+		productById[def.id] = key
+	end
+end
+
+local function processReceipt(receipt: any): Enum.ProductPurchaseDecision
+	local player = Players:GetPlayerByUserId(receipt.PlayerId)
+	local session = player and sessions[player]
+	local key = productById[receipt.ProductId]
+	if not session or not key then
+		return Enum.ProductPurchaseDecision.NotProcessedYet
+	end
+	local purchaseId = tostring(receipt.PurchaseId)
+	-- Ten sam zakup może przyjść drugi raz (np. po zerwanym połączeniu): wtedy nic nie dajemy drugi raz
+	if table.find(session.data.receipts, purchaseId) then
+		return Enum.ProductPurchaseDecision.PurchaseGranted
+	end
+	if not grantProduct(session, key) then
+		return Enum.ProductPurchaseDecision.NotProcessedYet
+	end
+	table.insert(session.data.receipts, purchaseId)
+	while #session.data.receipts > 50 do
+		table.remove(session.data.receipts, 1)
+	end
+	if session.canSave then
+		task.spawn(DataService.save, session.player, session.data)
+	end
+	return Enum.ProductPurchaseDecision.PurchaseGranted
+end
+
+-- Produkt bez numeru (id = 0) w Studio: dajemy go za darmo, żeby dało się testować przed utworzeniem
+local function onStudioPurchase(player: Player, key: unknown)
+	local session = sessions[player]
+	if not session or typeof(key) ~= "string" or not RunService:IsStudio() then
+		return
+	end
+	local def = Config.Products[key]
+	if def and def.id == 0 then
+		grantProduct(session, key)
+	end
+end
+
 local function onBuy(player: Player, upgradeId: unknown)
 	local session = sessions[player]
 	if not session or typeof(upgradeId) ~= "string" then
@@ -960,6 +1128,8 @@ function GameService.start(mapInfo: MapBuilder.MapInfo)
 	SellBasket.OnServerEvent:Connect(onSell)
 	BuyUpgrade.OnServerEvent:Connect(onBuy)
 	Remotes.get("DevAction").OnServerEvent:Connect(onDevAction)
+	Remotes.get("StudioPurchase").OnServerEvent:Connect(onStudioPurchase)
+	MarketplaceService.ProcessReceipt = processReceipt
 
 	Players.PlayerAdded:Connect(onPlayerAdded)
 	Players.PlayerRemoving:Connect(onPlayerRemoving)

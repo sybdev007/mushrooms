@@ -158,3 +158,22 @@ MSG_CAUGHT_UTOPIEC,Mushrooms taken by the Utopiec: {1},,,Utopiec zabrał grzyby:
 CAUGHT_TITLE_UTOPIEC,The Utopiec dragged you under!,,,Utopiec wciągnął cię pod wodę!
 MSG_HOARD_DROP_UTOPIEC,The Utopiec caught {1}! Chalices back on the island: {2},,,Utopiec dopadł gracza {1}! Kielichy wróciły na wyspę: {2}
 MSG_MIMIC,That was a will-o'-the-wisp! It stole {1}% of your oil,,,To był błędny ognik! Ukradł ci {1}% oleju
+SHOP_TITLE,Shop,,,Sklep
+SHOP_RESCUE,Keep your mushrooms,,,Zachowaj grzyby
+SHOP_BOOM_TIMER,Mushroom Boom {1},,,Wysyp {1}
+SHOP_LUCK_TIMER,Lucky {1},,,Szczęście {1}
+PRODUCT_RESCUE,Keep your mushrooms,,,Zachowaj grzyby
+PRODUCT_RESCUE_DESC,Get back the whole basket you just lost,,,Odzyskaj cały koszyk który właśnie straciłeś
+PRODUCT_BOOM,Mushroom Boom for everyone,,,Wysyp dla wszystkich
+PRODUCT_BOOM_DESC,10 min: faster regrowth and more mutations for the whole server,,,10 min: szybszy odrost i więcej mutacji dla całego serwera
+PRODUCT_OIL,Oil Bottle,,,Butelka oleju
+PRODUCT_OIL_DESC,Refill your lantern anywhere right now,,,Napełnij latarnię od razu w dowolnym miejscu
+PRODUCT_DRY,Instant Drying,,,Natychmiastowe suszenie
+PRODUCT_DRY_DESC,Everything on your rack dries right away (2x value),,,Wszystko na suszarni od razu schnie (2x wartości)
+PRODUCT_LUCK,Luck Potion,,,Mikstura szczęścia
+PRODUCT_LUCK_DESC,15 min: twice as many mutations for you,,,15 min: dwa razy więcej mutacji dla ciebie
+MSG_RESCUED,Basket saved! {1} coins of mushrooms are back,,,Koszyk uratowany! Grzyby za {1} monet wróciły
+MSG_BOOM,{1} started a Mushroom Boom! {2} min of faster regrowth and more mutations,,,{1} zafundował Wysyp! {2} min szybszego odrostu i więcej mutacji
+MSG_LUCK,Luck Potion active for {1} min,,,Mikstura szczęścia działa przez {1} min
+MSG_OIL_BOUGHT,Lantern refilled!,,,Latarnia napełniona!
+MSG_DRIED,Everything on your rack is fully dried!,,,Wszystko na suszarni jest już suche!

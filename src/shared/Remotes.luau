@@ -16,6 +16,7 @@ local NAMES = {
 	"SellBasket",
 	"BuyUpgrade",
 	"DevAction", -- panel DEV (serwer sprawdza, czy gracz jest deweloperem)
+	"StudioPurchase", -- zakup produktu bez numeru (id = 0), działa tylko w Studio
 }
 
 local folder: Folder
