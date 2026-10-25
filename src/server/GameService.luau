@@ -3,6 +3,7 @@
 -- Serwer jest jedynym źródłem prawdy: olej, koszyk, monety i ulepszenia liczymy tutaj.
 -- Klient tylko pokazuje stan i wysyła prośby (zbierz / sprzedaj / kup).
 
+local CollectionService = game:GetService("CollectionService")
 local MarketplaceService = game:GetService("MarketplaceService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -15,6 +16,7 @@ local Config = require(Shared.Config)
 local Economy = require(Shared.Economy)
 local Remotes = require(Shared.Remotes)
 local Cycle = require(Shared.Cycle)
+local Expedition = require(Shared.Expedition)
 local DataService = require(script.Parent.DataService)
 local MapBuilder = require(script.Parent.MapBuilder)
 local ChaseService = require(script.Parent.ChaseService)
@@ -51,6 +53,11 @@ type Session = {
 	spots: { [string]: SpotState },
 	portalNoticeAt: number, -- kiedy ostatnio mówiliśmy „portal zamknięty” (żeby nie spamować)
 	rescue: Rescue?, -- koszyk do uratowania za Robuxy (przez chwilę po zgaśnięciu latarni / złapaniu)
+	group: number, -- ilu graczy idzie razem (wspólna wyprawa: ten gracz + sąsiedzi w promieniu)
+	groupNoticeAt: number, -- kiedy ostatnio mówiliśmy „wspólna wyprawa” (żeby nie spamować)
+	downedUntil: number?, -- latarnia zgasła i gracz czeka na podniesienie (os.clock końca)
+	downed: { Instance }?, -- przycisk „Podnieś” i napis SOS nad głową
+	debugGroupUntil: number?, -- panel DEV: udawana grupa 3 graczy do tej chwili (os.clock)
 }
 
 type Rescue = {
@@ -273,7 +280,9 @@ local function pushState(session: Session)
 		basketCount = #data.basket,
 		basketMax = basketMax(session),
 		basketValue = Economy.basketValue(data.basket),
-		lanternRange = stat(session, "lantern"),
+		lanternRange = stat(session, "lantern") * Expedition.light(session.group),
+		group = session.group,
+		downed = if session.downedUntil then math.max(0, math.ceil(session.downedUntil - os.clock())) else nil,
 		zone = session.zone,
 		upgrades = table.clone(data.upgrades),
 		chased = chasedBy(session.player) ~= nil,
@@ -405,6 +414,12 @@ local function applyCharacterStats(session: Session)
 	if humanoid then
 		-- Złodziej niosący grzyb idzie wolniej (GardenService.speedFactor)
 		humanoid.WalkSpeed = stat(session, "boots") * GardenService.speedFactor(session.player)
+		-- Zgasła latarnia: gracz stoi w miejscu i czeka na kumpla
+		if session.downedUntil then
+			humanoid.WalkSpeed = 0
+		end
+		humanoid.JumpHeight = if session.downedUntil then 0 else 7.2
+		humanoid.JumpPower = if session.downedUntil then 0 else 50
 	end
 	local root = getRoot(session.player)
 	if root then
@@ -430,7 +445,8 @@ local function applyCharacterStats(session: Session)
 			lantern.Shadows = true
 			lantern.Parent = attachment
 		end
-		lantern.Range = math.min(stat(session, "lantern"), 60) -- 60 to limit Robloxa dla PointLight
+		-- Wspólna wyprawa świeci dalej; 60 to limit Robloxa dla PointLight
+		lantern.Range = math.min(stat(session, "lantern") * Expedition.light(session.group), 60)
 	end
 	attachHandLantern(character, session.data.upgrades.lantern or 0)
 	attachHandKnife(character, session.data.upgrades.knife or 0)
@@ -438,7 +454,10 @@ end
 
 -- Latarnia zgasła albo strażnik złapał gracza: zabiera koszyk i wyrzuca gracza do chatki / obozu.
 -- messageKey mówi klientowi, który ekran pokazać; guardian: kto złapał (jego grzyby wracają do legowiska).
+local clearDowned: (Session) -> ()
+
 local function engulf(session: Session, messageKey: string?, guardian: string?)
+	clearDowned(session)
 	stopChases(session.player)
 	local basket = session.data.basket
 
@@ -568,10 +587,167 @@ local function checkPortals(session: Session, root: BasePart, now: number)
 	end
 end
 
-local function tick(step: number)
-	local now = os.clock()
+-- ===== Wspólne wyprawy i ratunek =====
+
+local function setLanternRange(session: Session)
+	local root = getRoot(session.player)
+	local attachment = root and root:FindFirstChild(LANTERN_ATTACHMENT)
+	local light = attachment and attachment:FindFirstChild("Lantern")
+	if light and light:IsA("PointLight") then
+		light.Range = math.min(stat(session, "lantern") * Expedition.light(session.group), 60)
+	end
+end
+
+function clearDowned(session: Session)
+	if not session.downedUntil then
+		return
+	end
+	session.downedUntil = nil
+	for _, instance in session.downed or {} do
+		instance:Destroy()
+	end
+	session.downed = nil
+	applyCharacterStats(session)
+end
+
+-- Ktoś, kto może przyjść z pomocą: inny gracz w pobliżu, któremu latarnia jeszcze świeci
+local function helperNear(session: Session): boolean
+	local root = getRoot(session.player)
+	if not root then
+		return false
+	end
+	for _, other in sessions do
+		local otherRoot = getRoot(other.player)
+		if other ~= session and otherRoot and not other.downedUntil then
+			if (otherRoot.Position - root.Position).Magnitude <= Expedition.HELP_RADIUS then
+				return true
+			end
+		end
+	end
+	return false
+end
+
+local function revive(session: Session, helper: Player)
+	local helperSession = sessions[helper]
+	if not session.downedUntil or not helperSession or helperSession == session or helperSession.downedUntil then
+		return
+	end
+	local root, helperRoot = getRoot(session.player), getRoot(helper)
+	if not (root and helperRoot) or (root.Position - helperRoot.Position).Magnitude > Expedition.REVIVE_DISTANCE + 3 then
+		return
+	end
+	clearDowned(session)
+	session.oil = stat(session, "oil") * Expedition.REVIVE_OIL
+	session.oilHalfWarned = true
+	notify(session, "MSG_REVIVED", { helper.DisplayName, math.floor(Expedition.REVIVE_OIL * 100) })
+	notify(helperSession, "MSG_REVIVE_DONE", { session.player.DisplayName })
+	ProgressService.event(helper, "revive", 1)
+	pushState(session)
+	pushState(helperSession)
+end
+
+-- Latarnia zgasła, ale ktoś jest w pobliżu: gracz stoi w mroku z sygnałem SOS, a kumpel ma
+-- chwilę, żeby podejść i go podnieść (przycisk na postaci). Inaczej las pochłania jak zwykle.
+local function startDowned(session: Session)
+	local player = session.player
+	local character = player.Character
+	local root = getRoot(player)
+	local head = character and character:FindFirstChild("Head")
+	if not (character and root and head and head:IsA("BasePart")) then
+		engulf(session)
+		return
+	end
+	session.oil = 0
+	session.downedUntil = os.clock() + Expedition.DOWN_SECONDS
+	applyCharacterStats(session)
+
+	-- Napis SOS nad głową, widoczny z daleka (także przez drzewa)
+	local sos = Instance.new("BillboardGui")
+	sos.Name = "SOS"
+	sos.Size = UDim2.fromOffset(200, 40)
+	sos.StudsOffset = Vector3.new(0, 3.2, 0)
+	sos.AlwaysOnTop = true
+	sos.MaxDistance = Expedition.HELP_RADIUS
+	sos.LightInfluence = 0
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.fromScale(1, 1)
+	label.BackgroundTransparency = 1
+	label.Font = Enum.Font.FredokaOne
+	label.TextScaled = true
+	label.TextColor3 = Color3.fromRGB(255, 90, 70)
+	label.TextStrokeTransparency = 0.2
+	label.Text = "🆘 " .. player.DisplayName
+	label.Parent = sos
+	sos.Parent = head
+
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.Name = "RevivePrompt"
+	prompt.ActionText = "Help up" -- klient podmienia na tekst w języku gracza (ExpeditionView)
+	prompt.ObjectText = player.DisplayName
+	prompt.HoldDuration = Expedition.REVIVE_HOLD
+	prompt.MaxActivationDistance = Expedition.REVIVE_DISTANCE
+	prompt.RequiresLineOfSight = false
+	prompt.KeyboardKeyCode = Enum.KeyCode.F
+	prompt:SetAttribute("OwnerUserId", player.UserId)
+	prompt.Parent = root
+	prompt.Triggered:Connect(function(helper)
+		revive(session, helper)
+	end)
+	CollectionService:AddTag(prompt, "RevivePrompt")
+	session.downed = { sos, prompt }
+
+	notify(session, "MSG_DOWNED", { Expedition.DOWN_SECONDS })
+	for _, other in sessions do
+		local otherRoot = getRoot(other.player)
+		if other ~= session and otherRoot and (otherRoot.Position - root.Position).Magnitude <= Expedition.HELP_RADIUS then
+			notify(other, "MSG_PLAYER_DOWN", { player.DisplayName })
+		end
+	end
+	pushState(session)
+end
+
+-- Kto z kim idzie: gracze z żywą latarnią w niebezpiecznych strefach
+local function updateGroups()
+	local walkers: { Expedition.Walker } = {}
 	for _, session in sessions do
 		local root = getRoot(session.player)
+		if root and not session.downedUntil and not Economy.isSafeZone(session.zone) then
+			table.insert(walkers, { id = session, position = root.Position })
+		end
+	end
+	local sizes = Expedition.groupSizes(walkers)
+	local now = os.clock()
+	for _, session in sessions do
+		local size = sizes[session] or 1
+		if session.debugGroupUntil and now < session.debugGroupUntil then
+			size = math.max(size, 3)
+		end
+		if size ~= session.group then
+			local formed = size > 1 and session.group <= 1
+			session.group = size
+			setLanternRange(session)
+			if formed and now - session.groupNoticeAt > 30 then
+				session.groupNoticeAt = now
+				local oil, light = Expedition.bonusPercents(size)
+				notify(session, "MSG_GROUP_FORMED", { oil, light })
+			end
+		end
+	end
+end
+
+local function tick(step: number)
+	local now = os.clock()
+	updateGroups()
+	for _, session in sessions do
+		local root = getRoot(session.player)
+		-- Czeka na podniesienie: olej nie spada, a gdy minie czas, las go pochłania
+		if session.downedUntil then
+			if now >= session.downedUntil then
+				engulf(session)
+			end
+			pushState(session)
+			continue
+		end
 		if root then
 			local zone = Economy.zoneIndexAt(root.Position.Z)
 			session.zone = zone
@@ -589,7 +765,8 @@ local function tick(step: number)
 					session.oilWarned = false
 				end
 			else
-				session.oil -= Economy.oilDrain(zone, oilScale(session, zone)) * step
+				-- Wspólna wyprawa: połączone latarnie palą mniej
+				session.oil -= Economy.oilDrain(zone, oilScale(session, zone)) * Expedition.drain(session.group) * step
 				if not session.oilHalfWarned and session.oil <= oilMax * Config.OilWarnFraction then
 					session.oilHalfWarned = true
 					notify(session, "MSG_OIL_HALF")
@@ -599,7 +776,11 @@ local function tick(step: number)
 					notify(session, "MSG_OIL_LOW")
 				end
 				if session.oil <= 0 then
-					engulf(session)
+					if helperNear(session) then
+						startDowned(session)
+					else
+						engulf(session)
+					end
 				end
 			end
 		end
@@ -617,6 +798,9 @@ local function onCharacterAdded(session: Session, character: Model)
 	if sessions[session.player] ~= session then
 		return
 	end
+	-- Nowa postać (reset, śmierć): stan „czeka na pomoc” przepada razem ze starą
+	session.downedUntil = nil
+	session.downed = nil
 	session.oil = stat(session, "oil")
 	session.oilWarned = false
 	session.oilHalfWarned = false
@@ -643,6 +827,8 @@ local function onPlayerAdded(player: Player)
 		rng = Random.new(),
 		spots = {},
 		portalNoticeAt = 0,
+		group = 1,
+		groupNoticeAt = 0,
 	}
 	session.oil = stat(session, "oil")
 
@@ -699,6 +885,7 @@ local function onPlayerRemoving(player: Player)
 	end
 	sessions[player] = nil
 	stopChases(player)
+	session.downedUntil = nil
 	-- Wyszedł z niewykorzystaną okazją do ratunku: grzyby strażnika wracają do legowiska od razu
 	local rescue = session.rescue
 	if rescue then
@@ -1010,6 +1197,11 @@ local function onDevAction(player: Player, action: unknown)
 	elseif action == "cycleDawn" or action == "cycleNight" then
 		debugPhase = if action == "cycleDawn" then "dawn" else "night"
 		debugUntil = os.time() + 60
+	elseif action == "expeditionGroup" then
+		session.debugGroupUntil = os.clock() + 60
+	elseif action == "expeditionDown" then
+		-- Jak zgaśnięcie latarni przy kumplu obok (bez kumpla czas minie i las pochłonie)
+		task.defer(startDowned, session)
 	elseif action == "boardsRefresh" then
 		task.spawn(LeaderboardService.refreshNow)
 	elseif not ProgressService.dev(player, action) then
@@ -1050,6 +1242,8 @@ local function grantProduct(session: Session, key: string): boolean
 			pushState(other)
 		end
 	elseif key == "oil" then
+		-- Butelka oleju podnosi też gracza, któremu zgasła latarnia i czeka na pomoc
+		clearDowned(session)
 		session.oil = stat(session, "oil")
 		session.oilWarned = false
 		session.oilHalfWarned = false

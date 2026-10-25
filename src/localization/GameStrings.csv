@@ -304,3 +304,13 @@ TITLE_EXPLORER_SWAMP,Swamp Explorer,,,Odkrywca Bagien
 TITLE_TRACKER_FOREST,Forest Tracker,,,Tropiciel Lasu
 TITLE_TRACKER_CAVE,Cave Tracker,,,Tropiciel Jaskiń
 TITLE_TRACKER_SWAMP,Swamp Tracker,,,Tropiciel Bagien
+EXPEDITION_PILL,🤝 Group ×{1}: oil −{2}% · light +{3}%,,,🤝 Wyprawa ×{1}: olej −{2}% · światło +{3}%
+DOWNED_TITLE,Your lantern went out!,,,Latarnia zgasła!
+DOWNED_HINT,A friend can help you up: {1} s,,,Kumpel może cię podnieść: {1} s
+REVIVE_ACTION,Help up,,,Podnieś
+MSG_GROUP_FORMED,🤝 Shared lanterns! Oil −{1}% and light +{2}% while you stay together,,,🤝 Wspólna wyprawa! Olej −{1}% i światło +{2}% póki idziecie razem
+MSG_DOWNED,Your lantern went out! Someone nearby has {1} s to help you up,,,Latarnia zgasła! Ktoś w pobliżu ma {1} s by cię podnieść
+MSG_PLAYER_DOWN,🆘 {1} lost their light! Go to them and hold F to help them up,,,🆘 {1} stracił światło! Podejdź i przytrzymaj F by go podnieść
+MSG_REVIVED,{1} helped you up! Your lantern has {2}% oil,,,{1} cię podniósł! Latarnia ma {2}% oleju
+MSG_REVIVE_DONE,You helped {1} up!,,,Podniosłeś gracza {1}!
+QUEST_REVIVE,Help up a friend whose lantern went out,,,Podnieś kumpla któremu zgasła latarnia

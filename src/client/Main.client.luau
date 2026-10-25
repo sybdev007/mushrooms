@@ -29,6 +29,8 @@ local _AtlasPanel = require(script.Parent.AtlasPanel)
 local _QuestPanel = require(script.Parent.QuestPanel)
 local _LeaderboardView = require(script.Parent.LeaderboardView)
 local _TitleView = require(script.Parent.TitleView)
+local ExpeditionView = require(script.Parent.ExpeditionView)
+local Expedition = require(Shared:WaitForChild("Expedition"))
 
 local player = Players.LocalPlayer
 
@@ -200,6 +202,11 @@ local TOAST_KIND: { [string]: string } = {
 	MSG_LOGIN_REWARD = "gold",
 	MSG_LOGIN_REWARD_LUCK = "gold",
 	MSG_SOLD_BONUS = "gold",
+	MSG_GROUP_FORMED = "gold",
+	MSG_DOWNED = "warn",
+	MSG_PLAYER_DOWN = "warn",
+	MSG_REVIVED = "gold",
+	MSG_REVIVE_DONE = "gold",
 }
 
 -- Komunikaty, po których gracz ląduje w chatce z czarnym ekranem: klucz -> tytuł
@@ -351,7 +358,9 @@ RunService.RenderStepped:Connect(function(dt)
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
 	local speed = if humanoid then humanoid.WalkSpeed else Economy.upgradeStat("boots", 0)
 	local oilUpgrade = Economy.worldOilUpgrade(zoneDef.world)
-	local worldScale = if oilUpgrade then Economy.upgradeStat(oilUpgrade, upgrades[oilUpgrade] or 0) else 1
+	-- Knot ze świata i wspólna wyprawa zmniejszają spalanie (baner „Wracaj!” liczy z tym samym)
+	local worldScale = (if oilUpgrade then Economy.upgradeStat(oilUpgrade, upgrades[oilUpgrade] or 0) else 1)
+		* Expedition.drain(ExpeditionView.group())
 	local turnBack = Economy.shouldTurnBack(position.Z, speed, oil, worldScale)
 	Warnings.update(dt, position, oilFraction, turnBack, zone, lanternRange, chased, chaser)
 	local heartbeat = if not safe and oilFraction < Config.OilLowFraction then 1 - oilFraction / Config.OilLowFraction * 0.6 else 0

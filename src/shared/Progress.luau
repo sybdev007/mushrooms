@@ -210,6 +210,7 @@ Progress.QUESTS = {
 	{ id = "collect", kind = "collect", goal = 3, reward = 1 },
 	{ id = "upgrade", kind = "upgrade", goal = 2, reward = 1 },
 	{ id = "discover", kind = "discover", goal = 1, reward = 1.5 },
+	{ id = "revive", kind = "revive", goal = 1, reward = 2 }, -- podnieś kumpla, któremu zgasła latarnia
 } :: { QuestDef }
 Progress.QUESTS_PER_DAY = 3
 -- Za wszystkie trzy: monety (x skala) i darmowa mikstura szczęścia na kilka minut

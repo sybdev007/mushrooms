@@ -26,6 +26,9 @@ local Progress = loadModule("src/shared/Progress.luau", {
 	end,
 })
 
+local roblox = require("@lune/roblox")
+local Expedition = loadModule("src/shared/Expedition.luau", { Vector3 = roblox.Vector3 })
+
 local passed, failed = 0, 0
 
 local function test(name: string, fn: () -> ())
@@ -1308,6 +1311,41 @@ test("zakodowane znalezisko: większa wartość wygrywa, da się odczytać gatun
 	local data = { weekly = { week = 1, steals = 3, best = a } }
 	check(Progress.ensureWeek(data, 2), "nowy tydzień")
 	eq(data.weekly.steals, 0)
+end)
+
+print("Wspólne wyprawy (Expedition)")
+
+test("większa grupa = mniej oleju i więcej światła, z limitem", function()
+	for size = 2, 6 do
+		check(Expedition.drain(size) <= Expedition.drain(size - 1), "olej " .. size)
+		check(Expedition.light(size) >= Expedition.light(size - 1), "światło " .. size)
+	end
+	eq(Expedition.drain(1), 1)
+	eq(Expedition.light(1), 1)
+	eq(Expedition.drain(10), Expedition.DRAIN[#Expedition.DRAIN], "ponad listę: najlepszy bonus")
+	local oil, light = Expedition.bonusPercents(2)
+	eq(oil, 25)
+	eq(light, 25)
+end)
+
+test("grupa liczy tylko sąsiadów w promieniu (bez łańcuszków)", function()
+	local V = roblox.Vector3.new
+	local sizes = Expedition.groupSizes({
+		{ id = "a", position = V(0, 0, 0) },
+		{ id = "b", position = V(15, 0, 0) },
+		{ id = "c", position = V(30, 0, 0) },
+		{ id = "d", position = V(200, 0, 0) },
+	}, 20)
+	eq(sizes.a, 2, "a z b")
+	eq(sizes.b, 3, "b z a i c")
+	eq(sizes.c, 2, "c z b, nie z a")
+	eq(sizes.d, 1, "sam")
+end)
+
+test("ratunek: kumpel ma rozsądny czas i dostaje się olej na powrót", function()
+	check(Expedition.DOWN_SECONDS >= 8 and Expedition.DOWN_SECONDS <= 30, "czas")
+	check(Expedition.REVIVE_OIL > 0 and Expedition.REVIVE_OIL < 1, "olej")
+	check(Expedition.REVIVE_DISTANCE < Expedition.RADIUS, "trzeba podejść blisko")
 end)
 
 print(string.format("\n%d ok, %d błędów", passed, failed))
