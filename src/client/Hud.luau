@@ -4,9 +4,11 @@
 -- cukierkowe przyciski z połyskiem i wciśnięciem.
 -- Duży okrągły przycisk ZBIERZ obok przycisku skoku, panel chatki na dole ekranu.
 
+local ContextActionService = game:GetService("ContextActionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage.Shared.Config)
@@ -82,8 +84,6 @@ local callbacks = {
 local lastState: State? = nil
 
 -- ===== Pomocnicze =====
-
-local CARD_STROKE = UiKit.darker(Color3.fromRGB(70, 104, 54), 0.45)
 
 local function corner(parent: Instance, radius: UDim?)
 	local c = Instance.new("UICorner")
@@ -163,6 +163,13 @@ local function bar(parent: Instance, size: UDim2, position: UDim2, color: Color3
 	fill.Parent = back
 	corner(fill, UDim.new(1, 0))
 	return back, fill
+end
+
+local function formatCoins(value: number): string
+	local s = tostring(math.floor(value + 0.5))
+	-- Spacje co trzy cyfry: 12 345
+	local formatted = s:reverse():gsub("(%d%d%d)", "%1 "):reverse()
+	return (formatted:gsub("^ ", ""))
 end
 
 -- ===== Budowa interfejsu =====
@@ -246,37 +253,129 @@ pickCaptionStroke.Color = Color3.fromRGB(90, 40, 10)
 pickCaptionStroke.Parent = pickCaption
 
 -- ===== Ulepszenia: przycisk z prawej strony i panel z kartami =====
--- Przycisk ma animację: po najechaniu (albo dotknięciu) ikona rośnie i robi obrót.
--- Panel ma zakładki światów (Las, Jaskinia, Bagna); kupować można w bezpiecznej strefie danego świata.
+-- Przycisk: fioletowa pigułka z dużą strzałką wystającą w lewo, klawiszem [R] w rogu i czerwoną
+-- kropką z liczbą ulepszeń, na które gracza stać. Po najechaniu strzałka rośnie i robi obrót,
+-- a po przycisku przelatuje błysk. W spoczynku strzałka lekko podskakuje.
+-- Panel: kremowe okno z grubą obwódką, wstążka z tytułem, monety w lewym rogu, zamykanie w prawym.
+-- Każde ulepszenie to wysoka kolorowa karta: duża ikona, opis, kropki poziomów, wartość „x1 » x1.25”
+-- i przycisk z ceną. Najechanie unosi kartę, kliknięcie powiększa ikonę, zakup kręci nią i sypie iskry.
 
-local UPGRADE_GREEN = Color3.fromRGB(70, 168, 86)
+local CREAM = Color3.fromRGB(255, 248, 234)
+local CREAM_LINE = Color3.fromRGB(232, 214, 182)
+local OUTLINE = UiKit.OUTLINE
+local VIOLET = Color3.fromRGB(140, 86, 236)
+local BUY_GREEN = Color3.fromRGB(54, 190, 92)
+local BUY_RED = Color3.fromRGB(214, 84, 66)
+local BUY_GOLD = Color3.fromRGB(246, 182, 40)
+
+-- Kolor karty każdego ulepszenia
+local UPGRADE_COLORS: { [string]: Color3 } = {
+	lantern = Color3.fromRGB(255, 160, 40),
+	oil = Color3.fromRGB(232, 84, 64),
+	basket = Color3.fromRGB(198, 132, 70),
+	boots = Color3.fromRGB(64, 148, 240),
+	knife = Color3.fromRGB(104, 124, 168),
+	beds = Color3.fromRGB(70, 182, 84),
+	fertilizer = Color3.fromRGB(138, 196, 56),
+	lock = Color3.fromRGB(156, 96, 222),
+	crystal = Color3.fromRGB(56, 196, 228),
+	pack = Color3.fromRGB(122, 142, 72),
+	rushwick = Color3.fromRGB(52, 164, 142),
+	creel = Color3.fromRGB(172, 112, 62),
+}
+-- Jak pokazać wartość statystyki: mnożnik (x1.25), dodatek (+4) albo sekundy (3s)
+local VALUE_PREFIX: { [string]: string } = { fertilizer = "x", knife = "x", crystal = "x", rushwick = "x", pack = "+", creel = "+" }
+local VALUE_SUFFIX: { [string]: string } = { lock = "s" }
+
+local function number(value: number): string
+	if math.abs(value - math.round(value)) < 0.001 then
+		return tostring(math.round(value))
+	end
+	local text = string.format("%.2f", value):gsub("0+$", "")
+	return text
+end
+
+local function valueText(id: string, level: number): string
+	local def = Config.Upgrades[id]
+	local function one(at: number): string
+		return (VALUE_PREFIX[id] or "") .. number(Economy.upgradeStat(id, at)) .. (VALUE_SUFFIX[id] or "")
+	end
+	if level >= def.maxLevel then
+		return one(level)
+	end
+	return one(level) .. "  »  " .. one(level + 1)
+end
+
+-- Przycisk „Ulepszenia”: pojemnik (skalowany razem z ekranem) z przyciskiem, ikoną i plakietkami
+local upgradeRoot = Instance.new("Frame")
+upgradeRoot.Name = "UpgradesButton"
+upgradeRoot.Size = UDim2.fromOffset(196, 60)
+upgradeRoot.AnchorPoint = Vector2.new(1, 0.5)
+upgradeRoot.Position = UDim2.new(1, -16, 0.42, 0)
+upgradeRoot.BackgroundTransparency = 1
+upgradeRoot.Parent = gui
+
 local upgradeButton = Instance.new("TextButton")
-upgradeButton.Name = "UpgradesButton"
-upgradeButton.Size = UDim2.fromOffset(96, 96)
-upgradeButton.AnchorPoint = Vector2.new(1, 0.5)
-upgradeButton.Position = UDim2.new(1, -12, 0.42, 0)
+upgradeButton.Name = "Button"
+upgradeButton.Size = UDim2.fromScale(1, 1)
 upgradeButton.Text = ""
-upgradeButton.Parent = gui
-UiKit.button(upgradeButton, UPGRADE_GREEN, { stroke = 3 })
-local upgradeIcon = Instance.new("TextLabel")
-upgradeIcon.Name = "Icon"
-upgradeIcon.Size = UDim2.new(0.62, 0, 0.62, 0)
-upgradeIcon.Position = UDim2.new(0.5, 0, 0.38, 0)
-upgradeIcon.AnchorPoint = Vector2.new(0.5, 0.5)
-upgradeIcon.BackgroundTransparency = 1
-upgradeIcon.Text = "⬆️"
-upgradeIcon.TextScaled = true
-upgradeIcon.Font = TITLE_FONT
-upgradeIcon.ZIndex = 3
-upgradeIcon.Parent = upgradeButton
+upgradeButton.ClipsDescendants = true
+upgradeButton.Parent = upgradeRoot
+local upgradeStroke = UiKit.button(upgradeButton, VIOLET, { stroke = 3, radius = UDim.new(0, 16), gloss = true })
+upgradeStroke.Color = OUTLINE
+local upgradeCaption = label("Caption", upgradeButton, UDim2.new(1, -72, 0.7, 0), UDim2.new(0, 64, 0.15, 0), TITLE_FONT, 26)
+upgradeCaption.TextXAlignment = Enum.TextXAlignment.Left
+upgradeCaption.ZIndex = 3
+UiKit.outline(upgradeCaption, 2.5)
+
+-- Duża strzałka wystaje w lewo poza przycisk
+local upgradeIcon = UiKit.icon("upgrade", upgradeRoot, UDim2.fromOffset(74, 74), UDim2.new(0, -14, 0.5, -4), Vector2.new(0, 0.5))
+upgradeIcon.ZIndex = 5
 local upgradeIconScale = Instance.new("UIScale")
 upgradeIconScale.Parent = upgradeIcon
-local upgradeCaption = label("Caption", upgradeButton, UDim2.new(1, -8, 0.24, 0), UDim2.new(0, 4, 0.72, 0), TITLE_FONT, 18)
-upgradeCaption.ZIndex = 3
-local upgradeCaptionStroke = Instance.new("UIStroke")
-upgradeCaptionStroke.Thickness = 1.5
-upgradeCaptionStroke.Color = Color3.fromRGB(20, 60, 24)
-upgradeCaptionStroke.Parent = upgradeCaption
+local iconRest = upgradeIcon.Position
+TweenService:Create(upgradeIcon, TweenInfo.new(0.9, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {
+	Position = iconRest + UDim2.fromOffset(0, -5),
+}):Play()
+
+-- Klawisz [R] w lewym górnym rogu (tylko gdy jest klawiatura)
+local keycap = Instance.new("Frame")
+keycap.Name = "Keycap"
+keycap.Size = UDim2.fromOffset(30, 30)
+keycap.Position = UDim2.fromOffset(-22, -16)
+keycap.Rotation = -10
+keycap.BackgroundColor3 = Color3.fromRGB(250, 250, 250)
+keycap.ZIndex = 6
+keycap.Parent = upgradeRoot
+corner(keycap, UDim.new(0, 8))
+stroke(keycap, OUTLINE, 2.5)
+local keyShade = Instance.new("UIGradient")
+keyShade.Rotation = 90
+keyShade.Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.fromRGB(200, 200, 205))
+keyShade.Parent = keycap
+local keyLabel = label("Key", keycap, UDim2.fromScale(1, 1), UDim2.fromScale(0, 0), TITLE_FONT, 20)
+keyLabel.Text = "R"
+keyLabel.TextColor3 = OUTLINE
+keyLabel.ZIndex = 7
+keycap.Visible = UserInputService.KeyboardEnabled
+
+-- Czerwona kropka: na ile ulepszeń gracza stać
+local badge = Instance.new("Frame")
+badge.Name = "Badge"
+badge.Size = UDim2.fromOffset(28, 28)
+badge.AnchorPoint = Vector2.new(0.5, 0.5)
+badge.Position = UDim2.new(1, -4, 0, 2)
+badge.BackgroundColor3 = Color3.fromRGB(236, 52, 52)
+badge.ZIndex = 7
+badge.Visible = false
+badge.Parent = upgradeRoot
+corner(badge, UDim.new(1, 0))
+stroke(badge, Color3.new(1, 1, 1), 2.5)
+local badgeLabel = label("Count", badge, UDim2.new(1, -6, 1, -6), UDim2.fromOffset(3, 3), TITLE_FONT, 18)
+badgeLabel.ZIndex = 8
+local badgeScale = Instance.new("UIScale")
+badgeScale.Parent = badge
+TweenService:Create(badgeScale, TweenInfo.new(0.55, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), { Scale = 1.15 }):Play()
 
 local hoverTweens: { Tween } = {}
 local function stopHover()
@@ -289,12 +388,13 @@ end
 local function hoverIn()
 	stopHover()
 	upgradeIcon.Rotation = 0
-	local grow = TweenService:Create(upgradeIconScale, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1.25 })
-	local spin = TweenService:Create(upgradeIcon, TweenInfo.new(0.55, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Rotation = 360 })
+	local grow = TweenService:Create(upgradeIconScale, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1.3 })
+	local spin = TweenService:Create(upgradeIcon, TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Rotation = 360 })
 	table.insert(hoverTweens, grow)
 	table.insert(hoverTweens, spin)
 	grow:Play()
 	spin:Play()
+	UiKit.sweep(upgradeButton)
 end
 local function hoverOut()
 	stopHover()
@@ -306,35 +406,104 @@ end
 upgradeButton.MouseEnter:Connect(hoverIn)
 upgradeButton.MouseLeave:Connect(hoverOut)
 
--- Panel ulepszeń na środku ekranu
-local CARD_ROW_HEIGHT = 58
-local PANEL_TOP = 96 -- nagłówek (48) + zakładki (40) + odstęp
-local PANEL_BOTTOM = 34 -- podpowiedź na dole
-local function panelHeight(rows: number): number
-	return PANEL_TOP + rows * CARD_ROW_HEIGHT + PANEL_BOTTOM
+-- Przyciemnienie za panelem (kliknięcie obok zamyka panel)
+local upgradeDim = Instance.new("TextButton")
+upgradeDim.Name = "UpgradeDim"
+upgradeDim.Size = UDim2.fromScale(1, 1)
+upgradeDim.Text = ""
+upgradeDim.AutoButtonColor = false
+upgradeDim.BackgroundColor3 = Color3.new(0, 0, 0)
+upgradeDim.BackgroundTransparency = 1
+upgradeDim.Visible = false
+upgradeDim.ZIndex = 9
+upgradeDim.Parent = gui
+
+-- Okno panelu
+local CARD_W, CARD_H = 168, 266
+local TOP_TABS, TOP_PLAIN = 108, 70 -- gdzie zaczynają się karty: z zakładkami i bez
+local PANEL_W = 700
+local function panelHeight(top: number): number
+	return top + CARD_H + 10 + 22
 end
-local upgradePanel = panel("UpgradePanel", gui, UDim2.new(0.94, 0, 0, panelHeight(4)), UDim2.new(0.5, 0, 0.5, 0), Vector2.new(0.5, 0.5))
+local upgradePanel = Instance.new("Frame")
+upgradePanel.Name = "UpgradePanel"
+upgradePanel.Size = UDim2.fromOffset(PANEL_W, panelHeight(TOP_TABS))
+upgradePanel.Position = UDim2.fromScale(0.5, 0.52)
+upgradePanel.AnchorPoint = Vector2.new(0.5, 0.5)
+upgradePanel.BackgroundColor3 = CREAM
 upgradePanel.Visible = false
 upgradePanel.ZIndex = 10
-local panelSize = Instance.new("UISizeConstraint")
-panelSize.MaxSize = Vector2.new(620, panelHeight(4))
-panelSize.Parent = upgradePanel
-local upgradeTitle = label("Title", upgradePanel, UDim2.new(1, -120, 0, 36), UDim2.new(0, 60, 0, 8), TITLE_FONT, 30)
-upgradeTitle.TextColor3 = THEME.accent
-upgradeTitle.ZIndex = 11
-local titleIcon = label("TitleIcon", upgradePanel, UDim2.fromOffset(36, 36), UDim2.fromOffset(14, 8), TITLE_FONT, 30)
-titleIcon.Text = "⬆️"
-titleIcon.ZIndex = 11
+upgradePanel.Parent = gui
+corner(upgradePanel, UDim.new(0, 26))
+stroke(upgradePanel, OUTLINE, 4)
+-- Wewnętrzna cienka linia, jak w kartach z gier
+local innerLine = Instance.new("Frame")
+innerLine.Name = "Inner"
+innerLine.Size = UDim2.new(1, -14, 1, -14)
+innerLine.Position = UDim2.fromOffset(7, 7)
+innerLine.BackgroundTransparency = 1
+innerLine.Parent = upgradePanel
+corner(innerLine, UDim.new(0, 21))
+stroke(innerLine, CREAM_LINE, 2)
+
+-- Wstążka z tytułem
+local ribbon = Instance.new("Frame")
+ribbon.Name = "Ribbon"
+ribbon.Size = UDim2.fromOffset(250, 56)
+ribbon.AnchorPoint = Vector2.new(0.5, 0.5)
+ribbon.Position = UDim2.new(0.5, 0, 0, 0)
+ribbon.BackgroundColor3 = VIOLET
+ribbon.ZIndex = 12
+ribbon.Parent = upgradePanel
+corner(ribbon, UDim.new(0, 16))
+stroke(ribbon, OUTLINE, 3.5)
+local ribbonShade = Instance.new("UIGradient")
+ribbonShade.Rotation = 90
+ribbonShade.Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.fromRGB(196, 196, 196))
+ribbonShade.Parent = ribbon
+local upgradeTitle = label("Title", ribbon, UDim2.new(1, -70, 1, -12), UDim2.fromOffset(56, 6), TITLE_FONT, 34)
+upgradeTitle.ZIndex = 13
+UiKit.outline(upgradeTitle, 3)
+local titleIcon = UiKit.icon("upgrade", ribbon, UDim2.fromOffset(62, 62), UDim2.new(0, -14, 0.5, -4), Vector2.new(0, 0.5))
+titleIcon.Rotation = -12
+titleIcon.ZIndex = 14
+
+-- Monety w lewym górnym rogu
+local coinPill = Instance.new("Frame")
+coinPill.Name = "Coins"
+coinPill.Size = UDim2.fromOffset(150, 40)
+coinPill.Position = UDim2.fromOffset(34, -20)
+coinPill.BackgroundColor3 = Color3.fromRGB(52, 38, 30)
+coinPill.ZIndex = 12
+coinPill.Parent = upgradePanel
+corner(coinPill, UDim.new(1, 0))
+stroke(coinPill, OUTLINE, 3)
+local pillCoin = UiKit.icon("coin", coinPill, UDim2.fromOffset(46, 46), UDim2.new(0, -18, 0.5, 0), Vector2.new(0, 0.5))
+pillCoin.ZIndex = 13
+local pillCoins = label("Amount", coinPill, UDim2.new(1, -46, 1, -10), UDim2.fromOffset(34, 5), TITLE_FONT, 24)
+pillCoins.TextXAlignment = Enum.TextXAlignment.Left
+pillCoins.TextColor3 = Color3.fromRGB(150, 236, 96)
+pillCoins.ZIndex = 13
+
+-- Zamykanie w prawym górnym rogu (wystaje poza okno)
 local closeUpgrades = Instance.new("TextButton")
 closeUpgrades.Name = "Close"
-closeUpgrades.Size = UDim2.fromOffset(40, 40)
-closeUpgrades.Position = UDim2.new(1, -10, 0, 6)
-closeUpgrades.AnchorPoint = Vector2.new(1, 0)
+closeUpgrades.Size = UDim2.fromOffset(52, 52)
+closeUpgrades.AnchorPoint = Vector2.new(0.5, 0.5)
+closeUpgrades.Position = UDim2.new(1, -12, 0, 6)
 closeUpgrades.Text = ""
-closeUpgrades.ZIndex = 11
+closeUpgrades.ZIndex = 12
 closeUpgrades.Parent = upgradePanel
-UiKit.button(closeUpgrades, UiKit.COLORS.red, { stroke = 2 })
-UiKit.icon("close", closeUpgrades, UDim2.fromScale(0.7, 0.7), UDim2.fromScale(0.5, 0.5), Vector2.new(0.5, 0.5))
+local closeStroke = UiKit.button(closeUpgrades, UiKit.COLORS.red, { stroke = 3, radius = UDim.new(0, 14), gloss = true })
+closeStroke.Color = OUTLINE
+local closeIcon = UiKit.icon("close", closeUpgrades, UDim2.fromScale(0.72, 0.72), UDim2.fromScale(0.5, 0.5), Vector2.new(0.5, 0.5))
+closeIcon.ZIndex = 13
+closeUpgrades.MouseEnter:Connect(function()
+	TweenService:Create(closeIcon, TweenInfo.new(0.25, Enum.EasingStyle.Back), { Rotation = 90 }):Play()
+end)
+closeUpgrades.MouseLeave:Connect(function()
+	TweenService:Create(closeIcon, TweenInfo.new(0.2), { Rotation = 0 }):Play()
+end)
 
 -- Zakładki światów
 local TABS = {
@@ -344,14 +513,15 @@ local TABS = {
 }
 local tabBar = Instance.new("Frame")
 tabBar.Name = "Tabs"
-tabBar.Size = UDim2.new(1, -24, 0, 34)
-tabBar.Position = UDim2.fromOffset(12, 52)
+tabBar.Size = UDim2.new(1, -40, 0, 36)
+tabBar.Position = UDim2.fromOffset(20, 40)
 tabBar.BackgroundTransparency = 1
 tabBar.ZIndex = 11
 tabBar.Parent = upgradePanel
 local tabLayout = Instance.new("UIListLayout")
 tabLayout.FillDirection = Enum.FillDirection.Horizontal
-tabLayout.Padding = UDim.new(0, 8)
+tabLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+tabLayout.Padding = UDim.new(0, 10)
 tabLayout.SortOrder = Enum.SortOrder.LayoutOrder
 tabLayout.Parent = tabBar
 local tabButtons: { [string]: TextButton } = {}
@@ -366,71 +536,256 @@ for order, tab in TABS do
 	button.TextColor3 = Color3.new(1, 1, 1)
 	button.ZIndex = 12
 	button.Parent = tabBar
-	UiKit.button(button, UiKit.COLORS.wood, { stroke = 2 })
+	local tabStroke = UiKit.button(button, UiKit.COLORS.wood, { stroke = 2.5, radius = UDim.new(1, 0) })
+	tabStroke.Color = OUTLINE
 	local constraint = Instance.new("UITextSizeConstraint")
 	constraint.MaxTextSize = 18
 	constraint.Parent = button
 	tabButtons[tab.world] = button
 end
 
-local grid = Instance.new("Frame")
+local upgradeHint = label("Hint", upgradePanel, UDim2.new(1, -60, 0, 22), UDim2.fromOffset(30, 80), TITLE_FONT, 18)
+upgradeHint.ZIndex = 11
+
+-- Karty w poziomym pasku z przewijaniem
+local grid = Instance.new("ScrollingFrame")
 grid.Name = "Upgrades"
-grid.Size = UDim2.new(1, -24, 1, -(PANEL_TOP + PANEL_BOTTOM))
-grid.Position = UDim2.fromOffset(12, PANEL_TOP)
+grid.Size = UDim2.new(1, -28, 0, CARD_H + 22)
+grid.Position = UDim2.fromOffset(14, TOP_TABS)
 grid.BackgroundTransparency = 1
+grid.BorderSizePixel = 0
+grid.ScrollingDirection = Enum.ScrollingDirection.X
+grid.AutomaticCanvasSize = Enum.AutomaticSize.X
+grid.CanvasSize = UDim2.new()
+grid.ScrollBarThickness = 8
+grid.ScrollBarImageColor3 = OUTLINE
+grid.ScrollBarImageTransparency = 0.5
+grid.ElasticBehavior = Enum.ElasticBehavior.Always
 grid.ZIndex = 11
 grid.Parent = upgradePanel
-local gridLayout = Instance.new("UIGridLayout")
-gridLayout.CellSize = UDim2.new(0.5, -4, 0, CARD_ROW_HEIGHT - 8)
-gridLayout.CellPadding = UDim2.new(0, 8, 0, 8)
+local gridLayout = Instance.new("UIListLayout")
+gridLayout.FillDirection = Enum.FillDirection.Horizontal
+gridLayout.Padding = UDim.new(0, 12)
 gridLayout.SortOrder = Enum.SortOrder.LayoutOrder
 gridLayout.Parent = grid
-
-local upgradeHint = label("Hint", upgradePanel, UDim2.new(1, -24, 0, 22), UDim2.new(0, 12, 1, -28), BODY_FONT, 15)
-upgradeHint.TextColor3 = THEME.muted
-upgradeHint.ZIndex = 11
+local gridPadding = Instance.new("UIPadding")
+gridPadding.PaddingLeft = UDim.new(0, 8)
+gridPadding.PaddingRight = UDim.new(0, 8)
+gridPadding.Parent = grid
 
 local setUpgradesOpen: (boolean) -> ()
 local applyTab: () -> ()
 local render: () -> () -- zdefiniowane niżej, zakładki odświeżają przez nie panel
 
 type Card = {
-	button: TextButton,
+	holder: Frame,
+	body: TextButton,
 	title: TextLabel,
-	level: TextLabel,
 	desc: TextLabel,
+	value: TextLabel,
+	icon: GuiObject,
+	iconScale: UIScale,
+	pips: Frame,
+	buy: TextButton,
+	buyStroke: UIStroke,
+	buyIcon: GuiObject,
 	cost: TextLabel,
-	fill: Frame,
 	stroke: UIStroke,
+	affordable: boolean,
+	maxed: boolean,
+	hover: boolean,
 }
 local cards: { [string]: Card } = {}
 
+local CARD_REST = UDim2.fromOffset(0, 8)
+local CARD_LIFT = UDim2.fromOffset(0, 0)
+
+local function iconTo(card: Card, scale: number, rotation: number, time: number)
+	TweenService:Create(card.iconScale, TweenInfo.new(time, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = scale }):Play()
+	TweenService:Create(card.icon, TweenInfo.new(time, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Rotation = rotation }):Play()
+end
+
+-- Kliknięcie: ikona wyskakuje w górę dużo większa i wraca z przeskokiem
+local function iconPop(card: Card, amount: number)
+	card.iconScale.Scale = amount
+	card.icon.Rotation = math.random(-14, 14)
+	iconTo(card, if card.hover then 1.15 else 1, if card.hover then -8 else 0, 0.45)
+end
+
+local function centerOf(object: GuiObject): Vector2
+	return object.AbsolutePosition + object.AbsoluteSize / 2
+end
+
+local function setPips(card: Card, level: number, maxLevel: number)
+	if #card.pips:GetChildren() - 1 ~= maxLevel then
+		for _, child in card.pips:GetChildren() do
+			if child:IsA("Frame") then
+				child:Destroy()
+			end
+		end
+		for i = 1, maxLevel do
+			local pip = Instance.new("Frame")
+			pip.Name = "Pip" .. i
+			pip.LayoutOrder = i
+			pip.Size = UDim2.fromOffset(12, 12)
+			pip.ZIndex = 14
+			pip.Parent = card.pips
+			corner(pip, UDim.new(1, 0))
+			stroke(pip, OUTLINE, 1.5)
+		end
+	end
+	for _, child in card.pips:GetChildren() do
+		if child:IsA("Frame") then
+			local on = child.LayoutOrder <= level
+			child.BackgroundColor3 = if on then Color3.fromRGB(255, 255, 255) else OUTLINE
+			child.BackgroundTransparency = if on then 0 else 0.55
+		end
+	end
+end
+
 for order, id in ALL_UPGRADES do
-	local button = Instance.new("TextButton")
-	button.Name = "Upgrade_" .. id
-	button.Text = ""
-	button.LayoutOrder = order
-	button.Parent = grid
-	local cardStroke = UiKit.button(button, THEME.card, { stroke = 2 })
-	cardStroke.Color = CARD_STROKE
+	local color = UPGRADE_COLORS[id] or UiKit.COLORS.moss
+	local holder = Instance.new("Frame")
+	holder.Name = "Upgrade_" .. id
+	holder.Size = UDim2.fromOffset(CARD_W, CARD_H + 10)
+	holder.BackgroundTransparency = 1
+	holder.LayoutOrder = order
+	holder.ZIndex = 12
+	holder.Parent = grid
 
-	UiKit.icon(UPGRADE_ICONS[id] or "lantern", button, UDim2.new(0, 38, 0, 38), UDim2.new(0, 3, 0.5, 0), Vector2.new(0, 0.5))
-	local title = label("Title", button, UDim2.new(1, -112, 0, 20), UDim2.new(0, 44, 0, 4), TITLE_FONT, 18)
-	title.TextXAlignment = Enum.TextXAlignment.Left
-	local level = label("Level", button, UDim2.new(0, 64, 0, 16), UDim2.new(1, -68, 0, 6), BODY_FONT, 13)
-	level.TextXAlignment = Enum.TextXAlignment.Right
-	level.TextColor3 = THEME.muted
-	local desc = label("Desc", button, UDim2.new(1, -118, 0, 16), UDim2.new(0, 44, 0, 25), BODY_FONT, 13)
-	desc.TextXAlignment = Enum.TextXAlignment.Left
-	desc.TextColor3 = THEME.muted
-	local cost = label("Cost", button, UDim2.new(0, 70, 0, 20), UDim2.new(1, -74, 0, 24), TITLE_FONT, 17)
-	cost.TextXAlignment = Enum.TextXAlignment.Right
-	cost.TextColor3 = THEME.accent
-	local _, fill = bar(button, UDim2.new(1, -52, 0, 5), UDim2.new(0, 44, 1, -10), Color3.fromRGB(190, 230, 140))
+	local body = Instance.new("TextButton")
+	body.Name = "Card"
+	body.Text = ""
+	body.AutoButtonColor = false
+	body.Size = UDim2.fromOffset(CARD_W, CARD_H)
+	body.Position = CARD_REST
+	body.BackgroundColor3 = color
+	body.ZIndex = 12
+	body.Parent = holder
+	corner(body, UDim.new(0, 20))
+	local cardStroke = stroke(body, OUTLINE, 3)
+	local shade = Instance.new("UIGradient")
+	shade.Rotation = 90
+	shade.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.new(1, 1, 1)),
+		ColorSequenceKeypoint.new(0.55, Color3.fromRGB(236, 236, 236)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(196, 196, 196)),
+	})
+	shade.Parent = body
 
-	cards[id] = { button = button, title = title, level = level, desc = desc, cost = cost, fill = fill, stroke = cardStroke }
-	button.Activated:Connect(function()
-		pop(button, 0.08)
+	local title = label("Title", body, UDim2.new(1, -16, 0, 28), UDim2.fromOffset(8, 8), TITLE_FONT, 24)
+	title.ZIndex = 14
+	UiKit.outline(title, 2.5)
+
+	-- Jasne koło za ikoną
+	local glow = Instance.new("Frame")
+	glow.Name = "Glow"
+	glow.Size = UDim2.fromOffset(108, 108)
+	glow.AnchorPoint = Vector2.new(0.5, 0.5)
+	glow.Position = UDim2.new(0.5, 0, 0, 94)
+	glow.BackgroundColor3 = Color3.new(1, 1, 1)
+	glow.BackgroundTransparency = 0.72
+	glow.ZIndex = 13
+	glow.Parent = body
+	corner(glow, UDim.new(1, 0))
+
+	local icon = UiKit.icon(UPGRADE_ICONS[id] or "lantern", body, UDim2.fromOffset(96, 96), UDim2.new(0.5, 0, 0, 94), Vector2.new(0.5, 0.5))
+	icon.ZIndex = 15
+	local iconScale = Instance.new("UIScale")
+	iconScale.Parent = icon
+
+	local desc = label("Desc", body, UDim2.new(1, -18, 0, 34), UDim2.fromOffset(9, 148), BODY_FONT, 14)
+	desc.TextWrapped = true
+	desc.ZIndex = 14
+	UiKit.outline(desc, 1.5)
+
+	local pips = Instance.new("Frame")
+	pips.Name = "Pips"
+	pips.Size = UDim2.new(1, -16, 0, 14)
+	pips.Position = UDim2.fromOffset(8, 186)
+	pips.BackgroundTransparency = 1
+	pips.ZIndex = 14
+	pips.Parent = body
+	local pipLayout = Instance.new("UIListLayout")
+	pipLayout.FillDirection = Enum.FillDirection.Horizontal
+	pipLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	pipLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+	pipLayout.Padding = UDim.new(0, 3)
+	pipLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	pipLayout.Parent = pips
+
+	local value = label("Value", body, UDim2.new(1, -16, 0, 24), UDim2.fromOffset(8, 202), TITLE_FONT, 22)
+	value.ZIndex = 14
+	UiKit.outline(value, 2.5)
+
+	local buy = Instance.new("TextButton")
+	buy.Name = "Buy"
+	buy.Text = ""
+	buy.Size = UDim2.new(1, -16, 0, 34)
+	buy.AnchorPoint = Vector2.new(0.5, 1)
+	buy.Position = UDim2.new(0.5, 0, 1, -7)
+	buy.ZIndex = 14
+	buy.Parent = body
+	local buyStroke = UiKit.button(buy, BUY_GREEN, { stroke = 2.5, radius = UDim.new(0, 12), gloss = true })
+	buyStroke.Color = OUTLINE
+	local buyIcon = UiKit.icon("coin", buy, UDim2.fromOffset(30, 30), UDim2.new(0, 2, 0.5, 0), Vector2.new(0, 0.5))
+	buyIcon.ZIndex = 16
+	local cost = label("Cost", buy, UDim2.new(1, -40, 1, -8), UDim2.fromOffset(34, 4), TITLE_FONT, 22)
+	cost.ZIndex = 16
+	UiKit.outline(cost, 2)
+
+	local card: Card = {
+		holder = holder,
+		body = body,
+		title = title,
+		desc = desc,
+		value = value,
+		icon = icon,
+		iconScale = iconScale,
+		pips = pips,
+		buy = buy,
+		buyStroke = buyStroke,
+		buyIcon = buyIcon,
+		cost = cost,
+		stroke = cardStroke,
+		affordable = false,
+		maxed = false,
+		hover = false,
+	}
+	cards[id] = card
+
+	-- Najechanie: karta się unosi, ikona rośnie i przechyla
+	body.MouseEnter:Connect(function()
+		card.hover = true
+		TweenService:Create(body, TweenInfo.new(0.18, Enum.EasingStyle.Quad), { Position = CARD_LIFT }):Play()
+		cardStroke.Thickness = 4
+		iconTo(card, 1.15, -8, 0.3)
+	end)
+	body.MouseLeave:Connect(function()
+		card.hover = false
+		TweenService:Create(body, TweenInfo.new(0.18, Enum.EasingStyle.Quad), { Position = CARD_REST }):Play()
+		cardStroke.Thickness = 3
+		iconTo(card, 1, 0, 0.25)
+	end)
+	-- Kliknięcie w kartę: duża ikona i iskierki (podgląd), kupuje się przyciskiem z ceną
+	body.Activated:Connect(function()
+		iconPop(card, 1.6)
+		UiKit.burst(gui, centerOf(icon), 6)
+	end)
+	buy.Activated:Connect(function()
+		if card.maxed then
+			iconPop(card, 1.3)
+			return
+		end
+		if not card.affordable then
+			UiKit.shake(buy)
+			iconTo(card, 0.85, 12, 0.15)
+			task.delay(0.18, function()
+				iconTo(card, if card.hover then 1.15 else 1, if card.hover then -8 else 0, 0.3)
+			end)
+			return
+		end
+		iconPop(card, 1.75)
 		for _, callback in callbacks.buy do
 			callback(id)
 		end
@@ -454,21 +809,58 @@ local function tabUnlocked(world: string): boolean
 	return state ~= nil and state.swampUnlocked == true
 end
 
+local function unlockedTabCount(): number
+	local count = 0
+	for _, tab in TABS do
+		if tabUnlocked(tab.world) then
+			count += 1
+		end
+	end
+	return count
+end
+
 applyTab = function()
 	local count = 0
 	for id, card in cards do
 		local visible = Economy.upgradeShop(id) == selectedTab
-		card.button.Visible = visible
+		card.holder.Visible = visible
 		if visible then
 			count += 1
 		end
 	end
-	-- Panel tak wysoki, ile rzędów kart ma ta zakładka
-	local rows = math.max(1, math.ceil(count / 2))
-	upgradePanel.Size = UDim2.new(0.94, 0, 0, panelHeight(rows))
-	panelSize.MaxSize = Vector2.new(620, panelHeight(rows))
+	-- Zakładki tylko wtedy, gdy jest z czego wybierać
+	local withTabs = unlockedTabCount() > 1
+	tabBar.Visible = withTabs
+	local top = if withTabs then TOP_TABS else TOP_PLAIN
+	upgradeHint.Position = UDim2.fromOffset(30, top - 30)
+	grid.Position = UDim2.fromOffset(14, top)
+	-- Okno tak szerokie, ile kart ma ta zakładka (najwyżej PANEL_W, dalej przewijanie)
+	local width = math.clamp(count * (CARD_W + 12) + 44, 460, PANEL_W)
+	upgradePanel.Size = UDim2.fromOffset(width, panelHeight(top))
+	grid.CanvasPosition = Vector2.zero
 	for world, button in tabButtons do
-		UiKit.recolor(button, if world == selectedTab then UPGRADE_GREEN else UiKit.COLORS.wood)
+		UiKit.recolor(button, if world == selectedTab then VIOLET else UiKit.COLORS.wood)
+		local tabStroke = button:FindFirstChildOfClass("UIStroke")
+		if tabStroke then
+			tabStroke.Color = OUTLINE
+		end
+	end
+end
+
+-- Karty wjeżdżają od dołu jedna po drugiej
+local function cardsEnter()
+	local index = 0
+	for _, id in ALL_UPGRADES do
+		local card = cards[id]
+		if card.holder.Visible then
+			index += 1
+			card.body.Position = UDim2.fromOffset(0, 60)
+			card.iconScale.Scale = 0.4
+			task.delay(index * 0.045, function()
+				TweenService:Create(card.body, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Position = CARD_REST }):Play()
+				TweenService:Create(card.iconScale, TweenInfo.new(0.45, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+			end)
+		end
 	end
 end
 
@@ -477,22 +869,30 @@ setUpgradesOpen = function(open: boolean)
 		return
 	end
 	upgradePanel.Visible = open
+	upgradeDim.Visible = open
 	if open then
 		-- Na start zakładka świata, w którym gracz jest teraz
 		local state = lastState
 		local world = if state then Economy.zoneWorld(state.zone) else "forest"
 		selectedTab = if tabUnlocked(world) then world else "forest"
 		applyTab()
-		pop(upgradePanel, 0.06)
+		render()
+		upgradeDim.BackgroundTransparency = 1
+		TweenService:Create(upgradeDim, TweenInfo.new(0.25), { BackgroundTransparency = 0.5 }):Play()
+		pop(upgradePanel, -0.25)
+		cardsEnter()
 	end
 end
 
 for world, button in tabButtons do
 	button.Activated:Connect(function()
-		selectedTab = world
-		applyTab()
+		if selectedTab ~= world then
+			selectedTab = world
+			applyTab()
+			render()
+			cardsEnter()
+		end
 		pop(button, 0.08)
-		render()
 	end)
 end
 upgradeButton.Activated:Connect(function()
@@ -504,11 +904,25 @@ end)
 closeUpgrades.Activated:Connect(function()
 	setUpgradesOpen(false)
 end)
+upgradeDim.Activated:Connect(function()
+	setUpgradesOpen(false)
+end)
 
--- Teksty panelu i podpowiedź, gdzie można kupować
+-- Klawisz R (i Y na padzie) otwiera i zamyka panel ulepszeń
+ContextActionService:BindAction("ToggleUpgrades", function(_, inputState)
+	if inputState == Enum.UserInputState.Begin then
+		hoverIn()
+		task.delay(0.6, hoverOut)
+		setUpgradesOpen(not upgradePanel.Visible)
+	end
+	return Enum.ContextActionResult.Sink
+end, false, Enum.KeyCode.R, Enum.KeyCode.ButtonY)
+
+-- Teksty panelu, podpowiedź, gdzie można kupować, i liczba ulepszeń na kropce przycisku
 local function renderUpgradePanel(state: State)
 	upgradeCaption.Text = Localize.t("UPG_BUTTON")
 	upgradeTitle.Text = Localize.t("UPG_TITLE")
+	pillCoins.Text = formatCoins(state.coins)
 	for _, tab in TABS do
 		local button = tabButtons[tab.world]
 		button.Text = tab.icon .. " " .. Localize.t(tab.key)
@@ -516,7 +930,19 @@ local function renderUpgradePanel(state: State)
 	end
 	local here = Economy.isSafeZone(state.zone) and Economy.zoneWorld(state.zone) == selectedTab
 	upgradeHint.Text = if here then Localize.t("UPG_HINT_HERE") else Localize.t(TAB_HINTS[selectedTab] or "UPG_HINT_FOREST")
-	upgradeHint.TextColor3 = if here then THEME.muted else THEME.warn
+	upgradeHint.TextColor3 = if here then Color3.fromRGB(150, 96, 40) else Color3.fromRGB(214, 70, 52)
+
+	local affordable = 0
+	for _, id in ALL_UPGRADES do
+		if tabUnlocked(Economy.upgradeShop(id)) then
+			local cost = Economy.upgradeCost(id, state.upgrades[id] or 0)
+			if cost and state.coins >= cost then
+				affordable += 1
+			end
+		end
+	end
+	badge.Visible = affordable > 0
+	badgeLabel.Text = tostring(affordable)
 end
 
 -- Komunikaty wysuwane z góry
@@ -555,12 +981,6 @@ local shownCoins = 0
 local coinsValue = Instance.new("NumberValue")
 local lowPulse: Tween? = nil
 
-local function formatCoins(value: number): string
-	local s = tostring(math.floor(value + 0.5))
-	-- Spacje co trzy cyfry: 12 345
-	local formatted = s:reverse():gsub("(%d%d%d)", "%1 "):reverse()
-	return (formatted:gsub("^ ", ""))
-end
 
 coinsValue.Changed:Connect(function(value)
 	coinsLabel.Text = formatCoins(value)
@@ -633,21 +1053,21 @@ render = function()
 		local level = state.upgrades[id] or 0
 		local cost = Economy.upgradeCost(id, level)
 		card.title.Text = Localize.t(def.key)
-		card.level.Text = Localize.t("HUD_LEVEL_OF", { level, def.maxLevel })
 		card.desc.Text = Localize.t(def.key .. "_DESC")
-		card.fill.Size = UDim2.new(level / def.maxLevel, 0, 1, 0)
+		card.value.Text = valueText(id, level)
+		setPips(card, level, def.maxLevel)
+		card.maxed = cost == nil
+		card.affordable = cost ~= nil and state.coins >= (cost :: number)
 		if cost then
-			local affordable = state.coins >= cost
-			card.cost.Text = formatCoins(cost) .. " 💰"
-			card.cost.TextColor3 = if affordable then THEME.accent else THEME.muted
-			card.button.BackgroundColor3 = if affordable then THEME.card else THEME.cardLocked
-			card.stroke.Transparency = if affordable then 0 else 0.8
+			card.cost.Text = formatCoins(cost)
+			UiKit.recolor(card.buy, if card.affordable then BUY_GREEN else BUY_RED)
+			UiKit.setIcon(card.buyIcon, "coin")
 		else
 			card.cost.Text = Localize.t("HUD_MAX")
-			card.cost.TextColor3 = THEME.gold
-			card.button.BackgroundColor3 = THEME.cardLocked
-			card.stroke.Transparency = 0.8
+			UiKit.recolor(card.buy, BUY_GOLD)
+			UiKit.setIcon(card.buyIcon, "star")
 		end
+		card.buyStroke.Color = OUTLINE
 	end
 end
 
@@ -665,16 +1085,37 @@ function Hud.update(state: State)
 		if state.basketCount > previous.basketCount then
 			pop(basketIcon, 0.35)
 		end
-		-- Kupione ulepszenie: karta podskakuje i błyska złotem
+		-- Kupione ulepszenie: ikona robi obrót, karta błyska złotem, sypią się iskry i wylatuje „+1”
 		for id, card in cards do
-			if (state.upgrades[id] or 0) > (previous.upgrades[id] or 0) then
-				pop(card.button, 0.12)
+			local level = state.upgrades[id] or 0
+			if level > (previous.upgrades[id] or 0) and upgradePanel.Visible and card.holder.Visible then
+				card.iconScale.Scale = 1.7
+				card.icon.Rotation = -360
+				iconTo(card, if card.hover then 1.15 else 1, if card.hover then -8 else 0, 0.7)
 				card.stroke.Color = THEME.gold
-				card.stroke.Thickness = 4
-				TweenService:Create(card.stroke, TweenInfo.new(0.8, Enum.EasingStyle.Quad), {
-					Color = CARD_STROKE,
-					Thickness = 2,
-				}):Play()
+				card.stroke.Thickness = 6
+				TweenService:Create(card.stroke, TweenInfo.new(0.9, Enum.EasingStyle.Quad), { Color = OUTLINE, Thickness = 3 }):Play()
+				UiKit.burst(gui, centerOf(card.icon), 14)
+				local pip = card.pips:FindFirstChild("Pip" .. level)
+				if pip and pip:IsA("GuiObject") then
+					pop(pip, 1.2)
+				end
+				local plus = label("Plus", gui, UDim2.fromOffset(120, 40), UDim2.fromOffset(0, 0), TITLE_FONT, 34)
+				local from = centerOf(card.icon)
+				plus.AnchorPoint = Vector2.new(0.5, 0.5)
+				plus.Position = UDim2.fromOffset(from.X, from.Y - 40)
+				plus.Text = "+1"
+				plus.TextColor3 = Color3.fromRGB(150, 255, 110)
+				plus.ZIndex = 60
+				UiKit.outline(plus, 3)
+				local rise = TweenService:Create(plus, TweenInfo.new(0.9, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					Position = UDim2.fromOffset(from.X, from.Y - 110),
+					TextTransparency = 1,
+				})
+				rise.Completed:Connect(function()
+					plus:Destroy()
+				end)
+				rise:Play()
 			end
 		end
 	else
@@ -828,7 +1269,7 @@ end
 
 local function layout()
 	local scale = UiScale.get()
-	for _, target in { stats, languageButton, top, upgradePanel, upgradeButton, toast } do
+	for _, target in { stats, languageButton, top, upgradePanel, upgradeRoot, toast } do
 		layoutScale(target, scale)
 	end
 	languageButton.Position = UDim2.new(0, 12, 0, 8 + math.floor(80 * scale) + 8)
@@ -843,7 +1284,7 @@ local function layout()
 	pickButton.Size = UDim2.fromOffset(size, size)
 	pickButton.Position = if UiScale.isSmall() then UDim2.new(1, -112, 1, -14) else UDim2.new(1, -190, 1, -40)
 	-- „Ulepszenia” przy prawej krawędzi, nad przyciskami ZBIERZ i skoku
-	upgradeButton.Position = UDim2.new(1, -12, 0.42, 0)
+	upgradeRoot.Position = UDim2.new(1, -16, 0.42, 0)
 end
 UiScale.onChanged(layout)
 

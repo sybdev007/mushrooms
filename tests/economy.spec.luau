@@ -278,7 +278,7 @@ end)
 
 test("skupywacz stoi w chatce za ladą, a sprzedaż sięga do kręgu przed nią", function()
 	local merchant = Config.Merchant
-	check(merchant.x > -12 and merchant.x < 12 and merchant.z > -34.3 and merchant.z < -32, "skupywacz poza miejscem za ladą")
+	check(merchant.x > -16 and merchant.x < 16 and merchant.z > -44.3 and merchant.z < -42, "skupywacz poza miejscem za ladą")
 	local shop = Economy.station("shop", "forest")
 	local distance = math.sqrt((shop.x - merchant.x) ^ 2 + (shop.z - merchant.z) ^ 2)
 	check(distance + shop.radius <= merchant.sellDistance, "krąg przed ladą za daleko od skupywacza")
@@ -969,9 +969,9 @@ test("stanowiska leżą w chatce i w obozowisku, nie nachodzą na siebie ani na 
 	for _, station in Config.Stations do
 		local name = station.world .. "/" .. station.kind
 		if station.world == "forest" then
-			-- Wnętrze chatki: x od -12 do 12, z od -34 do -14 (ściany z bali mają grubość)
-			assert(station.x - station.radius >= -12.3 and station.x + station.radius <= 12.3, name .. " wystaje w bok")
-			assert(station.z - station.radius >= -34.3 and station.z + station.radius <= -13.5, name .. " wystaje przez ścianę")
+			-- Wnętrze chatki: x od -17 do 17, z od -44 do -14 (ściany z bali mają grubość)
+			assert(station.x - station.radius >= -17.3 and station.x + station.radius <= 17.3, name .. " wystaje w bok")
+			assert(station.z - station.radius >= -44.3 and station.z + station.radius <= -13.5, name .. " wystaje przez ścianę")
 		else
 			assert(Economy.isSafeZone(Economy.zoneIndexAt(station.z)), name .. " poza obozowiskiem")
 			assert(math.abs(station.x) + station.radius < Config.Cave.halfWidth, name .. " w ścianie jaskini")

@@ -17,13 +17,13 @@ local VERTICAL = CFrame.Angles(0, 0, math.rad(90))
 local ALONG_Z = CFrame.Angles(0, math.rad(90), 0) -- oś walca (X) obrócona wzdłuż Z
 
 -- Wymiary (studs)
-local HALF_W = 13 -- ściany boczne na x = ±13
-local BACK_Z = -35
+local HALF_W = 18 -- ściany boczne na x = ±18 (większa chatka: więcej miejsca przy ladzie)
+local BACK_Z = -45
 local FRONT_Z = -13
 local FLOOR_TOP = 1
 local LOG_D = 1.6
 local LOG_STEP = 1.5
-local ROWS = 7
+local ROWS = 9
 local WALL_TOP = FLOOR_TOP + LOG_D / 2 + (ROWS - 1) * LOG_STEP + LOG_D / 2
 local ROOF_ANGLE = math.rad(35)
 
@@ -47,12 +47,12 @@ local function decor(p: BasePart): BasePart
 	return p
 end
 
-local function logX(parent: Instance, x1: number, x2: number, y: number, z: number, diameter: number?)
+local function logX(parent: Instance, x1: number, x2: number, y: number, z: number, diameter: number?): BasePart?
 	if x2 - x1 < 0.5 then
-		return
+		return nil
 	end
 	local d = diameter or LOG_D
-	make("Part", {
+	return make("Part", {
 		Name = "Log",
 		Shape = Enum.PartType.Cylinder,
 		Size = Vector3.new(x2 - x1, d, d),
@@ -134,14 +134,14 @@ local function window(parent: Instance, cf: CFrame, width: number, height: numbe
 end
 
 local function buildWalls(m: Model)
-	local doorHalf = 2.6
-	local doorRows = 4 -- rzędy 0-3 mają otwór na drzwi
-	local frontWindows = { { -10, -6 }, { 6, 10 } }
-	local sideWindow = { -27, -21 }
+	local doorHalf = 3
+	local doorRows = 5 -- rzędy 0-4 mają otwór na drzwi
+	local frontWindows = { { -14, -8 }, { 8, 14 } }
+	local sideWindows = { { -38, -32 }, { -26, -20 } }
 
 	for row = 0, ROWS - 1 do
 		local y = rowY(row)
-		local windowRow = row == 2 or row == 3
+		local windowRow = row >= 2 and row <= 4
 
 		-- Tył
 		logX(m, -HALF_W - 1, HALF_W + 1, y, BACK_Z)
@@ -164,7 +164,7 @@ local function buildWalls(m: Model)
 		local sideY = y + LOG_STEP / 2
 		if row < ROWS - 1 then
 			for _, x in { -HALF_W, HALF_W } do
-				local sideHoles = if windowRow then { sideWindow } else {}
+				local sideHoles = if windowRow then sideWindows else {}
 				for _, seg in segments(BACK_Z - 1, FRONT_Z + 1, sideHoles) do
 					logZ(m, seg[1], seg[2], sideY, x)
 				end
@@ -173,15 +173,17 @@ local function buildWalls(m: Model)
 	end
 
 	-- Okna: świecące szybki w otworach
-	local windowY = (rowY(2) + rowY(3)) / 2
-	local windowH = LOG_STEP * 2 - 0.2
+	local windowY = rowY(3)
+	local windowH = LOG_STEP * 3 - 0.2
 	for _, w in frontWindows do
 		window(m, CFrame.new((w[1] + w[2]) / 2, windowY, FRONT_Z), w[2] - w[1], windowH, 1)
 	end
 	for _, x in { -HALF_W, HALF_W } do
 		-- Po obrocie ALONG_Z lokalne +Z wskazuje świat +X
 		local outward = if x > 0 then 1 else -1
-		window(m, CFrame.new(x, windowY + LOG_STEP / 2, (sideWindow[1] + sideWindow[2]) / 2) * ALONG_Z, sideWindow[2] - sideWindow[1], windowH, outward)
+		for _, w in sideWindows do
+			window(m, CFrame.new(x, windowY + LOG_STEP / 2, (w[1] + w[2]) / 2) * ALONG_Z, w[2] - w[1], windowH, outward)
+		end
 	end
 
 	-- Futryna drzwi
@@ -253,7 +255,7 @@ end
 
 local function buildChimney(m: Model)
 	local x, z = HALF_W - 4, BACK_Z - 1.6
-	local top = WALL_TOP + 9
+	local top = WALL_TOP + 11
 	local y = 0
 	local i = 0
 	while y < top do
@@ -342,57 +344,102 @@ local function buildPorch(m: Model)
 		Parent = m,
 	})
 	-- Szyld nad drzwiami, napis od strony lasu
-	Props.signBoard(m, CFrame.new(0, rowY(5) + 0.3, FRONT_Z + 1.05), Vector3.new(9, 1.9, 0.3), "ZONE_CABIN", Enum.NormalId.Back)
+	Props.signBoard(m, CFrame.new(0, rowY(6) + 0.3, FRONT_Z + 1.05), Vector3.new(11, 2.2, 0.3), "ZONE_CABIN", Enum.NormalId.Back)
 end
 
 local function buildInterior(m: Model)
+	local counterZ = BACK_Z + 3.4
+	local midZ = (FRONT_Z + BACK_Z) / 2
 	-- Podłoga z desek, szersza niż ściany, żeby pod balami nie było szpary
 	make("Part", {
 		Name = "Floor",
 		Size = Vector3.new(HALF_W * 2 + 2, 1, FRONT_Z - BACK_Z + 2),
-		Position = Vector3.new(0, FLOOR_TOP - 0.5, (FRONT_Z + BACK_Z) / 2),
+		Position = Vector3.new(0, FLOOR_TOP - 0.5, midZ),
 		Color = Palette.plank,
 		Parent = m,
 	})
-	-- Dywanik
+	-- Szczeliny między deskami podłogi
+	for x = -HALF_W + 2, HALF_W - 2, 3 do
+		decor(make("Part", {
+			Size = Vector3.new(0.1, 0.04, FRONT_Z - BACK_Z - 1),
+			Position = Vector3.new(x, FLOOR_TOP + 0.02, midZ),
+			Color = Palette.plankDark,
+			Parent = m,
+		}))
+	end
+	-- Chodnik od drzwi do lady i duży okrągły dywan na środku
 	decor(make("Part", {
-		Size = Vector3.new(8, 0.08, 6),
-		Position = Vector3.new(0, FLOOR_TOP + 0.04, -23),
+		Name = "Runner",
+		Size = Vector3.new(4, 0.06, FRONT_Z - counterZ - 4),
+		Position = Vector3.new(0, FLOOR_TOP + 0.03, (FRONT_Z + counterZ) / 2 + 1),
 		Color = Color3.fromRGB(150, 54, 44),
 		Parent = m,
 	}))
-
-	-- Lada skupu grzybów przy tylnej ścianie
-	make("Part", { Name = "Counter", Size = Vector3.new(10, 3, 2.6), Position = Vector3.new(-5, FLOOR_TOP + 1.5, BACK_Z + 3.4), Color = Palette.plankDark, Parent = m })
-	make("Part", { Size = Vector3.new(10.6, 0.4, 3), Position = Vector3.new(-5, FLOOR_TOP + 3.2, BACK_Z + 3.4), Color = Palette.plank, Parent = m })
-	-- Waga i kosz z grzybami na ladzie
-	decor(make("Part", { Size = Vector3.new(1.6, 0.3, 1.6), Position = Vector3.new(-8, FLOOR_TOP + 3.55, BACK_Z + 3.4), Color = Palette.metal, Parent = m }))
-	decor(make("Part", { Size = Vector3.new(0.3, 1.2, 0.3), Position = Vector3.new(-8, FLOOR_TOP + 4.1, BACK_Z + 3.4), Color = Palette.metal, Parent = m }))
-	local basket = decor(make("Part", {
-		Shape = Enum.PartType.Cylinder,
-		Size = Vector3.new(1.2, 2.2, 2.2),
-		CFrame = CFrame.new(-3, FLOOR_TOP + 4, BACK_Z + 3.4) * VERTICAL,
-		Color = Color3.fromRGB(170, 120, 60),
-		Parent = m,
-	}))
-	for i = 1, 4 do
-		local cap = decor(make("Part", {
-			Size = Vector3.new(0.8, 0.8, 0.8),
-			Position = basket.Position + Vector3.new((i % 2 - 0.5) * 0.9, 0.7, (i > 2 and 0.4 or -0.4)),
-			Color = Palette.autumn[i],
+	for _, edge in { -1.8, 1.8 } do
+		decor(make("Part", {
+			Size = Vector3.new(0.3, 0.07, FRONT_Z - counterZ - 4),
+			Position = Vector3.new(edge, FLOOR_TOP + 0.035, (FRONT_Z + counterZ) / 2 + 1),
+			Color = Color3.fromRGB(232, 190, 92),
 			Parent = m,
 		}))
-		local mesh = Instance.new("SpecialMesh")
-		mesh.MeshType = Enum.MeshType.Sphere
-		mesh.Scale = Vector3.new(1, 0.6, 1)
-		mesh.Parent = cap
 	end
-	-- Skrzynki obok lady
-	for i, offset in { Vector3.new(2.5, 0, 0), Vector3.new(2.6, 2.1, 0.2), Vector3.new(2.5, 0, 2.3) } do
+	for i, d in { 11, 9.6, 8 } do
+		decor(make("Part", {
+			Name = "Rug",
+			Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(0.05 + i * 0.01, d, d),
+			CFrame = CFrame.new(0, FLOOR_TOP + 0.02 + i * 0.01, midZ - 1) * VERTICAL,
+			Color = ({ Color3.fromRGB(120, 70, 44), Color3.fromRGB(196, 132, 60), Color3.fromRGB(150, 54, 44) })[i],
+			Parent = m,
+		}))
+	end
+
+	-- Lada skupu grzybów na środku tylnej ściany, z frontem z desek i daszkiem-muchomorem
+	local counterW = 14
+	make("Part", { Name = "Counter", Size = Vector3.new(counterW, 3, 2.6), Position = Vector3.new(0, FLOOR_TOP + 1.5, counterZ), Color = Palette.plankDark, Parent = m })
+	make("Part", { Size = Vector3.new(counterW + 0.6, 0.4, 3), Position = Vector3.new(0, FLOOR_TOP + 3.2, counterZ), Color = Palette.plank, Parent = m })
+	for x = -counterW / 2 + 1, counterW / 2 - 1, 2 do
+		decor(make("Part", { Size = Vector3.new(0.12, 2.6, 0.08), Position = Vector3.new(x, FLOOR_TOP + 1.5, counterZ + 1.32), Color = Palette.plank, Parent = m }))
+	end
+	-- Czerwony pas z białymi kropkami na froncie lady (jak kapelusz muchomora)
+	decor(make("Part", { Size = Vector3.new(counterW, 0.7, 0.1), Position = Vector3.new(0, FLOOR_TOP + 2.55, counterZ + 1.36), Color = Color3.fromRGB(214, 52, 44), Parent = m }))
+	for x = -counterW / 2 + 1.2, counterW / 2 - 1.2, 1.7 do
+		decor(make("Part", { Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.06, 0.34, 0.34), CFrame = CFrame.new(x, FLOOR_TOP + 2.55, counterZ + 1.42) * ALONG_Z, Color = Color3.new(1, 1, 1), Parent = m }))
+	end
+	-- Waga i kosz z grzybami na ladzie
+	decor(make("Part", { Size = Vector3.new(1.6, 0.3, 1.6), Position = Vector3.new(-5, FLOOR_TOP + 3.55, counterZ), Color = Palette.metal, Parent = m }))
+	decor(make("Part", { Size = Vector3.new(0.3, 1.2, 0.3), Position = Vector3.new(-5, FLOOR_TOP + 4.1, counterZ), Color = Palette.metal, Parent = m }))
+	decor(make("Part", { Size = Vector3.new(2.2, 0.15, 0.3), Position = Vector3.new(-5, FLOOR_TOP + 4.7, counterZ), Color = Palette.metal, Parent = m }))
+	for _, dx in { -1, 1 } do
+		decor(make("Part", { Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.12, 0.9, 0.9), CFrame = CFrame.new(-5 + dx, FLOOR_TOP + 4.4, counterZ) * VERTICAL, Color = Palette.metal, Parent = m }))
+	end
+	for _, bx in { 4.5 } do
+		local basket = decor(make("Part", {
+			Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(1.2, 2.2, 2.2),
+			CFrame = CFrame.new(bx, FLOOR_TOP + 4, counterZ) * VERTICAL,
+			Color = Color3.fromRGB(170, 120, 60),
+			Parent = m,
+		}))
+		for i = 1, 4 do
+			local cap = decor(make("Part", {
+				Size = Vector3.new(0.8, 0.8, 0.8),
+				Position = basket.Position + Vector3.new((i % 2 - 0.5) * 0.9, 0.7, (i > 2 and 0.4 or -0.4)),
+				Color = Palette.autumn[i],
+				Parent = m,
+			}))
+			local mesh = Instance.new("SpecialMesh")
+			mesh.MeshType = Enum.MeshType.Sphere
+			mesh.Scale = Vector3.new(1, 0.6, 1)
+			mesh.Parent = cap
+		end
+	end
+	-- Skrzynki po obu stronach lady
+	for i, offset in { Vector3.new(-9.5, 0, 0), Vector3.new(-9.4, 2.1, 0.2), Vector3.new(9.5, 0, 0.4), Vector3.new(-9.5, 0, 2.4) } do
 		make("Part", {
 			Name = "Crate",
 			Size = Vector3.new(2, 2, 2),
-			Position = Vector3.new(0, FLOOR_TOP + 1, BACK_Z + 3.4) + offset,
+			Position = Vector3.new(0, FLOOR_TOP + 1, counterZ) + offset,
 			Orientation = Vector3.new(0, i * 7, 0),
 			Color = Palette.plank,
 			Parent = m,
@@ -400,11 +447,12 @@ local function buildInterior(m: Model)
 	end
 
 	-- Kominek
-	local fx, fz = HALF_W - 4, BACK_Z + 1.4
-	make("Part", { Name = "Fireplace", Size = Vector3.new(5, 5, 1.6), Position = Vector3.new(fx, FLOOR_TOP + 2.5, fz), Color = Palette.stoneChimney, Parent = m })
-	decor(make("Part", { Size = Vector3.new(3, 2.4, 0.2), Position = Vector3.new(fx, FLOOR_TOP + 1.3, fz + 0.75), Color = Color3.fromRGB(20, 16, 14), Parent = m }))
+	local fx, fz = HALF_W - 4.5, BACK_Z + 1.4
+	make("Part", { Name = "Fireplace", Size = Vector3.new(6, 6, 1.6), Position = Vector3.new(fx, FLOOR_TOP + 3, fz), Color = Palette.stoneChimney, Parent = m })
+	make("Part", { Name = "Mantel", Size = Vector3.new(7, 0.5, 2.2), Position = Vector3.new(fx, FLOOR_TOP + 6.2, fz + 0.3), Color = Palette.plankDark, Parent = m })
+	decor(make("Part", { Size = Vector3.new(3.4, 2.8, 0.2), Position = Vector3.new(fx, FLOOR_TOP + 1.5, fz + 0.75), Color = Color3.fromRGB(20, 16, 14), Parent = m }))
 	local embers = decor(make("Part", {
-		Size = Vector3.new(2.2, 0.4, 0.3),
+		Size = Vector3.new(2.6, 0.4, 0.3),
 		Position = Vector3.new(fx, FLOOR_TOP + 0.3, fz + 0.9),
 		Color = Color3.fromRGB(255, 120, 40),
 		Material = Enum.Material.Neon,
@@ -414,28 +462,41 @@ local function buildInterior(m: Model)
 	fire.Texture = "rbxasset://textures/particles/fire_main.dds"
 	fire.Color = ColorSequence.new(Color3.fromRGB(255, 170, 70), Color3.fromRGB(255, 80, 30))
 	fire.LightEmission = 1
-	fire.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1.2), NumberSequenceKeypoint.new(1, 0.2) })
+	fire.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1.3), NumberSequenceKeypoint.new(1, 0.2) })
 	fire.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.2), NumberSequenceKeypoint.new(1, 1) })
 	fire.Lifetime = NumberRange.new(0.6, 1)
-	fire.Rate = 18
+	fire.Rate = 20
 	fire.Speed = NumberRange.new(1.5, 2.5)
 	fire.SpreadAngle = Vector2.new(15, 15)
 	fire.EmissionDirection = Enum.NormalId.Top
 	fire.Parent = embers
 	local fireLight = Instance.new("PointLight")
 	fireLight.Color = Color3.fromRGB(255, 140, 60)
-	fireLight.Range = 14
-	fireLight.Brightness = 0.9
+	fireLight.Range = 16
+	fireLight.Brightness = 1
 	fireLight.Parent = embers
+	-- Na gzymsie: świeczki i złoty grzyb-trofeum
+	for _, dx in { -2.6, 2.6 } do
+		decor(make("Part", { Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.9, 0.35, 0.35), CFrame = CFrame.new(fx + dx, FLOOR_TOP + 6.9, fz + 0.3) * VERTICAL, Color = Color3.fromRGB(246, 236, 210), Parent = m }))
+		local flame = decor(make("Part", { Shape = Enum.PartType.Ball, Size = Vector3.new(0.25, 0.25, 0.25), Position = Vector3.new(fx + dx, FLOOR_TOP + 7.5, fz + 0.3), Color = Color3.fromRGB(255, 190, 80), Material = Enum.Material.Neon, Parent = m }))
+		flame.Name = "CandleFlame"
+	end
+	decor(make("Part", { Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.9, 0.5, 0.5), CFrame = CFrame.new(fx, FLOOR_TOP + 6.9, fz + 0.3) * VERTICAL, Color = Color3.fromRGB(240, 200, 90), Material = Enum.Material.Metal, Parent = m }))
+	local trophy = decor(make("Part", { Size = Vector3.new(1.6, 1, 1.6), Position = Vector3.new(fx, FLOOR_TOP + 7.6, fz + 0.3), Color = Color3.fromRGB(255, 205, 60), Material = Enum.Material.Metal, Parent = m }))
+	local trophyMesh = Instance.new("SpecialMesh")
+	trophyMesh.MeshType = Enum.MeshType.Sphere
+	trophyMesh.Scale = Vector3.new(1, 0.65, 1)
+	trophyMesh.Parent = trophy
 
-	-- Suszarnia: dwa słupki, sznurki i grzyby na nitkach (przyszła mechanika suszenia)
+	-- Suszarnia: dwa słupki, sznurki i grzyby na nitkach wzdłuż prawej ściany
 	local rackX = HALF_W - 2.5
-	for _, z in { -29, -18 } do
+	local rackZ1, rackZ2 = BACK_Z + 9, FRONT_Z - 6
+	for _, z in { rackZ1, rackZ2 } do
 		make("Part", { Size = Vector3.new(0.4, 6, 0.4), Position = Vector3.new(rackX, FLOOR_TOP + 3, z), Color = Palette.plankDark, Parent = m })
 	end
 	for i, y in { 4.2, 5.6 } do
-		decor(make("Part", { Size = Vector3.new(0.08, 0.08, 11), Position = Vector3.new(rackX, FLOOR_TOP + y, -23.5), Color = Color3.fromRGB(200, 190, 170), Parent = m }))
-		for z = -28, -19, 1.5 do
+		decor(make("Part", { Size = Vector3.new(0.08, 0.08, rackZ2 - rackZ1), Position = Vector3.new(rackX, FLOOR_TOP + y, (rackZ1 + rackZ2) / 2), Color = Color3.fromRGB(200, 190, 170), Parent = m }))
+		for z = rackZ1 + 1, rackZ2 - 1, 1.5 do
 			local cap = decor(make("Part", {
 				Size = Vector3.new(0.7, 0.7, 0.7),
 				Position = Vector3.new(rackX, FLOOR_TOP + y - 0.45, z + (i - 1) * 0.6),
@@ -449,7 +510,7 @@ local function buildInterior(m: Model)
 		end
 	end
 
-	-- Beczka z olejem do latarni przy drzwiach
+	-- Beczka z olejem do latarni przy drzwiach (z drugą, mniejszą obok)
 	local barrel = make("Part", {
 		Name = "OilBarrel",
 		Shape = Enum.PartType.Cylinder,
@@ -467,13 +528,32 @@ local function buildInterior(m: Model)
 			Parent = m,
 		}))
 	end
+	make("Part", {
+		Name = "OilBarrel",
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(2.2, 1.7, 1.7),
+		CFrame = CFrame.new(-HALF_W + 2, FLOOR_TOP + 1.1, FRONT_Z - 4.4) * VERTICAL,
+		Color = Color3.fromRGB(120, 80, 50),
+		Parent = m,
+	})
 
-	-- Ciepłe światło pod sufitem
-	local lamp = Props.hangingLantern(m, Vector3.new(0, WALL_TOP - 0.4, -24), 26)
+	-- Belki pod dachem (tylko wystrój, kamera przez nie przechodzi)
+	for z = BACK_Z + 6, FRONT_Z - 4, 8 do
+		local beam = logX(m, -HALF_W, HALF_W, WALL_TOP - 0.4, z, 1.1)
+		if beam then
+			decor(beam)
+		end
+	end
+
+	-- Ciepłe światło pod sufitem: główna lampa i dwie mniejsze
+	local lamp = Props.hangingLantern(m, Vector3.new(0, WALL_TOP - 1.4, midZ), 30)
 	local light = lamp:FindFirstChildOfClass("PointLight")
 	if light then
 		light.Brightness = 0.9
 		light.Shadows = true
+	end
+	for _, x in { -9, 9 } do
+		Props.hangingLantern(m, Vector3.new(x, WALL_TOP - 1.4, BACK_Z + 8), 18)
 	end
 end
 
@@ -503,7 +583,7 @@ local function buildStations(m: Model)
 	stationRing(m, "oil", Color3.fromRGB(255, 186, 80))
 	stationRing(m, "shop", Color3.fromRGB(150, 226, 110))
 	-- Szyld nad ladą na tylnej ścianie, napisem do środka chatki (wysoko, nad kapeluszem skupywacza)
-	Props.signBoard(m, CFrame.new(-5, FLOOR_TOP + 9.7, BACK_Z + 1), Vector3.new(7.5, 1.6, 0.3), "SIGN_SHOP", Enum.NormalId.Back)
+	Props.signBoard(m, CFrame.new(Config.Merchant.x, FLOOR_TOP + 10.2, BACK_Z + 1), Vector3.new(9, 1.9, 0.3), "SIGN_SHOP", Enum.NormalId.Back)
 	-- Skupywacz za ladą, przodem do wnętrza
 	local merchant = Config.Merchant
 	local at = Vector3.new(merchant.x, FLOOR_TOP, merchant.z)
@@ -557,13 +637,14 @@ local function buildDecor(m: Model)
 		Color3.fromRGB(150, 120, 255),
 		Color3.fromRGB(255, 200, 80),
 	}
-	for i, y in { 3.2, 5.2 } do
-		make("Part", { Name = "Shelf", Size = Vector3.new(1.4, 0.25, 7), Position = Vector3.new(shelfX, FLOOR_TOP + y, -26.5), Color = Palette.plank, Parent = m })
-		for _, z in { -29.2, -23.8 } do
-			decor(make("Part", { Size = Vector3.new(0.25, 0.7, 0.25), Position = Vector3.new(shelfX - 0.45, FLOOR_TOP + y - 0.45, z), Color = Palette.plankDark, Parent = m }))
+	local shelfZ = (BACK_Z + FRONT_Z) / 2 - 3
+	for i, y in { 3.2, 5.2, 7.2 } do
+		make("Part", { Name = "Shelf", Size = Vector3.new(1.4, 0.25, 10), Position = Vector3.new(shelfX, FLOOR_TOP + y, shelfZ), Color = Palette.plank, Parent = m })
+		for _, dz in { -4.2, 4.2 } do
+			decor(make("Part", { Size = Vector3.new(0.25, 0.7, 0.25), Position = Vector3.new(shelfX - 0.45, FLOOR_TOP + y - 0.45, shelfZ + dz), Color = Palette.plankDark, Parent = m }))
 		end
-		for k = 1, 4 do
-			jar(m, Vector3.new(shelfX, FLOOR_TOP + y + 0.12, -29.4 + k * 1.45), jarColors[(k + i) % #jarColors + 1])
+		for k = 1, 6 do
+			jar(m, Vector3.new(shelfX, FLOOR_TOP + y + 0.12, shelfZ - 5 + k * 1.43), jarColors[(k + i) % #jarColors + 1])
 		end
 	end
 	local glow = m:FindFirstChild("JarShroom")
@@ -576,7 +657,7 @@ local function buildDecor(m: Model)
 	end
 
 	-- Okrągły stolik z lampką-muchomorem i dwa stołki (po prawej, z dala od drogi do lady)
-	local tableAt = Vector3.new(6, FLOOR_TOP, -22.5)
+	local tableAt = Vector3.new(8, FLOOR_TOP, -24)
 	make("Part", { Name = "TableLeg", Shape = Enum.PartType.Cylinder, Size = Vector3.new(2.4, 0.5, 0.5), CFrame = CFrame.new(tableAt + Vector3.new(0, 1.2, 0)) * VERTICAL, Color = Palette.plankDark, Parent = m })
 	make("Part", { Name = "TableTop", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.3, 3.4, 3.4), CFrame = CFrame.new(tableAt + Vector3.new(0, 2.5, 0)) * VERTICAL, Color = Palette.plank, Parent = m })
 	for _, dx in { -2.4, 2.4 } do
@@ -603,14 +684,14 @@ local function buildDecor(m: Model)
 	-- Ganek: ławka po lewej od drzwi i doniczki z kwiatami przy schodkach
 	local deckTop = 1
 	local benchZ = FRONT_Z + 2.2
-	make("Part", { Name = "BenchSeat", Size = Vector3.new(4.5, 0.35, 1.3), Position = Vector3.new(-8, deckTop + 1.1, benchZ), Color = Palette.plank, Parent = m })
-	make("Part", { Name = "BenchBack", Size = Vector3.new(4.5, 1.2, 0.25), Position = Vector3.new(-8, deckTop + 1.9, benchZ - 0.55), Color = Palette.plank, Parent = m })
+	make("Part", { Name = "BenchSeat", Size = Vector3.new(4.5, 0.35, 1.3), Position = Vector3.new(-11, deckTop + 1.1, benchZ), Color = Palette.plank, Parent = m })
+	make("Part", { Name = "BenchBack", Size = Vector3.new(4.5, 1.2, 0.25), Position = Vector3.new(-11, deckTop + 1.9, benchZ - 0.55), Color = Palette.plank, Parent = m })
 	for _, dx in { -1.9, 1.9 } do
-		make("Part", { Name = "BenchLeg", Size = Vector3.new(0.3, 1, 1.1), Position = Vector3.new(-8 + dx, deckTop + 0.5, benchZ), Color = Palette.plankDark, Parent = m })
+		make("Part", { Name = "BenchLeg", Size = Vector3.new(0.3, 1, 1.1), Position = Vector3.new(-11 + dx, deckTop + 0.5, benchZ), Color = Palette.plankDark, Parent = m })
 	end
 	local flowerColors = { Color3.fromRGB(236, 96, 96), Color3.fromRGB(250, 210, 90), Color3.fromRGB(180, 130, 240) }
 	for side = -1, 1, 2 do
-		local pot = Vector3.new(side * 4.2, deckTop, FRONT_Z + 5.2)
+		local pot = Vector3.new(side * 5, deckTop, FRONT_Z + 5.2)
 		make("Part", { Name = "Pot", Shape = Enum.PartType.Cylinder, Size = Vector3.new(1.1, 1.2, 1.2), CFrame = CFrame.new(pot + Vector3.new(0, 0.55, 0)) * VERTICAL, Color = Color3.fromRGB(180, 96, 60), Parent = m })
 		for k = 1, 3 do
 			local angle = k * 2.1

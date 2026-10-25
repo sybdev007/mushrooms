@@ -1,0 +1,6 @@
+<svg width="180" height="180" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+<defs><linearGradient id="ga" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8CF06E"/><stop offset="1" stop-color="#22A845"/></linearGradient></defs>
+<path d="M100 20 L176 98 L132 98 L132 176 L68 176 L68 98 L24 98 Z" fill="url(#ga)" stroke="#2B1B12" stroke-width="9" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M100 40 L146 88 L120 88 L120 100 L80 100 L80 88 L54 88 Z" fill="#FFFFFF" fill-opacity="0.55"/>
+<path d="M80 112 L92 112 L92 162 L80 162 Z" fill="#FFFFFF" fill-opacity="0.35"/>
+<path d="M166.0 22.0 L169.5 36.5 L184.0 40.0 L169.5 43.5 L166.0 58.0 L162.5 43.5 L148.0 40.0 L162.5 36.5 Z" fill="#FFF3B0" stroke="#2B1B12" stroke-width="4" stroke-linejoin="round"/></svg>

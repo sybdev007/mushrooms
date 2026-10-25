@@ -484,8 +484,8 @@ Config.Hoard = {
 export type StationDef = { kind: string, world: string, x: number, z: number, radius: number }
 Config.Stations = {
 	-- Chatka
-	{ kind = "oil", world = "forest", x = -8.6, z = -17.2, radius = 3.3 },
-	{ kind = "shop", world = "forest", x = -5, z = -27.8, radius = 3.5 }, -- przed ladą, z NPC-skupywaczem
+	{ kind = "oil", world = "forest", x = -13.6, z = -17.2, radius = 3.3 },
+	{ kind = "shop", world = "forest", x = 0, z = -37.6, radius = 3.5 }, -- przed ladą, z NPC-skupywaczem
 	-- Obozowisko w jaskini: skup po lewej, olej po prawej (patrząc w głąb jaskini), oba przodem do środka
 	{ kind = "shop", world = "cave", x = 13, z = 1022, radius = 4 },
 	{ kind = "oil", world = "cave", x = -13, z = 1022, radius = 3.6 },
@@ -498,8 +498,8 @@ Config.StationTolerance = 2 -- serwer jest łagodniejszy przez opóźnienie siec
 -- Skupywacz w chatce: stoi za ladą. Sprzedaje się u niego (przycisk rozmowy), ulepszenia są pod
 -- przyciskiem „Ulepszenia” i kupuje się je w bezpiecznej strefie świata, do którego należą.
 Config.Merchant = {
-	x = -5,
-	z = -33.4,
+	x = 0,
+	z = -43.4,
 	promptDistance = 9,
 	sellDistance = 13, -- serwer: tak blisko skupywacza trzeba stać, żeby sprzedać
 }
@@ -551,6 +551,9 @@ Config.ShopOrder = { "boom", "luck", "oil", "harvest" }
 -- Arkusz ikon interfejsu z Figmy (assets/ui-icons.png: 5 kolumn x 4 wiersze, pola po 204 px).
 -- Po wgraniu obrazka do Robloxa wpisz tu "rbxassetid://NUMER"; pusty = ikony z emoji.
 Config.UiIcons = { sheet = "rbxassetid://103916534276165", cell = 204, columns = 5 }
+-- Drugi arkusz ikon (assets/ui-icons-2.png, ramka „sprite/ui-icons-2” w Figmie): ulepszenia, nożyk,
+-- grządki, nawóz, monety, ptaszek, gwiazdka, skrzynia, księżyc, iskry. Pusty numer = emoji.
+Config.UiIcons2 = { sheet = "rbxassetid://78510472231486", cell = 204, columns = 5 }
 
 -- Ile sekund po zgaśnięciu latarni / złapaniu da się jeszcze uratować koszyk.
 -- buttonSeconds: jak długo widać przycisk; serverSeconds: zapas na okno płatności Robloxa.
