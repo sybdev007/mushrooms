@@ -24,6 +24,7 @@ export type Spot = {
 	zone: number,
 	position: Vector3,
 	grove: boolean?, -- miejsce w Gnieździe Leszego (rośnie tam Korona Leszego)
+	lair: boolean?, -- miejsce w Skarbcu Skarbnika (rośnie tam Złota Trufla)
 }
 
 export type RackInfo = {
@@ -39,6 +40,8 @@ export type MapInfo = {
 	leszyStatue: Model?,
 	racks: { RackInfo },
 	campCFrame: CFrame?, -- obozowisko w jaskini; nil = mapa bez jaskini
+	lairCenter: Vector3?, -- skąd rusza Skarbnik
+	skarbnikStatue: Model?,
 	portal: Vector3?, -- portal do jaskini (w lesie, za Gniazdem Leszego)
 	shortcut: Vector3?, -- skrót do jaskini za chatką (dla tych, którzy ją już odkryli)
 	returnPortal: Vector3?, -- portal powrotny w obozowisku
@@ -424,6 +427,23 @@ local function buildGroveSpots(): { Spot }
 	return spots
 end
 
+-- Skarbiec Skarbnika: miejsca na Złote Trufle w kole wokół środka (jak w gnieździe Leszego)
+local function lairCenter(): Vector3
+	return Vector3.new(Config.Lair.centerX, 0, Config.Lair.centerZ)
+end
+
+local function buildLairSpots(): { Spot }
+	local spots: { Spot } = {}
+	local center = lairCenter()
+	for i = 1, Config.Lair.spots do
+		local angle = (i - 1) / Config.Lair.spots * math.pi * 2 + math.pi / Config.Lair.spots
+		local position = center + Vector3.new(math.sin(angle), 0, math.cos(angle)) * Config.Lair.spotRadius
+		occupy(position.X, position.Z, 3)
+		table.insert(spots, { id = "lair_" .. i, zone = Economy.zoneIndexAt(position.Z), position = position, lair = true })
+	end
+	return spots
+end
+
 -- Ogródki graczy po bokach chatki, każdy furtką w stronę środka polany (x = 0)
 local function gardenCFrame(plot: { x: number, z: number }): CFrame
 	return CFrame.lookAt(Vector3.new(plot.x, 0, plot.z), Vector3.new(0, 0, plot.z))
@@ -687,13 +707,16 @@ function MapBuilder.build(): MapInfo
 	for _, spot in buildGroveSpots() do
 		table.insert(spots, spot)
 	end
+	for _, spot in buildLairSpots() do
+		table.insert(spots, spot)
+	end
 	-- Obrzeże przed lasem: las wewnątrz omija korony obrzeża
 	buildBorder(map, decorRng)
 	for _, zoneIndex in FOREST_ZONES do
 		buildZoneDecor(map, zoneIndex, decorRng)
 	end
 
-	local campCFrame = Cave.build(map, Random.new(Config.SpotSeed + 5), {
+	local campCFrame, skarbnikStatue = Cave.build(map, Random.new(Config.SpotSeed + 5), {
 		place = function(rng: Random, x1: number, x2: number, z1: number, z2: number, radius: number)
 			local x, z = findSpot(rng, x1, x2, z1, z2, radius)
 			if x and z then
@@ -735,6 +758,8 @@ function MapBuilder.build(): MapInfo
 		leszyStatue = leszyStatue,
 		racks = racks,
 		campCFrame = campCFrame,
+		lairCenter = lairCenter(),
+		skarbnikStatue = skarbnikStatue,
 		portal = portal,
 		shortcut = shortcut,
 		returnPortal = returnPortal,

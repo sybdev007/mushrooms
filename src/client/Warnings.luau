@@ -122,11 +122,12 @@ UiScale.onChanged(function()
 end)
 
 local chaseBanner = false
+local chaserKey = "HUD_LESZY_CHASE" -- napis banera podczas pościgu (Leszy albo Skarbnik)
 local inCave = false -- w jaskini baner prowadzi do obozowiska, nie do chatki
 
 local function refreshTexts()
 	local turnBackKey = if inCave then "HUD_TURN_BACK_CAMP" else "HUD_TURN_BACK"
-	bannerText.Text = if chaseBanner then "👹 " .. Localize.t("HUD_LESZY_CHASE") else "⚠ " .. Localize.t(turnBackKey)
+	bannerText.Text = if chaseBanner then "👹 " .. Localize.t(chaserKey) else "⚠ " .. Localize.t(turnBackKey)
 end
 refreshTexts()
 Localize.onChanged(refreshTexts)
@@ -205,12 +206,15 @@ function Warnings.update(
 	turnBack: boolean,
 	zone: number,
 	lanternRange: number,
-	chased: boolean?
+	chased: boolean?,
+	chaser: string?
 )
 	pulseTime += dt
 	-- Podczas pościgu baner zawsze prowadzi do chatki, z innym napisem
-	if (chased == true) ~= chaseBanner then
+	local wantedKey = if chaser == "skarbnik" then "HUD_SKARBNIK_CHASE" else "HUD_LESZY_CHASE"
+	if (chased == true) ~= chaseBanner or wantedKey ~= chaserKey then
 		chaseBanner = chased == true
+		chaserKey = wantedKey
 		refreshTexts()
 	end
 	if chaseBanner then

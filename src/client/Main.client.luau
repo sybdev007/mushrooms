@@ -35,6 +35,7 @@ local lanternRange = Economy.upgradeStat("lantern", 0)
 local oil = Economy.upgradeStat("oil", 0)
 local oilMax = oil
 local chased = false
+local chaser: string? = nil -- kto goni: "leszy" albo "skarbnik"
 local targetId: string? = nil
 local wasInCabin = true -- gracz zaczyna w chatce
 local caveScale = 1 -- ulepszenie „Kryształowy wkład”: mnożnik spalania oleju w jaskini
@@ -48,6 +49,7 @@ Remotes.get("StateUpdate").OnClientEvent:Connect(function(state)
 	oil = state.oil
 	oilMax = state.oilMax
 	chased = state.chased == true
+	chaser = state.chaser
 	caveScale = Economy.upgradeStat("crystal", state.upgrades.crystal or 0)
 	PortalView.setUnlocked(state.caveUnlocked == true)
 	DevPanel.setEnabled(state.dev == true)
@@ -117,6 +119,8 @@ local TOAST_KIND: { [string]: string } = {
 	MSG_NOT_ENOUGH = "warn",
 	MSG_ENGULFED = "warn",
 	MSG_LESZY_WOKE = "warn",
+	MSG_SKARBNIK_WOKE = "warn",
+	MSG_HOARD_DROP_SKARBNIK = "gold",
 	MSG_ROBBED = "warn",
 	MSG_RACK_ALERT = "warn",
 	MSG_RACK_FULL = "warn",
@@ -140,6 +144,7 @@ local BLACKOUT_TITLE: { [string]: string } = {
 	MSG_ENGULFED = "ENGULF_TITLE",
 	MSG_CAUGHT = "CAUGHT_TITLE",
 	MSG_ENGULFED_CAVE = "ENGULF_TITLE_CAVE",
+	MSG_CAUGHT_SKARBNIK = "CAUGHT_TITLE_SKARBNIK",
 }
 
 Remotes.get("Notify").OnClientEvent:Connect(function(payload)
@@ -166,7 +171,7 @@ Remotes.get("Notify").OnClientEvent:Connect(function(payload)
 		return
 	end
 	Hud.toast(text, TOAST_KIND[payload.key])
-	if payload.key == "MSG_LESZY_WOKE" then
+	if payload.key == "MSG_LESZY_WOKE" or payload.key == "MSG_SKARBNIK_WOKE" then
 		Effects.leszyWoke()
 	elseif payload.key == "MSG_ROBBED" or payload.key == "MSG_RACK_ALERT" then
 		Effects.play("engulf", 1.4, 0.5)
@@ -260,7 +265,7 @@ RunService.RenderStepped:Connect(function(dt)
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
 	local speed = if humanoid then humanoid.WalkSpeed else Economy.upgradeStat("boots", 0)
 	local turnBack = Economy.shouldTurnBack(position.Z, speed, oil, caveScale)
-	Warnings.update(dt, position, oilFraction, turnBack, zone, lanternRange, chased)
+	Warnings.update(dt, position, oilFraction, turnBack, zone, lanternRange, chased, chaser)
 	local heartbeat = if not safe and oilFraction < Config.OilLowFraction then 1 - oilFraction / Config.OilLowFraction * 0.6 else 0
 	Effects.setHeartbeat(if chased then 1 else heartbeat)
 

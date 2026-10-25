@@ -13,6 +13,7 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local Economy = require(ReplicatedStorage.Shared.Economy)
 local Palette = require(script.Parent.Palette)
 local Props = require(script.Parent.Props)
+local Skarbnik = require(script.Parent.Skarbnik)
 
 local Cave = {}
 
@@ -30,18 +31,36 @@ local FLOOR_COLORS: { [string]: Color3 } = {
 	crystal = Color3.fromRGB(58, 60, 78),
 	lake = Color3.fromRGB(44, 58, 64),
 	abyss = Color3.fromRGB(52, 34, 34),
+	mine = Color3.fromRGB(70, 58, 44),
 }
 local ROCK_COLORS: { [string]: { Color3 } } = {
 	camp = { Color3.fromRGB(104, 90, 78), Color3.fromRGB(92, 80, 70), Color3.fromRGB(116, 100, 86) },
 	crystal = { Color3.fromRGB(76, 78, 100), Color3.fromRGB(66, 68, 90), Color3.fromRGB(88, 86, 112) },
 	lake = { Color3.fromRGB(58, 74, 82), Color3.fromRGB(50, 64, 72), Color3.fromRGB(68, 84, 90) },
 	abyss = { Color3.fromRGB(66, 44, 44), Color3.fromRGB(56, 38, 40), Color3.fromRGB(78, 50, 46) },
+	mine = { Color3.fromRGB(92, 78, 62), Color3.fromRGB(80, 68, 56), Color3.fromRGB(104, 88, 68) },
 }
 local CRYSTAL_COLORS: { [string]: { Color3 } } = {
 	camp = { Color3.fromRGB(255, 190, 90) },
 	crystal = { Color3.fromRGB(90, 220, 255), Color3.fromRGB(170, 110, 255), Color3.fromRGB(120, 255, 230) },
 	lake = { Color3.fromRGB(80, 200, 220), Color3.fromRGB(150, 240, 255) },
 	abyss = { Color3.fromRGB(255, 70, 50), Color3.fromRGB(255, 140, 40) },
+	mine = { Color3.fromRGB(255, 200, 60), Color3.fromRGB(255, 230, 120) },
+}
+-- Świecące robaczki na stropie (jak w jaskiniach Waitomo) i gigantyczne grzyby: kolory stref
+local GLOWWORM_COLORS: { [string]: Color3 } = {
+	camp = Color3.fromRGB(255, 210, 140),
+	crystal = Color3.fromRGB(120, 230, 255),
+	lake = Color3.fromRGB(110, 255, 220),
+	abyss = Color3.fromRGB(255, 120, 60),
+	mine = Color3.fromRGB(255, 220, 120),
+}
+local GIANT_CAPS: { [string]: { Color3 } } = {
+	camp = { Color3.fromRGB(200, 120, 70) },
+	crystal = { Color3.fromRGB(90, 160, 255), Color3.fromRGB(170, 110, 255) },
+	lake = { Color3.fromRGB(60, 200, 210), Color3.fromRGB(120, 255, 200), Color3.fromRGB(80, 140, 255) },
+	abyss = { Color3.fromRGB(230, 60, 50), Color3.fromRGB(255, 120, 40) },
+	mine = { Color3.fromRGB(230, 170, 60) },
 }
 -- Ile ozdób w strefie
 local RECIPES: { [string]: { stalactites: number, stalagmites: number, crystals: number, boulders: number, glow: number } } = {
@@ -49,7 +68,10 @@ local RECIPES: { [string]: { stalactites: number, stalagmites: number, crystals:
 	crystal = { stalactites = 16, stalagmites = 10, crystals = 22, boulders = 10, glow = 4 },
 	lake = { stalactites = 14, stalagmites = 8, crystals = 10, boulders = 8, glow = 8 },
 	abyss = { stalactites = 18, stalagmites = 12, crystals = 12, boulders = 14, glow = 0 },
+	mine = { stalactites = 12, stalagmites = 6, crystals = 14, boulders = 10, glow = 0 },
 }
+-- Gigantyczne świecące grzyby w strefie (najbardziej „grzybowy” widok w całej grze)
+local GIANTS: { [string]: number } = { camp = 2, crystal = 5, lake = 7, abyss = 4, mine = 2 }
 
 local function make(className: string, props: { [string]: any }): BasePart
 	local p = Instance.new(className) :: BasePart
@@ -364,51 +386,85 @@ local function buildCamp(parent: Instance)
 	m.Name = "MinersCamp"
 	local camp = Config.Cave.camp
 
-	-- Stanowisko z olejem: beczki i wózek górniczy po lewej
+	-- Stanowiska po bokach obozu, przodem do środka (x = 0): krąg na ziemi przed ladą,
+	-- lada i szyld za kręgiem, od strony ściany jaskini. Lokalne -Z = w stronę środka.
+	local function facingCentre(station: Config.StationDef): CFrame
+		local at = Vector3.new(station.x, 0, station.z)
+		return CFrame.lookAt(at, Vector3.new(0, 0, station.z))
+	end
+
+	-- Olej: stojak z beczkami i lejkiem
 	local oil = Economy.station("oil", "cave")
 	stationRing(m, oil, Color3.fromRGB(255, 186, 80))
-	for i, offset in { Vector3.new(-3.2, 0, -1.5), Vector3.new(-3.4, 0, 1), Vector3.new(-1.6, 0, 2.6) } do
+	local oilCf = facingCentre(oil)
+	for i, offset in { Vector3.new(-2.6, 0, 4.4), Vector3.new(0, 0, 4.8), Vector3.new(2.6, 0, 4.4) } do
 		make("Part", {
 			Name = "OilBarrel",
 			Shape = Enum.PartType.Cylinder,
 			Size = Vector3.new(2.8, 2.2, 2.2),
-			CFrame = CFrame.new(Vector3.new(oil.x, 1.4, oil.z) + offset) * VERTICAL * CFrame.Angles(i * 0.4, 0, 0),
+			CFrame = oilCf * CFrame.new(offset + Vector3.new(0, 1.4, 0)) * VERTICAL * CFrame.Angles(i * 0.5, 0, 0),
 			Color = Color3.fromRGB(96, 66, 44),
 			Parent = m,
 		})
 	end
-	Props.signBoard(m, CFrame.new(oil.x, 6.5, oil.z + 4.6), Vector3.new(6, 1.5, 0.3), "SIGN_OIL", Enum.NormalId.Front)
-	for _, side in { -1, 1 } do
-		make("Part", { Size = Vector3.new(0.4, 6, 0.4), Position = Vector3.new(oil.x + side * 2.8, 3, oil.z + 4.6), Color = Palette.plankDark, Parent = m })
-	end
-
-	-- Kramik skupu po prawej: lada, daszek, skrzynki
-	local shop = Economy.station("shop", "cave")
-	stationRing(m, shop, Color3.fromRGB(150, 226, 110))
-	local counterZ = shop.z + 4.2
-	make("Part", { Size = Vector3.new(8, 3, 2), Position = Vector3.new(shop.x, 1.5, counterZ), Color = Palette.plankDark, Parent = m })
-	make("Part", { Size = Vector3.new(8.6, 0.4, 2.4), Position = Vector3.new(shop.x, 3.2, counterZ), Color = Palette.plank, Parent = m })
-	for _, side in { -1, 1 } do
-		make("Part", { Size = Vector3.new(0.5, 7, 0.5), Position = Vector3.new(shop.x + side * 4, 3.5, counterZ + 0.8), Color = Palette.log, Parent = m })
-	end
+	-- Beczka na stojaku z kranem, z którego kapie olej
+	make("Part", { Name = "Rack", Size = Vector3.new(4, 2.4, 2), CFrame = oilCf * CFrame.new(0, 1.2, 7.2), Color = Palette.plankDark, Parent = m })
 	make("Part", {
-		Size = Vector3.new(9.6, 0.4, 4),
-		CFrame = CFrame.new(shop.x, 7.2, counterZ) * CFrame.Angles(math.rad(-12), 0, 0),
-		Color = Color3.fromRGB(150, 60, 50),
-		Material = Enum.Material.Fabric,
+		Name = "BigBarrel",
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(4.4, 3, 3),
+		CFrame = oilCf * CFrame.new(0, 3.9, 7.2) * CFrame.Angles(0, math.rad(90), 0),
+		Color = Color3.fromRGB(110, 74, 46),
 		Parent = m,
 	})
-	Props.signBoard(m, CFrame.new(shop.x, 5.6, counterZ - 1.1), Vector3.new(6.5, 1.4, 0.3), "SIGN_SHOP", Enum.NormalId.Front)
-	for i, offset in { Vector3.new(5.6, 0, 0), Vector3.new(5.4, 2, 0.3), Vector3.new(-5.6, 0, 0.5) } do
+	local tap = decor(make("Part", { Size = Vector3.new(0.4, 0.4, 0.8), CFrame = oilCf * CFrame.new(0, 3.2, 5.0), Color = Palette.metal, Parent = m }))
+	local drip = Instance.new("ParticleEmitter")
+	drip.Color = ColorSequence.new(Color3.fromRGB(255, 190, 70))
+	drip.LightEmission = 0.6
+	drip.Size = NumberSequence.new(0.15)
+	drip.Lifetime = NumberRange.new(0.5)
+	drip.Rate = 3
+	drip.Speed = NumberRange.new(0)
+	drip.Acceleration = Vector3.new(0, -12, 0)
+	drip.Parent = tap
+	for _, side in { -1, 1 } do
+		make("Part", { Size = Vector3.new(0.4, 6.4, 0.4), CFrame = oilCf * CFrame.new(side * 3.4, 3.2, 3.2), Color = Palette.plankDark, Parent = m })
+	end
+	Props.signBoard(m, oilCf * CFrame.new(0, 6.6, 3.2), Vector3.new(7, 1.5, 0.3), "SIGN_OIL", Enum.NormalId.Front)
+	Props.hangingLantern(m, (oilCf * CFrame.new(3.4, 6.2, 2.6)).Position, 16)
+
+	-- Skup i ulepszenia: lada z daszkiem, skrzynki, waga
+	local shop = Economy.station("shop", "cave")
+	stationRing(m, shop, Color3.fromRGB(150, 226, 110))
+	local shopCf = facingCentre(shop)
+	make("Part", { Name = "Counter", Size = Vector3.new(8, 3, 2), CFrame = shopCf * CFrame.new(0, 1.5, 5), Color = Palette.plankDark, Parent = m })
+	make("Part", { Size = Vector3.new(8.6, 0.4, 2.4), CFrame = shopCf * CFrame.new(0, 3.2, 5), Color = Palette.plank, Parent = m })
+	for _, side in { -1, 1 } do
+		make("Part", { Size = Vector3.new(0.5, 7.4, 0.5), CFrame = shopCf * CFrame.new(side * 4.2, 3.7, 4.2), Color = Palette.log, Parent = m })
+		make("Part", { Size = Vector3.new(0.5, 7.4, 0.5), CFrame = shopCf * CFrame.new(side * 4.2, 3.7, 7.6), Color = Palette.log, Parent = m })
+	end
+	-- Pasiasty daszek (dwa kolory na zmianę)
+	for i = 0, 5 do
+		make("Part", {
+			Size = Vector3.new(1.6, 0.3, 4.6),
+			CFrame = shopCf * CFrame.new(-4 + i * 1.6, 7.6, 5.8) * CFrame.Angles(math.rad(14), 0, 0),
+			Color = if i % 2 == 0 then Color3.fromRGB(170, 60, 50) else Color3.fromRGB(230, 214, 180),
+			Material = Enum.Material.Fabric,
+			Parent = m,
+		})
+	end
+	Props.signBoard(m, shopCf * CFrame.new(0, 6.2, 3.95), Vector3.new(6.8, 1.4, 0.3), "SIGN_SHOP", Enum.NormalId.Front)
+	decor(make("Part", { Size = Vector3.new(1.4, 0.3, 1.4), CFrame = shopCf * CFrame.new(-2.5, 3.55, 5), Color = Palette.metal, Parent = m }))
+	for i, offset in { Vector3.new(5.8, 1, 5), Vector3.new(5.6, 3, 5.3), Vector3.new(-5.8, 1, 5.5) } do
 		make("Part", {
 			Name = "Crate",
 			Size = Vector3.new(2, 2, 2),
-			Position = Vector3.new(shop.x, 1, counterZ) + offset,
-			Orientation = Vector3.new(0, i * 9, 0),
+			CFrame = shopCf * CFrame.new(offset) * CFrame.Angles(0, math.rad(i * 9), 0),
 			Color = Palette.plank,
 			Parent = m,
 		})
 	end
+	Props.hangingLantern(m, (shopCf * CFrame.new(0, 7.2, 4.4)).Position, 18)
 
 	-- Namioty i ognisko (latarnie na palach przy portalu i przy bramie zasłaniały widok, więc ich nie ma)
 	tent(m, CFrame.new(-17, 0, camp.z + 10) * CFrame.Angles(0, math.rad(20), 0), Color3.fromRGB(170, 130, 80))
@@ -596,6 +652,376 @@ local function buildShell(parent: Instance, rng: Random)
 	folder.Parent = parent
 end
 
+-- ===== Upiększenia =====
+
+-- Świecące robaczki na stropie: setki migoczących punkcików z jednego emitera na strefę
+local function glowworms(parent: Instance, zone: Config.ZoneDef)
+	local color = GLOWWORM_COLORS[zone.id] or GLOWWORM_COLORS.crystal
+	local length = zone.endZ - zone.startZ
+	local holder = decor(make("Part", {
+		Name = "Glowworms_" .. zone.id,
+		Size = Vector3.new(Config.Cave.halfWidth * 2 - 4, 3, length),
+		Position = Vector3.new(0, Config.Cave.ceiling - 2, zone.startZ + length / 2),
+		Transparency = 1,
+		Parent = parent,
+	}))
+	local emitter = Instance.new("ParticleEmitter")
+	emitter.Shape = Enum.ParticleEmitterShape.Box
+	emitter.ShapeStyle = Enum.ParticleEmitterShapeStyle.Volume
+	emitter.Color = ColorSequence.new(color)
+	emitter.LightEmission = 1
+	emitter.LightInfluence = 0
+	emitter.Size = NumberSequence.new(0.22)
+	-- Pojawiają się powoli, świecą i gasną: migotanie zamiast nieruchomych kropek
+	emitter.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 1),
+		NumberSequenceKeypoint.new(0.3, 0.1),
+		NumberSequenceKeypoint.new(0.7, 0.2),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	emitter.Lifetime = NumberRange.new(6, 10)
+	emitter.Rate = length / 3
+	emitter.Speed = NumberRange.new(0)
+	emitter.Parent = holder
+end
+
+-- Gigantyczny grzyb: gruby trzon, szeroki kapelusz, świecące blaszki od spodu i plamki
+local function giantMushroom(parent: Instance, base: Vector3, color: Color3, rng: Random)
+	local m = Instance.new("Model")
+	m.Name = "GiantMushroom"
+	local height = rng:NextNumber(9, 17)
+	local stemD = rng:NextNumber(1.6, 2.6)
+	local capW = rng:NextNumber(9, 15)
+	local lean = CFrame.Angles(math.rad(rng:NextNumber(-8, 8)), 0, math.rad(rng:NextNumber(-8, 8)))
+	local top = CFrame.new(base) * lean * CFrame.new(0, height, 0)
+	make("Part", {
+		Name = "Stem",
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(height, stemD, stemD),
+		CFrame = CFrame.new(base) * lean * CFrame.new(0, height / 2, 0) * VERTICAL,
+		Color = Color3.fromRGB(226, 220, 206),
+		Parent = m,
+	})
+	-- Kołnierz na trzonie
+	decor(make("Part", {
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(0.4, stemD * 1.8, stemD * 1.8),
+		CFrame = CFrame.new(base) * lean * CFrame.new(0, height * 0.7, 0) * VERTICAL,
+		Color = Color3.fromRGB(240, 236, 226),
+		Parent = m,
+	}))
+	local cap = decor(make("Part", {
+		Name = "Cap",
+		Size = Vector3.new(capW, capW * 0.45, capW),
+		CFrame = top,
+		Color = color,
+		Parent = m,
+	}))
+	cap.CastShadow = true
+	local mesh = Instance.new("SpecialMesh")
+	mesh.MeshType = Enum.MeshType.Sphere
+	mesh.Parent = cap
+	-- Blaszki od spodu świecą i oświetlają wszystko pod grzybem
+	local gills = decor(make("Part", {
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(0.3, capW * 0.92, capW * 0.92),
+		CFrame = top * CFrame.new(0, -0.15, 0) * VERTICAL,
+		Color = color:Lerp(Color3.new(1, 1, 1), 0.35),
+		Material = Enum.Material.Neon,
+		Parent = m,
+	}))
+	local light = Instance.new("PointLight")
+	light.Color = color
+	light.Range = math.min(capW * 1.6, 24)
+	light.Brightness = 1.4
+	light.Parent = gills
+	for k = 1, 5 do
+		local theta = k * math.pi * 2 / 5 + rng:NextNumber(-0.3, 0.3)
+		local r = capW * rng:NextNumber(0.18, 0.34)
+		decor(make("Part", {
+			Shape = Enum.PartType.Ball,
+			Size = Vector3.new(1, 1, 1) * capW * 0.11,
+			CFrame = top * CFrame.new(math.cos(theta) * r, capW * 0.17, math.sin(theta) * r),
+			Color = color:Lerp(Color3.new(1, 1, 1), 0.7),
+			Material = Enum.Material.Neon,
+			Parent = m,
+		}))
+	end
+	-- Zarodniki opadające spod kapelusza
+	local spores = Instance.new("ParticleEmitter")
+	spores.Color = ColorSequence.new(color:Lerp(Color3.new(1, 1, 1), 0.5))
+	spores.LightEmission = 1
+	spores.Size = NumberSequence.new(0.18, 0)
+	spores.Lifetime = NumberRange.new(4, 6)
+	spores.Rate = 4
+	spores.Speed = NumberRange.new(0.3, 0.8)
+	spores.EmissionDirection = Enum.NormalId.Bottom
+	spores.SpreadAngle = Vector2.new(60, 60)
+	spores.Acceleration = Vector3.new(0, -0.4, 0)
+	spores.Parent = gills
+	m.Parent = parent
+end
+
+-- Drobne kamyki i świecący mech na ziemi: ziemia przestaje być pustą płytą
+local function floorDetail(parent: Instance, zone: Config.ZoneDef, rng: Random, api: Api)
+	local hw = Config.Cave.halfWidth - 3
+	local rocks = ROCK_COLORS[zone.id] or ROCK_COLORS.crystal
+	for _ = 1, 26 do
+		local size = rng:NextNumber(0.6, 1.6)
+		decor(make("Part", {
+			Name = "Pebble",
+			Size = Vector3.new(size, size * 0.6, size * rng:NextNumber(0.7, 1.2)),
+			CFrame = CFrame.new(rng:NextNumber(-hw, hw), size * 0.2, rng:NextNumber(zone.startZ + 2, zone.endZ - 2))
+				* CFrame.Angles(rng:NextNumber(-0.3, 0.3), rng:NextNumber(0, math.pi), rng:NextNumber(-0.3, 0.3)),
+			Color = pick(rocks, rng),
+			Material = Enum.Material.Slate,
+			Parent = parent,
+		}))
+	end
+	if zone.id == "crystal" or zone.id == "lake" then
+		local glow = GLOWWORM_COLORS[zone.id]
+		for _ = 1, 10 do
+			local x, z = api.place(rng, -hw, hw, zone.startZ + 4, zone.endZ - 4, 2)
+			if x and z then
+				decor(make("Part", {
+					Name = "GlowMoss",
+					Shape = Enum.PartType.Cylinder,
+					Size = Vector3.new(0.06, rng:NextNumber(2.5, 4.5), rng:NextNumber(2.5, 4.5)),
+					CFrame = CFrame.new(x, 0.03, z) * VERTICAL,
+					Color = glow:Lerp(Color3.fromRGB(90, 200, 90), 0.5),
+					Material = Enum.Material.Neon,
+					Transparency = 0.45,
+					Parent = parent,
+				}))
+			end
+		end
+	end
+end
+
+-- Wodospad spływający ze ściany do jeziorka, z mgiełką na dole
+local function waterfall(parent: Instance, x: number, z: number, side: number)
+	local height = Config.Cave.ceiling - 2
+	local fall = decor(make("Part", {
+		Name = "Waterfall",
+		Size = Vector3.new(1, height, 7),
+		Position = Vector3.new(x, height / 2, z),
+		Color = Color3.fromRGB(120, 210, 240),
+		Material = Enum.Material.Neon,
+		Transparency = 0.45,
+		Parent = parent,
+	}))
+	local streaks = Instance.new("ParticleEmitter")
+	streaks.Shape = Enum.ParticleEmitterShape.Box
+	streaks.Color = ColorSequence.new(Color3.fromRGB(220, 250, 255))
+	streaks.LightEmission = 0.8
+	streaks.Size = NumberSequence.new(0.5)
+	streaks.Transparency = NumberSequence.new(0.3, 1)
+	streaks.Lifetime = NumberRange.new(1, 1.6)
+	streaks.Rate = 40
+	streaks.Speed = NumberRange.new(14, 18)
+	streaks.EmissionDirection = Enum.NormalId.Bottom
+	streaks.Parent = fall
+	local mist = decor(make("Part", {
+		Name = "WaterfallMist",
+		Size = Vector3.new(6, 1, 9),
+		Position = Vector3.new(x - side * 3, 0.5, z),
+		Transparency = 1,
+		Parent = parent,
+	}))
+	local foam = Instance.new("ParticleEmitter")
+	foam.Shape = Enum.ParticleEmitterShape.Box
+	foam.Texture = "rbxasset://textures/particles/smoke_main.dds"
+	foam.Color = ColorSequence.new(Color3.fromRGB(200, 240, 255))
+	foam.LightEmission = 0.4
+	foam.Size = NumberSequence.new(2, 5)
+	foam.Transparency = NumberSequence.new(0.6, 1)
+	foam.Lifetime = NumberRange.new(2, 3)
+	foam.Rate = 10
+	foam.Speed = NumberRange.new(1, 2)
+	foam.EmissionDirection = Enum.NormalId.Top
+	foam.Parent = mist
+	local light = Instance.new("PointLight")
+	light.Color = Color3.fromRGB(120, 220, 255)
+	light.Range = 22
+	light.Brightness = 1.2
+	light.Parent = mist
+end
+
+-- Rzeka lawy w poprzek Otchłani z drewnianym mostem nad ścieżką
+local LAVA_OFFSET = 65 -- od początku Otchłani
+local LAVA_DEPTH = 9
+local BRIDGE_HALF = 3.2
+local function lavaRiver(parent: Instance, zone: Config.ZoneDef)
+	local z = zone.startZ + LAVA_OFFSET
+	local hw = Config.Cave.halfWidth
+	local lava = decor(make("Part", {
+		Name = "LavaRiver",
+		Size = Vector3.new(hw * 2, 0.2, LAVA_DEPTH),
+		Position = Vector3.new(0, 0.06, z),
+		Color = Color3.fromRGB(255, 96, 24),
+		Material = Enum.Material.Neon,
+		Parent = parent,
+	}))
+	-- Ciemniejsze „kry” zastygłej skorupy na lawie
+	local rng = Random.new(31)
+	for _ = 1, 16 do
+		decor(make("Part", {
+			Size = Vector3.new(rng:NextNumber(1.5, 4), 0.25, rng:NextNumber(1, 2.5)),
+			CFrame = CFrame.new(rng:NextNumber(-hw + 2, hw - 2), 0.14, z + rng:NextNumber(-3.5, 3.5)) * CFrame.Angles(0, rng:NextNumber(0, math.pi), 0),
+			Color = Color3.fromRGB(70, 30, 26),
+			Material = Enum.Material.Slate,
+			Parent = parent,
+		}))
+	end
+	local embers = Instance.new("ParticleEmitter")
+	embers.Shape = Enum.ParticleEmitterShape.Box
+	embers.Texture = "rbxasset://textures/particles/fire_main.dds"
+	embers.Color = ColorSequence.new(Color3.fromRGB(255, 160, 60), Color3.fromRGB(255, 60, 20))
+	embers.LightEmission = 1
+	embers.Size = NumberSequence.new(0.6, 0)
+	embers.Lifetime = NumberRange.new(1.5, 3)
+	embers.Rate = 30
+	embers.Speed = NumberRange.new(2, 5)
+	embers.EmissionDirection = Enum.NormalId.Top
+	embers.Parent = lava
+	for _, x in { -hw * 0.6, 0, hw * 0.6 } do
+		local light = Instance.new("PointLight")
+		light.Color = Color3.fromRGB(255, 110, 40)
+		light.Range = 26
+		light.Brightness = 1.6
+		local holder = decor(make("Part", { Size = Vector3.new(1, 1, 1), Position = Vector3.new(x, 1.5, z), Transparency = 1, Parent = parent }))
+		light.Parent = holder
+	end
+	-- Most: deski w poprzek, belki nośne, poręcze ze sznura
+	local length = LAVA_DEPTH + 4
+	for i = 0, math.floor(length / 1.1) do
+		make("Part", {
+			Name = "BridgePlank",
+			Size = Vector3.new(BRIDGE_HALF * 2, 0.35, 0.95),
+			CFrame = CFrame.new(0, 0.35, z - length / 2 + i * 1.1) * CFrame.Angles(0, math.rad(rng:NextNumber(-3, 3)), 0),
+			Color = if i % 3 == 0 then Palette.plankDark else Palette.plank,
+			Parent = parent,
+		})
+	end
+	for _, side in { -1, 1 } do
+		for _, dz in { -length / 2, 0, length / 2 } do
+			make("Part", { Size = Vector3.new(0.4, 3, 0.4), Position = Vector3.new(side * BRIDGE_HALF, 1.7, z + dz), Color = Palette.log, Parent = parent })
+		end
+		decor(make("Part", { Size = Vector3.new(0.15, 0.15, length), Position = Vector3.new(side * BRIDGE_HALF, 2.8, z), Color = Color3.fromRGB(170, 140, 90), Parent = parent }))
+	end
+end
+
+-- Wózek górniczy pełen rudy
+local function minecart(parent: Instance, cf: CFrame, oreColor: Color3)
+	make("Part", { Name = "Cart", Size = Vector3.new(3.2, 1.8, 4.4), CFrame = cf * CFrame.new(0, 1.4, 0), Color = Color3.fromRGB(90, 70, 56), Material = Enum.Material.Metal, Parent = parent })
+	for _, sx in { -1, 1 } do
+		for _, sz in { -1, 1 } do
+			decor(make("Part", {
+				Shape = Enum.PartType.Cylinder,
+				Size = Vector3.new(0.3, 1.1, 1.1),
+				CFrame = cf * CFrame.new(sx * 1.65, 0.55, sz * 1.4),
+				Color = Palette.metal,
+				Parent = parent,
+			}))
+		end
+	end
+	for k = 1, 5 do
+		local ore = decor(make("Part", {
+			Size = Vector3.new(1, 1, 1) * (0.7 + (k % 3) * 0.2),
+			CFrame = cf * CFrame.new((k % 3 - 1) * 0.8, 2.5, (k - 3) * 0.7) * CFrame.Angles(k, k * 2, 0),
+			Color = oreColor,
+			Material = Enum.Material.Neon,
+			Parent = parent,
+		}))
+		if k == 1 then
+			local light = Instance.new("PointLight")
+			light.Color = oreColor
+			light.Range = 10
+			light.Brightness = 0.8
+			light.Parent = ore
+		end
+	end
+end
+
+-- Skarbiec Skarbnika na końcu Sztolni: krąg z drewnianych podpór, góry złota, skrzynia,
+-- tabliczka ostrzegawcza i uśpiony posąg Skarbnika za kręgiem. Zwraca posąg.
+local function buildLair(parent: Instance, rng: Random): Model
+	local lair = Config.Lair
+	local center = Vector3.new(lair.centerX, 0, lair.centerZ)
+	local m = Instance.new("Model")
+	m.Name = "SkarbnikLair"
+	make("Part", {
+		Name = "LairFloor",
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(0.2, lair.radius * 2, lair.radius * 2),
+		CFrame = CFrame.new(center + Vector3.new(0, 0.02, 0)) * VERTICAL,
+		Color = Color3.fromRGB(96, 76, 50),
+		Material = Enum.Material.Cobblestone,
+		CanCollide = false,
+		Parent = m,
+	})
+	-- Podpory kopalniane dookoła kręgu, z lampkami o zielonym płomieniu Skarbnika
+	for i = 0, 7 do
+		local angle = i / 8 * math.pi * 2
+		local pos = center + Vector3.new(math.cos(angle), 0, math.sin(angle)) * (lair.radius + 1)
+		make("Part", { Size = Vector3.new(1, 9, 1), Position = pos + Vector3.new(0, 4.5, 0), Color = Palette.log, Parent = m })
+		if i % 2 == 0 then
+			local flame = decor(make("Part", { Size = Vector3.new(0.6, 0.9, 0.6), Position = pos + Vector3.new(0, 9.5, 0), Color = Color3.fromRGB(110, 255, 150), Material = Enum.Material.Neon, Parent = m }))
+			local light = Instance.new("PointLight")
+			light.Color = flame.Color
+			light.Range = 14
+			light.Brightness = 1
+			light.Parent = flame
+		end
+	end
+	-- Góry złotych monet i bryłek po bokach kręgu
+	for _, side in { -1, 1 } do
+		for k = 1, 9 do
+			local offset = Vector3.new(side * (lair.radius - 3) + rng:NextNumber(-1.5, 1.5), 0, rng:NextNumber(-4, 4))
+			local size = rng:NextNumber(0.8, 1.8)
+			decor(make("Part", {
+				Size = Vector3.new(size, size * 0.5, size),
+				CFrame = CFrame.new(center + offset + Vector3.new(0, size * 0.2, 0)) * CFrame.Angles(0, rng:NextNumber(0, math.pi), 0),
+				Color = Color3.fromRGB(255, 200, 60),
+				Material = if k % 3 == 0 then Enum.Material.Neon else Enum.Material.Metal,
+				Reflectance = 0.2,
+				Parent = m,
+			}))
+		end
+		local glow = decor(make("Part", { Size = Vector3.new(1, 1, 1), Position = center + Vector3.new(side * (lair.radius - 3), 1.5, 0), Transparency = 1, Parent = m }))
+		local light = Instance.new("PointLight")
+		light.Color = Color3.fromRGB(255, 200, 80)
+		light.Range = 14
+		light.Brightness = 1.2
+		light.Parent = glow
+	end
+	-- Skrzynia ze skarbem za kręgiem
+	local chestCf = CFrame.new(center + Vector3.new(0, 0, lair.radius - 2.5))
+	make("Part", { Name = "Chest", Size = Vector3.new(4, 2.2, 2.6), CFrame = chestCf * CFrame.new(0, 1.1, 0), Color = Color3.fromRGB(110, 66, 36), Parent = m })
+	make("Part", { Name = "ChestLid", Size = Vector3.new(4.1, 0.6, 2.7), CFrame = chestCf * CFrame.new(0, 2.6, -0.8) * CFrame.Angles(math.rad(-55), 0, 0), Color = Color3.fromRGB(96, 58, 30), Parent = m })
+	local gold = decor(make("Part", { Size = Vector3.new(3.6, 0.5, 2.2), CFrame = chestCf * CFrame.new(0, 2.25, 0), Color = Color3.fromRGB(255, 210, 70), Material = Enum.Material.Neon, Parent = m }))
+	local sparkle = Instance.new("ParticleEmitter")
+	sparkle.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+	sparkle.Color = ColorSequence.new(Color3.fromRGB(255, 230, 120))
+	sparkle.LightEmission = 1
+	sparkle.Size = NumberSequence.new(0.5, 0)
+	sparkle.Lifetime = NumberRange.new(0.8, 1.4)
+	sparkle.Rate = 8
+	sparkle.Speed = NumberRange.new(1, 2)
+	sparkle.EmissionDirection = Enum.NormalId.Top
+	sparkle.Parent = gold
+	-- Tabliczka ostrzegawcza przed kręgiem, od strony nadchodzącego gracza
+	local signZ = center.Z - lair.radius - 3
+	for _, side in { -1, 1 } do
+		make("Part", { Size = Vector3.new(0.4, 4.4, 0.4), Position = Vector3.new(center.X + 7 + side * 2.8, 2.2, signZ), Color = Palette.log, Parent = m })
+	end
+	Props.signBoard(m, CFrame.new(center.X + 7, 3.7, signZ), Vector3.new(6.6, 1.6, 0.3), "SIGN_LAIR", Enum.NormalId.Front)
+	m.Parent = parent
+	-- Posąg Skarbnika za kręgiem, twarzą do gracza
+	local statuePos = center + Vector3.new(0, 0, lair.radius + 4)
+	return Skarbnik.build(parent, CFrame.lookAt(statuePos, statuePos - Vector3.new(0, 0, 1)), false)
+end
+
 local function buildZoneDecor(parent: Instance, zone: Config.ZoneDef, rng: Random, api: Api)
 	local recipe = RECIPES[zone.id]
 	if not recipe then
@@ -641,14 +1067,46 @@ local function buildZoneDecor(parent: Instance, zone: Config.ZoneDef, rng: Rando
 		end
 	end
 
+	-- Gigantyczne grzyby: w obozowisku pod ścianami, gdzie indziej gdzie się zmieszczą
+	local giantColors = GIANT_CAPS[zone.id] or GIANT_CAPS.crystal
+	for k = 1, GIANTS[zone.id] or 0 do
+		if zone.safe then
+			local side = if k % 2 == 0 then 1 else -1
+			giantMushroom(folder, Vector3.new(side * (Config.Cave.halfWidth - 6), 0, zone.startZ + 8 + k * 6), pick(giantColors, rng), rng)
+		else
+			local x, z = api.place(rng, -hw, hw, z1 + 4, z2 - 4, 3)
+			if x and z then
+				giantMushroom(folder, Vector3.new(x, 0, z), pick(giantColors, rng), rng)
+			end
+		end
+	end
+
+	glowworms(folder, zone)
+	floorDetail(folder, zone, rng, api)
+
 	if zone.id == "crystal" then
 		for z = zone.startZ + 20, zone.endZ - 10, 30 do
 			mineFrame(folder, z)
 		end
 	elseif zone.id == "lake" then
 		buildLake(folder, zone)
+		local rect = lakeRects(zone)[1]
+		waterfall(folder, -Config.Cave.halfWidth + 1.5, (rect.z1 + rect.z2) / 2, -1)
+		local rect2 = lakeRects(zone)[2]
+		waterfall(folder, Config.Cave.halfWidth - 1.5, (rect2.z1 + rect2.z2) / 2, 1)
 	elseif zone.id == "abyss" then
 		buildLavaCracks(folder, zone, rng, api)
+		lavaRiver(folder, zone)
+	elseif zone.id == "mine" then
+		for z = zone.startZ + 15, zone.endZ - 30, 22 do
+			mineFrame(folder, z)
+		end
+		for _ = 1, 3 do
+			local x, z = api.place(rng, -hw + 4, hw - 4, z1 + 6, zone.endZ - 40, 4)
+			if x and z then
+				minecart(folder, CFrame.new(x, 0, z) * CFrame.Angles(0, rng:NextNumber(0, math.pi), 0), pick(crystals, rng))
+			end
+		end
 	end
 	folder.Parent = parent
 end
@@ -673,14 +1131,30 @@ function Cave.reservedRects(): { Rect }
 			for z = zone.startZ + 20, zone.endZ - 10, 30 do
 				table.insert(rects, { x1 = -8.5, x2 = 8.5, z1 = z - 1.5, z2 = z + 1.5 }) -- słupy obudowy chodnika
 			end
+		elseif zone.id == "abyss" then
+			-- Rzeka lawy na całej szerokości (grzyby nie rosną w lawie)
+			local z = zone.startZ + LAVA_OFFSET
+			table.insert(rects, { x1 = -Config.Cave.halfWidth, x2 = Config.Cave.halfWidth, z1 = z - LAVA_DEPTH / 2 - 2.5, z2 = z + LAVA_DEPTH / 2 + 2.5 })
+		elseif zone.id == "mine" then
+			for z = zone.startZ + 15, zone.endZ - 30, 22 do
+				table.insert(rects, { x1 = -8.5, x2 = 8.5, z1 = z - 1.5, z2 = z + 1.5 })
+			end
 		end
 	end
+	-- Skarbiec Skarbnika: w kręgu rosną tylko Złote Trufle, za nim stoi posąg
+	local lair = Config.Lair
+	table.insert(rects, {
+		x1 = lair.centerX - lair.radius - 3,
+		x2 = lair.centerX + lair.radius + 3,
+		z1 = lair.centerZ - lair.radius - 5,
+		z2 = lair.centerZ + lair.radius + 8,
+	})
 	return rects
 end
 
 -- Buduje całą jaskinię. Miejsca na grzyby wyznacza MapBuilder (wspólne zajmowanie miejsca).
 -- Zwraca CFrame obozowiska: tu ląduje gracz po wejściu przez portal i po zgaśnięciu latarni.
-function Cave.build(parent: Instance, rng: Random, api: Api): CFrame
+function Cave.build(parent: Instance, rng: Random, api: Api): (CFrame, Model)
 	local folder = Instance.new("Folder")
 	folder.Name = "Cave"
 	buildShell(folder, rng)
@@ -694,10 +1168,13 @@ function Cave.build(parent: Instance, rng: Random, api: Api): CFrame
 	end
 	local zones = caveZones()
 	buildRails(folder, zones[1].zone.startZ + 2, zones[2].zone.endZ)
+	-- Tory wracają w Sztolni, aż do skarbca
+	local mine = zones[#zones].zone
+	buildRails(folder, mine.startZ + 2, Config.Lair.centerZ - Config.Lair.radius - 6)
+	local statue = buildLair(folder, rng)
 	folder.Parent = parent
 	local camp = Config.Cave.camp
-	return CFrame.new(camp.x, 3, camp.z) -- twarzą w głąb jaskini (+Z)
-		* CFrame.Angles(0, math.pi, 0)
+	return CFrame.new(camp.x, 3, camp.z) * CFrame.Angles(0, math.pi, 0), statue -- twarzą w głąb jaskini (+Z)
 end
 
 return Cave

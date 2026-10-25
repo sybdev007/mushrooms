@@ -23,11 +23,14 @@ local Economy = {}
 local speciesById: { [string]: Config.SpeciesDef } = {}
 local speciesByZone: { [number]: { Config.SpeciesDef } } = {}
 local groveSpecies: { Config.SpeciesDef } = {}
+local lairSpecies: { Config.SpeciesDef } = {}
 
 for _, species in Config.Species do
 	speciesById[species.id] = species
 	if species.grove then
 		table.insert(groveSpecies, species)
+	elseif species.lair then
+		table.insert(lairSpecies, species)
 	else
 		local list = speciesByZone[species.zone]
 		if not list then
@@ -41,6 +44,10 @@ end
 -- Gatunki, które rosną tylko w Gnieździe Leszego
 function Economy.groveSpecies(): { Config.SpeciesDef }
 	return groveSpecies
+end
+
+function Economy.lairSpecies(): { Config.SpeciesDef }
+	return lairSpecies
 end
 
 -- ===== Mutacje =====
@@ -323,7 +330,11 @@ end
 -- Czy gracz biegnący prosto z prędkością `speed` dobiegnie `distance` studs do chatki,
 -- zanim dogoni go Leszy, który rusza z tego samego miejsca po Config.Leszy.wakeDelay sekundach.
 function Economy.escapesLeszy(distance: number, speed: number): boolean
-	local leszy = Config.Leszy
+	return Economy.escapes(distance, speed, Config.Leszy)
+end
+
+-- To samo dla dowolnego strażnika (Leszy, Skarbnik): ustawienia speed, wakeDelay, catchRadius
+function Economy.escapes(distance: number, speed: number, leszy: { speed: number, wakeDelay: number, catchRadius: number }): boolean
 	if speed <= 0 then
 		return false
 	end
@@ -411,6 +422,12 @@ end
 function Economy.isGroveItem(speciesId: string): boolean
 	local species = speciesById[speciesId]
 	return species ~= nil and species.grove == true
+end
+
+-- Czy przedmiot z koszyka to Złota Trufla ze Skarbca Skarbnika
+function Economy.isLairItem(speciesId: string): boolean
+	local species = speciesById[speciesId]
+	return species ~= nil and species.lair == true
 end
 
 function Economy.engulfLoss(count: number): number

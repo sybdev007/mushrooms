@@ -69,6 +69,12 @@ local SHAPES: { [string]: Shape } = {
 	-- Otchłań
 	ember = { stemH = 1.1, stemD = 0.6, capW = 1.9, capH = 0.8, cap = rgb(255, 110, 40), stem = rgb(90, 50, 40), spots = true, glow = true },
 	obsidian = { stemH = 1.6, stemD = 0.9, capW = 2.4, capH = 1.0, cap = rgb(50, 40, 60), stem = rgb(70, 60, 80) },
+	-- Sztolnia Skarbnika
+	coal_cap = { stemH = 1.0, stemD = 0.8, capW = 2.0, capH = 0.9, cap = rgb(60, 58, 62), stem = rgb(90, 86, 90), spots = true },
+	silver_vein = { stemH = 1.8, stemD = 0.5, capW = 2.1, capH = 0.8, cap = rgb(200, 214, 230), stem = rgb(220, 226, 236), cluster = 3 },
+	gold_nugget = { stemH = 1.2, stemD = 0.9, capW = 2.2, capH = 1.2, cap = rgb(255, 196, 40), stem = rgb(240, 220, 160), glow = true },
+	-- Złota Trufla Skarbnika: niska, okrągła, świeci złotem
+	skarbnik_truffle = { stemH = 0.4, stemD = 1.2, capW = 2.4, capH = 2.0, cap = rgb(255, 220, 90), stem = rgb(200, 160, 60), spots = true, glow = true, cluster = 3 },
 	heart_of_mountain = { stemH = 2.0, stemD = 0.8, capW = 2.8, capH = 1.6, cap = rgb(255, 40, 90), stem = rgb(255, 180, 200), spots = true, glow = true, cluster = 3 },
 }
 local DEFAULT_SHAPE: Shape = { stemH = 1, stemD = 0.5, capW = 1.6, capH = 0.6, cap = rgb(160, 120, 80) }

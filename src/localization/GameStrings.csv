@@ -112,3 +112,15 @@ SIGN_PORTAL_SHORTCUT,To the Caves,,,Do jaskini
 MSG_PORTAL_FIND,Find the portal behind the Leshy's nest first,,,Najpierw znajdź portal za gniazdem Leszego
 SIGN_PORTAL_SOON,Coming soon...,,,Wkrótce...
 MSG_DEV_DONE,Dev: {1},,,Dev: {1}
+ZONE_MINE,Skarbnik's Mine,,,Sztolnia Skarbnika
+MUSH_COAL,Coal Cap,,,Węglak
+MUSH_SILVER_VEIN,Silver Vein,,,Srebrna żyłka
+MUSH_GOLD_NUGGET,Gold Nugget Shroom,,,Złotak
+MUSH_SKARBNIK_TRUFFLE,Skarbnik's Golden Truffle,,,Złota Trufla Skarbnika
+SIGN_LAIR,Skarbnik's Treasury - do not touch!,,,Skarbiec Skarbnika - nie ruszać!
+MSG_SKARBNIK_WOKE,Skarbnik woke up! Run to the camp!,,,Skarbnik się obudził! Uciekaj do obozowiska!
+HUD_SKARBNIK_CHASE,Skarbnik is chasing you!,,,Skarbnik cię goni!
+MSG_SKARBNIK_GAVE_UP,Skarbnik went back to his gold... for now.,,,Skarbnik wrócił do złota... na razie.
+MSG_CAUGHT_SKARBNIK,Mushrooms taken by Skarbnik: {1},,,Skarbnik zabrał grzyby: {1}
+CAUGHT_TITLE_SKARBNIK,Skarbnik caught you!,,,Skarbnik cię dopadł!
+MSG_HOARD_DROP_SKARBNIK,Skarbnik caught {1}! Truffles back in the treasury: {2},,,Skarbnik dopadł gracza {1}! Trufle wróciły do skarbca: {2}

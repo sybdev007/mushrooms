@@ -14,8 +14,11 @@ local Economy = require(Shared.Economy)
 local Remotes = require(Shared.Remotes)
 local DataService = require(script.Parent.DataService)
 local MapBuilder = require(script.Parent.MapBuilder)
-local LeszyService = require(script.Parent.LeszyService)
+local ChaseService = require(script.Parent.ChaseService)
 local HoardService = require(script.Parent.HoardService)
+local World = script.Parent:WaitForChild("World")
+local LeszyModel = require(World:WaitForChild("Leszy"))
+local SkarbnikModel = require(World:WaitForChild("Skarbnik"))
 local DryingService = require(script.Parent.DryingService)
 
 type SpotState = {
@@ -57,6 +60,31 @@ local BuyUpgrade = Remotes.get("BuyUpgrade")
 local GameService = {}
 
 local sessions: { [Player]: Session } = {}
+
+-- Strażnicy skarbów: Leszy w lesie i Skarbnik w jaskini (tworzone w GameService.start)
+local leszy: ChaseService.Chaser? = nil
+local skarbnik: ChaseService.Chaser? = nil
+local leszyHoard: HoardService.Hoard? = nil
+local skarbnikHoard: HoardService.Hoard? = nil
+
+local function stopChases(player: Player)
+	if leszy then
+		leszy.stop(player)
+	end
+	if skarbnik then
+		skarbnik.stop(player)
+	end
+end
+
+-- "leszy", "skarbnik" albo nil
+local function chasedBy(player: Player): string?
+	if leszy and leszy.isChased(player) then
+		return "leszy"
+	elseif skarbnik and skarbnik.isChased(player) then
+		return "skarbnik"
+	end
+	return nil
+end
 local map: MapBuilder.MapInfo
 
 local function stat(session: Session, id: string): number
@@ -117,7 +145,8 @@ local function pushState(session: Session)
 		lanternRange = stat(session, "lantern"),
 		zone = session.zone,
 		upgrades = table.clone(data.upgrades),
-		chased = LeszyService.isChased(session.player),
+		chased = chasedBy(session.player) ~= nil,
+		chaser = chasedBy(session.player),
 		caveUnlocked = data.caveUnlocked,
 		dev = isDeveloper(session.player),
 	})
@@ -127,8 +156,8 @@ end
 -- (początkowe rozstawienie lasu nie nabija gwarancji).
 local function rollSpot(session: Session, spot: MapBuilder.Spot, countPity: boolean?): (string?, string?, { string }?)
 	local species
-	if spot.grove then
-		local list = Economy.groveSpecies()
+	if spot.grove or spot.lair then
+		local list = if spot.lair then Economy.lairSpecies() else Economy.groveSpecies()
 		species = list[session.rng:NextInteger(1, math.max(#list, 1))]
 	else
 		species = Economy.rollSpecies(spot.zone, session.rng:NextNumber())
@@ -257,17 +286,18 @@ local function applyCharacterStats(session: Session)
 	attachHandLantern(character)
 end
 
--- Latarnia zgasła albo Leszy złapał gracza: las zabiera część koszyka i wyrzuca gracza do chatki.
--- messageKey mówi klientowi, który ekran pokazać (MSG_ENGULFED albo MSG_CAUGHT).
-local function engulf(session: Session, messageKey: string?)
-	LeszyService.stop(session.player)
+-- Latarnia zgasła albo strażnik złapał gracza: zabiera koszyk i wyrzuca gracza do chatki / obozowiska.
+-- messageKey mówi klientowi, który ekran pokazać; guardian: "leszy" / "skarbnik", gdy to on złapał.
+local function engulf(session: Session, messageKey: string?, guardian: string?)
+	stopChases(session.player)
 	local basket = session.data.basket
 
-	-- Leszy odbiera swoje korony i odnosi je do gniazda, gdzie może je zabrać każdy
+	-- Strażnik odbiera swoje grzyby i odnosi je do legowiska, gdzie może je zabrać każdy
 	local reclaimed: { HoardService.Item } = {}
-	if messageKey == "MSG_CAUGHT" then
+	if guardian then
 		for index = #basket, 1, -1 do
-			if Economy.isGroveItem(basket[index].s) then
+			local id = basket[index].s
+			if (guardian == "leszy" and Economy.isGroveItem(id)) or (guardian == "skarbnik" and Economy.isLairItem(id)) then
 				table.insert(reclaimed, table.remove(basket, index) :: any)
 			end
 		end
@@ -293,12 +323,14 @@ local function engulf(session: Session, messageKey: string?)
 	local defaultKey = if inCave then "MSG_ENGULFED_CAVE" else "MSG_ENGULFED"
 	notify(session, messageKey or defaultKey, { lost })
 
-	if #reclaimed > 0 then
-		local placed = HoardService.drop(reclaimed)
+	local hoard = if guardian == "skarbnik" then skarbnikHoard else leszyHoard
+	if #reclaimed > 0 and hoard then
+		local placed = hoard.drop(reclaimed)
 		if placed > 0 then
-			-- Cały serwer wie, że w gnieździe leży coś do zgarnięcia
+			-- Cały serwer wie, że w legowisku leży coś do zgarnięcia
+			local key = if guardian == "skarbnik" then "MSG_HOARD_DROP_SKARBNIK" else "MSG_HOARD_DROP"
 			for _, other in sessions do
-				notify(other, "MSG_HOARD_DROP", { session.player.DisplayName, placed })
+				notify(other, key, { session.player.DisplayName, placed })
 			end
 		end
 	end
@@ -324,7 +356,7 @@ local function checkPortals(session: Session, root: BasePart, now: number)
 			local first = not data.caveUnlocked
 			data.caveUnlocked = true
 			-- Ucieczka przez portal kończy pościg (Leszy nie wchodzi do jaskini)
-			LeszyService.stop(session.player)
+			stopChases(session.player)
 			character:PivotTo(map.campCFrame)
 			session.zone = Economy.zoneIndexAt(map.campCFrame.Position.Z)
 			notify(session, if first then "MSG_CAVE_UNLOCKED" else "MSG_CAVE_ENTER")
@@ -334,7 +366,7 @@ local function checkPortals(session: Session, root: BasePart, now: number)
 		end
 	elseif near(root, map.shortcut) and map.campCFrame then
 		if session.data.caveUnlocked then
-			LeszyService.stop(session.player)
+			stopChases(session.player)
 			character:PivotTo(map.campCFrame)
 			session.zone = Economy.zoneIndexAt(map.campCFrame.Position.Z)
 			notify(session, "MSG_CAVE_ENTER")
@@ -478,7 +510,7 @@ local function onPlayerRemoving(player: Player)
 		return
 	end
 	sessions[player] = nil
-	LeszyService.stop(player)
+	stopChases(player)
 	DryingService.release(player)
 	saveSession(session)
 end
@@ -544,15 +576,18 @@ local function onPick(player: Player, spotId: unknown)
 	-- Grzyb odrośnie później i może to być inny gatunek
 	local speciesId, variant, tags = rollSpot(session, spot, true)
 	state.visible = false
-	state.readyAt = now + (if spot.grove then Config.Grove.respawnSeconds else Config.RespawnSeconds)
+	state.readyAt = now
+		+ (if spot.grove then Config.Grove.respawnSeconds elseif spot.lair then Config.Lair.respawnSeconds else Config.RespawnSeconds)
 	state.speciesId = speciesId or state.speciesId
 	state.variant = variant
 	state.tags = tags
 
 	MushroomRemoved:FireClient(player, spotId)
 	-- Korona Leszego budzi właściciela gniazda
-	if spot.grove and LeszyService.startChase(player, spot.position) then
+	if spot.grove and leszy and leszy.startChase(player, spot.position) then
 		notify(session, "MSG_LESZY_WOKE")
+	elseif spot.lair and skarbnik and skarbnik.startChase(player, spot.position) then
+		notify(session, "MSG_SKARBNIK_WOKE")
 	end
 	pushState(session)
 end
@@ -640,7 +675,7 @@ local function onDevAction(player: Player, action: unknown)
 		local target = teleport()
 		local character = player.Character
 		if target and character then
-			LeszyService.stop(player)
+			stopChases(player)
 			character:PivotTo(target)
 			session.zone = Economy.zoneIndexAt(target.Position.Z)
 		end
@@ -713,47 +748,79 @@ end
 function GameService.start(mapInfo: MapBuilder.MapInfo)
 	map = mapInfo
 
-	LeszyService.start(map.groveCenter, map.leszyStatue, {
-		onCaught = function(player: Player)
-			local session = sessions[player]
-			if session then
-				engulf(session, "MSG_CAUGHT")
-			end
-		end,
-		onEscaped = function(player: Player)
-			local session = sessions[player]
-			if session then
-				notify(session, "MSG_ESCAPED", { Economy.basketValue(session.data.basket) })
-			end
-		end,
-		onGaveUp = function(player: Player)
-			local session = sessions[player]
-			if session then
-				notify(session, "MSG_LESZY_GAVE_UP")
-			end
-		end,
+	-- Strażnicy: ten sam pościg, inne liczby i modele. Złapie = koszyk przepada, a jego grzyby
+	-- wracają do legowiska, skąd każdy może je ukraść.
+	local function guardianHooks(guardian: string, caughtKey: string, gaveUpKey: string): ChaseService.Hooks
+		return {
+			onCaught = function(player: Player)
+				local session = sessions[player]
+				if session then
+					engulf(session, caughtKey, guardian)
+				end
+			end,
+			onEscaped = function(player: Player)
+				local session = sessions[player]
+				if session then
+					notify(session, "MSG_ESCAPED", { Economy.basketValue(session.data.basket) })
+				end
+			end,
+			onGaveUp = function(player: Player)
+				local session = sessions[player]
+				if session then
+					notify(session, gaveUpKey)
+				end
+			end,
+		}
+	end
+
+	leszy = ChaseService.new({
+		name = "Leszy",
+		origin = map.groveCenter,
+		statue = map.leszyStatue,
+		settings = Config.Leszy,
+		build = LeszyModel.build,
+		setAwake = LeszyModel.setAwake,
+		hooks = guardianHooks("leszy", "MSG_CAUGHT", "MSG_LESZY_GAVE_UP"),
+	})
+	skarbnik = ChaseService.new({
+		name = "Skarbnik",
+		origin = map.lairCenter,
+		statue = map.skarbnikStatue,
+		settings = Config.Skarbnik,
+		build = SkarbnikModel.build,
+		setAwake = SkarbnikModel.setAwake,
+		hooks = guardianHooks("skarbnik", "MSG_CAUGHT_SKARBNIK", "MSG_SKARBNIK_GAVE_UP"),
 	})
 
-	HoardService.start(map.groveCenter, {
-		take = function(player: Player, item: HoardService.Item): boolean
-			local session = sessions[player]
-			if not session then
-				return false
-			end
-			local basket = session.data.basket
-			if #basket >= basketMax(session) then
-				notify(session, "MSG_BASKET_FULL")
-				return false
-			end
-			table.insert(basket, { s = item.s, v = item.v, x = item.x })
-			session.data.atlas[item.s] = true
-			if LeszyService.startChase(player, map.groveCenter) then
-				notify(session, "MSG_LESZY_WOKE")
-			end
-			pushState(session)
-			return true
-		end,
-	})
+	-- Wspólne skarbce: zabranie grzyba ze skarbca znów budzi strażnika
+	local function hoardHooks(guardian: string): HoardService.Hooks
+		return {
+			take = function(player: Player, item: HoardService.Item): boolean
+				local session = sessions[player]
+				if not session then
+					return false
+				end
+				local basket = session.data.basket
+				if #basket >= basketMax(session) then
+					notify(session, "MSG_BASKET_FULL")
+					return false
+				end
+				table.insert(basket, { s = item.s, v = item.v, x = item.x })
+				session.data.atlas[item.s] = true
+				if guardian == "skarbnik" then
+					if skarbnik and skarbnik.startChase(player, map.lairCenter) then
+						notify(session, "MSG_SKARBNIK_WOKE")
+					end
+				elseif leszy and leszy.startChase(player, map.groveCenter) then
+					notify(session, "MSG_LESZY_WOKE")
+				end
+				pushState(session)
+				return true
+			end,
+		}
+	end
+	leszyHoard = HoardService.new(map.groveCenter, "LeszyHoard", hoardHooks("leszy"))
+	skarbnikHoard = HoardService.new(map.lairCenter, "SkarbnikHoard", hoardHooks("skarbnik"))
 
 	DryingService.start(map.racks, {
 		getData = function(player: Player)

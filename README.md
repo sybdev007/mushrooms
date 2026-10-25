@@ -47,7 +47,8 @@ rojo build -o lantern-forager.rbxlx
 | `src/server/World/Palette.luau` | ServerScriptService.Server | Wszystkie kolory świata w jednym miejscu |
 | `src/server/DataService.luau` | ServerScriptService.Server | Zapis postępu (DataStore) |
 | `src/server/GameService.luau` | ServerScriptService.Server | Olej, zbieranie, sprzedaż, ulepszenia, „las cię pochłania” |
-| `src/server/LeszyService.luau` | ServerScriptService.Server | Pościg Leszego po zerwaniu Korony |
+| `src/server/ChaseService.luau` | ServerScriptService.Server | Pościg strażnika (Leszy, Skarbnik) po zerwaniu jego grzyba |
+| `src/server/World/Skarbnik.luau` | ServerScriptService.Server | Model Skarbnika z klocków |
 | `src/server/HoardService.luau` | ServerScriptService.Server | Skarbiec Leszego: korony odebrane złapanym, do zgarnięcia przez każdego |
 | `src/server/DryingService.luau` | ServerScriptService.Server | Suszarnie: wieszanie, sprzedaż suszonych, kradzież |
 | `src/server/World/Grove.luau` | ServerScriptService.Server | Gniazdo Leszego: krąg kamieni, tabliczka, uśpiony posąg |
@@ -94,10 +95,15 @@ rojo build -o lantern-forager.rbxlx
   co najmniej 50 000 monet (monety zostają, a jaskinia zostaje otwarta na zawsze, `data.caveUnlocked`).
   Obozowisko górników jest bezpieczne: beczki z olejem, kramik ze skupem i dwoma ulepszeniami jaskini
   (Kryształowy knot: mniej oleju w jaskini, Plecak górnika: większy koszyk) i portal z powrotem do chatki.
-  Dalej Kryształowe Korytarze → Podziemne Jezioro → Otchłań, 9 nowych gatunków (do 2200 monet za Serce Góry)
+  Dalej Kryształowe Korytarze → Podziemne Jezioro → Otchłań → Sztolnia Skarbnika, 9 nowych gatunków (do 2200 monet za Serce Góry)
   i cechy Kryształ i Żar Otchłani. Zgaśnięcie latarni w jaskini = pobudka w obozowisku. Leszy nie wchodzi do jaskini:
   wskoczenie w portal kończy pościg. Testy pilnują, że z maks. leśnymi ulepszeniami dojdziesz do Jeziora,
   a do końca Otchłani dopiero z Kryształowym knotem.
+- **Skarbnik** (`Config.Lair`, `Config.Skarbnik`): duch kopalni ze śląskich legend pilnuje Złotych Trufli (6000 monet)
+  w skarbcu na końcu Sztolni. Działa jak Leszy (wspólny `ChaseService` i `HoardService`): zerwanie budzi go,
+  goni do obozowiska, złapie = koszyk przepada, a trufle wracają do skarbca dla każdego.
+- **Jaskinia wygląda**: świecące robaczki na stropie, gigantyczne świecące grzyby z opadającymi zarodnikami,
+  wodospady przy jeziorkach, rzeka lawy z mostem, wózki z rudą, świecący mech, kamyki.
 - **Las**: drzewa stoją korona przy koronie, bez nachodzenia (`CANOPY` w `MapBuilder`). Obrzeże mapy jest stawiane
   pierwsze, a reszta lasu je omija.
 - **Sterowanie**: przycisk ZBIERZ obok przycisku skoku na telefonie, `E` na klawiaturze, `X` na padzie.

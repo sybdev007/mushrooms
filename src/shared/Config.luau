@@ -27,6 +27,7 @@ export type SpeciesDef = {
 	weight: number, -- szansa wylosowania względem innych grzybów w tej strefie
 	cap: { number }, -- kolor kapelusza {r, g, b} (serwer rysuje nim grzyby na suszarniach)
 	grove: boolean?, -- rośnie tylko w Gnieździe Leszego, nie losuje się w zwykłych miejscach
+	lair: boolean?, -- rośnie tylko w Skarbcu Skarbnika (koniec jaskini)
 }
 
 export type UpgradeDef = {
@@ -156,6 +157,20 @@ Config.Zones = {
 		fireflies = 2,
 		mist = 7,
 	},
+	{
+		id = "mine",
+		key = "ZONE_MINE",
+		startZ = 1420,
+		endZ = 1580,
+		oilDrain = 8.5,
+		darkness = 1.0,
+		spotCount = 9,
+		treeCount = 0,
+		world = "cave",
+		fog = { 34, 26, 8 },
+		fireflies = 3,
+		mist = 3,
+	},
 } :: { ZoneDef }
 
 -- Jaskinia: portal za Gniazdem Leszego, otwiera się graczom z co najmniej unlockCoins monet.
@@ -270,6 +285,12 @@ Config.Species = {
 	{ id = "ember", key = "MUSH_EMBER", zone = 8, value = 700, weight = 50, cap = { 255, 110, 40 } },
 	{ id = "obsidian", key = "MUSH_OBSIDIAN", zone = 8, value = 950, weight = 38, cap = { 50, 40, 60 } },
 	{ id = "heart_of_mountain", key = "MUSH_HEART", zone = 8, value = 2200, weight = 12, cap = { 255, 40, 90 } },
+	-- Sztolnia Skarbnika
+	{ id = "coal_cap", key = "MUSH_COAL", zone = 9, value = 1500, weight = 50, cap = { 60, 58, 62 } },
+	{ id = "silver_vein", key = "MUSH_SILVER_VEIN", zone = 9, value = 2100, weight = 35, cap = { 200, 214, 230 } },
+	{ id = "gold_nugget", key = "MUSH_GOLD_NUGGET", zone = 9, value = 3200, weight = 15, cap = { 255, 196, 40 } },
+	-- Skarbiec Skarbnika (koniec Sztolni): zerwanie budzi Skarbnika
+	{ id = "skarbnik_truffle", key = "MUSH_SKARBNIK_TRUFFLE", zone = 9, value = 6000, weight = 0, cap = { 255, 220, 90 }, lair = true },
 } :: { SpeciesDef }
 
 Config.Upgrades = {
@@ -316,9 +337,9 @@ Config.Stations = {
 	-- Chatka
 	{ kind = "oil", world = "forest", x = -8.6, z = -17.2, radius = 3.3 },
 	{ kind = "shop", world = "forest", x = -5, z = -28.2, radius = 4 },
-	-- Obozowisko w jaskini
-	{ kind = "oil", world = "cave", x = -13, z = 1022, radius = 3.6 },
+	-- Obozowisko w jaskini: skup po lewej, olej po prawej (patrząc w głąb jaskini), oba przodem do środka
 	{ kind = "shop", world = "cave", x = 13, z = 1022, radius = 4 },
+	{ kind = "oil", world = "cave", x = -13, z = 1022, radius = 3.6 },
 } :: { StationDef }
 Config.StationTolerance = 2 -- serwer jest łagodniejszy przez opóźnienie sieci
 
@@ -338,6 +359,25 @@ Config.PortalPlaza = {
 
 -- Kamera: bez limitu dało się oddalić widok i oglądać las z góry
 Config.CameraMaxZoom = 22
+
+-- ===== Skarbiec Skarbnika =====
+-- Na końcu Sztolni, w jaskini. Skarbnik to duch kopalni ze śląskich legend: pilnuje skarbów
+-- pod ziemią. Zerwanie Złotej Trufli budzi go i goni gracza aż do obozowiska.
+Config.Lair = {
+	centerX = 0,
+	centerZ = 1548,
+	radius = 13,
+	spots = 3,
+	spotRadius = 5,
+	respawnSeconds = 300,
+}
+
+Config.Skarbnik = {
+	speed = 25, -- studs/s; ucieka się dopiero na prawie maksymalnych butach
+	wakeDelay = 2.5,
+	catchRadius = 4,
+	giveUpSeconds = 50,
+}
 
 Config.Leszy = {
 	speed = 22, -- studs/s; gracz na butach poz. 3 (20,5) jeszcze ucieka z gniazda, na poz. 2 już nie

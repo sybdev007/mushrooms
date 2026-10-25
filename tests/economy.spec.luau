@@ -65,7 +65,8 @@ test("strefy są ciągłe i rosną w mroku i zużyciu oleju", function()
 		end
 		eq(zones[i].startZ, zones[i - 1].endZ, "ciągłość strefy " .. i)
 		check(zones[i].oilDrain > zones[i - 1].oilDrain, "zużycie oleju musi rosnąć w strefie " .. i)
-		check(zones[i].darkness > zones[i - 1].darkness, "mrok musi rosnąć w strefie " .. i)
+		-- Mrok rośnie, aż dojdzie do całkowitej ciemności (1)
+		check(zones[i].darkness > zones[i - 1].darkness or zones[i].darkness == 1, "mrok musi rosnąć w strefie " .. i)
 	end
 end)
 
@@ -469,6 +470,37 @@ test("portal leśny stoi wyraźnie za gniazdem, skrót za chatką na polanie", f
 	check(table.find(plaza.slots, Config.Cave.shortcut.x) ~= nil, "skrót nie stoi na miejscu na portal")
 end)
 
+test("Skarbnik: skarbiec w Sztolni, ucieczka do obozowiska dopiero na prawie maks. butach", function()
+	local lair = Config.Lair
+	eq(Config.Zones[Economy.zoneIndexAt(lair.centerZ - lair.radius)].id, "mine", "przód skarbca")
+	check(lair.centerZ + lair.radius + 8 < Config.Zones[#Config.Zones].endZ, "posąg Skarbnika za ścianą jaskini")
+	local campEnd = Config.Zones[5].endZ
+	local distance = lair.centerZ - campEnd
+	check(not Economy.escapes(distance, Economy.upgradeStat("boots", 4), Config.Skarbnik), "ucieczka przed Skarbnikiem za łatwa")
+	check(Economy.escapes(distance, Economy.upgradeStat("boots", Config.Upgrades.boots.maxLevel), Config.Skarbnik), "brak ucieczki na maks. butach")
+	for _, species in Economy.lairSpecies() do
+		check(species.value > 3200, species.id .. " nieopłacalna przy takim ryzyku")
+		eq(Economy.isLairItem(species.id), true, species.id)
+	end
+	eq(Economy.isLairItem("leszy_crown"), false, "korona to nie trufla")
+	for zone = 1, #Config.Zones do
+		local rolled = Economy.rollSpecies(zone, 0.999)
+		check(rolled == nil or not rolled.lair, "trufla losuje się w zwykłej strefie")
+	end
+end)
+
+test("jaskinia: do końca Sztolni da się dojść z maks. knotem", function()
+	local oil = Economy.upgradeStat("oil", Config.Upgrades.oil.maxLevel)
+	local speed = Economy.upgradeStat("boots", Config.Upgrades.boots.maxLevel)
+	local scale = Economy.upgradeStat("crystal", Config.Upgrades.crystal.maxLevel)
+	local need = 0
+	for zone = 6, #Config.Zones do
+		local def = Config.Zones[zone]
+		need += 2 * (def.endZ - def.startZ) / speed * Economy.oilDrain(zone, scale)
+	end
+	check(need * Config.ReturnMargin < oil, "sztolnia za daleko: " .. need)
+end)
+
 test("portal: zamknięty poniżej progu, otwarty od progu i potem już zawsze", function()
 	local need = Config.Cave.unlockCoins
 	eq(Economy.canEnterCave(need - 1, false), false, "poniżej progu")
@@ -571,7 +603,7 @@ test("każdy klucz HUD_/MSG_/ENGULF_/ZONE_ użyty w kodzie jest w CSV", function
 		"src/server/World/Grove.luau",
 		"src/server/World/Garden.luau",
 		"src/server/DryingService.luau",
-		"src/server/LeszyService.luau",
+		"src/server/ChaseService.luau",
 		"src/client/RackPrompts.luau",
 	}
 	for _, path in files do
