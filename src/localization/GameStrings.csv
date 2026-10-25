@@ -52,8 +52,8 @@ MSG_CAUGHT,Mushrooms taken by the Leshy: {1},,,Leszy zabrał grzyby: {1}
 CAUGHT_TITLE,The Leshy caught you!,,,Leszy cię dopadł!
 UPG_LOCK,Garden Lock,,,Kłódka ogródka
 UPG_LOCK_DESC,Thieves need longer,,,Złodziej wyrywa dłużej
-MSG_STOLE,Got it: {1} {2}! Bring it to your garden!,,,Masz: {1} {2}! Donieś do swojego ogródka!
-MSG_ROBBED,{2} stole your {1} {3}!,,,{2} ukradł ci: {1} {3}!
+MSG_STOLE,Got it: {1}{2}! Bring it to your garden!,,,Masz: {1}{2}! Donieś do swojego ogródka!
+MSG_ROBBED,{2} stole your {1}{3}!,,,{2} ukradł ci: {1}{3}!
 MSG_RACK_ALERT,{1} is robbing your garden!,,,{1} okrada twój ogródek!
 MSG_RACK_PROTECTED,This garden was just robbed. Try later.,,,Ten ogródek ktoś przed chwilą okradł. Spróbuj później.
 MSG_OWNER_GUARDING,The owner is guarding this garden!,,,Właściciel pilnuje ogródka!
@@ -63,8 +63,8 @@ MUT_GOLD,Gold,,,Złoto
 MUT_RAINBOW,Rainbow,,,Tęcza
 MUT_MOSSY,Mossy,,,Mech
 MUT_GLOWING,Glowing,,,Blask
-MSG_MUTATION,{1}: {3}! ×{2},,,{1}: {3}! ×{2}
-MSG_RARE_FIND,Rare find! {2}: {1} {3},,,Wielkie znalezisko! {2}: {1} {3}
+MSG_MUTATION,{1}:{3}! ×{2},,,{1}:{3}! ×{2}
+MSG_RARE_FIND,Rare find! {2}: {1}{3},,,Wielkie znalezisko! {2}: {1}{3}
 SIGN_SHOP,Trading Post,,,Skup i ulepszenia
 SIGN_OIL,Lantern Oil,,,Olej do latarni
 PROMPT_TAKE_CROWN,Take,,,Zabierz
@@ -182,12 +182,12 @@ MSG_NOTHING_TO_PLANT,Your basket is empty. Pick mushrooms in the forest!,,,Koszy
 MSG_COLLECTED,Coins from your garden: +{1},,,Monety z ogródka: +{1}
 MSG_POT_EMPTY,Nothing in the chest yet.,,,W skrzyni jeszcze nic nie ma.
 MSG_OFFLINE_INCOME,Your garden earned {1} coins while you were away!,,,Pod twoją nieobecność ogródek zarobił {1} monet!
-MSG_THIEF_RUNNING,{2} is running off with your {1} {3}! Catch them!,,,{2} ucieka z twoim grzybem: {1} {3}! Dogoń go!
-MSG_LOOT_PLANTED,{1} {2} is now growing in your garden!,,,{1} {2} rośnie teraz w twoim ogródku!
-MSG_LOOT_DELIVERED,{1} {2} is yours! (no free bed: it went to your basket),,,{1} {2} jest twój! (brak wolnej grządki: trafił do koszyka)
+MSG_THIEF_RUNNING,{2} is running off with your {1}{3}! Catch them!,,,{2} ucieka z twoim grzybem: {1}{3}! Dogoń go!
+MSG_LOOT_PLANTED,{1}{2} is now growing in your garden!,,,{1}{2} rośnie teraz w twoim ogródku!
+MSG_LOOT_DELIVERED,{1}{2} is yours! (no free bed: it went to your basket),,,{1}{2} jest twój! (brak wolnej grządki: trafił do koszyka)
 MSG_LOOT_TAGGED,{2} caught you! {1} goes back.,,,{2} cię dogonił! {1} wraca do właściciela.
 MSG_LOOT_DROPPED,You dropped {1}. It went back to its owner.,,,Upuściłeś: {1}. Wraca do właściciela.
-MSG_LOOT_RECOVERED,{1} {2} is back in your garden!,,,{1} {2} wrócił do twojego ogródka!
+MSG_LOOT_RECOVERED,{1}{2} is back in your garden!,,,{1}{2} wrócił do twojego ogródka!
 MSG_HARVEST,Instant harvest: +{1} coins in your chest!,,,Zbiory od razu: +{1} monet w skrzyni!
 PRODUCT_HARVEST,Instant Harvest,,,Zbiory od razu
 PRODUCT_HARVEST_DESC,30 minutes of garden coins right now,,,Od razu 30 minut monet z ogródka

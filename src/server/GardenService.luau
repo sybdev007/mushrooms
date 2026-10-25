@@ -429,7 +429,7 @@ local function carryVisuals(thief: Player, item: Economy.PlantItem): { Instance 
 		return {}
 	end
 	-- Grzyb nad głową złodzieja, przyspawany do głowy
-	local model = buildMushroom(character, item, head.CFrame * CFrame.new(0, 0.6, 0), 0.8)
+	local model = buildMushroom(character, item, head.CFrame * CFrame.new(0, 0.9, 0), 0.8)
 	model.Name = "StolenMushroom"
 	for _, part in model:GetDescendants() do
 		if part:IsA("BasePart") then
@@ -798,7 +798,14 @@ function GardenService.start(gardenInfos: { { id: number, model: Model } }, serv
 			lockTags = lockTags,
 			slotLabels = slotLabels,
 			visuals = visuals,
-			label = billboard(hub, "OwnerTag", UDim2.fromOffset(200, 54), Vector3.new(0, 5, 0), 80),
+			-- Podsumowanie (imię, grządki, dochód) wisi nad furtką, żeby nie zasłaniało tabliczek grządek
+			label = billboard(
+				if signPart and signPart:IsA("BasePart") then signPart else hub,
+				"OwnerTag",
+				UDim2.fromOffset(200, 54),
+				Vector3.new(0, 3, 0),
+				80
+			),
 			potLabel = if chest then billboard(chest, "PotTag", UDim2.fromOffset(140, 36), Vector3.new(0, 3.4, 0), 50) else nil,
 			ownerSign = if signPart and signPart:IsA("BasePart") then ownerSignLabel(signPart) else nil,
 			owner = nil,

@@ -78,7 +78,8 @@ local function mutationIcons(variant: string?, tags: { string }?): string
 	return icons
 end
 
--- Etykieta mutacji w języku gracza, np. "🌈 Tęcza + ✨ Blask"
+-- Etykieta mutacji w języku gracza, np. " 🌈 Tęcza + ✨ Blask". Zaczyna się od spacji, a bez mutacji
+-- jest pusta, więc szablony w CSV mają ją doklejoną bez odstępu ("{1}{2}!")
 local function mutationLabel(mutation: { variant: string?, tags: { string }? }?): string
 	if not mutation then
 		return ""
@@ -94,7 +95,7 @@ local function mutationLabel(mutation: { variant: string?, tags: { string }? }?)
 			table.insert(parts, tag.icon .. " " .. Localize.t(tag.key))
 		end
 	end
-	return table.concat(parts, " + ")
+	return if #parts > 0 then " " .. table.concat(parts, " + ") else ""
 end
 
 Remotes.get("MushroomRemoved").OnClientEvent:Connect(function(id)
