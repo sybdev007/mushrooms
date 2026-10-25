@@ -40,6 +40,7 @@ export type MapInfo = {
 	racks: { RackInfo },
 	campCFrame: CFrame?, -- obozowisko w jaskini; nil = mapa bez jaskini
 	portal: Vector3?, -- portal do jaskini (w lesie, za Gniazdem Leszego)
+	shortcut: Vector3?, -- skrót do jaskini za chatką (dla tych, którzy ją już odkryli)
 	returnPortal: Vector3?, -- portal powrotny w obozowisku
 }
 
@@ -565,6 +566,13 @@ function MapBuilder.build(): MapInfo
 	table.insert(reserved, { x1 = portal.X - 8, x2 = portal.X + 8, z1 = portal.Z - 5, z2 = FOREST_LAST.endZ })
 	Cave.portal(map, CFrame.new(portal), "SIGN_PORTAL", Color3.fromRGB(160, 90, 255))
 
+	-- Skrót do jaskini za chatką: widać go z polany, ale działa tylko dla tych, którzy już tam byli
+	local shortcutDef = Config.Cave.shortcut
+	local shortcut = Vector3.new(shortcutDef.x, 0, shortcutDef.z)
+	table.insert(reserved, { x1 = shortcut.X - 15, x2 = shortcut.X + 15, z1 = FOREST_FIRST.startZ + 8, z2 = Cabin.BACK_Z - 1 })
+	-- Z chatki idzie się do skrótu w stronę -Z, więc przód portalu patrzy na +Z
+	Cave.portal(map, CFrame.new(shortcut) * CFrame.Angles(0, math.pi, 0), "SIGN_PORTAL_SHORTCUT", Color3.fromRGB(160, 90, 255), "ShortcutSwirl")
+
 	-- Jaskinia: najpierw rezerwacje (obozowisko, ścieżka, jeziorka), żeby grzyby nie wyrosły w wodzie
 	for _, rect in Cave.reservedRects() do
 		table.insert(reserved, rect)
@@ -634,6 +642,7 @@ function MapBuilder.build(): MapInfo
 		racks = racks,
 		campCFrame = campCFrame,
 		portal = portal,
+		shortcut = shortcut,
 		returnPortal = returnPortal,
 	}
 end

@@ -453,6 +453,14 @@ test("jaskinia: z maks. leśnymi ulepszeniami do Jeziora tak, do końca Otchłan
 	check(caveRoundTrip(8, speed, Config.Upgrades.crystal.maxLevel) < oil, "otchłań nieosiągalna nawet z knotem")
 end)
 
+test("portal leśny stoi wyraźnie za gniazdem, skrót za chatką na polanie", function()
+	local g = Config.Grove
+	check(Config.Cave.portal.z - (g.centerZ + g.radius) >= 30, "portal za blisko gniazda")
+	check(Config.Cave.portal.z + 6 < Config.Zones[4].endZ, "portal w ścianie na końcu lasu")
+	eq(Economy.zoneIndexAt(Config.Cave.shortcut.z), 1, "skrót poza polaną")
+	check(Config.Cave.shortcut.z < -40 and Config.Cave.shortcut.z > Config.Zones[1].startZ + 10, "skrót nie stoi za chatką")
+end)
+
 test("portal: zamknięty poniżej progu, otwarty od progu i potem już zawsze", function()
 	local need = Config.Cave.unlockCoins
 	eq(Economy.canEnterCave(need - 1, false), false, "poniżej progu")

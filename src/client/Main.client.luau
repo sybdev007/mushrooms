@@ -18,6 +18,7 @@ local Atmosphere = require(script.Parent.Atmosphere)
 local Effects = require(script.Parent.Effects)
 local Warnings = require(script.Parent.Warnings)
 local Signs = require(script.Parent.Signs)
+local PortalView = require(script.Parent.PortalView)
 local RackPrompts = require(script.Parent.RackPrompts)
 
 local player = Players.LocalPlayer
@@ -38,6 +39,7 @@ local wasInCabin = true -- gracz zaczyna w chatce
 local caveScale = 1 -- ulepszenie „Kryształowy wkład”: mnożnik spalania oleju w jaskini
 
 Signs.start()
+PortalView.start()
 RackPrompts.start()
 
 Remotes.get("StateUpdate").OnClientEvent:Connect(function(state)
@@ -46,6 +48,7 @@ Remotes.get("StateUpdate").OnClientEvent:Connect(function(state)
 	oilMax = state.oilMax
 	chased = state.chased == true
 	caveScale = Economy.upgradeStat("crystal", state.upgrades.crystal or 0)
+	PortalView.setUnlocked(state.caveUnlocked == true)
 	Hud.update(state)
 end)
 
@@ -122,6 +125,7 @@ local TOAST_KIND: { [string]: string } = {
 	MSG_ESCAPED = "gold",
 	MSG_HOARD_DROP = "gold",
 	MSG_PORTAL_LOCKED = "warn",
+	MSG_PORTAL_FIND = "warn",
 	MSG_CAVE_UNLOCKED = "gold",
 	MSG_CAVE_ENTER = "info",
 	MSG_PORTAL_HOME = "info",

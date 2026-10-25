@@ -108,3 +108,5 @@ MSG_ENGULFED_CAVE,Mushrooms lost: {1},,,Utracone grzyby: {1}
 ENGULF_TITLE_CAVE,The darkness swallowed you...,,,Ciemność cię pochłonęła...
 HUD_TURN_BACK_CAMP,Head back to the camp!,,,Wracaj do obozowiska!
 HUD_DISTANCE_CAMP,{1} m to the camp,,,{1} m do obozowiska
+SIGN_PORTAL_SHORTCUT,To the Caves,,,Do jaskini
+MSG_PORTAL_FIND,Find the portal behind the Leshy's nest first,,,Najpierw znajdź portal za gniazdem Leszego

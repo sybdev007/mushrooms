@@ -107,6 +107,7 @@ local function pushState(session: Session)
 		zone = session.zone,
 		upgrades = table.clone(data.upgrades),
 		chased = LeszyService.isChased(session.player),
+		caveUnlocked = data.caveUnlocked,
 	})
 end
 
@@ -318,6 +319,16 @@ local function checkPortals(session: Session, root: BasePart, now: number)
 		elseif now - session.portalNoticeAt > 4 then
 			session.portalNoticeAt = now
 			notify(session, "MSG_PORTAL_LOCKED", { Config.Cave.unlockCoins })
+		end
+	elseif near(root, map.shortcut) and map.campCFrame then
+		if session.data.caveUnlocked then
+			LeszyService.stop(session.player)
+			character:PivotTo(map.campCFrame)
+			session.zone = Economy.zoneIndexAt(map.campCFrame.Position.Z)
+			notify(session, "MSG_CAVE_ENTER")
+		elseif now - session.portalNoticeAt > 4 then
+			session.portalNoticeAt = now
+			notify(session, "MSG_PORTAL_FIND")
 		end
 	elseif near(root, map.returnPortal) then
 		character:PivotTo(map.spawnCFrame)

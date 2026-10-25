@@ -89,7 +89,7 @@ Config.Zones = {
 		id = "ravine",
 		key = "ZONE_RAVINE",
 		startZ = 300,
-		endZ = 460,
+		endZ = 490, -- za Gniazdem Leszego jest jeszcze kawałek drogi do portalu jaskini
 		oilDrain = 3.0,
 		darkness = 1.0,
 		spotCount = 10,
@@ -164,10 +164,22 @@ Config.Cave = {
 	unlockCoins = 50000,
 	halfWidth = 46, -- jaskinia jest węższa niż las
 	ceiling = 34, -- wysokość stropu
-	portal = { x = 0, z = 451 }, -- portal w lesie, za Gniazdem Leszego
-	returnPortal = { x = 0, z = 1004 }, -- portal powrotny w obozowisku (prowadzi do chatki)
-	camp = { x = 0, z = 1020 }, -- tu ląduje gracz po przejściu i po zgaśnięciu latarni w jaskini
+	portal = { x = 0, z = 476 }, -- portal w lesie, kawałek za Gniazdem Leszego
+	-- Skrót za chatką: działa tylko dla tych, którzy już raz doszli do portalu za Leszym.
+	-- Stoi na widoku, żeby nowi gracze widzieli, że jest coś do odkrycia.
+	shortcut = { x = 0, z = -47 },
+	returnPortal = { x = 0, z = 1010 }, -- portal powrotny w obozowisku (prowadzi do chatki)
+	camp = { x = 0, z = 1025 }, -- tu ląduje gracz po przejściu i po zgaśnięciu latarni w jaskini
 	portalRadius = 4,
+	-- Rama portali: kamienny łuk z mchem i muchomorami (siatka wygenerowana w Studio, asset na koncie Toma).
+	-- size = rozmiar w studs, opening = szerokość i wysokość otworu, pillarWidth = grubość filaru do kolizji.
+	portalMesh = {
+		mesh = "rbxassetid://122151632379414",
+		texture = "rbxassetid://77667100215068",
+		size = { 17, 16, 6 },
+		opening = { 9.6, 12 },
+		pillarWidth = 3,
+	},
 }
 
 Config.ForestHalfWidth = 70 -- las ma szerokość 2 * 70 studs

@@ -5,6 +5,8 @@
 -- strop ze stalaktytami, świecące kryształy, tory kolejki, jezioro i szczeliny z lawą.
 -- Strefy leżą wzdłuż osi +Z (Config.Zones z world = "cave"), daleko za lasem.
 
+local CollectionService = game:GetService("CollectionService")
+local InsertService = game:GetService("InsertService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
@@ -147,13 +149,44 @@ end
 
 -- ===== Portal =====
 
--- Kamienny łuk z wirującym światłem. cf: środek portalu na ziemi, przodem do nadchodzącego gracza (-LookVector).
-function Cave.portal(parent: Instance, cf: CFrame, signKey: string, color: Color3): Model
-	local m = Instance.new("Model")
-	m.Name = "Portal_" .. signKey
+-- Rama portalu: siatka (mesh) wygenerowana w Studio z opisu „kamienny łuk porośnięty mchem
+-- i grzybami”, zapisana jako asset (Config.Cave.portalMesh). Gdy siatki nie da się wczytać
+-- (np. inne konto bez dostępu), stawiamy prosty łuk z kamieni.
+local function meshFrame(parent: Instance, cf: CFrame): (boolean, number, number)
+	local def = Config.Cave.portalMesh
+	local ok, part = pcall(function()
+		return InsertService:CreateMeshPartAsync(def.mesh, Enum.CollisionFidelity.Box, Enum.RenderFidelity.Automatic)
+	end)
+	if not ok or not part then
+		warn("[Cave] Nie udało się wczytać siatki portalu, stawiam łuk z kamieni:", part)
+		return false, 0, 0
+	end
+	local mesh = part :: MeshPart
+	mesh.Name = "Frame"
+	mesh.TextureID = def.texture
+	mesh.Size = Vector3.new(def.size[1], def.size[2], def.size[3])
+	mesh.CFrame = cf * CFrame.new(0, def.size[2] / 2, 0)
+	mesh.Anchored = true
+	-- Kolizja tylko na filarach (niewidzialne bloki), żeby otwór dało się przejść
+	mesh.CanCollide = false
+	mesh.CanQuery = false
+	mesh.Parent = parent
+	for _, side in { -1, 1 } do
+		local pillar = make("Part", {
+			Name = "PillarCollision",
+			Size = Vector3.new(def.pillarWidth, def.size[2], def.size[3]),
+			CFrame = cf * CFrame.new(side * (def.opening[1] / 2 + def.pillarWidth / 2), def.size[2] / 2, 0),
+			Transparency = 1,
+			Parent = parent,
+		})
+		pillar.CanQuery = false
+	end
+	return true, def.opening[1], def.opening[2]
+end
+
+local function stoneFrame(parent: Instance, cf: CFrame): (number, number)
 	local stone = Color3.fromRGB(96, 90, 104)
 	local rng = Random.new(7)
-	-- Filary z kamieni
 	for _, side in { -1, 1 } do
 		for level = 0, 4 do
 			make("Part", {
@@ -161,11 +194,10 @@ function Cave.portal(parent: Instance, cf: CFrame, signKey: string, color: Color
 				CFrame = cf * CFrame.new(side * 5, 1.2 + level * 2.3, 0) * CFrame.Angles(0, rng:NextNumber(-0.3, 0.3), 0),
 				Color = stone,
 				Material = Enum.Material.Slate,
-				Parent = m,
+				Parent = parent,
 			})
 		end
 	end
-	-- Łuk: kamienie po półokręgu
 	for i = 0, 6 do
 		local angle = math.pi * i / 6
 		make("Part", {
@@ -173,20 +205,38 @@ function Cave.portal(parent: Instance, cf: CFrame, signKey: string, color: Color
 			CFrame = cf * CFrame.new(math.cos(angle) * 5, 11.5 + math.sin(angle) * 3, 0) * CFrame.Angles(0, 0, angle),
 			Color = stone,
 			Material = Enum.Material.Slate,
-			Parent = m,
+			Parent = parent,
 		})
 	end
-	-- Wirujące światło w środku (cienki walec ustawiony pionowo, przodem do gracza)
+	return 7.4, 11
+end
+
+-- Portal: rama, wirujące światło w otworze, grzybki u stóp i szyld na słupkach obok
+-- (osobno, żeby napis nigdy nie chował się w kamieniach ani w ścianie jaskini).
+-- cf: środek portalu na ziemi, przodem (-LookVector) do nadchodzącego gracza.
+-- tag: opcjonalny tag dla wiru (klient barwi wir skrótu zależnie od tego, czy gracz ma dostęp).
+function Cave.portal(parent: Instance, cf: CFrame, signKey: string, color: Color3, tag: string?): Model
+	local m = Instance.new("Model")
+	m.Name = "Portal_" .. signKey
+	local hasMesh, openW, openH = meshFrame(m, cf)
+	if not hasMesh then
+		openW, openH = stoneFrame(m, cf)
+	end
+
+	-- Wir: płaski świecący owal wypełniający otwór
 	local swirl = decor(make("Part", {
 		Name = "Swirl",
 		Shape = Enum.PartType.Cylinder,
-		Size = Vector3.new(0.3, 9, 9),
-		CFrame = cf * CFrame.new(0, 6.5, 0) * CFrame.Angles(0, math.rad(90), 0),
+		Size = Vector3.new(0.3, openH, openW),
+		CFrame = cf * CFrame.new(0, openH / 2 + 0.2, 0) * CFrame.Angles(0, math.rad(90), 0),
 		Color = color,
 		Material = Enum.Material.Neon,
 		Transparency = 0.35,
 		Parent = m,
 	}))
+	if tag then
+		CollectionService:AddTag(swirl, tag)
+	end
 	local light = Instance.new("PointLight")
 	light.Color = color
 	light.Range = 22
@@ -202,8 +252,19 @@ function Cave.portal(parent: Instance, cf: CFrame, signKey: string, color: Color
 	emitter.Speed = NumberRange.new(1, 3)
 	emitter.SpreadAngle = Vector2.new(180, 180)
 	emitter.Parent = swirl
-	-- Szyld nad łukiem, napisem do nadchodzącego gracza
-	Props.signBoard(m, cf * CFrame.new(0, 16.4, 0), Vector3.new(11, 2.2, 0.4), signKey, Enum.NormalId.Front)
+
+	-- Świecące grzybki u stóp ramy, po obu stronach
+	local rng = Random.new(11)
+	for _, side in { -1, 1 } do
+		Props.glowCluster(m, (cf * CFrame.new(side * (openW / 2 + 3.2), 0, -1.6)).Position, rng)
+	end
+
+	-- Szyld na dwóch słupkach z przodu, z boku ścieżki
+	local signCf = cf * CFrame.new(openW / 2 + 5.5, 0, -3)
+	for _, side in { -1, 1 } do
+		make("Part", { Size = Vector3.new(0.4, 4.6, 0.4), CFrame = signCf * CFrame.new(side * 3.2, 2.3, 0), Color = Palette.log, Parent = m })
+	end
+	Props.signBoard(m, signCf * CFrame.new(0, 3.8, 0), Vector3.new(7.4, 1.6, 0.3), signKey, Enum.NormalId.Front)
 	m.Parent = parent
 	return m
 end
@@ -330,10 +391,10 @@ local function buildCamp(parent: Instance)
 	end
 
 	-- Namioty, ognisko i latarnie na palach
-	tent(m, CFrame.new(-16, 0, camp.z + 12) * CFrame.Angles(0, math.rad(20), 0), Color3.fromRGB(170, 130, 80))
-	tent(m, CFrame.new(17, 0, camp.z + 13) * CFrame.Angles(0, math.rad(-25), 0), Color3.fromRGB(120, 140, 90))
-	campfire(m, Vector3.new(0, 0, camp.z + 9))
-	for _, pos in { Vector3.new(-8, 0, camp.z - 6), Vector3.new(8, 0, camp.z - 6), Vector3.new(-8, 0, camp.z + 16), Vector3.new(8, 0, camp.z + 16) } do
+	tent(m, CFrame.new(-17, 0, camp.z + 10) * CFrame.Angles(0, math.rad(20), 0), Color3.fromRGB(170, 130, 80))
+	tent(m, CFrame.new(18, 0, camp.z + 10) * CFrame.Angles(0, math.rad(-25), 0), Color3.fromRGB(120, 140, 90))
+	campfire(m, Vector3.new(0, 0, camp.z + 7))
+	for _, pos in { Vector3.new(-8, 0, camp.z - 8), Vector3.new(8, 0, camp.z - 8), Vector3.new(-8, 0, camp.z + 12), Vector3.new(8, 0, camp.z + 12) } do
 		Props.lanternPost(m, pos, if pos.X < 0 then 0 else math.pi)
 	end
 	m.Parent = parent
