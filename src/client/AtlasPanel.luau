@@ -309,7 +309,7 @@ local function render()
 		local row = tierRows[index]
 		local count, total = Progress.tierProgress(atlas, current, tier.rank)
 		local done = total > 0 and count >= total
-		row.check.Text = if done then "✔" else "○"
+		row.check.Text = if done then "✅" else "•"
 		row.check.TextColor3 = if done then Color3.fromRGB(150, 255, 150) else MUTED
 		row.label.Text = string.format("%s  <font color=\"#D6BC96\">%d/%d</font>", Localize.t(tier.key), count, total)
 		local reward = "+" .. percent(tier.bonus) .. "% " .. Localize.t("ATLAS_PRICE")

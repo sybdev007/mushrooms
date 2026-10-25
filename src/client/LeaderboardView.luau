@@ -24,7 +24,6 @@ local BODY_FONT = Enum.Font.GothamBold
 local TEXT = Color3.fromRGB(252, 238, 210)
 local MUTED = Color3.fromRGB(214, 188, 150)
 local ACCENT = Color3.fromRGB(255, 214, 120)
-local ROWS = 10
 local MEDALS = { "🥇", "🥈", "🥉" }
 
 local KINDS: { [string]: { title: string, icon: string, color: Color3, weekly: boolean } } = {
@@ -167,8 +166,10 @@ local function build(screen: BasePart)
 	line.Parent = root
 
 	local rows: { Row } = {}
-	local top, height = 0.19, 0.8 / ROWS
-	for index = 1, ROWS do
+	local count = screen:GetAttribute("Rows")
+	local rowCount = if typeof(count) == "number" then count else 8
+	local top, height = 0.19, 0.8 / rowCount
+	for index = 1, rowCount do
 		local frame = Instance.new("Frame")
 		frame.Name = "Row" .. index
 		frame.Size = UDim2.fromScale(1, height * 0.94)
@@ -180,10 +181,10 @@ local function build(screen: BasePart)
 		local c = Instance.new("UICorner")
 		c.CornerRadius = UDim.new(0.2, 0)
 		c.Parent = frame
-		local rank = label(frame, "Rank", UDim2.fromScale(0.1, 0.8), UDim2.fromScale(0.01, 0.1), TITLE_FONT, ACCENT)
+		local rank = label(frame, "Rank", UDim2.fromScale(0.1, 0.86), UDim2.fromScale(0.01, 0.07), TITLE_FONT, ACCENT)
 		rank.TextXAlignment = Enum.TextXAlignment.Center
-		local name = label(frame, "Name", UDim2.fromScale(0.4, 0.7), UDim2.fromScale(0.13, 0.15), TITLE_FONT)
-		local value = label(frame, "Value", UDim2.fromScale(0.46, 0.66), UDim2.fromScale(0.53, 0.17), BODY_FONT)
+		local name = label(frame, "Name", UDim2.fromScale(0.44, 0.8), UDim2.fromScale(0.12, 0.1), TITLE_FONT)
+		local value = label(frame, "Value", UDim2.fromScale(0.44, 0.72), UDim2.fromScale(0.56, 0.14), TITLE_FONT)
 		value.TextXAlignment = Enum.TextXAlignment.Right
 		rows[index] = { frame = frame, rank = rank, name = name, value = value }
 	end

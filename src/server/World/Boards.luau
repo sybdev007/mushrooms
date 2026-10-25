@@ -9,14 +9,15 @@ local Palette = require(script.Parent.Palette)
 
 local Boards = {}
 
-export type Placement = { kind: string, position: Vector3, width: number, height: number, lift: number }
+export type Placement = { kind: string, position: Vector3, width: number, height: number, lift: number, rows: number }
 
--- Wyjście z chatki patrzy na +Z, więc tablice stoją przodem do chatki (-Z).
--- Po bokach ścieżki do lasu dwie tablice, nad ścieżką brama z trzecią.
+-- Wyjście z chatki patrzy na +Z, więc tablice stoją przodem do chatki (-Z); patrząc od drzwi
+-- +X jest po lewej. Po bokach polany dwie tablice, nad ścieżką brama z trzecią (wysoko,
+-- żeby nie zasłaniała przejścia, za pierwszą latarnią). Wszystko w środku polany, gdzie nie ma drzew.
 Boards.PLACEMENTS = {
-	{ kind = "richest", position = Vector3.new(-17, 0, 16), width = 10, height = 11, lift = 2.2 },
-	{ kind = "rare", position = Vector3.new(0, 0, 25), width = 12, height = 7.5, lift = 9 },
-	{ kind = "thieves", position = Vector3.new(17, 0, 16), width = 10, height = 11, lift = 2.2 },
+	{ kind = "richest", position = Vector3.new(16, 0, 12), width = 11, height = 12, lift = 2.2, rows = 8 },
+	{ kind = "rare", position = Vector3.new(0, 0, 16), width = 13, height = 9, lift = 9, rows = 6 },
+	{ kind = "thieves", position = Vector3.new(-16, 0, 12), width = 11, height = 12, lift = 2.2, rows = 8 },
 } :: { Placement }
 
 local function part(parent: Instance, name: string, size: Vector3, cf: CFrame, color: Color3, material: Enum.Material?): Part
@@ -85,6 +86,7 @@ local function buildBoard(parent: Instance, placement: Placement): BasePart
 	local screen = part(model, "Screen", Vector3.new(w, h, 0.2), base * CFrame.new(0, centerY, 0), Color3.fromRGB(34, 26, 20), Enum.Material.SmoothPlastic)
 	screen.CanCollide = false
 	screen:SetAttribute("Kind", placement.kind)
+	screen:SetAttribute("Rows", placement.rows)
 	CollectionService:AddTag(screen, "Leaderboard")
 
 	model.PrimaryPart = screen

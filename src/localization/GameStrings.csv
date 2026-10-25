@@ -276,8 +276,8 @@ QUESTS_TITLE,Daily quests,,,Zadania na dziś
 QUESTS_RESET,New quests in {1},,,Nowe zadania za {1}
 QUESTS_REROLL,Swap,,,Wymień
 QUESTS_BONUS,All 3: +{1} coins + Luck Potion {2} min,,,Wszystkie 3: +{1} monet + mikstura szczęścia {2} min
-QUESTS_BONUS_DONE,Today's bonus collected ✔,,,Premia za dziś odebrana ✔
-QUESTS_STREAK,Login streak: {1} days,,,Seria logowań: {1} dni z rzędu
+QUESTS_BONUS_DONE,Today's bonus collected ✅,,,Premia za dziś odebrana ✅
+QUESTS_STREAK,Login streak: day {1},,,Seria logowań: dzień {1}
 QUESTS_STREAK_HINT,Come back tomorrow for day {1}: +{2} coins (miss a day and the streak resets),,,Wróć jutro po dzień {1}: +{2} monet (dzień przerwy zeruje serię)
 QUESTS_DAY,Day {1},,,Dzień {1}
 QUEST_PICK,Pick {1} mushrooms,,,Zbierz {1} grzybów
