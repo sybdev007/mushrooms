@@ -36,6 +36,7 @@ export type Api = {
 	notify: (Player, string, { any }?, string?, MutationInfo?) -> (),
 	pushState: (Player) -> (),
 	applyStats: (Player) -> (), -- przelicza prędkość chodu (łup spowalnia)
+	onEvent: ((Player, string, number?) -> ())?, -- zadania dzienne: "plant", "collect", "steal"
 }
 
 type GardenState = {
@@ -485,6 +486,9 @@ local function endCarry(thief: Player, outcome: string)
 	if outcome == "delivered" then
 		local where = giveItem(thief, item)
 		api.notify(thief, if where == "bed" then "MSG_LOOT_PLANTED" else "MSG_LOOT_DELIVERED", nil, nameKey, mutation)
+		if api.onEvent then
+			api.onEvent(thief, "steal", 1)
+		end
 		if ownerHere then
 			api.notify(owner, "MSG_ROBBED", { thief.DisplayName }, nameKey, mutation)
 		end
@@ -570,6 +574,9 @@ local function onPlant(garden: GardenState, player: Player)
 		table.remove(data.basket, index)
 	end
 	data.coins += sold
+	if api.onEvent then
+		api.onEvent(player, "plant", #moves)
+	end
 	if sold > 0 then
 		api.notify(player, "MSG_PLANTED_SWAP", { #moves, sold })
 	else
@@ -594,6 +601,9 @@ local function onCollect(garden: GardenState, player: Player)
 	end
 	data.pot -= amount
 	data.coins += amount
+	if api.onEvent then
+		api.onEvent(player, "collect", 1)
+	end
 	api.notify(player, "MSG_COLLECTED", { amount })
 	refreshGarden(garden)
 	api.pushState(player)

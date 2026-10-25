@@ -8,12 +8,17 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Economy = require(ReplicatedStorage.Shared.Economy)
+local Progress = require(ReplicatedStorage.Shared.Progress)
 
 export type Data = {
 	version: number,
 	coins: number,
 	upgrades: { [string]: number },
-	atlas: { [string]: boolean }, -- odkryte gatunki (pod przyszły Atlas grzybów)
+	atlas: { [string]: number }, -- Grzybopedia: gatunek -> maska odkrytych wariantów (Progress)
+	atlasDone: { string }, -- progi księgi, o których gracz już dostał komunikat ("forest:2")
+	daily: Progress.Daily, -- dzisiejsze zadania
+	streak: Progress.Streak, -- seria logowań
+	weekly: Progress.Weekly, -- wyniki tego tygodnia do rankingów
 	basket: { Economy.BasketItem },
 	planted: { Economy.PlantItem }, -- grzyby na grządkach w ogródku
 	pot: number, -- monety z grządek czekające w skrzyni (z ułamkiem)
@@ -57,6 +62,10 @@ function DataService.defaultData(): Data
 		coins = Config.StartingCoins or 0,
 		upgrades = upgrades,
 		atlas = {},
+		atlasDone = {},
+		daily = { day = -1, quests = {}, rerolled = false, bonusDone = false },
+		streak = { day = -1, count = 0 },
+		weekly = { week = -1, steals = 0, best = 0 },
 		basket = {},
 		planted = {},
 		pot = 0,
@@ -111,10 +120,45 @@ local function reconcile(raw: any): Data
 	end
 	if typeof(raw.atlas) == "table" then
 		for id, found in raw.atlas do
-			if typeof(id) == "string" and found == true and Economy.getSpecies(id) then
-				data.atlas[id] = true
+			if typeof(id) == "string" and Economy.getSpecies(id) then
+				-- Stare zapisy: true = znaleziony (zwykły); nowe: maska bitów 1..15
+				local mask = if found == true then 1 elseif typeof(found) == "number" then math.clamp(math.floor(found), 0, 15) else 0
+				if mask > 0 then
+					data.atlas[id] = mask
+				end
 			end
 		end
+	end
+	if typeof(raw.atlasDone) == "table" then
+		for _, id in raw.atlasDone do
+			if typeof(id) == "string" and #data.atlasDone < 64 then
+				table.insert(data.atlasDone, id)
+			end
+		end
+	end
+	local daily = raw.daily
+	if typeof(daily) == "table" and typeof(daily.day) == "number" and typeof(daily.quests) == "table" then
+		local quests = {}
+		for _, q in daily.quests do
+			if typeof(q) == "table" and typeof(q.id) == "string" and Progress.getQuest(q.id) and #quests < Progress.QUESTS_PER_DAY then
+				local goal = (Progress.getQuest(q.id) :: Progress.QuestDef).goal
+				local n = if typeof(q.n) == "number" then math.clamp(math.floor(q.n), 0, goal) else 0
+				table.insert(quests, { id = q.id, n = n, done = q.done == true or n >= goal })
+			end
+		end
+		data.daily = { day = math.floor(daily.day), quests = quests, rerolled = daily.rerolled == true, bonusDone = daily.bonusDone == true }
+	end
+	local streak = raw.streak
+	if typeof(streak) == "table" and typeof(streak.day) == "number" and typeof(streak.count) == "number" then
+		data.streak = { day = math.floor(streak.day), count = math.max(0, math.floor(streak.count)) }
+	end
+	local weekly = raw.weekly
+	if typeof(weekly) == "table" and typeof(weekly.week) == "number" then
+		data.weekly = {
+			week = math.floor(weekly.week),
+			steals = if typeof(weekly.steals) == "number" then math.max(0, math.floor(weekly.steals)) else 0,
+			best = if typeof(weekly.best) == "number" then math.max(0, math.floor(weekly.best)) else 0,
+		}
 	end
 	if typeof(raw.basket) == "table" then
 		for _, item in raw.basket do

@@ -19,6 +19,13 @@ local Economy = loadModule("src/shared/Economy.luau", {
 	end,
 })
 
+local Progress = loadModule("src/shared/Progress.luau", {
+	script = { Parent = { Config = Config, Economy = Economy } },
+	require = function(module)
+		return module
+	end,
+})
+
 local passed, failed = 0, 0
 
 local function test(name: string, fn: () -> ())
@@ -1137,6 +1144,170 @@ test("mikstura zawsze się opłaca (co najmniej x1,5 szczęścia, chyba że traf
 			check(with >= math.min(without * 1.5, Config.LuckBalance.maxLuck) - 1e-9, "nożyk " .. level .. " " .. event.id)
 		end
 	end
+end)
+
+print("Grzybopedia (Progress)")
+
+test("każdy gatunek (poza błędnym ognikiem) jest na dokładnie jednej stronie", function()
+	local seen = {}
+	for _, page in Progress.PAGES do
+		for _, species in Progress.pageSpecies(page) do
+			check(not seen[species.id], "dwa razy: " .. species.id)
+			seen[species.id] = true
+		end
+	end
+	for _, species in Config.Species do
+		eq(seen[species.id] == true, not species.mimic, species.id)
+	end
+end)
+
+test("odkrycia: nowy wpis, nowy gatunek, stare true z zapisu", function()
+	local atlas: { [string]: any } = { honey = true }
+	local newEntry, newSpecies = Progress.discover(atlas, "honey", nil)
+	check(not newEntry and not newSpecies, "zwykły miód już był")
+	eq(atlas.honey, 1, "true zamienione na maskę")
+	newEntry, newSpecies = Progress.discover(atlas, "honey", "gold")
+	check(newEntry and not newSpecies, "złoty miód to nowy wpis")
+	newEntry, newSpecies = Progress.discover(atlas, "porcini", "silver")
+	check(newEntry and newSpecies, "pierwszy prawdziwek")
+	check(Progress.has(atlas, "honey", 2) and not Progress.has(atlas, "honey", 1), "maska")
+	local fake, _ = Progress.discover(atlas, "false_wisp", nil)
+	check(not fake, "błędny ognik nie trafia do księgi")
+end)
+
+test("progi strony: złoty liczy się też do srebrnego progu, bonus i tytuł", function()
+	local atlas: { [string]: any } = {}
+	for _, species in Progress.pageSpecies("forest") do
+		Progress.discover(atlas, species.id, "gold")
+	end
+	check(Progress.tierDone(atlas, "forest", 0), "odkryte")
+	check(Progress.tierDone(atlas, "forest", 1), "srebro albo lepiej")
+	check(Progress.tierDone(atlas, "forest", 2), "złoto")
+	check(not Progress.tierDone(atlas, "forest", 3), "tęczy brak")
+	local expected = Progress.TIERS[1].bonus + Progress.TIERS[2].bonus + Progress.TIERS[3].bonus
+	check(math.abs(Progress.atlasBonus(atlas) - expected) < 1e-9, "bonus")
+	eq(Progress.title(atlas), "TITLE_EXPERT_FOREST")
+	eq(#Progress.milestones(atlas), 3)
+	local found, total = Progress.entries(atlas, "forest")
+	eq(found, #Progress.pageSpecies("forest"))
+	eq(total, #Progress.pageSpecies("forest") * 4)
+end)
+
+test("pełna księga daje arcytytuł i rozsądny bonus", function()
+	local atlas: { [string]: any } = {}
+	for _, page in Progress.PAGES do
+		for _, species in Progress.pageSpecies(page) do
+			Progress.discover(atlas, species.id, "rainbow")
+		end
+	end
+	eq(Progress.title(atlas), Progress.GRANDMASTER)
+	local bonus = Progress.atlasBonus(atlas)
+	check(bonus > 0.3 and bonus <= 1, "bonus " .. bonus)
+end)
+
+print("Codzienne zadania i seria logowań (Progress)")
+
+test("trzy różne zadania, ten sam dzień = ten sam zestaw, inny gracz = zwykle inny", function()
+	local a = Progress.newDaily(20000, 111)
+	local b = Progress.newDaily(20000, 111)
+	eq(#a.quests, Progress.QUESTS_PER_DAY)
+	local ids = {}
+	for i, q in a.quests do
+		check(not ids[q.id], "powtórzone zadanie")
+		ids[q.id] = true
+		eq(q.id, b.quests[i].id, "deterministycznie")
+		check(Progress.getQuest(q.id) ~= nil, "znane zadanie")
+	end
+	local differ = false
+	for user = 1, 20 do
+		local other = Progress.newDaily(20000, user)
+		if other.quests[1].id ~= a.quests[1].id then
+			differ = true
+		end
+	end
+	check(differ, "różni gracze mają różne zestawy")
+end)
+
+test("postęp, ukończenie i bonus za wszystkie trzy (tylko raz)", function()
+	local daily = Progress.newDaily(1, 1)
+	local lastAll = false
+	for _, state in daily.quests do
+		local def = Progress.getQuest(state.id)
+		local completed, allDone = Progress.questEvent(daily, def.kind, def.goal + 5)
+		check(#completed >= 1, "ukończone " .. def.id)
+		eq(state.n, def.goal, "postęp nie wychodzi ponad cel")
+		lastAll = allDone
+	end
+	check(lastAll, "wszystkie trzy")
+	local _, again = Progress.questEvent(daily, daily.quests[1].id, 1)
+	check(not again, "bonus tylko raz")
+end)
+
+test("wymiana zadania raz dziennie, nie ukończonego, bez powtórek", function()
+	local daily = Progress.newDaily(5, 9)
+	local before = daily.quests[2].id
+	check(Progress.reroll(daily, 2, 9), "pierwsza wymiana")
+	check(daily.quests[2].id ~= before, "inne zadanie")
+	local ids = {}
+	for _, q in daily.quests do
+		check(not ids[q.id], "powtórka po wymianie")
+		ids[q.id] = true
+	end
+	check(not Progress.reroll(daily, 1, 9), "druga wymiana tego dnia")
+	local fresh = Progress.newDaily(6, 9)
+	fresh.quests[1].done = true
+	check(not Progress.reroll(fresh, 1, 9), "ukończonego nie wymieniamy")
+end)
+
+test("nowy dzień = nowe zadania", function()
+	local data = { daily = Progress.newDaily(10, 3) }
+	check(not Progress.ensureDaily(data, 10, 3), "ten sam dzień")
+	check(Progress.ensureDaily(data, 11, 3), "następny dzień")
+	eq(data.daily.day, 11)
+end)
+
+test("seria logowań: dzień po dniu rośnie, przerwa zeruje, 7 dni w kółko", function()
+	local streak = { day = 0, count = 0 }
+	eq(Progress.claimLogin(streak, 100), 1)
+	eq(Progress.claimLogin(streak, 100), nil, "drugi raz tego samego dnia")
+	for day = 101, 106 do
+		Progress.claimLogin(streak, day)
+	end
+	eq(streak.count, 7)
+	eq(Progress.claimLogin(streak, 107), 1, "po 7 dniach od nowa w cyklu")
+	eq(streak.count, 8, "ale seria trwa")
+	eq(Progress.claimLogin(streak, 110), 1, "przerwa")
+	eq(streak.count, 1)
+end)
+
+test("nagrody rosną z odblokowanym światem", function()
+	local forest = Progress.rewardScale(false, false)
+	local cave = Progress.rewardScale(true, false)
+	local swamp = Progress.rewardScale(true, true)
+	check(forest < cave and cave < swamp, "skala")
+	check(forest >= 50, "minimum")
+end)
+
+print("Rankingi tygodniowe (Progress)")
+
+test("tydzień zaczyna się w poniedziałek", function()
+	-- 2026-10-26 to poniedziałek
+	local monday = 1792972800
+	eq(Progress.weekIndex(monday), Progress.weekIndex(monday + 6 * 86400 + 86399), "cały tydzień")
+	eq(Progress.weekIndex(monday) - 1, Progress.weekIndex(monday - 1), "niedziela to poprzedni")
+end)
+
+test("zakodowane znalezisko: większa wartość wygrywa, da się odczytać gatunek i wariant", function()
+	local a = Progress.encodeFind("porcini", "gold", 225)
+	local b = Progress.encodeFind("honey", "rainbow", 32)
+	check(a > b, "droższe wyżej")
+	local value, species, rank = Progress.decodeFind(a)
+	eq(value, 225)
+	eq(species, "porcini")
+	eq(rank, 2)
+	local data = { weekly = { week = 1, steals = 3, best = a } }
+	check(Progress.ensureWeek(data, 2), "nowy tydzień")
+	eq(data.weekly.steals, 0)
 end)
 
 print(string.format("\n%d ok, %d błędów", passed, failed))

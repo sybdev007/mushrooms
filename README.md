@@ -143,6 +143,21 @@ rojo build -o lantern-forager.rbxlx
   „Borowik · Rzadki” w kolorze klasy; tabliczki w ogródku też mają kolor klasy.
 - **Głębiej = częstsze mutacje** (`Config.DepthLuck`, `Economy.zoneLuck`): pierwsza niebezpieczna strefa świata ×1,
   każda kolejna +0,3 (Gęstwina ×1,3, Jar ×1,6, w jaskini i na bagnach tak samo).
+- **Grzybopedia** (`src/shared/Progress.luau`, `ProgressService`, okno `AtlasPanel`, przycisk 📖 obok języka):
+  każdy gatunek w 4 formach (zwykła, srebrna, złota, tęczowa), strona = świat. Odkryte formy w kolorze,
+  nieodkryte to czarne sylwetki, nieznany gatunek ma nazwę „???”. Progi strony (każdy grzyb odkryty /
+  co najmniej srebrny / złoty / tęczowy) dają na zawsze +3/+3/+5/+10% do ceny przy sprzedaży, a złota i tęczowa
+  strona dają tytuł nad głową (`TitleView`: Znawca Lasu, Mistrz Bagien… i Arcygrzybiarz za wszystko na tęczę).
+  Zapis: `atlas[gatunek]` = maska bitów form (stare `true` = zwykła).
+- **Codzienne zadania i seria logowań** (`Progress.QUESTS`, okno `QuestPanel`, przycisk 📜): 3 zadania dziennie
+  (każdy gracz ma swój zestaw, raz dziennie można jedno wymienić), np. zbierz 30 grzybów, znajdź złotego,
+  ucieknij strażnikowi, donieś łup. Nagrody przychodzą same; za wszystkie trzy premia i 5 min mikstury szczęścia.
+  Seria logowań 7 dni w kółko (7. dzień: mikstura na 10 min), dzień przerwy zeruje serię. Nowy dzień o północy UTC.
+  Nagrody rosną z najdalszym odblokowanym światem (`Progress.rewardScale`).
+- **Rankingi** (`LeaderboardService`, model `World/Boards.luau`, rysuje `LeaderboardView`): trzy tablice na polanie
+  przed chatką: Najbogatsi grzybiarze, Znalezisko tygodnia (brama nad ścieżką) i Złodzieje tygodnia.
+  OrderedDataStore wspólny dla wszystkich serwerów, tygodniowe tablice zerują się w poniedziałek. Bez dostępu do
+  DataStore (Studio bez API) pokazują graczy z tego serwera. Panel DEV: „Księga…”, „Zadania…”, „Rankingi: odśwież”.
 - **Balans szczęścia** (`Config.LuckBalance`, `Economy.luck`): szczęście ×N działa jak N rzutów, z których liczy się
   najlepszy (`1 − (1 − szansa)^N`), więc szanse nigdy nie dochodzą do 100%. Darmowe bonusy (nożyk × głębokość × noc)
   mają malejący zysk i razem zbliżają się do ×5; płatne (Wysyp ×1,5, mikstura ×2) mnożą w pełni; całość najwyżej ×8.

@@ -1,0 +1,108 @@
+--!strict
+-- Tablice rankingów na polanie przed chatką: drewniana rama z daszkiem, ciemna tablica
+-- (ekran z SurfaceGui rysuje klient: LeaderboardView) i dwie latarenki.
+-- Ekrany mają tag "Leaderboard" i atrybut Kind; LeaderboardService wpisuje do nich wyniki.
+
+local CollectionService = game:GetService("CollectionService")
+
+local Palette = require(script.Parent.Palette)
+
+local Boards = {}
+
+export type Placement = { kind: string, position: Vector3, width: number, height: number, lift: number, rows: number }
+
+-- Wyjście z chatki patrzy na +Z, więc tablice stoją przodem do chatki (-Z); patrząc od drzwi
+-- +X jest po lewej. Po bokach polany dwie tablice, nad ścieżką brama z trzecią (wysoko,
+-- żeby nie zasłaniała przejścia, za pierwszą latarnią). Wszystko w środku polany, gdzie nie ma drzew.
+Boards.PLACEMENTS = {
+	{ kind = "richest", position = Vector3.new(16, 0, 12), width = 11, height = 12, lift = 2.2, rows = 8 },
+	{ kind = "rare", position = Vector3.new(0, 0, 16), width = 13, height = 9, lift = 9, rows = 6 },
+	{ kind = "thieves", position = Vector3.new(-16, 0, 12), width = 11, height = 12, lift = 2.2, rows = 8 },
+} :: { Placement }
+
+local function part(parent: Instance, name: string, size: Vector3, cf: CFrame, color: Color3, material: Enum.Material?): Part
+	local p = Instance.new("Part")
+	p.Name = name
+	p.Anchored = true
+	p.Size = size
+	p.CFrame = cf
+	p.Color = color
+	p.Material = material or Enum.Material.Wood
+	p.TopSurface = Enum.SurfaceType.Smooth
+	p.BottomSurface = Enum.SurfaceType.Smooth
+	p.Parent = parent
+	return p
+end
+
+local function lantern(parent: Instance, cf: CFrame)
+	local cage = part(parent, "Lantern", Vector3.new(0.9, 1.2, 0.9), cf, Color3.fromRGB(60, 50, 44), Enum.Material.Metal)
+	cage.CanCollide = false
+	local glow = part(parent, "Glow", Vector3.new(0.6, 0.8, 0.6), cf, Color3.fromRGB(255, 196, 92), Enum.Material.Neon)
+	glow.CanCollide = false
+	local light = Instance.new("PointLight")
+	light.Color = Color3.fromRGB(255, 190, 110)
+	light.Range = 14
+	light.Brightness = 1.4
+	light.Shadows = false
+	light.Parent = glow
+end
+
+-- Buduje jedną tablicę; zwraca ekran (część z SurfaceGui po stronie klienta)
+local function buildBoard(parent: Instance, placement: Placement): BasePart
+	local model = Instance.new("Model")
+	model.Name = "Leaderboard_" .. placement.kind
+	local w, h, lift = placement.width, placement.height, placement.lift
+	-- Układ lokalny: przód tablicy patrzy na -Z świata (w stronę chatki)
+	local base = CFrame.lookAt(placement.position, placement.position - Vector3.new(0, 0, 1))
+	local centerY = lift + h / 2
+
+	-- Słupy po bokach, aż do ziemi
+	for _, side in { -1, 1 } do
+		local x = side * (w / 2 + 0.5)
+		part(model, "Post", Vector3.new(1, lift + h + 1.2, 1), base * CFrame.new(x, (lift + h + 1.2) / 2, 0), Palette.log)
+		-- Kamień pod słupem
+		local stone = part(model, "Stone", Vector3.new(1.8, 0.6, 1.8), base * CFrame.new(x, 0.3, 0), Palette.stone, Enum.Material.Slate)
+		stone.CanCollide = false
+		lantern(model, base * CFrame.new(x, lift + h + 0.2, -1.1))
+	end
+	-- Rama i daszek
+	part(model, "Back", Vector3.new(w + 0.4, h + 0.4, 0.4), base * CFrame.new(0, centerY, 0.3), Palette.plankDark)
+	part(model, "FrameTop", Vector3.new(w + 1.4, 0.6, 0.8), base * CFrame.new(0, lift + h + 0.3, 0), Palette.plank)
+	part(model, "FrameBottom", Vector3.new(w + 1.4, 0.6, 0.8), base * CFrame.new(0, lift - 0.3, 0), Palette.plank)
+	for _, side in { -1, 1 } do
+		local roof = part(
+			model,
+			"Roof",
+			Vector3.new(w + 3, 0.35, 1.8),
+			base * CFrame.new(0, lift + h + 1.25, side * 0.55) * CFrame.Angles(side * math.rad(28), 0, 0),
+			Palette.roof
+		)
+		roof.Material = Enum.Material.WoodPlanks
+	end
+	-- Mech na daszku dla klimatu
+	local moss = part(model, "Moss", Vector3.new(w + 2.6, 0.25, 0.9), base * CFrame.new(0, lift + h + 1.75, 0), Palette.moss, Enum.Material.Grass)
+	moss.CanCollide = false
+
+	local screen = part(model, "Screen", Vector3.new(w, h, 0.2), base * CFrame.new(0, centerY, 0), Color3.fromRGB(34, 26, 20), Enum.Material.SmoothPlastic)
+	screen.CanCollide = false
+	screen:SetAttribute("Kind", placement.kind)
+	screen:SetAttribute("Rows", placement.rows)
+	CollectionService:AddTag(screen, "Leaderboard")
+
+	model.PrimaryPart = screen
+	model.Parent = parent
+	return screen
+end
+
+function Boards.build(parent: Instance): { [string]: BasePart }
+	local folder = Instance.new("Folder")
+	folder.Name = "Leaderboards"
+	local screens = {}
+	for _, placement in Boards.PLACEMENTS do
+		screens[placement.kind] = buildBoard(folder, placement)
+	end
+	folder.Parent = parent
+	return screens
+end
+
+return Boards

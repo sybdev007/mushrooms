@@ -38,6 +38,12 @@ local ACTIONS: { { id: string, label: string } } = {
 	{ id = "tpLair", label = "TP: skarbiec Skarbnika" },
 	{ id = "tpSwamp", label = "TP: przystań (bagna)" },
 	{ id = "tpPond", label = "TP: staw Utopca" },
+	{ id = "atlasGold", label = "Księga: wszystko złote" },
+	{ id = "atlasRainbow", label = "Księga: wszystko" },
+	{ id = "atlasClear", label = "Księga: wyczyść" },
+	{ id = "questsDone", label = "Zadania: ukończ" },
+	{ id = "questsNew", label = "Zadania: nowy dzień" },
+	{ id = "boardsRefresh", label = "Rankingi: odśwież" },
 }
 
 local gui = Instance.new("ScreenGui")
@@ -66,9 +72,13 @@ corner(toggle)
 local toggleScale = Instance.new("UIScale")
 toggleScale.Parent = toggle
 
-local panel = Instance.new("Frame")
+-- Przewijany: przycisków jest dużo, a na telefonie ekran jest niski
+local panel = Instance.new("ScrollingFrame")
 panel.Name = "Panel"
-panel.Size = UDim2.fromOffset(330, 4 + math.ceil(#ACTIONS / 2) * 40 + 4)
+panel.Size = UDim2.fromOffset(330, 360)
+panel.CanvasSize = UDim2.fromOffset(0, 6 + math.ceil(#ACTIONS / 2) * 40 + 6)
+panel.ScrollBarThickness = 6
+panel.BorderSizePixel = 0
 panel.BackgroundColor3 = Color3.fromRGB(30, 20, 40)
 panel.BackgroundTransparency = 0.1
 panel.Visible = false
