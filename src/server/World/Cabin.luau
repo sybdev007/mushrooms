@@ -1,13 +1,15 @@
 --!strict
--- Chatka grzybiarza z bali: ganek, dwuspadowy dach, komin z dymem, kominek,
--- lada do sprzedaży i suszarnia z grzybami (zapowiedź przyszłej mechaniki).
+-- Chatka grzybiarza z bali: ganek z ławką i doniczkami, dwuspadowy dach, komin z dymem, kominek,
+-- lada skupu ze skupywaczem (NPC), półki ze słoikami, stolik z lampką-muchomorem i suszarnia z grzybami.
 -- Front patrzy w stronę lasu (+Z), drzwi na środku.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Config = require(ReplicatedStorage.Shared.Config)
 local Economy = require(ReplicatedStorage.Shared.Economy)
 local Palette = require(script.Parent.Palette)
 local Props = require(script.Parent.Props)
+local Merchant = require(script.Parent.Merchant)
 
 local Cabin = {}
 
@@ -361,15 +363,15 @@ local function buildInterior(m: Model)
 	}))
 
 	-- Lada skupu grzybów przy tylnej ścianie
-	make("Part", { Name = "Counter", Size = Vector3.new(10, 3, 2.6), Position = Vector3.new(-5, FLOOR_TOP + 1.5, BACK_Z + 2.4), Color = Palette.plankDark, Parent = m })
-	make("Part", { Size = Vector3.new(10.6, 0.4, 3), Position = Vector3.new(-5, FLOOR_TOP + 3.2, BACK_Z + 2.4), Color = Palette.plank, Parent = m })
+	make("Part", { Name = "Counter", Size = Vector3.new(10, 3, 2.6), Position = Vector3.new(-5, FLOOR_TOP + 1.5, BACK_Z + 3.4), Color = Palette.plankDark, Parent = m })
+	make("Part", { Size = Vector3.new(10.6, 0.4, 3), Position = Vector3.new(-5, FLOOR_TOP + 3.2, BACK_Z + 3.4), Color = Palette.plank, Parent = m })
 	-- Waga i kosz z grzybami na ladzie
-	decor(make("Part", { Size = Vector3.new(1.6, 0.3, 1.6), Position = Vector3.new(-8, FLOOR_TOP + 3.55, BACK_Z + 2.4), Color = Palette.metal, Parent = m }))
-	decor(make("Part", { Size = Vector3.new(0.3, 1.2, 0.3), Position = Vector3.new(-8, FLOOR_TOP + 4.1, BACK_Z + 2.4), Color = Palette.metal, Parent = m }))
+	decor(make("Part", { Size = Vector3.new(1.6, 0.3, 1.6), Position = Vector3.new(-8, FLOOR_TOP + 3.55, BACK_Z + 3.4), Color = Palette.metal, Parent = m }))
+	decor(make("Part", { Size = Vector3.new(0.3, 1.2, 0.3), Position = Vector3.new(-8, FLOOR_TOP + 4.1, BACK_Z + 3.4), Color = Palette.metal, Parent = m }))
 	local basket = decor(make("Part", {
 		Shape = Enum.PartType.Cylinder,
 		Size = Vector3.new(1.2, 2.2, 2.2),
-		CFrame = CFrame.new(-3, FLOOR_TOP + 4, BACK_Z + 2.4) * VERTICAL,
+		CFrame = CFrame.new(-3, FLOOR_TOP + 4, BACK_Z + 3.4) * VERTICAL,
 		Color = Color3.fromRGB(170, 120, 60),
 		Parent = m,
 	}))
@@ -390,7 +392,7 @@ local function buildInterior(m: Model)
 		make("Part", {
 			Name = "Crate",
 			Size = Vector3.new(2, 2, 2),
-			Position = Vector3.new(0, FLOOR_TOP + 1, BACK_Z + 2.4) + offset,
+			Position = Vector3.new(0, FLOOR_TOP + 1, BACK_Z + 3.4) + offset,
 			Orientation = Vector3.new(0, i * 7, 0),
 			Color = Palette.plank,
 			Parent = m,
@@ -500,10 +502,123 @@ end
 local function buildStations(m: Model)
 	stationRing(m, "oil", Color3.fromRGB(255, 186, 80))
 	stationRing(m, "shop", Color3.fromRGB(150, 226, 110))
-	-- Szyld nad ladą na tylnej ścianie, napisem do środka chatki
-	Props.signBoard(m, CFrame.new(-5, FLOOR_TOP + 6.6, BACK_Z + 1), Vector3.new(7.5, 1.6, 0.3), "SIGN_SHOP", Enum.NormalId.Back)
+	-- Szyld nad ladą na tylnej ścianie, napisem do środka chatki (wysoko, nad kapeluszem skupywacza)
+	Props.signBoard(m, CFrame.new(-5, FLOOR_TOP + 8.4, BACK_Z + 1), Vector3.new(7.5, 1.6, 0.3), "SIGN_SHOP", Enum.NormalId.Back)
+	-- Skupywacz za ladą, przodem do wnętrza
+	local merchant = Config.Merchant
+	local at = Vector3.new(merchant.x, FLOOR_TOP, merchant.z)
+	Merchant.build(m, CFrame.lookAt(at, at + Vector3.new(0, 0, 1)), merchant.promptDistance)
 	-- Szyld nad beczką na lewej ścianie
 	Props.signBoard(m, CFrame.new(-HALF_W + 1, FLOOR_TOP + 5.4, Economy.station("oil", "forest").z), Vector3.new(0.3, 1.4, 5.6), "SIGN_OIL", Enum.NormalId.Right)
+end
+
+local function jar(m: Model, base: Vector3, color: Color3)
+	decor(make("Part", {
+		Name = "Jar",
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(0.9, 0.7, 0.7),
+		CFrame = CFrame.new(base + Vector3.new(0, 0.45, 0)) * VERTICAL,
+		Color = Color3.fromRGB(200, 230, 240),
+		Material = Enum.Material.Glass,
+		Transparency = 0.45,
+		Parent = m,
+	}))
+	decor(make("Part", {
+		Name = "JarLid",
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(0.14, 0.74, 0.74),
+		CFrame = CFrame.new(base + Vector3.new(0, 0.95, 0)) * VERTICAL,
+		Color = Palette.metal,
+		Parent = m,
+	}))
+	-- Mały świecący grzybek w słoiku
+	local cap = decor(make("Part", {
+		Name = "JarShroom",
+		Size = Vector3.new(0.42, 0.42, 0.42),
+		Position = base + Vector3.new(0, 0.55, 0),
+		Color = color,
+		Material = Enum.Material.Neon,
+		Parent = m,
+	}))
+	local mesh = Instance.new("SpecialMesh")
+	mesh.MeshType = Enum.MeshType.Sphere
+	mesh.Scale = Vector3.new(1, 0.6, 1)
+	mesh.Parent = cap
+end
+
+-- Wystrój: półki ze słoikami na lewej ścianie, stolik z lampką-muchomorem i stołkami,
+-- ławka i doniczki z kwiatami na ganku
+local function buildDecor(m: Model)
+	-- Półki na lewej ścianie (między beczką z olejem a ladą)
+	local shelfX = -HALF_W + 1.2
+	local jarColors = {
+		Color3.fromRGB(110, 255, 214),
+		Color3.fromRGB(255, 120, 200),
+		Color3.fromRGB(150, 120, 255),
+		Color3.fromRGB(255, 200, 80),
+	}
+	for i, y in { 3.2, 5.2 } do
+		make("Part", { Name = "Shelf", Size = Vector3.new(1.4, 0.25, 7), Position = Vector3.new(shelfX, FLOOR_TOP + y, -26.5), Color = Palette.plank, Parent = m })
+		for _, z in { -29.2, -23.8 } do
+			decor(make("Part", { Size = Vector3.new(0.25, 0.7, 0.25), Position = Vector3.new(shelfX - 0.45, FLOOR_TOP + y - 0.45, z), Color = Palette.plankDark, Parent = m }))
+		end
+		for k = 1, 4 do
+			jar(m, Vector3.new(shelfX, FLOOR_TOP + y + 0.12, -29.4 + k * 1.45), jarColors[(k + i) % #jarColors + 1])
+		end
+	end
+	local glow = m:FindFirstChild("JarShroom")
+	if glow then
+		local shelfLight = Instance.new("PointLight")
+		shelfLight.Color = Color3.fromRGB(170, 220, 255)
+		shelfLight.Range = 8
+		shelfLight.Brightness = 0.6
+		shelfLight.Parent = glow
+	end
+
+	-- Okrągły stolik z lampką-muchomorem i dwa stołki (po prawej, z dala od drogi do lady)
+	local tableAt = Vector3.new(6, FLOOR_TOP, -22.5)
+	make("Part", { Name = "TableLeg", Shape = Enum.PartType.Cylinder, Size = Vector3.new(2.4, 0.5, 0.5), CFrame = CFrame.new(tableAt + Vector3.new(0, 1.2, 0)) * VERTICAL, Color = Palette.plankDark, Parent = m })
+	make("Part", { Name = "TableTop", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.3, 3.4, 3.4), CFrame = CFrame.new(tableAt + Vector3.new(0, 2.5, 0)) * VERTICAL, Color = Palette.plank, Parent = m })
+	for _, dx in { -2.4, 2.4 } do
+		make("Part", { Name = "Stool", Shape = Enum.PartType.Cylinder, Size = Vector3.new(1.4, 1.2, 1.2), CFrame = CFrame.new(tableAt + Vector3.new(dx, 0.7, 0.4)) * VERTICAL, Color = Palette.plankDark, Parent = m })
+	end
+	decor(make("Part", { Name = "LampStem", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.7, 0.3, 0.3), CFrame = CFrame.new(tableAt + Vector3.new(0, 3, 0)) * VERTICAL, Color = Color3.fromRGB(236, 228, 212), Parent = m }))
+	local lampCap = decor(make("Part", {
+		Name = "LampCap",
+		Size = Vector3.new(1.2, 0.8, 1.2),
+		Position = tableAt + Vector3.new(0, 3.45, 0),
+		Color = Color3.fromRGB(230, 60, 50),
+		Material = Enum.Material.Neon,
+		Parent = m,
+	}))
+	local lampMesh = Instance.new("SpecialMesh")
+	lampMesh.MeshType = Enum.MeshType.Sphere
+	lampMesh.Parent = lampCap
+	local lampLight = Instance.new("PointLight")
+	lampLight.Color = Color3.fromRGB(255, 150, 120)
+	lampLight.Range = 9
+	lampLight.Brightness = 0.7
+	lampLight.Parent = lampCap
+
+	-- Ganek: ławka po lewej od drzwi i doniczki z kwiatami przy schodkach
+	local deckTop = 1
+	local benchZ = FRONT_Z + 2.2
+	make("Part", { Name = "BenchSeat", Size = Vector3.new(4.5, 0.35, 1.3), Position = Vector3.new(-8, deckTop + 1.1, benchZ), Color = Palette.plank, Parent = m })
+	make("Part", { Name = "BenchBack", Size = Vector3.new(4.5, 1.2, 0.25), Position = Vector3.new(-8, deckTop + 1.9, benchZ - 0.55), Color = Palette.plank, Parent = m })
+	for _, dx in { -1.9, 1.9 } do
+		make("Part", { Name = "BenchLeg", Size = Vector3.new(0.3, 1, 1.1), Position = Vector3.new(-8 + dx, deckTop + 0.5, benchZ), Color = Palette.plankDark, Parent = m })
+	end
+	local flowerColors = { Color3.fromRGB(236, 96, 96), Color3.fromRGB(250, 210, 90), Color3.fromRGB(180, 130, 240) }
+	for side = -1, 1, 2 do
+		local pot = Vector3.new(side * 4.2, deckTop, FRONT_Z + 5.2)
+		make("Part", { Name = "Pot", Shape = Enum.PartType.Cylinder, Size = Vector3.new(1.1, 1.2, 1.2), CFrame = CFrame.new(pot + Vector3.new(0, 0.55, 0)) * VERTICAL, Color = Color3.fromRGB(180, 96, 60), Parent = m })
+		for k = 1, 3 do
+			local angle = k * 2.1
+			local flower = pot + Vector3.new(math.cos(angle) * 0.3, 1.5 + k * 0.08, math.sin(angle) * 0.3)
+			decor(make("Part", { Name = "Flower", Shape = Enum.PartType.Ball, Size = Vector3.new(0.5, 0.5, 0.5), Position = flower, Color = flowerColors[k], Parent = m }))
+			decor(make("Part", { Name = "FlowerStem", Size = Vector3.new(0.1, 0.6, 0.1), Position = flower - Vector3.new(0, 0.4, 0), Color = Color3.fromRGB(70, 120, 56), Parent = m }))
+		end
+	end
 end
 
 -- Buduje chatkę i zwraca CFrame miejsca startu (w środku, twarzą do drzwi i lasu)
@@ -512,6 +627,7 @@ function Cabin.build(parent: Instance): CFrame
 	m.Name = "Cabin"
 	buildInterior(m)
 	buildStations(m)
+	buildDecor(m)
 	buildWalls(m)
 	buildRoof(m)
 	buildChimney(m)

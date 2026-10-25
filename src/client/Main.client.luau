@@ -23,10 +23,13 @@ local PortalView = require(script.Parent.PortalView)
 local DevPanel = require(script.Parent.DevPanel)
 local ShopPanel = require(script.Parent.ShopPanel)
 local GardenPrompts = require(script.Parent.GardenPrompts)
+local SellPanel = require(script.Parent.SellPanel)
+local MerchantView = require(script.Parent.MerchantView)
 
 local player = Players.LocalPlayer
 
 local PickMushroom = Remotes.get("PickMushroom")
+local lastCampShop: string? = nil
 local SellBasket = Remotes.get("SellBasket")
 local BuyUpgrade = Remotes.get("BuyUpgrade")
 
@@ -45,6 +48,14 @@ local upgrades: { [string]: number } = {} -- poziomy ulepszeń (knoty zmniejszaj
 Signs.start()
 PortalView.start()
 GardenPrompts.start()
+MerchantView.start()
+
+-- Skąd wylatują monety po sprzedaży (przycisk w panelu sprzedaży)
+local sellShowerFrom: Vector2? = nil
+SellPanel.onSell(function(indices, key, from)
+	sellShowerFrom = from
+	SellBasket:FireServer(indices, key)
+end)
 
 Remotes.get("StateUpdate").OnClientEvent:Connect(function(state)
 	lanternRange = state.lanternRange
@@ -56,6 +67,10 @@ Remotes.get("StateUpdate").OnClientEvent:Connect(function(state)
 	PortalView.setUnlocked({ cave = state.caveUnlocked == true, swamp = state.swampUnlocked == true })
 	DevPanel.setEnabled(state.dev == true)
 	ShopPanel.update(state, Economy.isSafeZone(state.zone))
+	-- Lista grzybów przychodzi tylko po zmianie koszyka
+	if state.basket then
+		SellPanel.setBasket(state.basket, state.basketKey)
+	end
 	Hud.update(state)
 end)
 
@@ -229,7 +244,8 @@ Remotes.get("Notify").OnClientEvent:Connect(function(payload)
 	end
 	if payload.key == "MSG_SOLD" or payload.key == "MSG_COLLECTED" then
 		Effects.sold()
-		Hud.coinShower(tonumber(payload.args and payload.args[1]) or 0)
+		Hud.coinShower(tonumber(payload.args and payload.args[1]) or 0, if payload.key == "MSG_SOLD" then sellShowerFrom else nil)
+		sellShowerFrom = nil
 	elseif payload.key == "MSG_UPGRADED" then
 		local character = player.Character
 		local root = character and character:FindFirstChild("HumanoidRootPart")
@@ -247,9 +263,6 @@ local function pick()
 end
 
 Hud.onPick(pick)
-Hud.onSell(function()
-	SellBasket:FireServer()
-end)
 Hud.onBuy(function(upgradeId)
 	BuyUpgrade:FireServer(upgradeId)
 end)
@@ -331,9 +344,22 @@ RunService.RenderStepped:Connect(function(dt)
 	local heartbeat = if not safe and oilFraction < Config.OilLowFraction then 1 - oilFraction / Config.OilLowFraction * 0.6 else 0
 	Effects.setHeartbeat(if chased then 1 else heartbeat)
 
-	-- Panel sprzedaży i ulepszeń tylko w kręgu przy ladzie (w chatce albo w obozowisku)
+	-- Sprzedaż: w chatce przez rozmowę ze skupywaczem, w obozowiskach panel otwiera się w kręgu przy kramiku.
+	-- Gdy gracz odejdzie, panel się zamyka.
 	local shop = Economy.stationAt("shop", position.X, position.Z)
-	Hud.setShop(if shop then shop.world else nil)
+	local campShop = if shop and shop.world ~= "forest" then shop.world else nil
+	if campShop and campShop ~= lastCampShop then
+		SellPanel.open()
+	end
+	lastCampShop = campShop
+	if SellPanel.isOpen() then
+		local merchant = Config.Merchant
+		local dx, dz = position.X - merchant.x, position.Z - merchant.z
+		local nearMerchant = dx * dx + dz * dz <= (merchant.sellDistance - 1) ^ 2
+		if not nearMerchant and not Economy.atStation("shop", position.X, position.Z, 1) then
+			SellPanel.close()
+		end
+	end
 
 	-- Po powrocie z niepełną latarnią: podpowiedź, gdzie jest olej (wnętrze chatki albo obozowisko)
 	local inCabin = safe and (zoneDef.world == "cave" or position.Z < -13)

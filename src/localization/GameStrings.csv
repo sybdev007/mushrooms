@@ -65,7 +65,7 @@ MUT_MOSSY,Mossy,,,Mech
 MUT_GLOWING,Glowing,,,Blask
 MSG_MUTATION,{1}:{3}! ×{2},,,{1}:{3}! ×{2}
 MSG_RARE_FIND,Rare find! {2}: {1}{3},,,Wielkie znalezisko! {2}: {1}{3}
-SIGN_SHOP,Trading Post,,,Skup i ulepszenia
+SIGN_SHOP,Mushroom Buyer,,,Skup grzybów
 SIGN_OIL,Lantern Oil,,,Olej do latarni
 PROMPT_TAKE_CROWN,Take,,,Zabierz
 MSG_HOARD_DROP,The Leshy caught {1}! Crowns back in the nest: {2},,,Leszy dopadł gracza {1}! Korony wróciły do gniazda: {2}
@@ -209,3 +209,26 @@ MSG_NIGHT_FULL_MOON,🌕 Full moon! Mutations are more common tonight.,,,🌕 Pe
 MSG_NIGHT_RAIN,🌧️ Rain! Mushrooms regrow twice as fast.,,,🌧️ Deszcz! Grzyby odrastają dwa razy szybciej.
 MSG_NIGHT_MIST,🌫️ Thick mist: you see less. Mutations are more common.,,,🌫️ Gęsta mgła: widać mniej. Za to mutacje są częstsze.
 MSG_NIGHT_BLOOD_MOON,🩸 Blood moon! Lots of mutations... and the forest is restless.,,,🩸 Krwawy księżyc! Mnóstwo mutacji... a las jest niespokojny.
+NPC_NAME,Mr. Porcini,,,Pan Borowik
+NPC_ROLE,Mushroom buyer,,,Skup grzybów
+NPC_SELL,Sell mushrooms,,,Sprzedaj grzyby
+NPC_HELLO_1,What have you got in that basket?,,,Co tam masz w koszyku?
+NPC_HELLO_2,Ooh fresh from the forest! Let me see.,,,O! Prosto z lasu! Pokaż no.
+NPC_HELLO_3,I pay well for the rare ones!,,,Za rzadkie płacę najlepiej!
+NPC_EMPTY,Your basket is empty. Come back with mushrooms!,,,Koszyk pusty. Wracaj z grzybami!
+SELL_ONE,Sell,,,Sprzedaj
+SELL_SELECTED,Sell selected ({1}),,,Sprzedaj zaznaczone ({1})
+SELL_ALL,Sell all,,,Sprzedaj wszystko
+SELL_SELECT_ALL,Select all,,,Zaznacz wszystko
+SELL_UNSELECT_ALL,Unselect,,,Odznacz
+SELL_EMPTY,No mushrooms to sell yet.,,,Nie masz jeszcze grzybów do sprzedania.
+UPG_BUTTON,Upgrades,,,Ulepszenia
+UPG_TITLE,Upgrades,,,Ulepszenia
+UPG_TAB_FOREST,Forest,,,Las
+UPG_TAB_CAVE,Cave,,,Jaskinia
+UPG_TAB_SWAMP,Swamp,,,Bagna
+UPG_HINT_HERE,Tap a card to upgrade.,,,Kliknij kartę żeby ulepszyć.
+UPG_HINT_FOREST,Forest upgrades: buy them at the cabin or the clearing.,,,Leśne ulepszenia kupisz w chatce albo na polanie.
+UPG_HINT_CAVE,Cave upgrades: buy them in the miners' camp.,,,Ulepszenia jaskini kupisz w obozowisku górników.
+UPG_HINT_SWAMP,Swamp upgrades: buy them at the fishermen's jetty.,,,Ulepszenia bagien kupisz na przystani rybaków.
+MSG_UPGRADE_WHERE,You can't upgrade here. Go back to a safe camp!,,,Tu nie ulepszysz. Wróć do bezpiecznego obozu!

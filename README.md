@@ -67,6 +67,9 @@ rojo build -o lantern-forager.rbxlx
 | `src/client/Effects.luau` | StarterPlayerScripts.Client | Dźwięki, świetliki, iskry i „+N” przy zbieraniu, pierścień ulepszenia |
 | `src/client/Warnings.luau` | StarterPlayerScripts.Client | Czerwona winieta, baner „Wracaj!” ze strzałką, oczy Leszego |
 | `src/client/Signs.luau` | StarterPlayerScripts.Client | Napisy na tabliczkach w języku gracza |
+| `src/client/SellPanel.luau` | StarterPlayerScripts.Client | Panel sprzedaży u skupywacza: karty grzybów, sprzedaj jeden / zaznaczone / wszystko |
+| `src/client/MerchantView.luau` | StarterPlayerScripts.Client | Skupywacz: teksty, obracanie się do gracza, otwieranie panelu sprzedaży |
+| `src/server/World/Merchant.luau` | ServerScriptService.Server | Model skupywacza (Pan Borowik) z kapeluszem-muchomorem |
 | `src/client/ShopPanel.luau` | StarterPlayerScripts.Client | Sklep za Robuxy, ratunek koszyka, szybki olej, liczniki Wysypu i mikstury |
 | `src/client/Purchases.luau` | StarterPlayerScripts.Client | Okno płatności Robloxa i ceny produktów |
 | `src/client/GardenPrompts.luau` | StarterPlayerScripts.Client | Pokazuje graczowi właściwe przyciski w ogródkach |
@@ -85,7 +88,13 @@ rojo build -o lantern-forager.rbxlx
 - **Latarnia zgaśnie** → ekran ciemnieje, gracz wraca do chatki i traci wszystkie grzyby z koszyka.
 - **Grzyby** są osobne dla każdego gracza (nikt nikomu nie wyzbiera), odrastają po 90 s. Mutacje: Srebro ×1,5, Złoto ×3, Tęcza ×8, plus cechy od miejsca (Mech, Blask).
 - W **Gęstwinie i Jarze** widać tylko grzyby w zasięgu latarni. Złote i Świecący Muchomor widać zawsze, jako przynętę.
-- **Chatka**: panel sprzedaży i ulepszeń otwiera się tylko w zielonym kręgu przy ladzie (`Config.Stations.shop`); serwer też to sprawdza. 5 ulepszeń (latarnia, zbiornik oleju, koszyk, buty, kłódka suszarni).
+- **Chatka**: za ladą stoi skupywacz **Pan Borowik** (`Config.Merchant`). Przycisk „Sprzedaj grzyby” otwiera panel
+  z kartami grzybów z koszyka (kapelusz w kolorze gatunku lub mutacji, nazwa w kolorze klasy, cena): można sprzedać
+  jeden, zaznaczone albo wszystko. Serwer sprawdza odległość od skupywacza i odcisk koszyka. W obozowiskach panel
+  otwiera się w kręgu przy kramiku. W chatce są też półki ze świecącymi słoikami, stolik z lampką-muchomorem,
+  a na ganku ławka i doniczki.
+- **Ulepszenia**: zielony przycisk „Ulepszenia” przy prawej krawędzi ekranu (ikona rośnie i robi obrót po najechaniu).
+  Panel ma zakładki Las / Jaskinia / Bagna; kupuje się w bezpiecznej strefie danego świata (leśne w chatce i na polanie).
 - **Gniazdo Leszego** (koniec Jaru, `Config.Grove`): krąg kamieni z 3 Koronami Leszego (220 monet, każdy gracz ma własne,
   odrastają po 4 min). Zerwanie budzi Leszego: rusza z gniazda po 2 s, przenika przez drzewa i biegnie 22 studs/s.
   Złapie = tracisz koszyk, a Leszy odnosi zabrane korony do **skarbca** na środku gniazda (`HoardService`). Skarbiec jest wspólny:

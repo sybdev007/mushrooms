@@ -251,6 +251,40 @@ local function csvHas(key: string): boolean
 	return string.find(fs.readFile("src/localization/GameStrings.csv"), "\n" .. key .. ",", 1, true) ~= nil
 end
 
+print("Sprzedaż u skupywacza")
+test("indeksy do sprzedaży: tylko liczby całkowite z koszyka, bez powtórzeń, malejąco", function()
+	local valid = Economy.validSellIndices({ 1, 3, 2 }, 3)
+	check(valid ~= nil, "poprawna lista odrzucona")
+	eq(table.concat(valid :: { number }, ","), "3,2,1", "kolejność do usuwania")
+	eq(Economy.validSellIndices({ 1, 1 }, 3), nil, "powtórzenie")
+	eq(Economy.validSellIndices({ 0 }, 3), nil, "zero")
+	eq(Economy.validSellIndices({ 4 }, 3), nil, "poza koszykiem")
+	eq(Economy.validSellIndices({ 1.5 }, 3), nil, "ułamek")
+	eq(Economy.validSellIndices({ "1" }, 3), nil, "tekst")
+	eq(Economy.validSellIndices({}, 3), nil, "pusta lista")
+	eq(Economy.validSellIndices("1", 3), nil, "nie tabela")
+	eq(Economy.validSellIndices({ 1, 2, 3, 4 }, 3), nil, "więcej niż w koszyku")
+end)
+
+test("odcisk koszyka zmienia się, gdy zmieni się zawartość albo kolejność", function()
+	local a = { { s = "porcini" }, { s = "honey", v = "gold" } }
+	local b = { { s = "honey", v = "gold" }, { s = "porcini" } }
+	check(Economy.basketKey(a) == Economy.basketKey({ { s = "porcini" }, { s = "honey", v = "gold" } }), "ten sam koszyk")
+	check(Economy.basketKey(a) ~= Economy.basketKey(b), "kolejność")
+	check(Economy.basketKey(a) ~= Economy.basketKey({ { s = "porcini" } }), "mniej grzybów")
+	check(Economy.basketKey({ { s = "porcini", x = { "mossy" } } }) ~= Economy.basketKey({ { s = "porcini" } }), "cecha")
+	eq(Economy.basketKey({}), "", "pusty")
+end)
+
+test("skupywacz stoi w chatce za ladą, a sprzedaż sięga do kręgu przed nią", function()
+	local merchant = Config.Merchant
+	check(merchant.x > -12 and merchant.x < 12 and merchant.z > -34.3 and merchant.z < -32, "skupywacz poza miejscem za ladą")
+	local shop = Economy.station("shop", "forest")
+	local distance = math.sqrt((shop.x - merchant.x) ^ 2 + (shop.z - merchant.z) ^ 2)
+	check(distance + shop.radius <= merchant.sellDistance, "krąg przed ladą za daleko od skupywacza")
+	check(merchant.promptDistance < merchant.sellDistance, "przycisk rozmowy dalej niż zasięg sprzedaży")
+end)
+
 print("Nożyk, klasy, głębokość")
 test("nożyk: od zwykłych szans do co najmniej podwójnych, każdy poziom ma kolor", function()
 	eq(Economy.upgradeStat("knife", 0), 1, "scyzoryk bez premii")
@@ -829,12 +863,14 @@ test("każdy klucz HUD_/MSG_/ENGULF_/ZONE_ użyty w kodzie jest w CSV", function
 		"src/server/GardenService.luau",
 		"src/server/ChaseService.luau",
 		"src/client/GardenPrompts.luau",
+		"src/client/SellPanel.luau",
+		"src/client/MerchantView.luau",
 	}
 	for _, path in files do
 		local source = fs.readFile(path)
 		for key in string.gmatch(source, '"((%u+)_[%u_]+)"') do
 			local prefix = string.match(key, "^(%u+)_")
-			local checked = { HUD = true, MSG = true, ENGULF = true, ZONE = true, RACK = true, CAUGHT = true, GROVE = true, GARDEN = true }
+			local checked = { HUD = true, MSG = true, ENGULF = true, ZONE = true, RACK = true, CAUGHT = true, GROVE = true, GARDEN = true, NPC = true, SELL = true, UPG = true }
 			if checked[prefix] then
 				check(csvKeys[key], path .. ": brak " .. key)
 			end

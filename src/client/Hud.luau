@@ -76,7 +76,6 @@ end
 
 local callbacks = {
 	pick = {} :: { () -> () },
-	sell = {} :: { () -> () },
 	buy = {} :: { (string) -> () },
 }
 
@@ -246,57 +245,156 @@ pickCaptionStroke.Thickness = 1.5
 pickCaptionStroke.Color = Color3.fromRGB(90, 40, 10)
 pickCaptionStroke.Parent = pickCaption
 
--- Panel chatki: sprzedaż i ulepszenia (karty po dwie w rzędzie, rzędów tyle, ile trzeba)
-local UPGRADE_ROWS = math.ceil(math.max(#Config.UpgradeOrder, #Config.CaveUpgradeOrder) / 2)
-local CARD_ROW_HEIGHT = 56
-local PANEL_HEIGHT = 16 + 56 + UPGRADE_ROWS * CARD_ROW_HEIGHT
-local function panelHeight(rows: number): number
-	return 16 + 56 + rows * CARD_ROW_HEIGHT
-end
-local cabinPanel = panel("CabinPanel", gui, UDim2.new(0.94, 0, 0, PANEL_HEIGHT), UDim2.new(0.5, 0, 1, -14), Vector2.new(0.5, 1))
-cabinPanel.Visible = false -- pokazuje go Hud.setShop przy ladzie
-local panelSize = Instance.new("UISizeConstraint")
-panelSize.MaxSize = Vector2.new(600, PANEL_HEIGHT)
-panelSize.Parent = cabinPanel
-local panelPadding = Instance.new("UIPadding")
-panelPadding.PaddingLeft = UDim.new(0, 8)
-panelPadding.PaddingRight = UDim.new(0, 8)
-panelPadding.PaddingTop = UDim.new(0, 8)
-panelPadding.PaddingBottom = UDim.new(0, 8)
-panelPadding.Parent = cabinPanel
+-- ===== Ulepszenia: przycisk z prawej strony i panel z kartami =====
+-- Przycisk ma animację: po najechaniu (albo dotknięciu) ikona rośnie i robi obrót.
+-- Panel ma zakładki światów (Las, Jaskinia, Bagna); kupować można w bezpiecznej strefie danego świata.
 
-local sellButton = Instance.new("TextButton")
-sellButton.Name = "Sell"
-sellButton.Size = UDim2.new(1, 0, 0, 48)
-sellButton.Font = TITLE_FONT
-sellButton.TextScaled = true
-sellButton.RichText = true
-sellButton.Text = ""
-sellButton.Parent = cabinPanel
-local sellStroke = UiKit.button(sellButton, THEME.sell, { stroke = 3 })
--- Pozycja liczona od wcięcia (UIPadding przesuwa też dzieci), więc ikona wchodzi w lewy margines
-UiKit.icon("sell", sellButton, UDim2.new(0, 44, 0, 44), UDim2.new(0, -42, 0.5, 0), Vector2.new(0, 0.5))
-local sellConstraint = Instance.new("UITextSizeConstraint")
-sellConstraint.MaxTextSize = 24
-sellConstraint.Parent = sellButton
-local sellPadding = Instance.new("UIPadding")
-sellPadding.PaddingTop = UDim.new(0, 8)
-sellPadding.PaddingBottom = UDim.new(0, 8)
-sellPadding.PaddingLeft = UDim.new(0, 48)
-sellPadding.PaddingRight = UDim.new(0, 12)
-sellPadding.Parent = sellButton
+local UPGRADE_GREEN = Color3.fromRGB(70, 168, 86)
+local upgradeButton = Instance.new("TextButton")
+upgradeButton.Name = "UpgradesButton"
+upgradeButton.Size = UDim2.fromOffset(96, 96)
+upgradeButton.AnchorPoint = Vector2.new(1, 0.5)
+upgradeButton.Position = UDim2.new(1, -12, 0.42, 0)
+upgradeButton.Text = ""
+upgradeButton.Parent = gui
+UiKit.button(upgradeButton, UPGRADE_GREEN, { stroke = 3 })
+local upgradeIcon = Instance.new("TextLabel")
+upgradeIcon.Name = "Icon"
+upgradeIcon.Size = UDim2.new(0.62, 0, 0.62, 0)
+upgradeIcon.Position = UDim2.new(0.5, 0, 0.38, 0)
+upgradeIcon.AnchorPoint = Vector2.new(0.5, 0.5)
+upgradeIcon.BackgroundTransparency = 1
+upgradeIcon.Text = "⬆️"
+upgradeIcon.TextScaled = true
+upgradeIcon.Font = TITLE_FONT
+upgradeIcon.ZIndex = 3
+upgradeIcon.Parent = upgradeButton
+local upgradeIconScale = Instance.new("UIScale")
+upgradeIconScale.Parent = upgradeIcon
+local upgradeCaption = label("Caption", upgradeButton, UDim2.new(1, -8, 0.24, 0), UDim2.new(0, 4, 0.72, 0), TITLE_FONT, 18)
+upgradeCaption.ZIndex = 3
+local upgradeCaptionStroke = Instance.new("UIStroke")
+upgradeCaptionStroke.Thickness = 1.5
+upgradeCaptionStroke.Color = Color3.fromRGB(20, 60, 24)
+upgradeCaptionStroke.Parent = upgradeCaption
+
+local hoverTweens: { Tween } = {}
+local function stopHover()
+	for _, tween in hoverTweens do
+		tween:Cancel()
+	end
+	table.clear(hoverTweens)
+end
+-- Ikona rośnie i robi pełny obrót (z lekkim przeskokiem na końcu), po zjechaniu wraca
+local function hoverIn()
+	stopHover()
+	upgradeIcon.Rotation = 0
+	local grow = TweenService:Create(upgradeIconScale, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1.25 })
+	local spin = TweenService:Create(upgradeIcon, TweenInfo.new(0.55, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Rotation = 360 })
+	table.insert(hoverTweens, grow)
+	table.insert(hoverTweens, spin)
+	grow:Play()
+	spin:Play()
+end
+local function hoverOut()
+	stopHover()
+	local shrink = TweenService:Create(upgradeIconScale, TweenInfo.new(0.2, Enum.EasingStyle.Quad), { Scale = 1 })
+	table.insert(hoverTweens, shrink)
+	shrink:Play()
+	upgradeIcon.Rotation = 0
+end
+upgradeButton.MouseEnter:Connect(hoverIn)
+upgradeButton.MouseLeave:Connect(hoverOut)
+
+-- Panel ulepszeń na środku ekranu
+local CARD_ROW_HEIGHT = 58
+local PANEL_TOP = 96 -- nagłówek (48) + zakładki (40) + odstęp
+local PANEL_BOTTOM = 34 -- podpowiedź na dole
+local function panelHeight(rows: number): number
+	return PANEL_TOP + rows * CARD_ROW_HEIGHT + PANEL_BOTTOM
+end
+local upgradePanel = panel("UpgradePanel", gui, UDim2.new(0.94, 0, 0, panelHeight(4)), UDim2.new(0.5, 0, 0.5, 0), Vector2.new(0.5, 0.5))
+upgradePanel.Visible = false
+upgradePanel.ZIndex = 10
+local panelSize = Instance.new("UISizeConstraint")
+panelSize.MaxSize = Vector2.new(620, panelHeight(4))
+panelSize.Parent = upgradePanel
+local upgradeTitle = label("Title", upgradePanel, UDim2.new(1, -120, 0, 36), UDim2.new(0, 60, 0, 8), TITLE_FONT, 30)
+upgradeTitle.TextColor3 = THEME.accent
+upgradeTitle.ZIndex = 11
+local titleIcon = label("TitleIcon", upgradePanel, UDim2.fromOffset(36, 36), UDim2.fromOffset(14, 8), TITLE_FONT, 30)
+titleIcon.Text = "⬆️"
+titleIcon.ZIndex = 11
+local closeUpgrades = Instance.new("TextButton")
+closeUpgrades.Name = "Close"
+closeUpgrades.Size = UDim2.fromOffset(40, 40)
+closeUpgrades.Position = UDim2.new(1, -10, 0, 6)
+closeUpgrades.AnchorPoint = Vector2.new(1, 0)
+closeUpgrades.Text = "✕"
+closeUpgrades.Font = TITLE_FONT
+closeUpgrades.TextScaled = true
+closeUpgrades.TextColor3 = Color3.new(1, 1, 1)
+closeUpgrades.ZIndex = 11
+closeUpgrades.Parent = upgradePanel
+UiKit.button(closeUpgrades, UiKit.COLORS.red, { stroke = 2 })
+
+-- Zakładki światów
+local TABS = {
+	{ world = "forest", key = "UPG_TAB_FOREST", icon = "🌲" },
+	{ world = "cave", key = "UPG_TAB_CAVE", icon = "💎" },
+	{ world = "swamp", key = "UPG_TAB_SWAMP", icon = "🐸" },
+}
+local tabBar = Instance.new("Frame")
+tabBar.Name = "Tabs"
+tabBar.Size = UDim2.new(1, -24, 0, 34)
+tabBar.Position = UDim2.fromOffset(12, 52)
+tabBar.BackgroundTransparency = 1
+tabBar.ZIndex = 11
+tabBar.Parent = upgradePanel
+local tabLayout = Instance.new("UIListLayout")
+tabLayout.FillDirection = Enum.FillDirection.Horizontal
+tabLayout.Padding = UDim.new(0, 8)
+tabLayout.SortOrder = Enum.SortOrder.LayoutOrder
+tabLayout.Parent = tabBar
+local tabButtons: { [string]: TextButton } = {}
+local selectedTab = "forest"
+for order, tab in TABS do
+	local button = Instance.new("TextButton")
+	button.Name = "Tab_" .. tab.world
+	button.Size = UDim2.new(0, 150, 1, 0)
+	button.LayoutOrder = order
+	button.Font = TITLE_FONT
+	button.TextScaled = true
+	button.TextColor3 = Color3.new(1, 1, 1)
+	button.ZIndex = 12
+	button.Parent = tabBar
+	UiKit.button(button, UiKit.COLORS.wood, { stroke = 2 })
+	local constraint = Instance.new("UITextSizeConstraint")
+	constraint.MaxTextSize = 18
+	constraint.Parent = button
+	tabButtons[tab.world] = button
+end
 
 local grid = Instance.new("Frame")
 grid.Name = "Upgrades"
-grid.Size = UDim2.new(1, 0, 1, -56)
-grid.Position = UDim2.new(0, 0, 0, 56)
+grid.Size = UDim2.new(1, -24, 1, -(PANEL_TOP + PANEL_BOTTOM))
+grid.Position = UDim2.fromOffset(12, PANEL_TOP)
 grid.BackgroundTransparency = 1
-grid.Parent = cabinPanel
+grid.ZIndex = 11
+grid.Parent = upgradePanel
 local gridLayout = Instance.new("UIGridLayout")
-gridLayout.CellSize = UDim2.new(0.5, -4, 1 / UPGRADE_ROWS, -6)
+gridLayout.CellSize = UDim2.new(0.5, -4, 0, CARD_ROW_HEIGHT - 8)
 gridLayout.CellPadding = UDim2.new(0, 8, 0, 8)
 gridLayout.SortOrder = Enum.SortOrder.LayoutOrder
 gridLayout.Parent = grid
+
+local upgradeHint = label("Hint", upgradePanel, UDim2.new(1, -24, 0, 22), UDim2.new(0, 12, 1, -28), BODY_FONT, 15)
+upgradeHint.TextColor3 = THEME.muted
+upgradeHint.ZIndex = 11
+
+local setUpgradesOpen: (boolean) -> ()
+local applyTab: () -> ()
+local render: () -> () -- zdefiniowane niżej, zakładki odświeżają przez nie panel
 
 type Card = {
 	button: TextButton,
@@ -339,6 +437,88 @@ for order, id in ALL_UPGRADES do
 			callback(id)
 		end
 	end)
+end
+
+-- Zakładki i otwieranie panelu ulepszeń
+local TAB_HINTS: { [string]: string } = {
+	forest = "UPG_HINT_FOREST",
+	cave = "UPG_HINT_CAVE",
+	swamp = "UPG_HINT_SWAMP",
+}
+
+local function tabUnlocked(world: string): boolean
+	local state = lastState :: any
+	if world == "forest" then
+		return true
+	elseif world == "cave" then
+		return state ~= nil and state.caveUnlocked == true
+	end
+	return state ~= nil and state.swampUnlocked == true
+end
+
+applyTab = function()
+	local count = 0
+	for id, card in cards do
+		local visible = Economy.upgradeShop(id) == selectedTab
+		card.button.Visible = visible
+		if visible then
+			count += 1
+		end
+	end
+	-- Panel tak wysoki, ile rzędów kart ma ta zakładka
+	local rows = math.max(1, math.ceil(count / 2))
+	upgradePanel.Size = UDim2.new(0.94, 0, 0, panelHeight(rows))
+	panelSize.MaxSize = Vector2.new(620, panelHeight(rows))
+	for world, button in tabButtons do
+		UiKit.recolor(button, if world == selectedTab then UPGRADE_GREEN else UiKit.COLORS.wood)
+	end
+end
+
+setUpgradesOpen = function(open: boolean)
+	if open == upgradePanel.Visible then
+		return
+	end
+	upgradePanel.Visible = open
+	if open then
+		-- Na start zakładka świata, w którym gracz jest teraz
+		local state = lastState
+		local world = if state then Economy.zoneWorld(state.zone) else "forest"
+		selectedTab = if tabUnlocked(world) then world else "forest"
+		applyTab()
+		pop(upgradePanel, 0.06)
+	end
+end
+
+for world, button in tabButtons do
+	button.Activated:Connect(function()
+		selectedTab = world
+		applyTab()
+		pop(button, 0.08)
+		render()
+	end)
+end
+upgradeButton.Activated:Connect(function()
+	-- Na telefonie nie ma najechania, więc animacja przy dotknięciu
+	hoverIn()
+	task.delay(0.6, hoverOut)
+	setUpgradesOpen(not upgradePanel.Visible)
+end)
+closeUpgrades.Activated:Connect(function()
+	setUpgradesOpen(false)
+end)
+
+-- Teksty panelu i podpowiedź, gdzie można kupować
+local function renderUpgradePanel(state: State)
+	upgradeCaption.Text = Localize.t("UPG_BUTTON")
+	upgradeTitle.Text = Localize.t("UPG_TITLE")
+	for _, tab in TABS do
+		local button = tabButtons[tab.world]
+		button.Text = tab.icon .. " " .. Localize.t(tab.key)
+		button.Visible = tabUnlocked(tab.world)
+	end
+	local here = Economy.isSafeZone(state.zone) and Economy.zoneWorld(state.zone) == selectedTab
+	upgradeHint.Text = if here then Localize.t("UPG_HINT_HERE") else Localize.t(TAB_HINTS[selectedTab] or "UPG_HINT_FOREST")
+	upgradeHint.TextColor3 = if here then THEME.muted else THEME.warn
 end
 
 -- Komunikaty wysuwane z góry
@@ -427,7 +607,7 @@ local function cycleText(): string
 	return "🌙 " .. clock .. " · "
 end
 
-local function render()
+render = function()
 	languageButton.Text = Localize.t("HUD_LANGUAGE")
 	pickCaption.Text = Localize.t("HUD_PICK")
 
@@ -448,17 +628,7 @@ local function render()
 	oilText.Text = string.format("%s  %d/%d", Localize.t("HUD_OIL"), math.ceil(state.oil), state.oilMax)
 	setOilLow(not Economy.isSafeZone(state.zone) and fraction < Config.OilLowFraction)
 
-	if state.basketCount > 0 then
-		sellButton.Text = Localize.t("HUD_SELL", { formatCoins(state.basketValue) })
-		sellButton.Active = true
-		sellButton.BackgroundTransparency = 0
-		sellStroke.Transparency = 0
-	else
-		sellButton.Text = Localize.t("HUD_SELL_EMPTY")
-		sellButton.Active = false
-		sellButton.BackgroundTransparency = 0.55
-		sellStroke.Transparency = 0.7
-	end
+	renderUpgradePanel(state)
 
 	for id, card in cards do
 		local def = Config.Upgrades[id]
@@ -521,31 +691,13 @@ function Hud.refreshTexts()
 	render()
 end
 
--- shop: "forest" (lada w chatce), "cave" (kramik w obozowisku) albo nil (panel schowany)
-local currentShop: string? = nil
-function Hud.setShop(shop: string?)
-	if shop == currentShop then
-		return
-	end
-	currentShop = shop
-	cabinPanel.Visible = shop ~= nil
-	if not shop then
-		return
-	end
-	local visibleCount = 0
-	for id, card in cards do
-		local visible = Economy.upgradeShop(id) == shop
-		card.button.Visible = visible
-		if visible then
-			visibleCount += 1
-		end
-	end
-	-- Panel tak wysoki, ile rzędów kart ma ten sklep
-	local rows = math.max(1, math.ceil(visibleCount / 2))
-	cabinPanel.Size = UDim2.new(0.94, 0, 0, panelHeight(rows))
-	panelSize.MaxSize = Vector2.new(600, panelHeight(rows))
-	gridLayout.CellSize = UDim2.new(0.5, -4, 1 / rows, -6)
-	pop(cabinPanel, 0.06)
+-- Panel ulepszeń: przycisk z prawej strony ekranu otwiera go i zamyka
+function Hud.toggleUpgrades(open: boolean?)
+	setUpgradesOpen(if open == nil then not upgradePanel.Visible else open)
+end
+
+function Hud.upgradesOpen(): boolean
+	return upgradePanel.Visible
 end
 
 local pickPulse: Tween? = nil
@@ -608,21 +760,20 @@ end
 
 -- Deszcz monet po sprzedaży: wyskakują z przycisku „Sprzedaj” i lecą do licznika w rogu.
 -- Każda moneta, która doleci, podbija ikonę, więc licznik „łapie” je jedna po drugiej.
-function Hud.coinShower(value: number)
+-- from: punkt na ekranie, z którego wylatują monety (np. przycisk sprzedaży); domyślnie środek ekranu
+function Hud.coinShower(value: number, from: Vector2?)
 	local coinCount = math.clamp(math.ceil(value / 4), 5, 16)
-	local from = if cabinPanel.Visible
-		then sellButton.AbsolutePosition + sellButton.AbsoluteSize / 2
-		else gui.AbsoluteSize / 2
+	local start = from or gui.AbsoluteSize / 2
 	local to = coinsIcon.AbsolutePosition + coinsIcon.AbsoluteSize / 2
 	for index = 1, coinCount do
-		local coin = UiKit.icon("coin", gui, UDim2.fromOffset(30, 30), UDim2.fromOffset(from.X, from.Y), Vector2.new(0.5, 0.5))
+		local coin = UiKit.icon("coin", gui, UDim2.fromOffset(30, 30), UDim2.fromOffset(start.X, start.Y), Vector2.new(0.5, 0.5))
 		coin.Name = "FlyingCoin"
 		coin.ZIndex = 30
 		coin.Rotation = math.random(-25, 25)
 
 		local angle = math.random() * math.pi * 2
 		local radius = math.random(40, 100)
-		local scatter = from + Vector2.new(math.cos(angle) * radius, math.sin(angle) * radius * 0.6 - 30)
+		local scatter = start + Vector2.new(math.cos(angle) * radius, math.sin(angle) * radius * 0.6 - 30)
 		TweenService:Create(coin, TweenInfo.new(0.28, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 			Position = UDim2.fromOffset(scatter.X, scatter.Y),
 		}):Play()
@@ -645,10 +796,6 @@ function Hud.onPick(callback: () -> ())
 	table.insert(callbacks.pick, callback)
 end
 
-function Hud.onSell(callback: () -> ())
-	table.insert(callbacks.sell, callback)
-end
-
 function Hud.onBuy(callback: (string) -> ())
 	table.insert(callbacks.buy, callback)
 end
@@ -659,13 +806,6 @@ end
 
 pickButton.Activated:Connect(function()
 	for _, callback in callbacks.pick do
-		callback()
-	end
-end)
-
-sellButton.Activated:Connect(function()
-	pop(sellButton, 0.06)
-	for _, callback in callbacks.sell do
 		callback()
 	end
 end)
@@ -690,7 +830,7 @@ end
 
 local function layout()
 	local scale = UiScale.get()
-	for _, target in { stats, languageButton, top, cabinPanel, toast } do
+	for _, target in { stats, languageButton, top, upgradePanel, upgradeButton, toast } do
 		layoutScale(target, scale)
 	end
 	languageButton.Position = UDim2.new(0, 12, 0, 8 + math.floor(80 * scale) + 8)
@@ -704,6 +844,8 @@ local function layout()
 	local size = math.floor(112 * math.max(scale, 0.62))
 	pickButton.Size = UDim2.fromOffset(size, size)
 	pickButton.Position = if UiScale.isSmall() then UDim2.new(1, -112, 1, -14) else UDim2.new(1, -190, 1, -40)
+	-- „Ulepszenia” przy prawej krawędzi, nad przyciskami ZBIERZ i skoku
+	upgradeButton.Position = UDim2.new(1, -12, 0.42, 0)
 end
 UiScale.onChanged(layout)
 

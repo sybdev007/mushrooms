@@ -330,6 +330,37 @@ function Economy.itemValue(item: BasketItem): number
 	return Economy.mushroomValue(item.s, item.v, item.x, item.d)
 end
 
+-- Odcisk zawartości koszyka: serwer wysyła klientowi koszyk tylko po zmianie, a klient dołącza
+-- odcisk do prośby o sprzedaż, żeby nie sprzedać innych grzybów, niż widział na ekranie
+function Economy.basketKey(basket: { BasketItem }): string
+	local parts = table.create(#basket)
+	for _, item in basket do
+		table.insert(parts, string.format("%s:%s:%s:%s", item.s, item.v or "", table.concat(item.x or {}, ","), tostring(item.d or "")))
+	end
+	return table.concat(parts, "|")
+end
+
+-- Sprawdza listę indeksów do sprzedaży z klienta: liczby całkowite z zakresu koszyka, bez powtórzeń.
+-- Zwraca je posortowane malejąco (do usuwania od końca) albo nil, gdy lista jest zła.
+function Economy.validSellIndices(indices: any, count: number): { number }?
+	if typeof(indices) ~= "table" or #indices == 0 or #indices > count then
+		return nil
+	end
+	local seen = {}
+	local result = {}
+	for _, index in indices do
+		if typeof(index) ~= "number" or index % 1 ~= 0 or index < 1 or index > count or seen[index] then
+			return nil
+		end
+		seen[index] = true
+		table.insert(result, index)
+	end
+	table.sort(result, function(a, b)
+		return a > b
+	end)
+	return result
+end
+
 function Economy.basketValue(basket: { BasketItem }): number
 	local sum = 0
 	for _, item in basket do

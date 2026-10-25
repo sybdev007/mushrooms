@@ -478,7 +478,7 @@ export type StationDef = { kind: string, world: string, x: number, z: number, ra
 Config.Stations = {
 	-- Chatka
 	{ kind = "oil", world = "forest", x = -8.6, z = -17.2, radius = 3.3 },
-	{ kind = "shop", world = "forest", x = -5, z = -28.2, radius = 4 },
+	{ kind = "shop", world = "forest", x = -5, z = -27.8, radius = 3.5 }, -- przed ladą, z NPC-skupywaczem
 	-- Obozowisko w jaskini: skup po lewej, olej po prawej (patrząc w głąb jaskini), oba przodem do środka
 	{ kind = "shop", world = "cave", x = 13, z = 1022, radius = 4 },
 	{ kind = "oil", world = "cave", x = -13, z = 1022, radius = 3.6 },
@@ -487,6 +487,15 @@ Config.Stations = {
 	{ kind = "oil", world = "swamp", x = -15, z = 2022, radius = 3.6 },
 } :: { StationDef }
 Config.StationTolerance = 2 -- serwer jest łagodniejszy przez opóźnienie sieci
+
+-- Skupywacz w chatce: stoi za ladą. Sprzedaje się u niego (przycisk rozmowy), ulepszenia są pod
+-- przyciskiem „Ulepszenia” i kupuje się je w bezpiecznej strefie świata, do którego należą.
+Config.Merchant = {
+	x = -5,
+	z = -33.4,
+	promptDistance = 9,
+	sellDistance = 13, -- serwer: tak blisko skupywacza trzeba stać, żeby sprzedać
+}
 
 -- Komendy deweloperskie na czacie (np. /coins 1000000) działają w Studio
 -- oraz w prawdziwej grze dla tych kont. Dopisz tu UserId Miłosza.

@@ -36,6 +36,7 @@ type SpotState = {
 type Session = {
 	player: Player,
 	data: DataService.Data,
+	basketKey: string?, -- odcisk koszyka ostatnio wysłanego klientowi
 	canSave: boolean,
 	oil: number,
 	zone: number,
@@ -257,7 +258,16 @@ local function pushState(session: Session)
 	if coinsStat and coinsStat:IsA("IntValue") then
 		coinsStat.Value = data.coins
 	end
+	-- Koszyk (lista grzybów do panelu sprzedaży) wysyłamy tylko po zmianie
+	local key = Economy.basketKey(data.basket)
+	local basketList = nil
+	if session.basketKey ~= key then
+		session.basketKey = key
+		basketList = data.basket
+	end
 	StateUpdate:FireClient(session.player, {
+		basket = basketList,
+		basketKey = key,
 		coins = data.coins,
 		oil = math.max(session.oil, 0),
 		oilMax = stat(session, "oil"),
@@ -853,29 +863,60 @@ local function onPick(player: Player, spotId: unknown)
 	pushState(session)
 end
 
-local function canAct(session: Session): boolean
+local function cooledDown(session: Session): boolean
 	local now = os.clock()
 	if now - session.lastAction < ACTION_COOLDOWN then
 		return false
 	end
 	session.lastAction = now
-	-- Sprzedaż i ulepszenia tylko przy ladzie w chatce
-	local root = getRoot(session.player)
-	return root ~= nil and Economy.atStation("shop", root.Position.X, root.Position.Z, Config.StationTolerance)
+	return true
 end
 
-local function onSell(player: Player)
+-- Sprzedaż: u skupywacza w chatce albo przy kramiku w obozowisku
+local function canSell(session: Session): boolean
+	local root = getRoot(session.player)
+	if not root then
+		return false
+	end
+	local merchant = Config.Merchant
+	local dx, dz = root.Position.X - merchant.x, root.Position.Z - merchant.z
+	if dx * dx + dz * dz <= merchant.sellDistance * merchant.sellDistance then
+		return true
+	end
+	return Economy.atStation("shop", root.Position.X, root.Position.Z, Config.StationTolerance)
+end
+
+-- indices: które grzyby z koszyka sprzedać (nil = wszystkie); key: odcisk koszyka, który widział klient
+local function onSell(player: Player, indices: unknown, key: unknown)
 	local session = sessions[player]
-	if not session or not canAct(session) then
+	if not session or not cooledDown(session) or not canSell(session) then
 		return
 	end
 	local basket = session.data.basket
 	if #basket == 0 then
 		return
 	end
-	local value = Economy.basketValue(basket)
+	-- Koszyk zmienił się od czasu, gdy klient go pokazał: nic nie sprzedajemy, wysyłamy świeży
+	if key ~= nil and key ~= Economy.basketKey(basket) then
+		session.basketKey = nil
+		pushState(session)
+		return
+	end
+	local value = 0
+	if indices == nil then
+		value = Economy.basketValue(basket)
+		table.clear(basket)
+	else
+		local valid = Economy.validSellIndices(indices, #basket)
+		if not valid then
+			return
+		end
+		for _, index in valid do
+			value += Economy.itemValue(basket[index])
+			table.remove(basket, index)
+		end
+	end
 	session.data.coins += value
-	table.clear(basket)
 	notify(session, "MSG_SOLD", { value })
 	pushState(session)
 end
@@ -1089,13 +1130,15 @@ local function onBuy(player: Player, upgradeId: unknown)
 		return
 	end
 	local def = Config.Upgrades[upgradeId]
-	if not def or not canAct(session) then
+	if not def or not cooledDown(session) then
 		return
 	end
-	-- Ulepszenia z obozowiska kupuje się tylko tam, z chatki tylko w chatce
+	-- Ulepszenia kupuje się w bezpiecznej strefie świata, do którego należą (leśne w chatce i na polanie,
+	-- jaskiniowe w obozowisku). W lesie się nie da, bo ulepszenie oleju napełnia latarnię.
 	local root = getRoot(player)
-	local station = root and Economy.stationAt("shop", root.Position.X, root.Position.Z, Config.StationTolerance)
-	if not station or station.world ~= Economy.upgradeShop(upgradeId) then
+	local zone = if root then Economy.zoneIndexAt(root.Position.Z) else 0
+	if not Economy.isSafeZone(zone) or Economy.zoneWorld(zone) ~= Economy.upgradeShop(upgradeId) then
+		notify(session, "MSG_UPGRADE_WHERE")
 		return
 	end
 	local level = session.data.upgrades[upgradeId] or 0
