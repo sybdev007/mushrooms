@@ -109,9 +109,9 @@ function HandTools.lantern(level: number, base: CFrame, weldTo: BasePart?): Mode
 
 	-- Muchomorek na czubku zamiast zwykłej gałki
 	part(m, "FinialStem", Vector3.new(0.07, 0.08, 0.08), at(0, -0.2, 0) * VERTICAL, Color3.fromRGB(246, 236, 214), nil, Enum.PartType.Cylinder)
-	blob(m, "FinialCap", Vector3.new(0.2, 0.11, 0.2), at(0, -0.15, 0), Color3.fromRGB(226, 52, 40))
-	for _, dot in { { 0.05, 0.02 }, { -0.04, -0.05 }, { -0.03, 0.06 } } do
-		blob(m, "FinialDot", Vector3.new(0.035, 0.02, 0.035), at(dot[1], -0.105, dot[2]), Color3.fromRGB(255, 250, 240))
+	blob(m, "FinialCap", Vector3.new(0.26, 0.14, 0.26), at(0, -0.14, 0), Color3.fromRGB(226, 52, 40))
+	for _, dot in { { 0.06, 0.02 }, { -0.05, -0.06 }, { -0.04, 0.07 }, { 0.02, -0.02 } } do
+		blob(m, "FinialDot", Vector3.new(0.045, 0.025, 0.045), at(dot[1], -0.085, dot[2]), Color3.fromRGB(255, 250, 240))
 	end
 
 	-- Daszek: dwa stopnie i okap
@@ -131,11 +131,11 @@ function HandTools.lantern(level: number, base: CFrame, weldTo: BasePart?): Mode
 		part(m, "Bar", Vector3.new(0.03, cageH, 0.03), face, trim.dark, trim.material)
 		part(m, "BarCross", Vector3.new(0.44, 0.03, 0.03), face, trim.dark, trim.material)
 	end
-	local glass = part(m, "Pane", Vector3.new(0.44, cageH - 0.02, 0.44), at(0, cageY, 0), Color3.fromRGB(255, 214, 150), Enum.Material.Glass)
-	glass.Transparency = 0.45
+	local glass = part(m, "Pane", Vector3.new(0.44, cageH - 0.02, 0.44), at(0, cageY, 0), Color3.fromRGB(255, 196, 110), Enum.Material.Glass)
+	glass.Transparency = 0.5
 	-- Płomień: zewnętrzna poświata (tę część przyciemnia klient, gdy brakuje oleju) i jasny rdzeń
 	part(m, "Wick", Vector3.new(0.05, 0.08, 0.08), at(0, cageY - 0.2, 0) * VERTICAL, Color3.fromRGB(40, 30, 24), nil, Enum.PartType.Cylinder)
-	local flame = blob(m, "LanternGlass", Vector3.new(0.2, 0.3, 0.2), at(0, cageY - 0.03, 0), Color3.fromRGB(255, 190, 90), Enum.Material.Neon)
+	local flame = blob(m, "LanternGlass", Vector3.new(0.24, 0.36, 0.24), at(0, cageY - 0.02, 0), Color3.fromRGB(255, 190, 90), Enum.Material.Neon)
 	flame.Transparency = 0.1
 	blob(m, "FlameCore", Vector3.new(0.1, 0.16, 0.1), at(0, cageY - 0.07, 0), Color3.fromRGB(255, 248, 210), Enum.Material.Neon)
 
@@ -243,9 +243,9 @@ function HandTools.knife(level: number, base: CFrame, weldTo: BasePart?): Model
 	local back = base * CFrame.new(0, 0, 0.26)
 	if style.brush then
 		part(m, "BrushBand", Vector3.new(0.15, 0.15, 0.05), back * CFrame.new(0, 0, 0.02), Color3.fromRGB(60, 50, 44), Enum.Material.Metal)
-		local bristles = part(m, "Brush", Vector3.new(0.13, 0.13, 0.14), back * CFrame.new(0, 0, 0.11), Color3.fromRGB(196, 160, 104), Enum.Material.Fabric)
-		bristles.Name = "Brush"
-		part(m, "BrushTip", Vector3.new(0.1, 0.1, 0.04), back * CFrame.new(0, 0, 0.19), Color3.fromRGB(150, 116, 74), Enum.Material.Fabric)
+		-- Włosie szersze niż rączka i rozczapierzone; materiał trawy daje włóknisty wygląd
+		part(m, "Brush", Vector3.new(0.17, 0.17, 0.15), back * CFrame.new(0, 0, 0.12), Color3.fromRGB(226, 196, 140), Enum.Material.Grass)
+		part(m, "BrushTip", Vector3.new(0.2, 0.2, 0.05), back * CFrame.new(0, 0, 0.2), Color3.fromRGB(196, 160, 104), Enum.Material.Grass)
 	end
 	if style.gem then
 		local pommel = style.bolster or style.handle
@@ -277,7 +277,7 @@ function HandTools.knife(level: number, base: CFrame, weldTo: BasePart?): Model
 	local tipBase = start * CFrame.new(0, 0, -straight)
 	if style.curved then
 		-- Zakrzywiona końcówka: krótszy odcinek pod kątem do góry i czubek z klina
-		local bend = tipBase * CFrame.Angles(math.rad(24), 0, 0)
+		local bend = tipBase * CFrame.Angles(math.rad(32), 0, 0)
 		local curveLength = 0.15
 		bladePart("BladeCurve", Vector3.new(0.035, bladeHeight * 0.85, curveLength), bend * CFrame.new(0, -0.005, -curveLength / 2))
 		-- Klin bez obrotu ma pełną wysokość z tyłu (+Z) i schodzi do zera z przodu przy spodzie;
