@@ -3,6 +3,7 @@
 -- Serwer mówi, gdzie co rośnie, a ten moduł rysuje grzyby: każdy gatunek ma swój kształt,
 -- wyrastają z ziemi, złote i świecące lśnią i lekko się unoszą.
 
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
@@ -133,7 +134,9 @@ targetTag.StudsOffset = Vector3.new(0, 3.2, 0)
 targetTag.AlwaysOnTop = true
 targetTag.LightInfluence = 0
 targetTag.Enabled = false
-targetTag.Parent = folder
+-- BillboardGui z Adornee rysuje się tylko w PlayerGui albo pod częścią; w folderze w Workspace był niewidoczny
+targetTag.ResetOnSpawn = false
+targetTag.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
 local targetLabel = Instance.new("TextLabel")
 targetLabel.Size = UDim2.fromScale(1, 1)
 targetLabel.BackgroundTransparency = 1
