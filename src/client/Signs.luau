@@ -9,7 +9,31 @@ local Localize = require(script.Parent.Localize)
 local Signs = {}
 
 local TAG = "LocalizedSign"
+local PROMPT_TAG = "LocalizedPrompt" -- przyciski (ProximityPrompt) z atrybutami TextKey i ObjectKey
 local labels: { [Instance]: TextLabel } = {}
+local prompts: { [ProximityPrompt]: boolean } = {}
+
+local function translatePrompt(prompt: ProximityPrompt)
+	local textKey = prompt:GetAttribute("TextKey")
+	local objectKey = prompt:GetAttribute("ObjectKey")
+	if typeof(textKey) == "string" then
+		prompt.ActionText = Localize.t(textKey)
+	end
+	if typeof(objectKey) == "string" then
+		prompt.ObjectText = Localize.t(objectKey)
+	end
+end
+
+local function trackPrompt(instance: Instance)
+	if not instance:IsA("ProximityPrompt") or prompts[instance] then
+		return
+	end
+	prompts[instance] = true
+	translatePrompt(instance)
+	instance.Destroying:Connect(function()
+		prompts[instance] = nil
+	end)
+end
 
 local function decorate(part: Instance)
 	if not part:IsA("BasePart") or labels[part] then
@@ -66,7 +90,18 @@ function Signs.start()
 	CollectionService:GetInstanceRemovedSignal(TAG):Connect(function(part)
 		labels[part] = nil
 	end)
+	for _, prompt in CollectionService:GetTagged(PROMPT_TAG) do
+		trackPrompt(prompt)
+	end
+	CollectionService:GetInstanceAddedSignal(PROMPT_TAG):Connect(trackPrompt)
+	CollectionService:GetInstanceRemovedSignal(PROMPT_TAG):Connect(function(prompt)
+		prompts[prompt :: ProximityPrompt] = nil
+	end)
+
 	Localize.onChanged(function()
+		for prompt in prompts do
+			translatePrompt(prompt)
+		end
 		for part, label in labels do
 			local key = part:GetAttribute("SignKey")
 			if typeof(key) == "string" then

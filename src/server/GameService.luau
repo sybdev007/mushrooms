@@ -14,6 +14,7 @@ local Remotes = require(Shared.Remotes)
 local DataService = require(script.Parent.DataService)
 local MapBuilder = require(script.Parent.MapBuilder)
 local LeszyService = require(script.Parent.LeszyService)
+local HoardService = require(script.Parent.HoardService)
 local DryingService = require(script.Parent.DryingService)
 
 type SpotState = {
@@ -70,15 +71,6 @@ local function getRoot(player: Player): BasePart?
 		return root
 	end
 	return nil
-end
-
--- Strefa liczona z aktualnej pozycji. 0 = gracz nie ma postaci.
-local function currentZone(session: Session): number
-	local root = getRoot(session.player)
-	if not root then
-		return 0
-	end
-	return Economy.zoneIndexAt(root.Position.Z)
 end
 
 -- mutation: { variant, tags } do pokazania etykiet w języku gracza (klient je tłumaczy)
@@ -250,10 +242,22 @@ end
 local function engulf(session: Session, messageKey: string?)
 	LeszyService.stop(session.player)
 	local basket = session.data.basket
+
+	-- Leszy odbiera swoje korony i odnosi je do gniazda, gdzie może je zabrać każdy
+	local reclaimed: { HoardService.Item } = {}
+	if messageKey == "MSG_CAUGHT" then
+		for index = #basket, 1, -1 do
+			if Economy.isGroveItem(basket[index].s) then
+				table.insert(reclaimed, table.remove(basket, index) :: any)
+			end
+		end
+	end
+
 	local lost = Economy.engulfLoss(#basket)
 	for _ = 1, lost do
 		table.remove(basket)
 	end
+	lost += #reclaimed
 	session.oil = stat(session, "oil")
 	session.oilWarned = false
 	session.oilHalfWarned = false
@@ -263,6 +267,16 @@ local function engulf(session: Session, messageKey: string?)
 	end
 	session.zone = 1
 	notify(session, messageKey or "MSG_ENGULFED", { lost })
+
+	if #reclaimed > 0 then
+		local placed = HoardService.drop(reclaimed)
+		if placed > 0 then
+			-- Cały serwer wie, że w gnieździe leży coś do zgarnięcia
+			for _, other in sessions do
+				notify(other, "MSG_HOARD_DROP", { session.player.DisplayName, placed })
+			end
+		end
+	end
 end
 
 local function tick(step: number)
@@ -274,9 +288,17 @@ local function tick(step: number)
 			session.zone = zone
 			local oilMax = stat(session, "oil")
 			if zone == 1 then
-				session.oil = math.min(oilMax, session.oil + Config.OilRefillPerSecond * step)
-				session.oilWarned = false
-				session.oilHalfWarned = false
+				-- Olej leje się tylko przy beczce w chatce; na polanie latarnia nie traci, ale się nie napełnia
+				if Economy.atStation("oil", root.Position.X, root.Position.Z, Config.StationTolerance) then
+					session.oil = math.min(oilMax, session.oil + Config.OilRefillPerSecond * step)
+				end
+				-- Ostrzeżenia wracają dopiero, gdy olej znów spadnie poniżej progu
+				if session.oil > oilMax * Config.OilWarnFraction then
+					session.oilHalfWarned = false
+				end
+				if session.oil > oilMax * Config.OilLowFraction then
+					session.oilWarned = false
+				end
 			else
 				session.oil -= Config.Zones[zone].oilDrain * step
 				if not session.oilHalfWarned and session.oil <= oilMax * Config.OilWarnFraction then
@@ -350,6 +372,11 @@ local function onPlayerAdded(player: Player)
 
 	sessions[player] = session
 	DryingService.assign(player)
+
+	-- Bez limitu dało się oddalić kamerę i oglądać las z góry. Zoom = kamera przysuwa się,
+	-- gdy coś (korony drzew) zasłania postać, zamiast robić je przezroczystymi.
+	player.CameraMaxZoomDistance = Config.CameraMaxZoom
+	player.DevCameraOcclusionMode = Enum.DevCameraOcclusionMode.Zoom
 
 	player.CharacterAdded:Connect(function(character)
 		onCharacterAdded(session, character)
@@ -462,7 +489,9 @@ local function canAct(session: Session): boolean
 		return false
 	end
 	session.lastAction = now
-	return currentZone(session) == 1
+	-- Sprzedaż i ulepszenia tylko przy ladzie w chatce
+	local root = getRoot(session.player)
+	return root ~= nil and Economy.atStation("shop", root.Position.X, root.Position.Z, Config.StationTolerance)
 end
 
 local function onSell(player: Player)
@@ -532,6 +561,27 @@ function GameService.start(mapInfo: MapBuilder.MapInfo)
 			if session then
 				notify(session, "MSG_LESZY_GAVE_UP")
 			end
+		end,
+	})
+
+	HoardService.start(map.groveCenter, {
+		take = function(player: Player, item: HoardService.Item): boolean
+			local session = sessions[player]
+			if not session then
+				return false
+			end
+			local basket = session.data.basket
+			if #basket >= stat(session, "basket") then
+				notify(session, "MSG_BASKET_FULL")
+				return false
+			end
+			table.insert(basket, { s = item.s, v = item.v, x = item.x })
+			session.data.atlas[item.s] = true
+			if LeszyService.startChase(player, map.groveCenter) then
+				notify(session, "MSG_LESZY_WOKE")
+			end
+			pushState(session)
+			return true
 		end,
 	})
 

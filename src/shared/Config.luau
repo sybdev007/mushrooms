@@ -179,6 +179,25 @@ Config.Grove = {
 	respawnSeconds = 240, -- każdy gracz ma własne korony, odrastają wolniej niż zwykłe grzyby
 }
 
+-- Skarbiec Leszego: korony odebrane złapanym graczom leżą w środku gniazda
+-- i może je zabrać każdy (pierwszy, który zdąży). Zabranie znów budzi Leszego.
+Config.Hoard = {
+	maxItems = 9, -- więcej się nie zmieści, nadmiar przepada
+	radius = 2.6, -- korony leżą w kółku wokół środka gniazda
+	takeDistance = 12, -- serwer sprawdza odległość gracza od korony
+}
+
+-- Stanowiska w chatce. Olej leje się tylko przy beczce, a sprzedaż i ulepszenia działają
+-- tylko przy ladzie. x, z = środek kręgu na podłodze, radius = promień kręgu (studs).
+Config.Stations = {
+	oil = { x = -8.6, z = -17.2, radius = 3.3 },
+	shop = { x = -5, z = -28.2, radius = 4 },
+}
+Config.StationTolerance = 2 -- serwer jest łagodniejszy przez opóźnienie sieci
+
+-- Kamera: bez limitu dało się oddalić widok i oglądać las z góry
+Config.CameraMaxZoom = 22
+
 Config.Leszy = {
 	speed = 22, -- studs/s; gracz na butach poz. 3 (20,5) jeszcze ucieka z gniazda, na poz. 2 już nie
 	wakeDelay = 2, -- tyle sekund Leszy się budzi, zanim ruszy

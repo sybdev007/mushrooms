@@ -27,7 +27,6 @@ local SellBasket = Remotes.get("SellBasket")
 local BuyUpgrade = Remotes.get("BuyUpgrade")
 
 local LANTERN_BRIGHTNESS = 2 -- w najciemniejszej strefie; przy chatce latarnia świeci słabiej, żeby nie przepalać ścian
-local CABIN_PANEL_MAX_Z = 4 -- ganek kończy się ok. z = -5, panel widać jeszcze kilka kroków dalej
 local LANTERN_GLASS = Color3.fromRGB(255, 206, 120)
 
 local lanternRange = Economy.upgradeStat("lantern", 0)
@@ -35,6 +34,7 @@ local oil = Economy.upgradeStat("oil", 0)
 local oilMax = oil
 local chased = false
 local targetId: string? = nil
+local wasInCabin = true -- gracz zaczyna w chatce
 
 Signs.start()
 RackPrompts.start()
@@ -118,6 +118,8 @@ local TOAST_KIND: { [string]: string } = {
 	MSG_OWNER_GUARDING = "warn",
 	MSG_NO_RACK = "warn",
 	MSG_ESCAPED = "gold",
+	MSG_HOARD_DROP = "gold",
+	MSG_REFILL_HINT = "info",
 	MSG_STOLE = "gold",
 }
 
@@ -249,6 +251,14 @@ RunService.RenderStepped:Connect(function(dt)
 	Effects.setHeartbeat(if chased then 1 else heartbeat)
 
 	-- Panel sprzedaży tylko przy chatce, żeby nie zasłaniał ekranu na całej polanie
-	Hud.setInCabin(zone == 1 and position.Z < CABIN_PANEL_MAX_Z)
+	-- Panel sprzedaży i ulepszeń tylko w kręgu przy ladzie
+	Hud.setInCabin(Economy.atStation("shop", position.X, position.Z))
+
+	-- Po powrocie z lasu z niepełną latarnią: podpowiedź, gdzie jest olej
+	local inCabin = zone == 1 and position.Z < -13
+	if inCabin and not wasInCabin and oil < oilMax - 0.5 and not Economy.atStation("oil", position.X, position.Z) then
+		Hud.toast(Localize.t("MSG_REFILL_HINT"), "info")
+	end
+	wasInCabin = inCabin
 	Hud.setPick(targetId ~= nil, zone ~= 1)
 end)

@@ -47,6 +47,7 @@ rojo build -o lantern-forager.rbxlx
 | `src/server/DataService.luau` | ServerScriptService.Server | Zapis postępu (DataStore) |
 | `src/server/GameService.luau` | ServerScriptService.Server | Olej, zbieranie, sprzedaż, ulepszenia, „las cię pochłania” |
 | `src/server/LeszyService.luau` | ServerScriptService.Server | Pościg Leszego po zerwaniu Korony |
+| `src/server/HoardService.luau` | ServerScriptService.Server | Skarbiec Leszego: korony odebrane złapanym, do zgarnięcia przez każdego |
 | `src/server/DryingService.luau` | ServerScriptService.Server | Suszarnie: wieszanie, sprzedaż suszonych, kradzież |
 | `src/server/World/Grove.luau` | ServerScriptService.Server | Gniazdo Leszego: krąg kamieni, tabliczka, uśpiony posąg |
 | `src/server/World/Leszy.luau` | ServerScriptService.Server | Model Leszego z klocków |
@@ -67,18 +68,19 @@ rojo build -o lantern-forager.rbxlx
 ## Jak działa prototyp
 
 - **Strefy** ciągną się wzdłuż osi +Z: Chatka → Skraj lasu → Gęstwina → Mroczny Jar. Na granicach stoją bramy z tabliczkami.
-- **Olej** spada w lesie (im głębiej, tym szybciej) i sam się uzupełnia w chatce.
+- **Olej** spada w lesie (im głębiej, tym szybciej). Napełnia się tylko w świecącym kręgu przy beczce w chatce (`Config.Stations.oil`).
 - **Ostrzeżenia**: przy 50% oleju komunikat, przy 25% latarnia migocze, pasek pulsuje, słychać serce, a brzegi ekranu czerwienieją.
   Niezależnie od procentów baner **„Wracaj do chatki!”** ze strzałką i odległością pojawia się, gdy oleju zostaje
   tyle, ile potrzeba na powrót (z 30% zapasu, `Config.ReturnMargin`). Liczy to `Economy.shouldTurnBack`.
 - Gdy olej prawie się kończy w Gęstwinie lub Jarze, z ciemności patrzą **czerwone oczy Leszego**.
 - **Latarnia zgaśnie** → ekran ciemnieje, gracz wraca do chatki i traci wszystkie grzyby z koszyka.
-- **Grzyby** są osobne dla każdego gracza (nikt nikomu nie wyzbiera), odrastają po 90 s, 3% szans na złotą mutację (×3 wartości).
+- **Grzyby** są osobne dla każdego gracza (nikt nikomu nie wyzbiera), odrastają po 90 s. Mutacje: Srebro ×1,5, Złoto ×3, Tęcza ×8, plus cechy od miejsca (Mech, Blask).
 - W **Gęstwinie i Jarze** widać tylko grzyby w zasięgu latarni. Złote i Świecący Muchomor widać zawsze, jako przynętę.
-- **Chatka**: panel sprzedaży i 5 ulepszeń (latarnia, zbiornik oleju, koszyk, buty, kłódka suszarni).
+- **Chatka**: panel sprzedaży i ulepszeń otwiera się tylko w zielonym kręgu przy ladzie (`Config.Stations.shop`); serwer też to sprawdza. 5 ulepszeń (latarnia, zbiornik oleju, koszyk, buty, kłódka suszarni).
 - **Gniazdo Leszego** (koniec Jaru, `Config.Grove`): krąg kamieni z 3 Koronami Leszego (220 monet, każdy gracz ma własne,
   odrastają po 4 min). Zerwanie budzi Leszego: rusza z gniazda po 2 s, przenika przez drzewa i biegnie 22 studs/s.
-  Złapie = tracisz koszyk. Dobiegniesz do polany = ucieczka. Bez ulepszeń butów nie da się uciec, od poziomu 3 już tak
+  Złapie = tracisz koszyk, a Leszy odnosi zabrane korony do **skarbca** na środku gniazda (`HoardService`). Skarbiec jest wspólny:
+  każdy na serwerze dostaje ogłoszenie i może pobiec po korony, ale zabranie korony znów budzi Leszego. Dobiegniesz do polany = ucieczka. Bez ulepszeń butów nie da się uciec, od poziomu 3 już tak
   (pilnują tego testy, `Economy.escapesLeszy`). Wszyscy na serwerze widzą, kogo goni.
 - **Ogródki z suszarniami** (`Config.Drying`): 8 ogródków po bokach chatki, po 4 z każdej strony, furtką do środka polany.
   Każdy gracz dostaje własny, z imieniem na furtce. W środku suszarnia z 6 osobnymi stanowiskami; nad każdym grzybem
@@ -91,6 +93,7 @@ rojo build -o lantern-forager.rbxlx
 - **Sterowanie**: przycisk ZBIERZ obok przycisku skoku na telefonie, `E` na klawiaturze, `X` na padzie.
 - **Język**: domyślnie z ustawień konta, przycisk pod licznikiem monet przełącza EN/PL (także napisy na tabliczkach).
 - **Lista graczy** pokazuje monety wszystkich na serwerze (kolumna 💰).
+- **Kamera** oddala się najwyżej na `Config.CameraMaxZoom` (22 studs) i przysuwa się, gdy zasłaniają ją drzewa, więc nie da się oglądać lasu z góry.
 
 Serwer jest jedynym źródłem prawdy: klient tylko prosi („zbierz ten grzyb”), a serwer sprawdza odległość, pojemność koszyka, strefę i monety.
 

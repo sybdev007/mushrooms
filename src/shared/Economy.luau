@@ -329,6 +329,23 @@ function Economy.shouldTurnBack(z: number, speed: number, oil: number): boolean
 end
 
 -- Ile grzybów las zabiera z koszyka, gdy zgaśnie latarnia
+-- Czy gracz stoi w kręgu stanowiska w chatce ("oil" albo "shop"). tolerance: zapas dla serwera.
+function Economy.atStation(name: string, x: number, z: number, tolerance: number?): boolean
+	local station = Config.Stations[name]
+	if not station then
+		return false
+	end
+	local dx, dz = x - station.x, z - station.z
+	local radius = station.radius + (tolerance or 0)
+	return dx * dx + dz * dz <= radius * radius
+end
+
+-- Czy przedmiot z koszyka to korona z Gniazda Leszego (Leszy odbiera je, gdy złapie gracza)
+function Economy.isGroveItem(speciesId: string): boolean
+	local species = speciesById[speciesId]
+	return species ~= nil and species.grove == true
+end
+
 function Economy.engulfLoss(count: number): number
 	return math.floor(count * Config.EngulfLossFraction)
 end

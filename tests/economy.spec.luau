@@ -583,6 +583,42 @@ test("nieobsługiwany język gracza = angielski, nieznany klucz = klucz", functi
 	eq(Localize.t("HUD_COINS"), "Coins: {1}", "brak argumentu zostaje widoczny")
 end)
 
+print("Stanowiska w chatce i skarbiec Leszego")
+
+test("stanowiska leżą w chatce, nie nachodzą na siebie ani na miejsce startu", function()
+	local oil, shop = Config.Stations.oil, Config.Stations.shop
+	for name, station in Config.Stations do
+		-- Wnętrze chatki: x od -12 do 12, z od -34 do -14 (ściany z bali mają grubość)
+		assert(station.x - station.radius >= -12.3 and station.x + station.radius <= 12.3, name .. " wystaje w bok")
+		assert(station.z - station.radius >= -34.3 and station.z + station.radius <= -13.5, name .. " wystaje przez ścianę")
+	end
+	local distance = math.sqrt((oil.x - shop.x) ^ 2 + (oil.z - shop.z) ^ 2)
+	assert(distance > oil.radius + shop.radius + Config.StationTolerance * 2, "kręgi za blisko siebie: " .. distance)
+	-- Gracz startuje w (0, -20): nie powinien od razu stać w żadnym kręgu
+	eq(Economy.atStation("oil", 0, -20), false, "start przy beczce")
+	eq(Economy.atStation("shop", 0, -20), false, "start przy ladzie")
+end)
+
+test("atStation: środek tak, brzeg tak, za kręgiem nie, tolerancja serwera", function()
+	local shop = Config.Stations.shop
+	eq(Economy.atStation("shop", shop.x, shop.z), true, "środek")
+	eq(Economy.atStation("shop", shop.x + shop.radius, shop.z), true, "brzeg")
+	eq(Economy.atStation("shop", shop.x + shop.radius + 1, shop.z), false, "za kręgiem")
+	eq(Economy.atStation("shop", shop.x + shop.radius + 1, shop.z, Config.StationTolerance), true, "z tolerancją")
+	eq(Economy.atStation("nie_ma", 0, 0), false, "nieznane stanowisko")
+end)
+
+test("Leszy odbiera tylko korony z gniazda", function()
+	eq(Economy.isGroveItem("leszy_crown"), true, "korona")
+	eq(Economy.isGroveItem("porcini"), false, "borowik")
+	eq(Economy.isGroveItem("nie_ma"), false, "nieznany")
+	assert(Config.Hoard.maxItems >= 3, "skarbiec mieści przynajmniej jedno pełne gniazdo")
+end)
+
+test("kamera nie oddala się tak, żeby widzieć las z góry", function()
+	assert(Config.CameraMaxZoom >= 12 and Config.CameraMaxZoom <= 30, "zoom " .. Config.CameraMaxZoom)
+end)
+
 print("Skala interfejsu (UiScale.luau)")
 
 local UiScale = loadModule("src/client/UiScale.luau", {

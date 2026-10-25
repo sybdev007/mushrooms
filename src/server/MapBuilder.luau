@@ -141,14 +141,12 @@ local function isFree(x: number, z: number, r: number, trunk: number?): boolean
 	for _, o in occupants do
 		local dx, dz = o.x - x, o.z - z
 		local min
-		if trunk and o.trunk then
-			min = o.r + r -- korona przy koronie
-		elseif o.trunk then
+		if o.trunk and not trunk then
 			min = o.trunk + r -- krzak przy pniu
-		elseif trunk then
+		elseif trunk and not o.trunk then
 			min = o.r + trunk -- pień przy krzaku albo grzybie
 		else
-			min = o.r + r
+			min = o.r + r -- korona przy koronie, krzak przy krzaku
 		end
 		if dx * dx + dz * dz < min * min then
 			return false

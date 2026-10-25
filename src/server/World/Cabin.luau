@@ -3,6 +3,9 @@
 -- lada do sprzedaży i suszarnia z grzybami (zapowiedź przyszłej mechaniki).
 -- Front patrzy w stronę lasu (+Z), drzwi na środku.
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage.Shared.Config)
 local Palette = require(script.Parent.Palette)
 local Props = require(script.Parent.Props)
 
@@ -472,11 +475,43 @@ local function buildInterior(m: Model)
 	end
 end
 
+-- Świecący przerywany krąg na podłodze: tu trzeba stanąć, żeby skorzystać ze stanowiska
+local function stationRing(m: Model, name: string, color: Color3)
+	local station = Config.Stations[name]
+	local pieces = 18
+	local length = 2 * math.pi * station.radius / pieces * 0.6
+	for i = 1, pieces do
+		local angle = (i - 1) / pieces * math.pi * 2
+		local position = Vector3.new(station.x + math.cos(angle) * station.radius, FLOOR_TOP + 0.03, station.z + math.sin(angle) * station.radius)
+		decor(make("Part", {
+			Name = "StationRing_" .. name,
+			Size = Vector3.new(0.35, 0.06, length),
+			-- Odcinek ustawiony stycznie do okręgu
+			CFrame = CFrame.new(position) * CFrame.Angles(0, -angle, 0),
+			Color = color,
+			Material = Enum.Material.Neon,
+			Transparency = 0.25,
+			Parent = m,
+		}))
+	end
+end
+
+-- Stanowiska: beczka z olejem przy drzwiach i lada skupu z ulepszeniami
+local function buildStations(m: Model)
+	stationRing(m, "oil", Color3.fromRGB(255, 186, 80))
+	stationRing(m, "shop", Color3.fromRGB(150, 226, 110))
+	-- Szyld nad ladą na tylnej ścianie, napisem do środka chatki
+	Props.signBoard(m, CFrame.new(-5, FLOOR_TOP + 6.6, BACK_Z + 1), Vector3.new(7.5, 1.6, 0.3), "SIGN_SHOP", Enum.NormalId.Back)
+	-- Szyld nad beczką na lewej ścianie
+	Props.signBoard(m, CFrame.new(-HALF_W + 1, FLOOR_TOP + 5.4, Config.Stations.oil.z), Vector3.new(0.3, 1.4, 5.6), "SIGN_OIL", Enum.NormalId.Right)
+end
+
 -- Buduje chatkę i zwraca CFrame miejsca startu (w środku, twarzą do drzwi i lasu)
 function Cabin.build(parent: Instance): CFrame
 	local m = Instance.new("Model")
 	m.Name = "Cabin"
 	buildInterior(m)
+	buildStations(m)
 	buildWalls(m)
 	buildRoof(m)
 	buildChimney(m)

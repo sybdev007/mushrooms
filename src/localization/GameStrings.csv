@@ -73,3 +73,8 @@ MUT_MOSSY,Mossy,,,Mech
 MUT_GLOWING,Glowing,,,Blask
 MSG_MUTATION,{1}: {3}! ×{2},,,{1}: {3}! ×{2}
 MSG_RARE_FIND,Rare find! {2}: {1} {3},,,Wielkie znalezisko! {2}: {1} {3}
+SIGN_SHOP,Trading Post,,,Skup i ulepszenia
+SIGN_OIL,Lantern Oil,,,Olej do latarni
+PROMPT_TAKE_CROWN,Take,,,Zabierz
+MSG_HOARD_DROP,The Leshy caught {1}! Crowns back in the nest: {2},,,Leszy dopadł gracza {1}! Korony wróciły do gniazda: {2}
+MSG_REFILL_HINT,Stand by the oil barrel to refill your lantern,,,Stań przy beczce z olejem żeby napełnić latarnię
