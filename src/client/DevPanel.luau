@@ -25,6 +25,8 @@ local ACTIONS: { { id: string, label: string } } = {
 	{ id = "swampLock", label = "Zablokuj bagna" },
 	{ id = "upgradesMax", label = "Ulepszenia MAX" },
 	{ id = "upgradesReset", label = "Ulepszenia na 0" },
+	{ id = "cycleDawn", label = "Świt teraz (60 s)" },
+	{ id = "cycleNight", label = "Noc teraz (60 s)" },
 	{ id = "oilFull", label = "Pełny olej" },
 	{ id = "oilLow", label = "Olej 10%" },
 	{ id = "tpCabin", label = "TP: chatka" },

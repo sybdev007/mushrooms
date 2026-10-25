@@ -41,6 +41,7 @@ rojo build -o lantern-forager.rbxlx
 | `src/shared/Config.luau` | ReplicatedStorage.Shared | **Cały balans**: strefy, grzyby, ceny, ulepszenia |
 | `src/shared/Economy.luau` | ReplicatedStorage.Shared | Czyste funkcje: koszty, losowanie gatunku, wartość koszyka |
 | `src/shared/Remotes.luau` | ReplicatedStorage.Shared | Nazwy RemoteEventów |
+| `src/shared/Cycle.luau` | ReplicatedStorage.Shared | Dzień i noc z zegara: faza, koniec fazy, zdarzenie nocy |
 | `src/shared/Sounds.luau` | ReplicatedStorage.Shared | ID dźwięków (sprawdzone, że się ładują) |
 | `src/server/MapBuilder.luau` | ServerScriptService.Server | Rozkłada las: drzewa, krzaki, ścieżkę, bramy, miejsca na grzyby |
 | `src/server/World/Cabin.luau` | ServerScriptService.Server | Chatka z bali z gankiem, kominkiem, ladą i suszarką |
@@ -126,6 +127,18 @@ rojo build -o lantern-forager.rbxlx
   nowy strażnik to wpis w tabeli, model w `World/` i miejsca na mapie.
 - **Las**: drzewa stoją korona przy koronie, bez nachodzenia (`CANOPY` w `MapBuilder`). Obrzeże mapy jest stawiane
   pierwsze, a reszta lasu je omija.
+- **Nożyk** (ulepszenie `knife`, 6 poziomów): mnoży szanse na mutacje do ×2,5. Nóż w lewej ręce zmienia kolor
+  z poziomem (`Config.KnifeColors`), od 4. poziomu ostrze świeci.
+- **Klasy grzybów** (`Config.Classes`, `Economy.speciesClass`): Pospolity, Niepospolity, Rzadki, Epicki według tego,
+  jak często gatunek rośnie, a grzyby strażników zawsze Legendarne. Celowany grzyb ma obwódkę i napis
+  „Borowik · Rzadki” w kolorze klasy; tabliczki w ogródku też mają kolor klasy.
+- **Głębiej = częstsze mutacje** (`Config.DepthLuck`, `Economy.zoneLuck`): pierwsza niebezpieczna strefa świata ×1,
+  każda kolejna +0,3 (Gęstwina ×1,3, Jar ×1,6, w jaskini i na bagnach tak samo).
+- **Dzień i noc** (`Config.Cycle`, `src/shared/Cycle.luau`): 18 min nocy i 2 min świtu, liczone z zegara, więc na
+  wszystkich serwerach jest ta sama pora. Każda noc ma zdarzenie: Spokojna noc, Pełnia (mutacje ×1,5), Deszcz
+  (odrost 2× szybciej), Gęsta mgła (widać mniej, mutacje ×1,3), Krwawy księżyc (mutacje ×2,5, rzadki).
+  O świcie niebo się rozjaśnia, a las u każdego gracza odrasta od nowa (nowe gatunki i mutacje), z prognozą
+  następnej nocy. Pora i licznik są w HUD przed nazwą strefy. Panel DEV ma „Świt teraz” i „Noc teraz”.
 - **Sterowanie**: przycisk ZBIERZ obok przycisku skoku na telefonie, `E` na klawiaturze, `X` na padzie.
 - **Język**: domyślnie z ustawień konta, przycisk pod licznikiem monet przełącza EN/PL (także napisy na tabliczkach).
 - **Lista graczy** pokazuje monety wszystkich na serwerze (kolumna 💰).

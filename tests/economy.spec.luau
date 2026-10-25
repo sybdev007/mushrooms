@@ -246,6 +246,110 @@ test("każda mutacja ma tłumaczenie i ikonę", function()
 	end
 end)
 
+-- Czy klucz jest w CSV (tablica csvKeys powstaje dopiero niżej, przy testach tłumaczeń)
+local function csvHas(key: string): boolean
+	return string.find(fs.readFile("src/localization/GameStrings.csv"), "\n" .. key .. ",", 1, true) ~= nil
+end
+
+print("Nożyk, klasy, głębokość")
+test("nożyk: od zwykłych szans do co najmniej podwójnych, każdy poziom ma kolor", function()
+	eq(Economy.upgradeStat("knife", 0), 1, "scyzoryk bez premii")
+	local best = Economy.upgradeStat("knife", Config.Upgrades.knife.maxLevel)
+	check(best >= 2 and best <= 3, "najlepszy nóż x" .. best)
+	for level = 0, Config.Upgrades.knife.maxLevel do
+		check(Config.KnifeColors[level] ~= nil, "brak koloru noża poz. " .. level)
+	end
+	-- Nawet z najlepszym nożem i krwawym księżycem tęcza zostaje rzadka
+	local maxEvent = 1
+	for _, event in Config.Cycle.events do
+		maxEvent = math.max(maxEvent, event.luck)
+	end
+	local maxZone = 1
+	for zone = 1, #Config.Zones do
+		maxZone = math.max(maxZone, Economy.zoneLuck(zone))
+	end
+	local rainbow = Config.Variants[3].chance * best * maxEvent * maxZone
+	check(rainbow < 0.1, string.format("tęcza przy maks. szczęściu: %.1f%%", rainbow * 100))
+end)
+
+test("głębokość: obozy x1, w każdym świecie głębiej = większa szansa", function()
+	for index, zone in Config.Zones do
+		if zone.safe then
+			eq(Economy.zoneLuck(index), 1, "obóz " .. zone.id)
+		end
+	end
+	eq(Economy.zoneLuck(2), 1, "skraj lasu")
+	check(Economy.zoneLuck(3) > Economy.zoneLuck(2), "gęstwina")
+	check(Economy.zoneLuck(4) > Economy.zoneLuck(3), "jar")
+	for index = 2, #Config.Zones do
+		local prev, zone = Config.Zones[index - 1], Config.Zones[index]
+		if zone.world == prev.world and not zone.safe and not prev.safe then
+			check(Economy.zoneLuck(index) > Economy.zoneLuck(index - 1), "strefa " .. zone.id)
+		end
+	end
+end)
+
+test("klasy: od pospolitych do legendarnych, każda ma tłumaczenie", function()
+	eq(Economy.speciesClass("honey").id, "common", "opieńka")
+	eq(Economy.speciesClass("chanterelle").id, "uncommon", "kurka")
+	eq(Economy.speciesClass("slippery_jack").id, "rare", "maślak")
+	eq(Economy.speciesClass("glowing_agaric").id, "epic", "świecący muchomor")
+	eq(Economy.speciesClass("leszy_crown").id, "legendary", "korona Leszego")
+	eq(Economy.speciesClass("nie_ma").id, "common", "nieznany")
+	for _, class in Config.Classes do
+		check(csvHas(class.key), "brak " .. class.key)
+	end
+end)
+
+print("Dzień i noc")
+local Cycle = loadModule("src/shared/Cycle.luau", {
+	script = { Parent = { Config = Config } },
+	require = function(module)
+		return module
+	end,
+})
+
+test("cykl: noc, potem świt, potem następna noc", function()
+	local length = Cycle.length()
+	eq(length, Config.Cycle.nightSeconds + Config.Cycle.dawnSeconds, "długość")
+	local start = 1000 * length
+	eq(Cycle.at(start).phase, "night", "początek cyklu")
+	eq(Cycle.at(start + Config.Cycle.nightSeconds - 1).phase, "night", "koniec nocy")
+	eq(Cycle.at(start + Config.Cycle.nightSeconds).phase, "dawn", "świt")
+	eq(Cycle.at(start + length - 1).phase, "dawn", "koniec świtu")
+	eq(Cycle.at(start + length).phase, "night", "następna noc")
+	eq(Cycle.at(start + 5).endsAt, start + Config.Cycle.nightSeconds, "koniec nocy")
+	eq(Cycle.at(start + Config.Cycle.nightSeconds + 5).endsAt, start + length, "koniec świtu")
+	eq(Cycle.activeEvent(start + Config.Cycle.nightSeconds + 1), nil, "o świcie bez zdarzenia")
+end)
+
+test("cykl: zdarzenie zależy tylko od numeru nocy, prognoza zgadza się z następną nocą", function()
+	local length = Cycle.length()
+	for index = 500, 520 do
+		local night = Cycle.at(index * length + 10)
+		eq(night.event.id, Cycle.at(index * length + 900).event.id, "ta sama noc")
+		eq(night.nextEvent.id, Cycle.at((index + 1) * length + 10).event.id, "prognoza")
+	end
+end)
+
+test("cykl: zdarzenia trafiają się mniej więcej zgodnie z wagami", function()
+	local counts: { [string]: number } = {}
+	local total, weightSum = 20000, 0
+	for _, event in Config.Cycle.events do
+		weightSum += event.weight
+	end
+	for index = 1, total do
+		local id = Cycle.eventFor(index).id
+		counts[id] = (counts[id] or 0) + 1
+	end
+	for _, event in Config.Cycle.events do
+		local share = (counts[event.id] or 0) / total
+		local expected = event.weight / weightSum
+		check(math.abs(share - expected) < 0.03, string.format("%s: %.3f zamiast %.3f", event.id, share, expected))
+		check(csvHas(event.key), "brak " .. event.key)
+	end
+end)
+
 print("Gniazdo Leszego")
 test("Korona Leszego rośnie tylko w gnieździe", function()
 	local grove = Economy.groveSpecies()

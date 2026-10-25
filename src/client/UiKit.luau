@@ -30,7 +30,7 @@ local FALLBACK: { [string]: string } = {
 	boots = "🥾", lock = "🔒", crystal = "💎", pack = "🎒", rushwick = "🕯️",
 	creel = "🧺", rescue = "💾", boom = "🍄", dry = "⚡", luck = "🍀",
 	-- Tych nie ma jeszcze w arkuszu z Figmy: zawsze emoji
-	beds = "🌱", fertilizer = "🧪",
+	beds = "🌱", fertilizer = "🧪", knife = "🔪",
 }
 
 UiKit.COLORS = {

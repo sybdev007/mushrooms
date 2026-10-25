@@ -8,11 +8,13 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local TextChatService = game:GetService("TextChatService")
+local Workspace = game:GetService("Workspace")
 
 local Shared = ReplicatedStorage.Shared
 local Config = require(Shared.Config)
 local Economy = require(Shared.Economy)
 local Remotes = require(Shared.Remotes)
+local Cycle = require(Shared.Cycle)
 local DataService = require(script.Parent.DataService)
 local MapBuilder = require(script.Parent.MapBuilder)
 local ChaseService = require(script.Parent.ChaseService)
@@ -205,9 +207,14 @@ local function boomActive(): boolean
 	return os.time() < boomUntil
 end
 
--- Mnożnik szans na mutacje: Wysyp dla wszystkich, mikstura szczęścia dla kupującego
-local function luckFactor(session: Session): number
-	local luck = 1
+-- Mnożnik szans na mutacje: Wysyp dla wszystkich, mikstura szczęścia dla kupującego,
+-- nożyk gracza, zdarzenie nocy (pełnia, krwawy księżyc) i głębokość strefy
+local function luckFactor(session: Session, zone: number?): number
+	local luck = stat(session, "knife") * (if zone then Economy.zoneLuck(zone) else 1)
+	local event = Cycle.activeEvent(os.time())
+	if event then
+		luck *= event.luck
+	end
 	if boomActive() then
 		luck *= Config.Boom.luck
 	end
@@ -288,7 +295,7 @@ local function rollSpot(session: Session, spot: MapBuilder.Spot, countPity: bool
 	-- Gwarancja: po Config.PityRolls odrostach bez Złota (albo lepszego) wymuszamy co najmniej Złoto
 	local data = session.data
 	local forced = countPity and data.pity >= Config.PityRolls
-	local luck = luckFactor(session)
+	local luck = luckFactor(session, spot.zone)
 	local variant = Economy.rollVariant(session.rng:NextNumber(), if forced then 2 else nil, luck)
 	if countPity then
 		data.pity = if Economy.variantRank(variant) >= 2 then 0 else data.pity + 1
@@ -368,6 +375,46 @@ local function attachHandLantern(character: Model)
 	model.Parent = character
 end
 
+-- Nożyk w lewej ręce: kolor ostrza zależy od poziomu ulepszenia (Config.KnifeColors)
+local function attachHandKnife(character: Model, level: number)
+	local existing = character:FindFirstChild("HandKnife")
+	if existing then
+		existing:Destroy()
+	end
+	local hand = character:FindFirstChild("LeftHand") or character:FindFirstChild("Left Arm")
+	if not (hand and hand:IsA("BasePart")) then
+		return
+	end
+	local model = Instance.new("Model")
+	model.Name = "HandKnife"
+	local isR6 = hand.Name == "Left Arm"
+	local grip = hand.CFrame * CFrame.new(0, if isR6 then -1.1 else -0.2, -0.15)
+	local color = Config.KnifeColors[level] or Config.KnifeColors[0]
+	local blade = Color3.fromRGB(color[1], color[2], color[3])
+	local function piece(name: string, size: Vector3, cf: CFrame, partColor: Color3, material: Enum.Material?)
+		local p = Instance.new("Part")
+		p.Name = name
+		p.Size = size
+		p.CFrame = cf
+		p.Color = partColor
+		p.Material = material or Enum.Material.SmoothPlastic
+		p.CanCollide = false
+		p.CanTouch = false
+		p.CanQuery = false
+		p.Massless = true
+		p.CastShadow = false
+		p.Parent = model
+		local weld = Instance.new("WeldConstraint")
+		weld.Part0 = hand
+		weld.Part1 = p
+		weld.Parent = p
+	end
+	piece("Handle", Vector3.new(0.18, 0.5, 0.18), grip, Color3.fromRGB(100, 66, 40))
+	-- Ostrze wystaje do przodu, wyższe poziomy lśnią
+	piece("Blade", Vector3.new(0.08, 0.16, 0.75), grip * CFrame.new(0, -0.2, -0.45), blade, if level >= 4 then Enum.Material.Neon elseif level >= 1 then Enum.Material.Metal else nil)
+	model.Parent = character
+end
+
 local function applyCharacterStats(session: Session)
 	local character = session.player.Character
 	if not character then
@@ -405,6 +452,7 @@ local function applyCharacterStats(session: Session)
 		lantern.Range = math.min(stat(session, "lantern"), 60) -- 60 to limit Robloxa dla PointLight
 	end
 	attachHandLantern(character)
+	attachHandKnife(character, session.data.upgrades.knife or 0)
 end
 
 -- Latarnia zgasła albo strażnik złapał gracza: zabiera koszyk i wyrzuca gracza do chatki / obozu.
@@ -679,6 +727,40 @@ local function onPlayerRemoving(player: Player)
 	saveSession(session)
 end
 
+-- Panel DEV: wymuszona pora na chwilę (do sprawdzania świtu bez czekania 18 minut)
+local debugPhase: string? = nil
+local debugUntil = 0
+
+-- Komunikat na początek nocy, osobny dla każdego zdarzenia
+local NIGHT_MESSAGES: { [string]: string } = {
+	calm = "MSG_NIGHT_CALM",
+	full_moon = "MSG_NIGHT_FULL_MOON",
+	rain = "MSG_NIGHT_RAIN",
+	mist = "MSG_NIGHT_MIST",
+	blood_moon = "MSG_NIGHT_BLOOD_MOON",
+}
+
+-- Świt: las u każdego gracza odrasta od nowa (nowe gatunki i mutacje w tych samych miejscach).
+-- Klient podmienia grzyby o tych samych id, więc nie trzeba ich osobno usuwać.
+local function resetForest(nextEvent: Config.NightEventDef)
+	local now = os.clock()
+	for _, session in sessions do
+		for id, state in session.spots do
+			local spot = map.spotById[id]
+			if spot then
+				local speciesId, variant, tags = rollSpot(session, spot)
+				state.speciesId = speciesId or state.speciesId
+				state.variant = variant
+				state.tags = tags
+				state.visible = false
+				state.readyAt = now
+			end
+		end
+		syncReadySpots(session, now)
+		notify(session, "MSG_DAWN", { nextEvent.icon }, nextEvent.key)
+	end
+end
+
 local function onPick(player: Player, spotId: unknown)
 	local session = sessions[player]
 	if not session or typeof(spotId) ~= "string" then
@@ -710,7 +792,9 @@ local function onPick(player: Player, spotId: unknown)
 		local speciesId, variant, tags = rollSpot(session, spot, true)
 		state.visible = false
 		local seconds = if guardian then GUARDIANS[guardian].respawn else Config.RespawnSeconds
-		state.readyAt = now + seconds * (if boomActive() then Config.Boom.regrowFactor else 1)
+		local event = Cycle.activeEvent(os.time())
+		state.readyAt = now
+			+ seconds * (if boomActive() then Config.Boom.regrowFactor else 1) * (if event then event.regrow else 1)
 		state.speciesId = speciesId or state.speciesId
 		state.variant = variant
 		state.tags = tags
@@ -896,6 +980,9 @@ local function onDevAction(player: Player, action: unknown)
 		GardenService.refresh(player)
 	elseif action == "basketClear" then
 		table.clear(data.basket)
+	elseif action == "cycleDawn" or action == "cycleNight" then
+		debugPhase = if action == "cycleDawn" then "dawn" else "night"
+		debugUntil = os.time() + 60
 	else
 		return
 	end
@@ -1136,6 +1223,36 @@ function GameService.start(mapInfo: MapBuilder.MapInfo)
 	for _, player in Players:GetPlayers() do
 		task.spawn(onPlayerAdded, player)
 	end
+
+	-- Dzień i noc: pora z zegara (wspólna dla serwerów), atrybuty dla klientów, reset grzybów o świcie
+	task.spawn(function()
+		local lastPhase: string? = nil
+		while true do
+			local now = os.time()
+			local phase = Cycle.at(now)
+			if debugPhase and now < debugUntil then
+				phase = table.clone(phase)
+				phase.phase = debugPhase
+				phase.endsAt = debugUntil
+			end
+			Workspace:SetAttribute("CyclePhase", phase.phase)
+			Workspace:SetAttribute("CycleEndsAt", phase.endsAt)
+			Workspace:SetAttribute("CycleEvent", phase.event.id)
+			Workspace:SetAttribute("CycleNextEvent", phase.nextEvent.id)
+			if lastPhase and lastPhase ~= phase.phase then
+				if phase.phase == "dawn" then
+					resetForest(phase.nextEvent)
+				else
+					local key = NIGHT_MESSAGES[phase.event.id] or "MSG_NIGHT_CALM"
+					for _, session in sessions do
+						notify(session, key)
+					end
+				end
+			end
+			lastPhase = phase.phase
+			task.wait(1)
+		end
+	end)
 
 	local accumulator = 0
 	RunService.Heartbeat:Connect(function(dt)

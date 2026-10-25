@@ -4,12 +4,19 @@
 
 local Lighting = game:GetService("Lighting")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 
 local Atmosphere = {}
 
 local CHANGE_SPEED = 1.5 -- jak szybko klimat dopasowuje się do nowej strefy
+-- Pora dnia na niebie: wieczór nocą, wschód słońca o świcie. Zegar idzie zawsze do przodu
+-- (przez północ), CLOCK_SPEED godzin na sekundę, więc zmiana pory trwa ok. 2 sekund.
+local NIGHT_CLOCK = 19
+local DAWN_CLOCK = 6.4
+local CLOCK_SPEED = 6
+local currentClock = NIGHT_CLOCK
 local SNAP = 0.002 -- poniżej tej różnicy przyjmujemy, że już jesteśmy u celu
 
 -- Jasno (polana o zmierzchu) -> ciemno (jar w środku nocy)
@@ -102,7 +109,16 @@ end
 
 function Atmosphere.update(zone: number, lanternRange: number, dt: number): number
 	local zoneDef = Config.Zones[zone] or Config.Zones[1]
-	local target = zoneDef.darkness
+	local dawn = Workspace:GetAttribute("CyclePhase") == "dawn"
+	-- O świcie mrok w lesie słabnie (w jaskini nie ma słońca)
+	local target = zoneDef.darkness * (if dawn and zoneDef.world ~= "cave" then Config.Cycle.dawnDarkness else 1)
+
+	local targetClock = if dawn then DAWN_CLOCK else NIGHT_CLOCK
+	local diff = (targetClock - currentClock) % 24
+	if diff > 0.001 then
+		currentClock = (currentClock + math.min(diff, dt * CLOCK_SPEED)) % 24
+		Lighting.ClockTime = currentClock
+	end
 	local fog = zoneDef.fog
 	local targetFog = if fog then Color3.fromRGB(fog[1], fog[2], fog[3]) else DARK_FOG
 	local fogAlpha = math.clamp(dt * CHANGE_SPEED, 0, 1)

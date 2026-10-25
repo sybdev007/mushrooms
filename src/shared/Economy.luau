@@ -147,6 +147,41 @@ function Economy.rollVariant(r: number, minRank: number?, luck: number?): string
 	return nil
 end
 
+-- Mnożnik szans na mutacje za głębokość strefy w jej świecie: pierwsza niebezpieczna strefa x1,
+-- każda kolejna o Config.DepthLuck więcej. Strefy bezpieczne (obozy) x1.
+function Economy.zoneLuck(index: number): number
+	local zone = Config.Zones[index]
+	if not zone or zone.safe then
+		return 1
+	end
+	local depth = 0
+	for i = 1, index do
+		local other = Config.Zones[i]
+		if other.world == zone.world and not other.safe then
+			depth += 1
+		end
+	end
+	return 1 + Config.DepthLuck * (depth - 1)
+end
+
+-- Klasa gatunku (Pospolity → Legendarny) według wagi; grzyby strażników zawsze legendarne
+function Economy.speciesClass(id: string): Config.ClassDef
+	local species = speciesById[id]
+	local classes = Config.Classes
+	if not species then
+		return classes[1]
+	end
+	if species.grove or species.lair or species.guardian then
+		return classes[#classes]
+	end
+	for _, class in classes do
+		if class.minWeight >= 0 and species.weight >= class.minWeight then
+			return class
+		end
+	end
+	return classes[#classes - 1]
+end
+
 -- Cechy, które mogą się pojawić w danej strefie
 function Economy.tagsForZone(zone: number): { Config.TagDef }
 	local list = {}

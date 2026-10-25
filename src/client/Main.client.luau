@@ -5,6 +5,7 @@ local ContextActionService = game:GetService("ContextActionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
@@ -139,6 +140,10 @@ local TOAST_KIND: { [string]: string } = {
 	MSG_RESCUED = "gold",
 	MSG_OIL_BOUGHT = "info",
 	MSG_HARVEST = "gold",
+	MSG_DAWN = "gold",
+	MSG_NIGHT_FULL_MOON = "gold",
+	MSG_NIGHT_BLOOD_MOON = "warn",
+	MSG_NIGHT_MIST = "warn",
 	MSG_PLANTED = "gold",
 	MSG_PLANTED_SWAP = "gold",
 	MSG_COLLECTED = "gold",
@@ -292,11 +297,22 @@ RunService.RenderStepped:Connect(function(dt)
 	local oilFraction = if oilMax > 0 then math.clamp(oil / oilMax, 0, 1) else 1
 	local now = os.clock()
 
-	local darkness = Atmosphere.update(zone, lanternRange, dt)
+	-- Mgła (zdarzenie nocy) skraca zasięg widzenia w mroku
+	local eventDef = nil
+	if Workspace:GetAttribute("CyclePhase") == "night" then
+		local eventId = Workspace:GetAttribute("CycleEvent")
+		for _, def in Config.Cycle.events do
+			if def.id == eventId then
+				eventDef = def
+			end
+		end
+	end
+	local sight = lanternRange * (if eventDef then eventDef.lantern else 1)
+	local darkness = Atmosphere.update(zone, sight, dt)
 	Effects.updateAmbient(darkness)
 	Effects.updateParticles(position, zone)
 	updateLantern(character, root, oilFraction, darkness, now)
-	MushroomView.updateVisibility(position, lanternRange, zoneDef.darkness)
+	MushroomView.updateVisibility(position, sight, zoneDef.darkness)
 
 	local safe = Economy.isSafeZone(zone)
 	if safe then

@@ -191,3 +191,21 @@ MSG_LOOT_RECOVERED,{1}{2} is back in your garden!,,,{1}{2} wrócił do twojego o
 MSG_HARVEST,Instant harvest: +{1} coins in your chest!,,,Zbiory od razu: +{1} monet w skrzyni!
 PRODUCT_HARVEST,Instant Harvest,,,Zbiory od razu
 PRODUCT_HARVEST_DESC,30 minutes of garden coins right now,,,Od razu 30 minut monet z ogródka
+UPG_KNIFE,Forager's Knife,,,Nożyk grzybiarza
+UPG_KNIFE_DESC,More mutations,,,Więcej mutacji
+CLASS_COMMON,Common,,,Pospolity
+CLASS_UNCOMMON,Uncommon,,,Niepospolity
+CLASS_RARE,Rare,,,Rzadki
+CLASS_EPIC,Epic,,,Epicki
+CLASS_LEGENDARY,Legendary,,,Legendarny
+EVENT_CALM,Quiet night,,,Spokojna noc
+EVENT_FULL_MOON,Full moon,,,Pełnia
+EVENT_RAIN,Rainy night,,,Deszczowa noc
+EVENT_MIST,Thick mist,,,Gęsta mgła
+EVENT_BLOOD_MOON,Blood moon,,,Krwawy księżyc
+MSG_DAWN,Dawn! The forest regrows. Next night: {2} {1},,,Świta! Las odrasta od nowa. Następna noc: {2} {1}
+MSG_NIGHT_CALM,🌙 Night falls. A quiet one.,,,🌙 Zapada noc. Spokojna.
+MSG_NIGHT_FULL_MOON,🌕 Full moon! Mutations are more common tonight.,,,🌕 Pełnia! Tej nocy mutacje są częstsze.
+MSG_NIGHT_RAIN,🌧️ Rain! Mushrooms regrow twice as fast.,,,🌧️ Deszcz! Grzyby odrastają dwa razy szybciej.
+MSG_NIGHT_MIST,🌫️ Thick mist: you see less. Mutations are more common.,,,🌫️ Gęsta mgła: widać mniej. Za to mutacje są częstsze.
+MSG_NIGHT_BLOOD_MOON,🩸 Blood moon! Lots of mutations... and the forest is restless.,,,🩸 Krwawy księżyc! Mnóstwo mutacji... a las jest niespokojny.

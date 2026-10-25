@@ -8,6 +8,7 @@ local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
 local Economy = require(ReplicatedStorage.Shared.Economy)
+local Localize = require(script.Parent.Localize)
 
 export type MushroomInfo = {
 	id: string,
@@ -123,6 +124,27 @@ highlight.DepthMode = Enum.HighlightDepthMode.Occluded
 -- Highlight bez Adornee podświetla swojego rodzica, czyli WSZYSTKIE grzyby, więc domyślnie wyłączony
 highlight.Enabled = false
 highlight.Parent = folder
+
+-- Nazwa i klasa grzyba, na który celuje gracz (np. "Borowik · Rzadki" na niebiesko)
+local targetTag = Instance.new("BillboardGui")
+targetTag.Name = "TargetTag"
+targetTag.Size = UDim2.fromOffset(180, 26)
+targetTag.StudsOffset = Vector3.new(0, 3.2, 0)
+targetTag.AlwaysOnTop = true
+targetTag.LightInfluence = 0
+targetTag.Enabled = false
+targetTag.Parent = folder
+local targetLabel = Instance.new("TextLabel")
+targetLabel.Size = UDim2.fromScale(1, 1)
+targetLabel.BackgroundTransparency = 1
+targetLabel.Font = Enum.Font.FredokaOne
+targetLabel.TextScaled = true
+targetLabel.Parent = targetTag
+local targetStroke = Instance.new("UIStroke")
+targetStroke.Thickness = 2
+targetStroke.Color = Color3.fromRGB(30, 20, 12)
+targetStroke.Parent = targetLabel
+local targetId: string? = nil
 
 local function makePart(name: string, size: Vector3, cframe: CFrame, color: Color3): Part
 	local p = Instance.new("Part")
@@ -283,6 +305,10 @@ function MushroomView.add(list: { MushroomInfo })
 		local old = entries[info.id]
 		if old then
 			old.model:Destroy()
+			-- Grzyb podmieniony (np. o świcie): napis nad nim trzeba zbudować od nowa
+			if targetId == info.id then
+				targetId = nil
+			end
 		end
 		local model, parts, animated, rainbow = buildModel(info)
 		-- Pozycję spoczynkową bierzemy przed animacją wyrastania (potem części są pod ziemią)
@@ -318,6 +344,11 @@ function MushroomView.remove(id: string)
 	local entry = entries[id]
 	if not entry then
 		return
+	end
+	if targetId == id then
+		targetId = nil
+		targetTag.Enabled = false
+		targetTag.Adornee = nil
 	end
 	if highlight.Adornee == entry.model then
 		highlight.Enabled = false
@@ -355,10 +386,24 @@ function MushroomView.updateTarget(position: Vector3, radius: number): string?
 	if target then
 		highlight.Adornee = target.model
 		highlight.Enabled = true
+		if targetId ~= bestId then
+			-- Obwódka i napis w kolorze klasy grzyba
+			local class = Economy.speciesClass(target.info.species)
+			local color = rgb(class.color[1], class.color[2], class.color[3])
+			local species = Economy.getSpecies(target.info.species)
+			highlight.OutlineColor = color
+			targetLabel.TextColor3 = color
+			targetLabel.Text = (if species then Localize.t(species.key) else "?") .. " · " .. Localize.t(class.key)
+			targetTag.Adornee = target.model.PrimaryPart
+			targetTag.Enabled = true
+		end
 	else
 		highlight.Enabled = false
 		highlight.Adornee = nil
+		targetTag.Enabled = false
+		targetTag.Adornee = nil
 	end
+	targetId = bestId
 	return bestId
 end
 

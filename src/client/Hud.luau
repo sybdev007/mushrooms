@@ -7,6 +7,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
+local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Economy = require(ReplicatedStorage.Shared.Economy)
@@ -57,6 +58,7 @@ local UPGRADE_ICONS = {
 	lock = "lock",
 	beds = "beds",
 	fertilizer = "fertilizer",
+	knife = "knife",
 	crystal = "crystal",
 	pack = "pack",
 	rushwick = "rushwick",
@@ -404,6 +406,27 @@ local function setOilLow(low: boolean)
 	end
 end
 
+-- Pora dnia przed nazwą strefy: "🌕 12:34 · " nocą (ikona zdarzenia), "🌅 1:20 · " o świcie
+local function cycleText(): string
+	local phase = Workspace:GetAttribute("CyclePhase")
+	local endsAt = Workspace:GetAttribute("CycleEndsAt")
+	if typeof(phase) ~= "string" or typeof(endsAt) ~= "number" then
+		return ""
+	end
+	local left = math.max(0, math.floor(endsAt - Workspace:GetServerTimeNow()))
+	local clock = string.format("%d:%02d", left // 60, left % 60)
+	if phase == "dawn" then
+		return "🌅 " .. clock .. " · "
+	end
+	local eventId = Workspace:GetAttribute("CycleEvent")
+	for _, def in Config.Cycle.events do
+		if def.id == eventId then
+			return def.icon .. " " .. clock .. " · "
+		end
+	end
+	return "🌙 " .. clock .. " · "
+end
+
 local function render()
 	languageButton.Text = Localize.t("HUD_LANGUAGE")
 	pickCaption.Text = Localize.t("HUD_PICK")
@@ -418,7 +441,7 @@ local function render()
 	basketFill.BackgroundColor3 = if state.basketCount >= state.basketMax then THEME.warn else Color3.fromRGB(150, 196, 90)
 
 	local zoneDef = Config.Zones[state.zone] or Config.Zones[1]
-	zoneLabel.Text = Localize.t(zoneDef.key)
+	zoneLabel.Text = cycleText() .. Localize.t(zoneDef.key)
 
 	local fraction = if state.oilMax > 0 then math.clamp(state.oil / state.oilMax, 0, 1) else 0
 	oilFill.Size = UDim2.new(fraction, 0, 1, 0)

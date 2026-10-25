@@ -314,6 +314,45 @@ Config.Tags = {
 	{ id = "abyssal", key = "MUT_ABYSSAL", icon = "🔥", zone = 8, chance = 0.08, mult = 2.5, color = { 255, 90, 60 } },
 } :: { TagDef }
 
+-- Im głębiej w świecie, tym częstsze mutacje: pierwsza niebezpieczna strefa x1, każda kolejna +DepthLuck
+Config.DepthLuck = 0.3
+
+-- Klasy grzybów według tego, jak często rosną w swojej strefie (waga w Config.Species).
+-- Grzyby strażników (korony, trufle, kielichy) są zawsze legendarne.
+export type ClassDef = { id: string, key: string, color: { number }, minWeight: number }
+Config.Classes = {
+	{ id = "common", key = "CLASS_COMMON", color = { 200, 200, 200 }, minWeight = 45 },
+	{ id = "uncommon", key = "CLASS_UNCOMMON", color = { 110, 220, 110 }, minWeight = 25 },
+	{ id = "rare", key = "CLASS_RARE", color = { 90, 170, 255 }, minWeight = 12 },
+	{ id = "epic", key = "CLASS_EPIC", color = { 190, 110, 255 }, minWeight = 0 },
+	{ id = "legendary", key = "CLASS_LEGENDARY", color = { 255, 170, 40 }, minWeight = -1 },
+} :: { ClassDef }
+
+-- ===== Dzień i noc =====
+-- Cykl liczony z zegara (os.time), więc na wszystkich serwerach jest ta sama pora i to samo zdarzenie.
+-- Noc: zbieranie, z losowym zdarzeniem. Świt: grzyby w całym lesie odrastają od nowa (reset).
+export type NightEventDef = {
+	id: string,
+	key: string,
+	icon: string,
+	weight: number,
+	luck: number, -- mnożnik szans na mutacje
+	regrow: number, -- mnożnik czasu odrastania (mniej = szybciej)
+	lantern: number, -- mnożnik zasięgu widzenia w mroku (mgła)
+}
+Config.Cycle = {
+	nightSeconds = 1080, -- 18 minut nocy
+	dawnSeconds = 120, -- 2 minuty świtu
+	dawnDarkness = 0.35, -- o świcie mrok w strefach jest tyle razy słabszy
+	events = {
+		{ id = "calm", key = "EVENT_CALM", icon = "🌙", weight = 40, luck = 1, regrow = 1, lantern = 1 },
+		{ id = "full_moon", key = "EVENT_FULL_MOON", icon = "🌕", weight = 22, luck = 1.5, regrow = 1, lantern = 1.15 },
+		{ id = "rain", key = "EVENT_RAIN", icon = "🌧️", weight = 18, luck = 1, regrow = 0.5, lantern = 1 },
+		{ id = "mist", key = "EVENT_MIST", icon = "🌫️", weight = 14, luck = 1.3, regrow = 1, lantern = 0.7 },
+		{ id = "blood_moon", key = "EVENT_BLOOD_MOON", icon = "🩸", weight = 6, luck = 2.5, regrow = 0.8, lantern = 0.85 },
+	} :: { NightEventDef },
+}
+
 -- Ukryta gwarancja: po tylu odrostach bez Złota (albo lepszego) następny grzyb jest co najmniej złoty
 Config.PityRolls = 60
 -- Od tej rangi znalezisko jest ogłaszane całemu serwerowi
@@ -385,6 +424,8 @@ Config.Upgrades = {
 	beds = { key = "UPG_BEDS", base = 3, step = 1, maxLevel = 6, costBase = 150, costGrowth = 2 },
 	-- Nawóz: mnożnik dochodu z posadzonych grzybów
 	fertilizer = { key = "UPG_FERTILIZER", base = 1, step = 0.25, maxLevel = 8, costBase = 250, costGrowth = 1.85 },
+	-- Nożyk grzybiarza: mnożnik szans na mutacje (srebro, złoto, tęcza i cechy z miejsca)
+	knife = { key = "UPG_KNIFE", base = 1, step = 0.25, maxLevel = 6, costBase = 300, costGrowth = 2.3 },
 	-- Obozowisko w jaskini. Kryształowy wkład: mnożnik spalania oleju w jaskini (1 = bez zmian)
 	crystal = { key = "UPG_CRYSTAL", base = 1, step = -0.1, maxLevel = 5, costBase = 3000, costGrowth = 1.8, shop = "cave" },
 	-- Plecak górnika: tyle dodatkowych miejsc w koszyku
@@ -396,7 +437,18 @@ Config.Upgrades = {
 } :: { [string]: UpgradeDef }
 
 -- Kolejność przycisków ulepszeń: w chatce i w obozowisku w jaskini
-Config.UpgradeOrder = { "lantern", "oil", "basket", "boots", "beds", "fertilizer", "lock" }
+Config.UpgradeOrder = { "lantern", "oil", "basket", "boots", "knife", "beds", "fertilizer", "lock" }
+
+-- Wygląd nożyka w lewej ręce na kolejnych poziomach (0 = scyzoryk, 6 = kryształowy)
+Config.KnifeColors = {
+	[0] = { 150, 150, 150 },
+	[1] = { 186, 190, 196 },
+	[2] = { 214, 224, 238 },
+	[3] = { 120, 200, 255 },
+	[4] = { 255, 205, 50 },
+	[5] = { 255, 130, 60 },
+	[6] = { 200, 120, 255 },
+}
 Config.CaveUpgradeOrder = { "crystal", "pack" }
 Config.SwampUpgradeOrder = { "rushwick", "creel" }
 

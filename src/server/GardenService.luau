@@ -359,6 +359,12 @@ local function refreshGarden(garden: GardenState)
 		local gui = label.Parent :: BillboardGui
 		gui.Enabled = item ~= nil
 		if item then
+			-- Obwódka tabliczki w kolorze klasy grzyba
+			local class = Economy.speciesClass(item.s)
+			local stroke = label:FindFirstChildOfClass("UIStroke")
+			if stroke then
+				stroke.Color = rgb(class.color)
+			end
 			local icons = mutationIcons(item)
 			label.Text = string.format(
 				'%s💰 %s\n<font color="%s">+%s/min</font>',
