@@ -24,6 +24,8 @@ local LeszyModel = require(World:WaitForChild("Leszy"))
 local SkarbnikModel = require(World:WaitForChild("Skarbnik"))
 local UtopiecModel = require(World:WaitForChild("Utopiec"))
 local GardenService = require(script.Parent.GardenService)
+local ProgressService = require(script.Parent.ProgressService)
+local LeaderboardService = require(script.Parent.LeaderboardService)
 
 type SpotState = {
 	speciesId: string,
@@ -690,6 +692,7 @@ local function onPlayerAdded(player: Player)
 
 	sessions[player] = session
 	GardenService.assign(player)
+	ProgressService.join(player)
 
 	-- Bez limitu dało się oddalić kamerę i oglądać las z góry. Zoom = kamera przysuwa się,
 	-- gdy coś (korony drzew) zasłania postać, zamiast robić je przezroczystymi.
@@ -730,6 +733,8 @@ local function onPlayerRemoving(player: Player)
 		rescue.drop()
 	end
 	GardenService.release(player)
+	ProgressService.leave(player)
+	LeaderboardService.leave(player, session.data)
 	saveSession(session)
 end
 
@@ -823,8 +828,9 @@ local function onPick(player: Player, spotId: unknown)
 		return
 	end
 
-	table.insert(basket, { s = state.speciesId, v = state.variant, x = state.tags })
-	session.data.atlas[state.speciesId] = true
+	local item = { s = state.speciesId, v = state.variant, x = state.tags }
+	table.insert(basket, item)
+	ProgressService.found(player, item, "pick")
 
 	-- Komunikat tylko o rzadkich znaleziskach (Złoto+ albo dwie mutacje naraz), żeby nie spamować;
 	-- o zwykłym srebrze czy mchu mówi już kolorowe „+N” nad grzybem
@@ -899,8 +905,10 @@ local function onSell(player: Player, indices: unknown, key: unknown)
 		return
 	end
 	local value = 0
+	local count = 0
 	if indices == nil then
 		value = Economy.basketValue(basket)
+		count = #basket
 		table.clear(basket)
 	else
 		local valid = Economy.validSellIndices(indices, #basket)
@@ -911,9 +919,18 @@ local function onSell(player: Player, indices: unknown, key: unknown)
 			value += Economy.itemValue(basket[index])
 			table.remove(basket, index)
 		end
+		count = #valid
 	end
+	-- Ukończone strony Grzybopedii podnoszą cenę na stałe
+	local bonus = ProgressService.sellBonus(player)
+	value = math.floor(value * (1 + bonus))
 	session.data.coins += value
-	notify(session, "MSG_SOLD", { value })
+	if bonus > 0 then
+		notify(session, "MSG_SOLD_BONUS", { value, math.floor(bonus * 100 + 0.5) })
+	else
+		notify(session, "MSG_SOLD", { value })
+	end
+	ProgressService.event(player, "sell", count)
 	pushState(session)
 end
 
@@ -1020,7 +1037,9 @@ local function onDevAction(player: Player, action: unknown)
 	elseif action == "cycleDawn" or action == "cycleNight" then
 		debugPhase = if action == "cycleDawn" then "dawn" else "night"
 		debugUntil = os.time() + 60
-	else
+	elseif action == "boardsRefresh" then
+		task.spawn(LeaderboardService.refreshNow)
+	elseif not ProgressService.dev(player, action) then
 		return
 	end
 	notify(session, "MSG_DEV_DONE", { action })
@@ -1155,6 +1174,7 @@ local function onBuy(player: Player, upgradeId: unknown)
 	end
 	applyCharacterStats(session)
 	notify(session, "MSG_UPGRADED", nil, def.key)
+	ProgressService.event(player, "upgrade", 1)
 	pushState(session)
 end
 
@@ -1186,6 +1206,7 @@ function GameService.start(mapInfo: MapBuilder.MapInfo)
 					local session = sessions[player]
 					if session then
 						notify(session, def.escaped, { Economy.basketValue(session.data.basket) })
+						ProgressService.event(player, "escape", 1)
 					end
 				end,
 				onGaveUp = function(player: Player)
@@ -1208,7 +1229,7 @@ function GameService.start(mapInfo: MapBuilder.MapInfo)
 					return false
 				end
 				table.insert(basket, { s = item.s, v = item.v, x = item.x })
-				session.data.atlas[item.s] = true
+				ProgressService.found(player, item, "hoard")
 				local chaser = chasers[name]
 				if chaser and chaser.startChase(player, place.origin) then
 					notify(session, def.woke)
@@ -1218,6 +1239,31 @@ function GameService.start(mapInfo: MapBuilder.MapInfo)
 			end,
 		})
 	end
+
+	ProgressService.start({
+		getData = function(player: Player)
+			local session = sessions[player]
+			return if session then session.data else nil
+		end,
+		notify = function(player: Player, key: string, args: { any }?, nameKey: string?, mutation: MutationInfo?)
+			local session = sessions[player]
+			if session then
+				notify(session, key, args, nameKey, mutation)
+			end
+		end,
+		pushState = function(player: Player)
+			local session = sessions[player]
+			if session then
+				pushState(session)
+			end
+		end,
+	})
+	LeaderboardService.start({
+		getData = function(player: Player)
+			local session = sessions[player]
+			return if session then session.data else nil
+		end,
+	})
 
 	GardenService.start(map.gardens, {
 		getData = function(player: Player)
@@ -1246,6 +1292,7 @@ function GameService.start(mapInfo: MapBuilder.MapInfo)
 				applyCharacterStats(session)
 			end
 		end,
+		onEvent = ProgressService.event,
 	})
 
 	setupDevCommands()

@@ -47,6 +47,7 @@ local FALLBACK: { [string]: string } = {
 	creel = "🧺", rescue = "💾", boom = "🍄", dry = "⚡", luck = "🍀",
 	upgrade = "⬆️", knife = "🔪", beds = "🌱", fertilizer = "🧪", coins = "💰",
 	check = "✅", star = "⭐", chest = "🧰", moon = "🌙", sparkles = "✨",
+	book = "📖", scroll = "📜", trophy = "🏆", gift = "🎁", dice = "🎲",
 }
 
 UiKit.COLORS = {
