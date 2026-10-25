@@ -104,7 +104,9 @@ function Leszy.build(parent: Instance, at: CFrame, awake: boolean): Model
 	end
 
 	m.PrimaryPart = root
-	m.WorldPivot = CFrame.new()
+	-- Pivot na podłodze pod stopami (model jest budowany wokół początku układu). WorldPivot nic tu
+	-- nie daje, bo przy ustawionym PrimaryPart Roblox liczy pivot z PivotOffset tej części.
+	root.PivotOffset = root.CFrame:Inverse()
 	m:PivotTo(at)
 	m.Parent = parent
 	return m

@@ -143,7 +143,9 @@ function Merchant.build(parent: Instance, at: CFrame, promptDistance: number): M
 	end
 
 	m.PrimaryPart = root
-	m.WorldPivot = CFrame.new()
+	-- Pivot na podłodze pod stopami (model jest budowany wokół początku układu). WorldPivot nic tu
+	-- nie daje, bo przy ustawionym PrimaryPart Roblox liczy pivot z PivotOffset tej części.
+	root.PivotOffset = root.CFrame:Inverse()
 	m:PivotTo(at)
 	CollectionService:AddTag(m, "Merchant")
 	m.Parent = parent
