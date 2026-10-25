@@ -384,8 +384,12 @@ local function attachHandKnife(character: Model, level: number)
 	if not hand then
 		return
 	end
-	-- Rączka w pięści, ostrze do przodu (-Z dłoni)
-	local grip = hand.CFrame * CFrame.new(0, if isR6 then -0.95 else -0.12, 0)
+	-- Rączka w pięści, ostrze do przodu, pochylone w dół i odchylone od ciała, żeby było
+	-- je widać zza pleców (kamera stoi za graczem)
+	local grip = hand.CFrame
+		* CFrame.new(0, if isR6 then -0.95 else -0.12, 0)
+		* CFrame.Angles(0, math.rad(25), 0)
+		* CFrame.Angles(math.rad(-30), 0, 0)
 	HandTools.knife(level, grip, hand).Parent = character
 end
 

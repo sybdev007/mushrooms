@@ -63,8 +63,13 @@ local function blob(parent: Model, name: string, size: Vector3, cf: CFrame, colo
 	return p
 end
 
--- Spawa wszystkie części do ręki (albo zostawia zakotwiczone, gdy podgląd)
-local function attach(model: Model, weldTo: BasePart?)
+-- Powiększa model względem punktu chwytu, potem spawa wszystkie części do ręki
+-- (albo zostawia je zakotwiczone, gdy to podgląd)
+local function attach(model: Model, weldTo: BasePart?, base: CFrame, scale: number)
+	model.WorldPivot = base
+	if scale ~= 1 then
+		model:ScaleTo(scale)
+	end
 	for _, child in model:GetDescendants() do
 		if child:IsA("BasePart") then
 			if weldTo then
@@ -149,7 +154,7 @@ function HandTools.lantern(level: number, base: CFrame, weldTo: BasePart?): Mode
 	end
 
 	m:SetAttribute("Tier", HandTools.lanternTier(level))
-	attach(m, weldTo)
+	attach(m, weldTo, base, 1.2)
 	return m
 end
 
@@ -312,7 +317,7 @@ function HandTools.knife(level: number, base: CFrame, weldTo: BasePart?): Model
 	end
 
 	m:SetAttribute("Level", level)
-	attach(m, weldTo)
+	attach(m, weldTo, base, 1.2)
 	return m
 end
 
