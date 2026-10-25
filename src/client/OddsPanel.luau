@@ -177,16 +177,16 @@ local function render()
 	local potionLuck = Economy.luck(potionInput)
 
 	luckLine.Text = Localize.t("ODDS_YOUR_LUCK", { times(luck) })
-	if raw - luck > 0.01 then
-		-- Malejący zysk / limit: pokazujemy, ile byłoby bez balansu
-		luckLine.Text ..= '  <font size="13" color="#D6BC96">' .. Localize.t("ODDS_CAPPED", { times(raw) }) .. "</font>"
-	end
 	local names = {}
 	for _, part in parts do
 		local label = if part.key == "ODDS_DEPTH" and input.zone then zoneName(input.zone) else Localize.t(part.key)
 		table.insert(names, label .. " " .. times(part.mult))
 	end
 	partsLine.Text = if #names > 0 then table.concat(names, "  ·  ") else Localize.t("ODDS_NO_BONUS")
+	if raw - luck > 0.01 then
+		-- Malejący zysk / limit: pokazujemy, ile byłoby bez balansu
+		partsLine.Text ..= "\n" .. Localize.t("ODDS_CAPPED", { times(raw) })
+	end
 
 	header[1].Text = Localize.t("ODDS_MUTATION")
 	header[2].Text = Localize.t("ODDS_BASE")
