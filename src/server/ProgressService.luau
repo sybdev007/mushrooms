@@ -159,6 +159,21 @@ function ProgressService.event(player: Player, kind: string, amount: number?)
 	send(player)
 end
 
+-- Nowe progi stron Grzybopedii: komunikat raz na próg, potem tytuł nad głową
+local function checkMilestones(player: Player, data: Data)
+	for _, milestone in Progress.milestones(data.atlas) do
+		if not table.find(data.atlasDone, milestone) then
+			table.insert(data.atlasDone, milestone)
+			local page, rank = string.match(milestone, "^(%a+):(%d)$")
+			local tier = Progress.TIERS[(tonumber(rank) or 0) + 1]
+			if page and tier then
+				api.notify(player, "MSG_ATLAS_TIER", { math.floor(tier.bonus * 100 + 0.5) }, "ATLAS_PAGE_" .. string.upper(page))
+			end
+		end
+	end
+	refreshTitle(player, data)
+end
+
 -- Grzyb trafił do koszyka. source: "pick" (zerwany w lesie) albo "hoard" (z legowiska strażnika)
 function ProgressService.found(player: Player, item: { s: string, v: string?, x: { string }? }, source: string)
 	local data = api.getData(player)
@@ -173,18 +188,7 @@ function ProgressService.found(player: Player, item: { s: string, v: string?, x:
 			variant = item.v,
 		})
 		ProgressService.event(player, "discover", 1)
-		-- Nowe progi stron: komunikat raz na próg
-		for _, milestone in Progress.milestones(data.atlas) do
-			if not table.find(data.atlasDone, milestone) then
-				table.insert(data.atlasDone, milestone)
-				local page, rank = string.match(milestone, "^(%a+):(%d)$")
-				local tier = Progress.TIERS[(tonumber(rank) or 0) + 1]
-				if page and tier then
-					api.notify(player, "MSG_ATLAS_TIER", { math.floor(tier.bonus * 100 + 0.5) }, "ATLAS_PAGE_" .. string.upper(page))
-				end
-			end
-		end
-		refreshTitle(player, data)
+		checkMilestones(player, data)
 	end
 	-- Najlepsze znalezisko tygodnia (ranking)
 	local now = os.time()
@@ -230,7 +234,7 @@ function ProgressService.dev(player: Player, action: string): boolean
 				end
 			end
 		end
-		ProgressService.found(player, { s = "honey", v = nil, x = nil }, "dev")
+		checkMilestones(player, data)
 	elseif action == "atlasClear" then
 		table.clear(data.atlas)
 		table.clear(data.atlasDone)
