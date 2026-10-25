@@ -503,7 +503,7 @@ local function buildStations(m: Model)
 	stationRing(m, "oil", Color3.fromRGB(255, 186, 80))
 	stationRing(m, "shop", Color3.fromRGB(150, 226, 110))
 	-- Szyld nad ladą na tylnej ścianie, napisem do środka chatki (wysoko, nad kapeluszem skupywacza)
-	Props.signBoard(m, CFrame.new(-5, FLOOR_TOP + 8.4, BACK_Z + 1), Vector3.new(7.5, 1.6, 0.3), "SIGN_SHOP", Enum.NormalId.Back)
+	Props.signBoard(m, CFrame.new(-5, FLOOR_TOP + 9.7, BACK_Z + 1), Vector3.new(7.5, 1.6, 0.3), "SIGN_SHOP", Enum.NormalId.Back)
 	-- Skupywacz za ladą, przodem do wnętrza
 	local merchant = Config.Merchant
 	local at = Vector3.new(merchant.x, FLOOR_TOP, merchant.z)
