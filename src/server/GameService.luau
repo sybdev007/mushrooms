@@ -63,6 +63,17 @@ local function stat(session: Session, id: string): number
 	return Economy.upgradeStat(id, session.data.upgrades[id] or 0)
 end
 
+-- Deweloper: Studio, twórca gry albo konto z Config.DevUserIds (komenda /coins, panel DEV)
+local function isDeveloper(player: Player): boolean
+	if RunService:IsStudio() then
+		return true
+	end
+	if game.CreatorType == Enum.CreatorType.User and player.UserId == game.CreatorId then
+		return true
+	end
+	return table.find(Config.DevUserIds, player.UserId) ~= nil
+end
+
 -- Koszyk + plecak górnika (ulepszenie z obozowiska w jaskini)
 local function basketMax(session: Session): number
 	return stat(session, "basket") + stat(session, "pack")
@@ -108,6 +119,7 @@ local function pushState(session: Session)
 		upgrades = table.clone(data.upgrades),
 		chased = LeszyService.isChased(session.player),
 		caveUnlocked = data.caveUnlocked,
+		dev = isDeveloper(session.player),
 	})
 end
 
@@ -574,16 +586,6 @@ end
 
 -- ===== Komendy deweloperskie =====
 
-local function isDeveloper(player: Player): boolean
-	if RunService:IsStudio() then
-		return true
-	end
-	if game.CreatorType == Enum.CreatorType.User and player.UserId == game.CreatorId then
-		return true
-	end
-	return table.find(Config.DevUserIds, player.UserId) ~= nil
-end
-
 -- /coins 1000000 dodaje monety, /coins -500 odejmuje (bez liczby: +1000)
 local function setupDevCommands()
 	local folder = TextChatService:FindFirstChild("TextChatCommands") or TextChatService
@@ -602,6 +604,74 @@ local function setupDevCommands()
 		notify(session, "MSG_DEV_COINS", { amount })
 		pushState(session)
 	end)
+end
+
+-- Panel DEV (przycisk 🛠 widoczny tylko dla deweloperów). Serwer sprawdza uprawnienia przy każdej akcji.
+local DEV_TELEPORTS: { [string]: () -> CFrame? } = {
+	tpCabin = function()
+		return map.spawnCFrame
+	end,
+	tpPlaza = function()
+		return CFrame.new(Config.Cave.shortcut.x, 4, Config.Cave.shortcut.z + 14) * CFrame.Angles(0, 0, 0)
+	end,
+	tpGrove = function()
+		return CFrame.new(Config.Grove.centerX, 4, Config.Grove.centerZ - Config.Grove.radius - 8) * CFrame.Angles(0, math.pi, 0)
+	end,
+	tpPortal = function()
+		return CFrame.new(Config.Cave.portal.x, 4, Config.Cave.portal.z - 12) * CFrame.Angles(0, math.pi, 0)
+	end,
+	tpCamp = function()
+		return map.campCFrame
+	end,
+	tpAbyss = function()
+		local zone = Config.Zones[#Config.Zones]
+		return CFrame.new(0, 4, zone.startZ + 10) * CFrame.Angles(0, math.pi, 0)
+	end,
+}
+
+local function onDevAction(player: Player, action: unknown)
+	local session = sessions[player]
+	if not session or typeof(action) ~= "string" or not isDeveloper(player) then
+		return
+	end
+	local data = session.data
+	local teleport = DEV_TELEPORTS[action]
+	if teleport then
+		local target = teleport()
+		local character = player.Character
+		if target and character then
+			LeszyService.stop(player)
+			character:PivotTo(target)
+			session.zone = Economy.zoneIndexAt(target.Position.Z)
+		end
+	elseif action == "coins10k" then
+		data.coins += 10000
+	elseif action == "coins100k" then
+		data.coins += 100000
+	elseif action == "coinsZero" then
+		data.coins = 0
+	elseif action == "caveUnlock" then
+		data.caveUnlocked = true
+	elseif action == "caveLock" then
+		data.caveUnlocked = false
+	elseif action == "oilFull" then
+		session.oil = stat(session, "oil")
+	elseif action == "oilLow" then
+		session.oil = stat(session, "oil") * 0.1
+	elseif action == "upgradesMax" or action == "upgradesReset" then
+		for id, def in Config.Upgrades do
+			data.upgrades[id] = if action == "upgradesMax" then def.maxLevel else 0
+		end
+		session.oil = stat(session, "oil")
+		applyCharacterStats(session)
+		DryingService.refresh(player)
+	elseif action == "basketClear" then
+		table.clear(data.basket)
+	else
+		return
+	end
+	notify(session, "MSG_DEV_DONE", { action })
+	pushState(session)
 end
 
 local function onBuy(player: Player, upgradeId: unknown)
@@ -713,6 +783,7 @@ function GameService.start(mapInfo: MapBuilder.MapInfo)
 	PickMushroom.OnServerEvent:Connect(onPick)
 	SellBasket.OnServerEvent:Connect(onSell)
 	BuyUpgrade.OnServerEvent:Connect(onBuy)
+	Remotes.get("DevAction").OnServerEvent:Connect(onDevAction)
 
 	Players.PlayerAdded:Connect(onPlayerAdded)
 	Players.PlayerRemoving:Connect(onPlayerRemoving)

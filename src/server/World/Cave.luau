@@ -223,17 +223,37 @@ function Cave.portal(parent: Instance, cf: CFrame, signKey: string, color: Color
 		openW, openH = stoneFrame(m, cf)
 	end
 
-	-- Wir: płaski świecący owal wypełniający otwór
+	-- Wir wypełnia cały otwór łuku: prostokąt do wysokości filarów i półokrąg z poziomych pasków
+	-- u góry. Brzegi wchodzą trochę w kamienie, żeby w rogach nie było szpar. Paski się nie nakładają,
+	-- więc przezroczystość jest wszędzie równa.
+	local w = openW + 0.8
+	local springY = math.max(openH - w / 2, 1) -- wysokość, na której zaczyna się łuk
 	local swirl = decor(make("Part", {
 		Name = "Swirl",
-		Shape = Enum.PartType.Cylinder,
-		Size = Vector3.new(0.3, openH, openW),
-		CFrame = cf * CFrame.new(0, openH / 2 + 0.2, 0) * CFrame.Angles(0, math.rad(90), 0),
+		Size = Vector3.new(w, springY, 0.3),
+		CFrame = cf * CFrame.new(0, springY / 2, 0),
 		Color = color,
 		Material = Enum.Material.Neon,
 		Transparency = 0.35,
 		Parent = m,
 	}))
+	local strips = 10
+	local radius = w / 2
+	for i = 1, strips do
+		local bottom = (i - 1) / strips * radius
+		local top = i / strips * radius
+		local mid = (bottom + top) / 2
+		local half = math.sqrt(math.max(radius * radius - mid * mid, 0)) + 0.25
+		decor(make("Part", {
+			Name = "SwirlArch",
+			Size = Vector3.new(half * 2, top - bottom + 0.02, 0.3),
+			CFrame = cf * CFrame.new(0, springY + mid, 0),
+			Color = color,
+			Material = Enum.Material.Neon,
+			Transparency = 0.35,
+			Parent = swirl, -- paski są dziećmi wiru, więc klient barwi je razem z nim
+		}))
+	end
 	if tag then
 		CollectionService:AddTag(swirl, tag)
 	end
@@ -390,13 +410,10 @@ local function buildCamp(parent: Instance)
 		})
 	end
 
-	-- Namioty, ognisko i latarnie na palach
+	-- Namioty i ognisko (latarnie na palach przy portalu i przy bramie zasłaniały widok, więc ich nie ma)
 	tent(m, CFrame.new(-17, 0, camp.z + 10) * CFrame.Angles(0, math.rad(20), 0), Color3.fromRGB(170, 130, 80))
 	tent(m, CFrame.new(18, 0, camp.z + 10) * CFrame.Angles(0, math.rad(-25), 0), Color3.fromRGB(120, 140, 90))
 	campfire(m, Vector3.new(0, 0, camp.z + 7))
-	for _, pos in { Vector3.new(-8, 0, camp.z - 8), Vector3.new(8, 0, camp.z - 8), Vector3.new(-8, 0, camp.z + 12), Vector3.new(8, 0, camp.z + 12) } do
-		Props.lanternPost(m, pos, if pos.X < 0 then 0 else math.pi)
-	end
 	m.Parent = parent
 end
 

@@ -111,3 +111,4 @@ HUD_DISTANCE_CAMP,{1} m to the camp,,,{1} m do obozowiska
 SIGN_PORTAL_SHORTCUT,To the Caves,,,Do jaskini
 MSG_PORTAL_FIND,Find the portal behind the Leshy's nest first,,,Najpierw znajdź portal za gniazdem Leszego
 SIGN_PORTAL_SOON,Coming soon...,,,Wkrótce...
+MSG_DEV_DONE,Dev: {1},,,Dev: {1}

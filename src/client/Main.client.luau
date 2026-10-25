@@ -19,6 +19,7 @@ local Effects = require(script.Parent.Effects)
 local Warnings = require(script.Parent.Warnings)
 local Signs = require(script.Parent.Signs)
 local PortalView = require(script.Parent.PortalView)
+local DevPanel = require(script.Parent.DevPanel)
 local RackPrompts = require(script.Parent.RackPrompts)
 
 local player = Players.LocalPlayer
@@ -49,6 +50,7 @@ Remotes.get("StateUpdate").OnClientEvent:Connect(function(state)
 	chased = state.chased == true
 	caveScale = Economy.upgradeStat("crystal", state.upgrades.crystal or 0)
 	PortalView.setUnlocked(state.caveUnlocked == true)
+	DevPanel.setEnabled(state.dev == true)
 	Hud.update(state)
 end)
 

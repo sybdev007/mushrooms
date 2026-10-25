@@ -16,8 +16,17 @@ local function apply(swirl: Instance)
 	if not swirl:IsA("BasePart") then
 		return
 	end
-	swirl.Color = if unlocked then OPEN_COLOR else LOCKED_COLOR
-	swirl.Transparency = if unlocked then 0.35 else 0.55
+	-- Wir składa się z prostokąta i pasków łuku (dzieci), barwimy wszystko razem
+	local parts: { BasePart } = { swirl }
+	for _, child in swirl:GetChildren() do
+		if child:IsA("BasePart") then
+			table.insert(parts, child)
+		end
+	end
+	for _, part in parts do
+		part.Color = if unlocked then OPEN_COLOR else LOCKED_COLOR
+		part.Transparency = if unlocked then 0.35 else 0.55
+	end
 	local light = swirl:FindFirstChildOfClass("PointLight")
 	if light then
 		light.Color = swirl.Color

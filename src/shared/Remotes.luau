@@ -15,6 +15,7 @@ local NAMES = {
 	"PickMushroom",
 	"SellBasket",
 	"BuyUpgrade",
+	"DevAction", -- panel DEV (serwer sprawdza, czy gracz jest deweloperem)
 }
 
 local folder: Folder
