@@ -280,7 +280,9 @@ function HandTools.knife(level: number, base: CFrame, weldTo: BasePart?): Model
 		local bend = tipBase * CFrame.Angles(math.rad(24), 0, 0)
 		local curveLength = 0.15
 		bladePart("BladeCurve", Vector3.new(0.035, bladeHeight * 0.85, curveLength), bend * CFrame.new(0, -0.005, -curveLength / 2))
-		local tip = wedge(m, "BladeTip", Vector3.new(0.035, bladeHeight * 0.85, 0.12), bend * CFrame.new(0, -0.005, -curveLength - 0.06) * CFrame.Angles(0, math.rad(180), 0), style.blade, style.bladeMaterial)
+		-- Klin bez obrotu ma pełną wysokość z tyłu (+Z) i schodzi do zera z przodu przy spodzie;
+		-- obrócony do góry nogami daje szpic u góry, czyli haczyk noża grzybiarza
+		local tip = wedge(m, "BladeTip", Vector3.new(0.035, bladeHeight * 0.85, 0.12), bend * CFrame.new(0, -0.005, -curveLength - 0.06) * CFrame.Angles(0, 0, math.pi), style.blade, style.bladeMaterial)
 		tip.Transparency = style.bladeTransparency or 0
 		if style.edge then
 			local edge = part(m, "Edge", Vector3.new(0.045, 0.025, straight), seg1 * CFrame.new(0, -bladeHeight / 2, 0), style.edge, Enum.Material.Neon)
@@ -289,7 +291,7 @@ function HandTools.knife(level: number, base: CFrame, weldTo: BasePart?): Model
 		end
 	else
 		-- Prosty czubek scyzoryka
-		local tip = wedge(m, "BladeTip", Vector3.new(0.035, bladeHeight, 0.1), tipBase * CFrame.new(0, 0, -0.05) * CFrame.Angles(0, math.rad(180), 0), style.blade, style.bladeMaterial)
+		local tip = wedge(m, "BladeTip", Vector3.new(0.035, bladeHeight, 0.1), tipBase * CFrame.new(0, 0, -0.05), style.blade, style.bladeMaterial)
 		tip.Transparency = style.bladeTransparency or 0
 	end
 	-- Fuller: ciemniejszy rowek wzdłuż ostrza (od 2. poziomu)
