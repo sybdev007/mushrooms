@@ -1,11 +1,23 @@
 --!strict
 -- Skarbnik: duch kopalni ze śląskich legend, strażnik podziemnych skarbów.
--- Przygarbiony stary górnik w długim czarnym płaszczu z kapturem, z siwą brodą do pasa,
--- w kasku z lampką, z kilofem na ramieniu i zieloną latarnią w ręce. Oczy świecą na zielono.
+-- Stary górnik w czarnym mundurze z mosiężnymi guzikami i w wysokim czaku z pióropuszem,
+-- z siwą brodą, kilofem i latarnią z zielonym płomieniem. Oczy świecą na zielono.
+-- Model to siatka z teksturą wygenerowana w Studio (asset na koncie Toma); gdy nie da się jej
+-- wczytać, składamy prostszego Skarbnika z klocków. Do siatki dokładamy niewidzialne punkty
+-- ze światłem oczu i latarni oraz zieloną mgiełkę u stóp, które zapalają się, gdy się budzi.
 -- Ten sam model służy jako uśpiony posąg w skarbcu i jako goniący duch.
 -- Pivot modelu leży na ziemi pod stopami, przód to -Z (jak w CFrame.lookAt).
 
+local InsertService = game:GetService("InsertService")
+
 local Palette = require(script.Parent.Palette)
+
+-- Siatka i tekstura Skarbnika oraz rozmiar w studs (proporcje z generatora: 5 x 5,44 x 2,68)
+local MESH = {
+	mesh = "rbxassetid://101040825190035",
+	texture = "rbxassetid://135852801418456",
+	size = Vector3.new(8.3, 9, 4.4),
+}
 
 local Skarbnik = {}
 
@@ -40,8 +52,8 @@ local function part(m: Model, name: string, size: Vector3, cf: CFrame, color: Co
 	return p
 end
 
--- Buduje Skarbnika stojącego w `at` (pivot na ziemi). awake = świecące oczy i latarnia.
-function Skarbnik.build(parent: Instance, at: CFrame, awake: boolean): Model
+-- Prostszy Skarbnik z klocków, gdy siatki nie da się wczytać
+local function buildParts(parent: Instance, at: CFrame, awake: boolean): Model
 	local m = Instance.new("Model")
 	m.Name = "Skarbnik"
 
@@ -120,8 +132,118 @@ function Skarbnik.build(parent: Instance, at: CFrame, awake: boolean): Model
 	return m
 end
 
+-- Siatkę wczytujemy raz i potem klonujemy (każdy pościg ma własnego Skarbnika)
+local template: MeshPart? = nil
+local templateFailed = false
+
+local function meshTemplate(): MeshPart?
+	if template or templateFailed then
+		return template
+	end
+	local ok, result = pcall(function()
+		return InsertService:CreateMeshPartAsync(MESH.mesh, Enum.CollisionFidelity.Box, Enum.RenderFidelity.Automatic)
+	end)
+	if ok and result then
+		local meshPart = result :: MeshPart
+		meshPart.TextureID = MESH.texture
+		meshPart.Size = MESH.size
+		meshPart.Anchored = true
+		meshPart.CanCollide = false
+		meshPart.CanTouch = false
+		meshPart.CanQuery = false
+		template = meshPart
+	else
+		templateFailed = true
+		warn("[Skarbnik] Nie udało się wczytać siatki, składam z klocków:", result)
+	end
+	return template
+end
+
+-- Niewidzialny punkt na światło (oczy, latarnia), w układzie modelu
+local function lightPoint(m: Model, name: string, offset: Vector3, color: Color3, range: number, brightness: number): BasePart
+	local p = Instance.new("Part")
+	p.Name = name
+	p.Size = Vector3.new(0.2, 0.2, 0.2)
+	p.CFrame = CFrame.new(offset)
+	p.Transparency = 1
+	p.Anchored = true
+	p.CanCollide = false
+	p.CanTouch = false
+	p.CanQuery = false
+	p.Parent = m
+	local light = Instance.new("PointLight")
+	light.Name = "Light"
+	light.Color = color
+	light.Range = range
+	light.Brightness = brightness
+	light.Parent = p
+	return p
+end
+
+-- Buduje Skarbnika stojącego w `at` (pivot na ziemi). awake = świecące oczy, latarnia i mgiełka.
+function Skarbnik.build(parent: Instance, at: CFrame, awake: boolean): Model
+	local source = meshTemplate()
+	if not source then
+		return buildParts(parent, at, awake)
+	end
+	local m = Instance.new("Model")
+	m.Name = "Skarbnik"
+	local size = MESH.size
+	local body = source:Clone()
+	body.Name = "Body"
+	body.CFrame = CFrame.new(0, size.Y / 2, 0)
+	body.Parent = m
+
+	-- Oczy pod rondem czaka, latarnia w prawej ręce (po lewej stronie, gdy patrzymy na niego z przodu)
+	lightPoint(m, "EyeGlow", Vector3.new(0, size.Y * 0.6, -size.Z * 0.45), Skarbnik.EYE_COLOR, 16, if awake then 2 else 0)
+	lightPoint(m, "LanternGlow", Vector3.new(-size.X * 0.42, size.Y * 0.26, -size.Z * 0.2), GHOST_FLAME, 20, if awake then 2.5 else 0.6)
+
+	-- Zielona mgiełka wokół stóp, gdy duch się budzi
+	local feet = lightPoint(m, "Mist", Vector3.new(0, 0.4, 0), GHOST_FLAME, 10, 0)
+	local mist = Instance.new("ParticleEmitter")
+	mist.Name = "GhostMist"
+	mist.Texture = "rbxasset://textures/particles/smoke_main.dds"
+	mist.Color = ColorSequence.new(GHOST_FLAME)
+	mist.LightEmission = 0.8
+	mist.Size = NumberSequence.new(1.5, 4)
+	mist.Transparency = NumberSequence.new(0.5, 1)
+	mist.Lifetime = NumberRange.new(1, 2)
+	mist.Rate = 12
+	mist.Speed = NumberRange.new(0.5, 1.5)
+	mist.SpreadAngle = Vector2.new(180, 20)
+	mist.Enabled = awake
+	mist.Parent = feet
+
+	local root = lightPoint(m, "Root", Vector3.new(0, 0.5, 0), GHOST_FLAME, 0, 0)
+	m.PrimaryPart = root
+	m.WorldPivot = CFrame.new()
+	m:PivotTo(at)
+	m.Parent = parent
+	return m
+end
+
 -- Budzi albo usypia (posąg w skarbcu świeci oczami i latarnią, gdy ktoś jest goniony)
 function Skarbnik.setAwake(m: Model, awake: boolean)
+	-- Wersja z siatki: światła w niewidzialnych punktach i mgiełka
+	local eyeGlow = m:FindFirstChild("EyeGlow")
+	if eyeGlow then
+		local eye = eyeGlow:FindFirstChild("Light")
+		if eye and eye:IsA("PointLight") then
+			eye.Brightness = if awake then 2 else 0
+		end
+		local lanternGlow = m:FindFirstChild("LanternGlow")
+		local lantern = lanternGlow and lanternGlow:FindFirstChild("Light")
+		if lantern and lantern:IsA("PointLight") then
+			lantern.Brightness = if awake then 2.5 else 0.6
+		end
+		local feet = m:FindFirstChild("Mist")
+		local mist = feet and feet:FindFirstChild("GhostMist")
+		if mist and mist:IsA("ParticleEmitter") then
+			mist.Enabled = awake
+		end
+		return
+	end
+	-- Wersja z klocków
 	for _, child in m:GetChildren() do
 		if child.Name == "Eye" and child:IsA("BasePart") then
 			child.Color = if awake then Skarbnik.EYE_COLOR else Skarbnik.EYE_SLEEP
