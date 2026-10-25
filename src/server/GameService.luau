@@ -23,6 +23,7 @@ local World = script.Parent:WaitForChild("World")
 local LeszyModel = require(World:WaitForChild("Leszy"))
 local SkarbnikModel = require(World:WaitForChild("Skarbnik"))
 local UtopiecModel = require(World:WaitForChild("Utopiec"))
+local HandTools = require(World:WaitForChild("HandTools"))
 local GardenService = require(script.Parent.GardenService)
 local ProgressService = require(script.Parent.ProgressService)
 local LeaderboardService = require(script.Parent.LeaderboardService)
@@ -344,83 +345,55 @@ end
 
 -- Latarnia trzymana w prawej ręce (tylko wygląd: światło wisi w LanternAttachment).
 -- Szybka nazywa się "LanternGlass", żeby klient mógł ją przyciemniać przy końcu oleju.
-local function attachHandLantern(character: Model)
-	if character:FindFirstChild("HandLantern") then
-		return
+-- Latarnia w prawej ręce i nożyk w lewej (modele w World/HandTools). Przebudowujemy je,
+-- gdy zmieni się poziom ulepszenia (okucia latarni, wygląd nożyka).
+local function handOf(character: Model, side: string): (BasePart?, boolean)
+	local hand = character:FindFirstChild(side .. "Hand") or character:FindFirstChild(side .. " Arm")
+	if hand and hand:IsA("BasePart") then
+		return hand, hand.Name == side .. " Arm"
 	end
-	local hand = character:FindFirstChild("RightHand") or character:FindFirstChild("Right Arm")
-	if not (hand and hand:IsA("BasePart")) then
-		return
-	end
-	local model = Instance.new("Model")
-	model.Name = "HandLantern"
-	local isR6 = hand.Name == "Right Arm"
-	local top = hand.CFrame * CFrame.new(0, if isR6 then -1.2 else -0.25, 0)
-	local metal = Color3.fromRGB(52, 50, 48)
-	local function piece(name: string, size: Vector3, offsetY: number, color: Color3, material: Enum.Material?): BasePart
-		local p = Instance.new("Part")
-		p.Name = name
-		p.Size = size
-		p.CFrame = top * CFrame.new(0, offsetY, 0)
-		p.Color = color
-		p.Material = material or Enum.Material.SmoothPlastic
-		p.CanCollide = false
-		p.CanTouch = false
-		p.CanQuery = false
-		p.Massless = true
-		p.CastShadow = false
-		p.Parent = model
-		local weld = Instance.new("WeldConstraint")
-		weld.Part0 = hand
-		weld.Part1 = p
-		weld.Parent = p
-		return p
-	end
-	piece("Handle", Vector3.new(0.08, 0.5, 0.08), -0.25, metal)
-	piece("Cap", Vector3.new(0.75, 0.18, 0.75), -0.55, metal)
-	piece("LanternGlass", Vector3.new(0.55, 0.7, 0.55), -1, Color3.fromRGB(255, 206, 120), Enum.Material.Neon)
-	piece("Base", Vector3.new(0.7, 0.16, 0.7), -1.42, metal)
-	model.Parent = character
+	return nil, false
 end
 
--- Nożyk w lewej ręce: kolor ostrza zależy od poziomu ulepszenia (Config.KnifeColors)
-local function attachHandKnife(character: Model, level: number)
-	local existing = character:FindFirstChild("HandKnife")
+local function attachHandLantern(character: Model, level: number)
+	local existing = character:FindFirstChild("HandLantern")
+	if existing and existing:GetAttribute("Tier") == HandTools.lanternTier(level) then
+		return
+	end
 	if existing then
 		existing:Destroy()
 	end
-	local hand = character:FindFirstChild("LeftHand") or character:FindFirstChild("Left Arm")
-	if not (hand and hand:IsA("BasePart")) then
+	local hand, isR6 = handOf(character, "Right")
+	if not hand then
 		return
 	end
-	local model = Instance.new("Model")
-	model.Name = "HandKnife"
-	local isR6 = hand.Name == "Left Arm"
-	local grip = hand.CFrame * CFrame.new(0, if isR6 then -1.1 else -0.2, -0.15)
-	local color = Config.KnifeColors[level] or Config.KnifeColors[0]
-	local blade = Color3.fromRGB(color[1], color[2], color[3])
-	local function piece(name: string, size: Vector3, cf: CFrame, partColor: Color3, material: Enum.Material?)
-		local p = Instance.new("Part")
-		p.Name = name
-		p.Size = size
-		p.CFrame = cf
-		p.Color = partColor
-		p.Material = material or Enum.Material.SmoothPlastic
-		p.CanCollide = false
-		p.CanTouch = false
-		p.CanQuery = false
-		p.Massless = true
-		p.CastShadow = false
-		p.Parent = model
-		local weld = Instance.new("WeldConstraint")
-		weld.Part0 = hand
-		weld.Part1 = p
-		weld.Parent = p
+	-- Pałąk w dłoni, latarnia wisi pod ręką
+	local grip = hand.CFrame * CFrame.new(0, if isR6 then -1.05 else -0.12, 0)
+	HandTools.lantern(level, grip, hand).Parent = character
+end
+
+local function attachHandKnife(character: Model, level: number)
+	local existing = character:FindFirstChild("HandKnife")
+	if existing and existing:GetAttribute("Level") == level then
+		return
 	end
-	piece("Handle", Vector3.new(0.18, 0.5, 0.18), grip, Color3.fromRGB(100, 66, 40))
-	-- Ostrze wystaje do przodu, wyższe poziomy lśnią
-	piece("Blade", Vector3.new(0.08, 0.16, 0.75), grip * CFrame.new(0, -0.2, -0.45), blade, if level >= 4 then Enum.Material.Neon elseif level >= 1 then Enum.Material.Metal else nil)
-	model.Parent = character
+	if existing then
+		existing:Destroy()
+	end
+	local hand, isR6 = handOf(character, "Left")
+	if not hand then
+		return
+	end
+	-- Nóż trzymany luźno przy nodze: ostrze w dół i trochę na zewnątrz, grzbietem do tyłu.
+	-- Kierunek liczymy od ustawienia postaci (osie dłoni różnią się między rigami), a do przodu
+	-- go nie kierujemy, bo kamera stoi za graczem i ciało by go zasłaniało.
+	local root = character:FindFirstChild("HumanoidRootPart")
+	local basis = if root and root:IsA("BasePart") then root.CFrame else hand.CFrame
+	local pos = (if isR6 then hand.Position - Vector3.new(0, 0.95, 0) else hand.Position - Vector3.new(0, 0.05, 0))
+		- basis.RightVector * 0.15
+	local direction = (Vector3.new(0, -0.85, 0) - basis.RightVector * 0.45 + basis.LookVector * 0.2).Unit
+	local grip = CFrame.lookAt(pos, pos + direction, -basis.LookVector)
+	HandTools.knife(level, grip, hand).Parent = character
 end
 
 local function applyCharacterStats(session: Session)
@@ -459,7 +432,7 @@ local function applyCharacterStats(session: Session)
 		end
 		lantern.Range = math.min(stat(session, "lantern"), 60) -- 60 to limit Robloxa dla PointLight
 	end
-	attachHandLantern(character)
+	attachHandLantern(character, session.data.upgrades.lantern or 0)
 	attachHandKnife(character, session.data.upgrades.knife or 0)
 end
 
