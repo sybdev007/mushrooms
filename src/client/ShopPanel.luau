@@ -29,7 +29,7 @@ local MUTED = Color3.fromRGB(214, 188, 150)
 local BUY = Color3.fromRGB(70, 160, 70)
 local ROBUX_GREEN = Color3.fromRGB(0, 176, 111)
 -- Ikona z arkusza UiKit dla każdego produktu
-local PRODUCT_ICONS = { rescue = "rescue", boom = "boom", oil = "bottle", harvest = "dry", luck = "luck" }
+local PRODUCT_ICONS = { rescue = "rescue", boom = "boom", oil = "bottle", harvest = "sell", luck = "luck" }
 
 local gui = Instance.new("ScreenGui")
 gui.Name = "Shop"
