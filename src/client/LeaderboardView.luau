@@ -2,7 +2,8 @@
 -- Rysuje tablice rankingów (części z tagiem "Leaderboard") w języku gracza.
 -- Serwer (LeaderboardService) wpisuje wyniki do atrybutu "Entries" jako JSON:
 --   [{ n = nazwa, v = wynik, me = userId }], a "Source" mówi, czy to cały świat, czy ten serwer.
--- SurfaceGui trzymamy w PlayerGui z Adornee (tak rysuje się pewnie także po przesyłaniu mapy).
+-- SurfaceGui trzymamy w PlayerGui z Adornee (tak rysuje się pewnie także po przesyłaniu mapy),
+-- bezpośrednio, z ResetOnSpawn = false: zwykły folder w PlayerGui Roblox kasuje przy odrodzeniu.
 
 local CollectionService = game:GetService("CollectionService")
 local HttpService = game:GetService("HttpService")
@@ -32,9 +33,7 @@ local KINDS: { [string]: { title: string, icon: string, color: Color3, weekly: b
 	thieves = { title = "BOARD_THIEVES", icon = "sell", color = Color3.fromRGB(255, 120, 90), weekly = true },
 }
 
-local folder = Instance.new("Folder")
-folder.Name = "Leaderboards"
-folder.Parent = player:WaitForChild("PlayerGui")
+local playerGui = player:WaitForChild("PlayerGui")
 
 type Row = { frame: Frame, rank: TextLabel, name: TextLabel, value: TextLabel }
 type Board = { screen: BasePart, gui: SurfaceGui, title: TextLabel, subtitle: TextLabel, rows: { Row }, empty: TextLabel }
@@ -141,7 +140,7 @@ local function build(screen: BasePart)
 	gui.LightInfluence = 0
 	gui.MaxDistance = 140
 	gui.ResetOnSpawn = false
-	gui.Parent = folder
+	gui.Parent = playerGui
 
 	local root = Instance.new("Frame")
 	root.Size = UDim2.fromScale(1, 1)

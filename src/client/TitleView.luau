@@ -1,7 +1,8 @@
 --!strict
 -- Tytuł z Grzybopedii nad głową gracza („Znawca Lasu”, „Arcygrzybiarz”), widoczny dla wszystkich.
 -- Serwer zapisuje klucz tytułu w atrybucie gracza "AtlasTitle"; tu tłumaczymy go na język gracza.
--- BillboardGui trzymamy w PlayerGui z Adornee na głowie postaci.
+-- BillboardGui trzymamy w PlayerGui z Adornee na głowie postaci, bezpośrednio i z ResetOnSpawn = false
+-- (zwykły folder w PlayerGui Roblox kasuje przy odrodzeniu).
 
 local Players = game:GetService("Players")
 
@@ -9,9 +10,7 @@ local Localize = require(script.Parent.Localize)
 
 local TitleView = {}
 
-local folder = Instance.new("Folder")
-folder.Name = "AtlasTitles"
-folder.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
+local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
 
 local labels: { [Player]: BillboardGui } = {}
 
@@ -27,7 +26,7 @@ local function update(target: Player)
 		end
 		return
 	end
-	local gui = existing
+	local gui = if existing and existing.Parent then existing else nil
 	if not gui then
 		local created = Instance.new("BillboardGui")
 		created.Name = "Title_" .. target.UserId
@@ -46,7 +45,7 @@ local function update(target: Player)
 		text.TextStrokeTransparency = 0.2
 		text.TextStrokeColor3 = Color3.fromRGB(50, 30, 10)
 		text.Parent = created
-		created.Parent = folder
+		created.Parent = playerGui
 		labels[target] = created
 		gui = created
 	end
