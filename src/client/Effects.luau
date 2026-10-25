@@ -218,17 +218,24 @@ local function floatingText(position: Vector3, text: string, color: Color3)
 	Debris:AddItem(anchor, 1.3)
 end
 
-function Effects.collect(position: Vector3, color: Color3, value: number, golden: boolean)
+-- rank: 0 zwykły, 1 srebro, 2 złoto, 3 tęcza; icons: ikony mutacji do napisu
+function Effects.collect(position: Vector3, color: Color3, value: number, rank: number, icons: string?)
 	local top = position + Vector3.new(0, 1.5, 0)
-	burst(top, color, if golden then 32 else 14, if golden then 12 else 8)
-	floatingText(
-		top,
-		"+" .. tostring(value),
-		if golden then Color3.fromRGB(255, 214, 70) else Color3.fromRGB(255, 244, 220)
-	)
-	Effects.play("pick", if golden then 1.25 else 0.92 + math.random() * 0.2)
-	if golden then
-		Effects.play("upgrade", 1.35)
+	local particles = ({ [0] = 14, 20, 32, 60 })[rank] or 14
+	burst(top, color, particles, 8 + rank * 2)
+	local textColor = if rank >= 3
+		then Color3.fromRGB(255, 150, 230)
+		elseif rank == 2 then Color3.fromRGB(255, 214, 70)
+		elseif rank == 1 then Color3.fromRGB(220, 232, 250)
+		else Color3.fromRGB(255, 244, 220)
+	local prefix = if icons and icons ~= "" then icons .. " " else ""
+	floatingText(top, prefix .. "+" .. tostring(value), textColor)
+	Effects.play("pick", if rank >= 2 then 1.25 else 0.92 + math.random() * 0.2)
+	if rank >= 2 then
+		Effects.play("upgrade", if rank >= 3 then 1.6 else 1.35)
+	end
+	if rank >= 3 then
+		task.delay(0.15, Effects.play, "upgrade", 1.9, 0.8)
 	end
 end
 

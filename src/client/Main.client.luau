@@ -51,22 +51,59 @@ Remotes.get("MushroomSync").OnClientEvent:Connect(function(list)
 	MushroomView.add(list)
 end)
 
+-- Ikony mutacji, np. "🌈✨" (do napisu „+N” nad zebranym grzybem)
+local function mutationIcons(variant: string?, tags: { string }?): string
+	local icons = ""
+	local def = Economy.getVariant(variant)
+	if def then
+		icons ..= def.icon
+	end
+	for _, id in tags or {} do
+		local tag = Economy.getTag(id)
+		if tag then
+			icons ..= tag.icon
+		end
+	end
+	return icons
+end
+
+-- Etykieta mutacji w języku gracza, np. "🌈 Tęcza + ✨ Blask"
+local function mutationLabel(mutation: { variant: string?, tags: { string }? }?): string
+	if not mutation then
+		return ""
+	end
+	local parts = {}
+	local def = Economy.getVariant(mutation.variant)
+	if def then
+		table.insert(parts, def.icon .. " " .. Localize.t(def.key))
+	end
+	for _, id in mutation.tags or {} do
+		local tag = Economy.getTag(id)
+		if tag then
+			table.insert(parts, tag.icon .. " " .. Localize.t(tag.key))
+		end
+	end
+	return table.concat(parts, " + ")
+end
+
 Remotes.get("MushroomRemoved").OnClientEvent:Connect(function(id)
 	-- Serwer usuwa grzyb tylko wtedy, gdy ten gracz go zebrał: czas na efekt
 	local info = MushroomView.get(id)
 	if info then
 		Effects.collect(
 			info.position,
-			MushroomView.capColor(info.species, info.golden),
-			Economy.mushroomValue(info.species, info.golden),
-			info.golden
+			MushroomView.capColor(info.species, info.variant),
+			Economy.mushroomValue(info.species, info.variant, info.tags),
+			Economy.variantRank(info.variant),
+			mutationIcons(info.variant, info.tags)
 		)
 	end
 	MushroomView.remove(id)
 end)
 
 local TOAST_KIND: { [string]: string } = {
-	MSG_GOLDEN = "gold",
+	MSG_MUTATION = "gold",
+	MSG_RARE_FIND = "gold",
 	MSG_OIL_HALF = "warn",
 	MSG_OIL_LOW = "warn",
 	MSG_BASKET_FULL = "warn",
@@ -99,6 +136,12 @@ Remotes.get("Notify").OnClientEvent:Connect(function(payload)
 			table.insert(localized, value)
 		end
 		args = localized
+	end
+	-- Mutacja zawsze jako ostatni argument (szablon w CSV wie, gdzie ją wstawić)
+	if payload.mutation then
+		local withLabel = table.clone(args or {})
+		table.insert(withLabel, mutationLabel(payload.mutation))
+		args = withLabel
 	end
 	local text = Localize.t(payload.key, args)
 	local blackoutTitle = BLACKOUT_TITLE[payload.key]

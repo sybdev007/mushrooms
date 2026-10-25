@@ -132,10 +132,10 @@ test("głębsza strefa jest warta więcej", function()
 end)
 
 test("wartość grzybów i koszyka", function()
-	eq(Economy.mushroomValue("porcini", false), 75, "borowik")
-	eq(Economy.mushroomValue("porcini", true), 225, "złoty borowik")
-	eq(Economy.mushroomValue("nie_ma", false), 0, "nieznany")
-	eq(Economy.basketValue({ { s = "honey", g = false }, { s = "chanterelle", g = true } }), 22, "koszyk")
+	eq(Economy.mushroomValue("porcini"), 75, "borowik")
+	eq(Economy.mushroomValue("porcini", "gold"), 225, "złoty borowik")
+	eq(Economy.mushroomValue("nie_ma"), 0, "nieznany")
+	eq(Economy.basketValue({ { s = "honey" }, { s = "chanterelle", v = "gold" } }), 22, "koszyk")
 end)
 
 test("las zabiera cały koszyk", function()
@@ -143,6 +143,81 @@ test("las zabiera cały koszyk", function()
 	eq(Economy.engulfLoss(1), 1)
 	eq(Economy.engulfLoss(5), 5)
 	eq(Economy.engulfLoss(35), 35)
+end)
+
+print("Mutacje")
+test("wariant: progi od najrzadszego, bez wariantu powyżej sumy szans", function()
+	local rainbow = Config.Variants[3].chance
+	local gold = Config.Variants[2].chance
+	local silver = Config.Variants[1].chance
+	eq(Economy.rollVariant(0), "rainbow", "r=0")
+	eq(Economy.rollVariant(rainbow - 1e-6), "rainbow", "koniec tęczy")
+	eq(Economy.rollVariant(rainbow), "gold", "początek złota")
+	eq(Economy.rollVariant(rainbow + gold - 1e-6), "gold", "koniec złota")
+	eq(Economy.rollVariant(rainbow + gold), "silver", "początek srebra")
+	eq(Economy.rollVariant(rainbow + gold + silver), nil, "zwykły")
+	eq(Economy.rollVariant(0.99), nil, "zwykły (r~1)")
+end)
+
+test("gwarancja: wymuszona ranga daje co najmniej złoto", function()
+	eq(Economy.rollVariant(0.99, 2), "gold", "zwykły -> złoto")
+	eq(Economy.rollVariant(Config.Variants[3].chance + Config.Variants[2].chance + 0.001, 2), "gold", "srebro -> złoto")
+	eq(Economy.rollVariant(0, 2), "rainbow", "tęcza zostaje tęczą")
+	check(Config.PityRolls >= 20 and Config.PityRolls <= 120, "gwarancja za częsta albo za rzadka")
+end)
+
+test("warianty: rzadsze są cenniejsze, szanse sensowne", function()
+	local total = 0
+	for i, variant in Config.Variants do
+		total += variant.chance
+		eq(variant.rank, i, "kolejność rang " .. variant.id)
+		if i > 1 then
+			local prev = Config.Variants[i - 1]
+			check(variant.chance < prev.chance, variant.id .. " nie rzadszy od " .. prev.id)
+			check(variant.mult > prev.mult, variant.id .. " nie cenniejszy od " .. prev.id)
+		end
+	end
+	check(total < 0.15, "za dużo mutacji, przestaną być wyjątkowe")
+end)
+
+test("cechy sumują się, wariant mnoży całość", function()
+	eq(Economy.mutationMultiplier(nil, nil), 1, "bez mutacji")
+	eq(Economy.mutationMultiplier("gold", nil), 3, "złoto")
+	eq(Economy.mutationMultiplier(nil, { "mossy" }), 1.5, "mech")
+	eq(Economy.mutationMultiplier(nil, { "mossy", "glowing" }), 2.5, "mech + blask = 1 + 0,5 + 1")
+	eq(Economy.mutationMultiplier("rainbow", { "glowing" }), 16, "tęcza z blaskiem")
+	eq(Economy.mutationMultiplier("nieznany", { "nieznana" }), 1, "śmieci z zapisu")
+	eq(Economy.mushroomValue("porcini", "rainbow", { "glowing" }), 1200, "tęczowy borowik z blaskiem")
+	eq(Economy.mushroomValue("porcini", "gold", nil, 2), 450, "złoty borowik suchy")
+end)
+
+test("cechy rosną tylko w swoich strefach, głębiej więcej zysku", function()
+	eq(#Economy.tagsForZone(1), 0, "chatka")
+	eq(#Economy.tagsForZone(2), 0, "skraj lasu")
+	check(#Economy.tagsForZone(3) > 0, "gęstwina bez cech")
+	check(#Economy.tagsForZone(4) > 0, "jar bez cech")
+	for zone = 3, #Config.Zones do
+		check(Economy.expectedMultiplier(zone) > Economy.expectedMultiplier(zone - 1), "strefa " .. zone .. " nie daje więcej mutacji")
+	end
+end)
+
+test("średnio mutacje dodają kilka-kilkanaście procent, a nie mnożą ekonomii", function()
+	for zone = 2, #Config.Zones do
+		local m = Economy.expectedMultiplier(zone)
+		check(m > 1.05 and m < 1.4, string.format("strefa %d: średni mnożnik %.3f", zone, m))
+	end
+end)
+
+test("każda mutacja ma tłumaczenie i ikonę", function()
+	local csv = fs.readFile("src/localization/GameStrings.csv")
+	for _, def in Config.Variants do
+		check(string.find(csv, "\n" .. def.key .. ",", 1, true) ~= nil, "brak " .. def.key)
+		check(def.icon ~= "", "brak ikony " .. def.id)
+	end
+	for _, def in Config.Tags do
+		check(string.find(csv, "\n" .. def.key .. ",", 1, true) ~= nil, "brak " .. def.key)
+		check(def.icon ~= "", "brak ikony " .. def.id)
+	end
 end)
 
 print("Gniazdo Leszego")
@@ -218,18 +293,18 @@ end)
 
 test("wartość suszonego grzyba i suszarni", function()
 	local half = Config.Drying.seconds / 2
-	eq(Economy.dryingValue({ s = "porcini", g = false, t = 100 }, 100), 75, "świeży borowik")
-	eq(Economy.dryingValue({ s = "porcini", g = false, t = 0 }, Config.Drying.seconds), 150, "suchy borowik")
-	eq(Economy.dryingValue({ s = "honey", g = false, t = 0 }, half), 6, "opieńka w połowie (4 * 1.5)")
-	eq(Economy.rackValue({ { s = "porcini", g = false, t = 0 }, { s = "honey", g = true, t = 0 } }, Config.Drying.seconds), 150 + 24, "suszarnia")
-	eq(Economy.basketValue({ { s = "porcini", g = false, d = 2 } }), 150, "ukradziony suchy borowik w koszyku")
+	eq(Economy.dryingValue({ s = "porcini", t = 100 }, 100), 75, "świeży borowik")
+	eq(Economy.dryingValue({ s = "porcini", t = 0 }, Config.Drying.seconds), 150, "suchy borowik")
+	eq(Economy.dryingValue({ s = "honey", t = 0 }, half), 6, "opieńka w połowie (4 * 1.5)")
+	eq(Economy.rackValue({ { s = "porcini", t = 0 }, { s = "honey", v = "gold", t = 0 } }, Config.Drying.seconds), 150 + 24, "suszarnia")
+	eq(Economy.basketValue({ { s = "porcini", d = 2 } }), 150, "ukradziony suchy borowik w koszyku")
 end)
 
 test("złodziej bierze najcenniejszy grzyb", function()
 	local rack = {
-		{ s = "honey", g = false, t = 0 },
-		{ s = "porcini", g = false, t = 500 },
-		{ s = "aspen_bolete", g = false, t = 0 },
+		{ s = "honey", t = 0 },
+		{ s = "porcini", t = 500 },
+		{ s = "aspen_bolete", t = 0 },
 	}
 	-- t=600: borowik 75 * (1 + 100/600) = 87,5, koźlarz suchy 50 * 2 = 100
 	eq(Economy.mostValuableIndex(rack, 600), 3, "suchy koźlarz bije świeżego borowika")
@@ -238,10 +313,10 @@ end)
 
 test("na suszarnię idą najcenniejsze świeże grzyby, bez ukradzionych", function()
 	local basket = {
-		{ s = "honey", g = false },
-		{ s = "porcini", g = false, d = 2 },
-		{ s = "parasol", g = false },
-		{ s = "chanterelle", g = true },
+		{ s = "honey" },
+		{ s = "porcini", d = 2 },
+		{ s = "parasol" },
+		{ s = "chanterelle", v = "gold" },
 	}
 	local chosen = Economy.pickForDrying(basket, 2)
 	eq(#chosen, 2, "liczba")
@@ -262,11 +337,11 @@ end)
 
 test("zarobek na minutę: stały podczas suszenia, zero po wyschnięciu", function()
 	local minutes = Config.Drying.seconds / 60
-	local porcini = { s = "porcini", g = false, t = 0 }
+	local porcini = { s = "porcini", t = 0 }
 	eq(Economy.dryRatePerMinute(porcini, 0), 75 * Config.Drying.bonus / minutes, "świeży borowik")
 	eq(Economy.dryRatePerMinute(porcini, Config.Drying.seconds - 1), 75 * Config.Drying.bonus / minutes, "prawie suchy")
 	eq(Economy.dryRatePerMinute(porcini, Config.Drying.seconds), 0, "suchy")
-	eq(Economy.dryRatePerMinute({ s = "porcini", g = true, t = 0 }, 0), 225 * Config.Drying.bonus / minutes, "złoty")
+	eq(Economy.dryRatePerMinute({ s = "porcini", v = "gold", t = 0 }, 0), 225 * Config.Drying.bonus / minutes, "złoty")
 	-- Suma zarobków przez cały czas suszenia = przyrost wartości
 	local gained = Economy.dryRatePerMinute(porcini, 0) * minutes
 	eq(math.floor(gained + 0.5), Economy.dryingValue(porcini, Config.Drying.seconds) - Economy.dryingValue(porcini, 0), "zgodność z wartością")

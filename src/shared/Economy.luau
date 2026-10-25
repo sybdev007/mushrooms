@@ -6,13 +6,15 @@ local Config = require(script.Parent.Config)
 
 export type BasketItem = {
 	s: string, -- id gatunku
-	g: boolean, -- czy złota mutacja
+	v: string?, -- wariant (silver / gold / rainbow); brak = zwykły
+	x: { string }?, -- cechy z miejsca (mossy, glowing)
 	d: number?, -- mnożnik suszenia (grzyb ukradziony z suszarni); brak = świeży
 }
 
 export type DryingItem = {
 	s: string,
-	g: boolean,
+	v: string?,
+	x: { string }?,
 	t: number, -- os.time(), kiedy grzyb zawisł na suszarni
 }
 
@@ -39,6 +41,95 @@ end
 -- Gatunki, które rosną tylko w Gnieździe Leszego
 function Economy.groveSpecies(): { Config.SpeciesDef }
 	return groveSpecies
+end
+
+-- ===== Mutacje =====
+
+local variantById: { [string]: Config.VariantDef } = {}
+for _, variant in Config.Variants do
+	variantById[variant.id] = variant
+end
+local tagById: { [string]: Config.TagDef } = {}
+for _, tag in Config.Tags do
+	tagById[tag.id] = tag
+end
+-- Od najrzadszego: losowanie sprawdza najpierw tęczę, potem złoto, potem srebro
+local variantsRarestFirst = table.clone(Config.Variants)
+table.sort(variantsRarestFirst, function(a, b)
+	return a.rank > b.rank
+end)
+
+function Economy.getVariant(id: string?): Config.VariantDef?
+	return if id then variantById[id] else nil
+end
+
+function Economy.getTag(id: string): Config.TagDef?
+	return tagById[id]
+end
+
+function Economy.variantRank(id: string?): number
+	local variant = Economy.getVariant(id)
+	return if variant then variant.rank else 0
+end
+
+-- Wariant dla liczby r z [0, 1). minRank > 0 wymusza co najmniej taką rangę (gwarancja).
+function Economy.rollVariant(r: number, minRank: number?): string?
+	local floor = minRank or 0
+	local acc = 0
+	for _, variant in variantsRarestFirst do
+		acc += variant.chance
+		if r < acc and variant.rank >= floor then
+			return variant.id
+		end
+	end
+	if floor > 0 then
+		-- Gwarancja: najpospolitszy wariant, który spełnia próg
+		for i = #variantsRarestFirst, 1, -1 do
+			local variant = variantsRarestFirst[i]
+			if variant.rank >= floor then
+				return variant.id
+			end
+		end
+	end
+	return nil
+end
+
+-- Cechy, które mogą się pojawić w danej strefie
+function Economy.tagsForZone(zone: number): { Config.TagDef }
+	local list = {}
+	for _, tag in Config.Tags do
+		if tag.zone == zone then
+			table.insert(list, tag)
+		end
+	end
+	return list
+end
+
+-- Łączny mnożnik mutacji: wariant × (1 + Σ(cecha − 1))
+function Economy.mutationMultiplier(variant: string?, tags: { string }?): number
+	local def = Economy.getVariant(variant)
+	local base = if def then def.mult else 1
+	local bonus = 1
+	for _, id in tags or {} do
+		local tag = tagById[id]
+		if tag then
+			bonus += tag.mult - 1
+		end
+	end
+	return base * bonus
+end
+
+-- Oczekiwany mnożnik losowego grzyba w strefie (do testów balansu)
+function Economy.expectedMultiplier(zone: number): number
+	local variantPart = 1
+	for _, variant in Config.Variants do
+		variantPart += variant.chance * (variant.mult - 1)
+	end
+	local tagPart = 1
+	for _, tag in Economy.tagsForZone(zone) do
+		tagPart += tag.chance * (tag.mult - 1)
+	end
+	return variantPart * tagPart
 end
 
 function Economy.getSpecies(id: string): Config.SpeciesDef?
@@ -101,20 +192,24 @@ function Economy.rollSpecies(zone: number, r: number): Config.SpeciesDef?
 	return list[#list]
 end
 
--- dried: mnożnik suszenia (1 = świeży). Wynik zaokrąglony do pełnej monety.
-function Economy.mushroomValue(speciesId: string, golden: boolean, dried: number?): number
+-- variant / tags: mutacje, dried: mnożnik suszenia (1 = świeży). Wynik zaokrąglony do pełnej monety.
+function Economy.mushroomValue(speciesId: string, variant: string?, tags: { string }?, dried: number?): number
 	local species = speciesById[speciesId]
 	if not species then
 		return 0
 	end
-	local value = species.value * (if golden then Config.GoldenMultiplier else 1) * (dried or 1)
+	local value = species.value * Economy.mutationMultiplier(variant, tags) * (dried or 1)
 	return math.floor(value + 0.5)
+end
+
+function Economy.itemValue(item: BasketItem): number
+	return Economy.mushroomValue(item.s, item.v, item.x, item.d)
 end
 
 function Economy.basketValue(basket: { BasketItem }): number
 	local sum = 0
 	for _, item in basket do
-		sum += Economy.mushroomValue(item.s, item.g, item.d)
+		sum += Economy.itemValue(item)
 	end
 	return sum
 end
@@ -132,7 +227,7 @@ function Economy.dryProgress(elapsed: number): number
 end
 
 function Economy.dryingValue(item: DryingItem, now: number): number
-	return Economy.mushroomValue(item.s, item.g, Economy.dryMultiplier(now - item.t))
+	return Economy.mushroomValue(item.s, item.v, item.x, Economy.dryMultiplier(now - item.t))
 end
 
 -- Ile monet na minutę zyskuje grzyb, dopóki schnie (0, gdy już suchy)
@@ -140,7 +235,7 @@ function Economy.dryRatePerMinute(item: DryingItem, now: number): number
 	if Economy.dryProgress(now - item.t) >= 1 then
 		return 0
 	end
-	local fresh = Economy.mushroomValue(item.s, item.g)
+	local fresh = Economy.mushroomValue(item.s, item.v, item.x)
 	return fresh * Config.Drying.bonus / (Config.Drying.seconds / 60)
 end
 
@@ -176,8 +271,8 @@ function Economy.pickForDrying(basket: { BasketItem }, free: number): { number }
 		end
 	end
 	table.sort(order, function(a, b)
-		local va = Economy.mushroomValue(basket[a].s, basket[a].g)
-		local vb = Economy.mushroomValue(basket[b].s, basket[b].g)
+		local va = Economy.itemValue(basket[a])
+		local vb = Economy.itemValue(basket[b])
 		if va ~= vb then
 			return va > vb
 		end

@@ -91,8 +91,46 @@ Config.PickRadiusServer = 12 -- serwer jest łagodniejszy przez opóźnienie sie
 Config.PickCooldown = 0.15 -- minimalny odstęp między zbiorami (anty-spam)
 Config.RespawnSeconds = 90 -- po ilu sekundach grzyb odrasta w tym samym miejscu
 
-Config.GoldenChance = 0.03 -- szansa na złotą mutację
-Config.GoldenMultiplier = 3
+-- ===== Mutacje =====
+-- Każdy grzyb ma najwyżej jeden WARIANT (losowany przy odrastaniu) i dowolną liczbę CECH
+-- zależnych od miejsca. Wartość = baza × wariant × (1 + Σ(cecha − 1)) × suszenie.
+-- Cechy się sumują, a nie mnożą, żeby ceny nie uciekały w kosmos jak w Grow a Garden.
+-- Losowość jest tylko z gry (nic za Robuxy), więc nie trzeba publikować szans.
+export type VariantDef = {
+	id: string,
+	key: string, -- etykieta w języku gracza (CSV)
+	icon: string,
+	chance: number,
+	mult: number,
+	rank: number, -- 1 = najpospolitszy; od rangi 2 wzwyż grzyb liczy się jako „rzadki”
+	color: { number },
+}
+
+export type TagDef = {
+	id: string,
+	key: string,
+	icon: string,
+	zone: number, -- cecha pojawia się tylko w tej strefie
+	chance: number,
+	mult: number,
+	color: { number },
+}
+
+Config.Variants = {
+	{ id = "silver", key = "MUT_SILVER", icon = "🥈", chance = 0.06, mult = 1.5, rank = 1, color = { 214, 224, 238 } },
+	{ id = "gold", key = "MUT_GOLD", icon = "⭐", chance = 0.025, mult = 3, rank = 2, color = { 255, 205, 50 } },
+	{ id = "rainbow", key = "MUT_RAINBOW", icon = "🌈", chance = 0.004, mult = 8, rank = 3, color = { 255, 110, 210 } },
+} :: { VariantDef }
+
+Config.Tags = {
+	{ id = "mossy", key = "MUT_MOSSY", icon = "🌿", zone = 3, chance = 0.08, mult = 1.5, color = { 110, 176, 72 } },
+	{ id = "glowing", key = "MUT_GLOWING", icon = "✨", zone = 4, chance = 0.1, mult = 2, color = { 110, 255, 214 } },
+} :: { TagDef }
+
+-- Ukryta gwarancja: po tylu odrostach bez Złota (albo lepszego) następny grzyb jest co najmniej złoty
+Config.PityRolls = 60
+-- Od tej rangi znalezisko jest ogłaszane całemu serwerowi
+Config.AnnounceRank = 3
 
 Config.EngulfLossFraction = 1 -- jaką część koszyka zabiera las, gdy zgaśnie latarnia (1 = wszystko)
 

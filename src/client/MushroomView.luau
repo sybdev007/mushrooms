@@ -3,14 +3,18 @@
 -- Serwer mówi, gdzie co rośnie, a ten moduł rysuje grzyby: każdy gatunek ma swój kształt,
 -- wyrastają z ziemi, złote i świecące lśnią i lekko się unoszą.
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
+
+local Economy = require(ReplicatedStorage.Shared.Economy)
 
 export type MushroomInfo = {
 	id: string,
 	position: Vector3,
 	species: string,
-	golden: boolean,
+	variant: string?, -- silver / gold / rainbow
+	tags: { string }?, -- mossy / glowing
 }
 
 type Shape = {
@@ -34,6 +38,8 @@ type Entry = {
 	basePivot: CFrame,
 	phase: number,
 	bobFrom: number,
+	rainbowParts: { BasePart }?, -- kapelusze tęczowego grzyba (kolor przechodzi przez tęczę)
+	rainbowLight: PointLight?,
 }
 
 local function rgb(r: number, g: number, b: number): Color3
@@ -55,7 +61,16 @@ local SHAPES: { [string]: Shape } = {
 }
 local DEFAULT_SHAPE: Shape = { stemH = 1, stemD = 0.5, capW = 1.6, capH = 0.6, cap = rgb(160, 120, 80) }
 
-local GOLD = rgb(255, 205, 50)
+local MOSS = rgb(110, 176, 72)
+
+local function variantColor(variant: string?): Color3?
+	local def = Economy.getVariant(variant)
+	return if def then rgb(def.color[1], def.color[2], def.color[3]) else nil
+end
+
+local function hasTag(info: MushroomInfo, id: string): boolean
+	return info.tags ~= nil and table.find(info.tags, id) ~= nil
+end
 local STEM = rgb(235, 225, 205)
 local SPARKLE = "rbxasset://textures/particles/sparkles_main.dds"
 local VERTICAL = CFrame.Angles(0, 0, math.rad(90))
@@ -131,12 +146,14 @@ local function buildOne(model: Model, base: Vector3, shape: Shape, scale: number
 	return cap
 end
 
-local function buildModel(info: MushroomInfo): (Model, { BasePart }, boolean)
+local function buildModel(info: MushroomInfo): (Model, { BasePart }, boolean, { BasePart })
 	local model = Instance.new("Model")
 	model.Name = info.id
 	local shape = SHAPES[info.species] or DEFAULT_SHAPE
-	local capColor = if info.golden then GOLD else shape.cap
-	local neon = info.golden or shape.glow == true
+	local rank = Economy.variantRank(info.variant)
+	local glowing = hasTag(info, "glowing")
+	local capColor = variantColor(info.variant) or shape.cap
+	local neon = rank >= 2 or shape.glow == true or glowing
 	local parts: { BasePart } = {}
 
 	local mainCap: BasePart
@@ -152,29 +169,70 @@ local function buildModel(info: MushroomInfo): (Model, { BasePart }, boolean)
 		mainCap = buildOne(model, info.position, shape, 1, capColor, neon, parts)
 	end
 
-	if neon then
-		local light = Instance.new("PointLight")
-		light.Color = capColor
-		light.Range = if info.golden then 10 else 8
-		light.Brightness = 1.6
-		light.Parent = mainCap
+	-- Kapelusze (bez trzonów i kropek) dostają kolor i materiał wariantu
+	local caps: { BasePart } = {}
+	for _, p in parts do
+		if p.Name == "Cap" then
+			table.insert(caps, p)
+			if rank == 1 then
+				-- Srebro: metaliczny połysk zamiast świecenia
+				p.Material = Enum.Material.Metal
+				p.Reflectance = 0.3
+			elseif glowing and rank == 0 and not shape.glow then
+				-- Blask bez wariantu: kolor gatunku rozjaśniony w stronę seledynu
+				p.Color = shape.cap:Lerp(rgb(110, 255, 214), 0.45)
+			end
+		end
 	end
-	if info.golden then
+
+	-- Mech: zielone łaty na kapeluszu
+	if hasTag(info, "mossy") then
+		for k = 1, 3 do
+			local angle = k * 2.1
+			local patch = makePart("Moss", Vector3.new(0.5, 0.18, 0.5), mainCap.CFrame * CFrame.new(math.cos(angle) * 0.45, mainCap.Size.Y * 0.38, math.sin(angle) * 0.45), MOSS)
+			patch.Parent = model
+			table.insert(parts, patch)
+		end
+	end
+
+	local light: PointLight? = nil
+	if neon then
+		local newLight = Instance.new("PointLight")
+		newLight.Color = if glowing and rank < 2 then rgb(110, 255, 214) else capColor
+		newLight.Range = if rank >= 2 then 10 else 8
+		newLight.Brightness = 1.6
+		newLight.Parent = mainCap
+		light = newLight
+	end
+	if rank >= 1 then
 		local sparkles = Instance.new("ParticleEmitter")
 		sparkles.Texture = SPARKLE
-		sparkles.Color = ColorSequence.new(GOLD, Color3.new(1, 1, 1))
+		sparkles.Color = if rank == 3
+			then ColorSequence.new({
+				ColorSequenceKeypoint.new(0, rgb(255, 90, 90)),
+				ColorSequenceKeypoint.new(0.33, rgb(255, 230, 80)),
+				ColorSequenceKeypoint.new(0.66, rgb(90, 220, 255)),
+				ColorSequenceKeypoint.new(1, rgb(200, 110, 255)),
+			})
+			else ColorSequence.new(capColor, Color3.new(1, 1, 1))
 		sparkles.LightEmission = 1
 		sparkles.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.3), NumberSequenceKeypoint.new(1, 0) })
 		sparkles.Lifetime = NumberRange.new(0.8, 1.4)
 		sparkles.Speed = NumberRange.new(0.5, 1.5)
 		sparkles.SpreadAngle = Vector2.new(180, 180)
-		sparkles.Rate = 6
+		-- Im rzadszy wariant, tym więcej iskier
+		sparkles.Rate = ({ 3, 6, 14 })[rank] or 6
 		sparkles.Parent = mainCap
 	end
 
 	model.PrimaryPart = mainCap
 	model.Parent = folder
-	return model, parts, neon
+	-- Tęcza: kapelusze i światło zmieniają kolor w updateVisibility
+	local rainbow = if rank == 3 then caps else {}
+	if light and rank == 3 then
+		light:SetAttribute("Rainbow", true)
+	end
+	return model, parts, neon or rank >= 1, rainbow
 end
 
 -- Grzyb wyrasta z ziemi: części startują schowane pod ziemią i wyskakują na swoje miejsce
@@ -193,7 +251,7 @@ function MushroomView.add(list: { MushroomInfo })
 		if old then
 			old.model:Destroy()
 		end
-		local model, parts, animated = buildModel(info)
+		local model, parts, animated, rainbow = buildModel(info)
 		-- Pozycję spoczynkową bierzemy przed animacją wyrastania (potem części są pod ziemią)
 		local basePivot = model:GetPivot()
 		growIn(parts)
@@ -206,16 +264,15 @@ function MushroomView.add(list: { MushroomInfo })
 			basePivot = basePivot,
 			phase = math.random() * math.pi * 2,
 			bobFrom = os.clock() + 0.6, -- unoszenie dopiero po skończonym wyrastaniu
+			rainbowParts = if #rainbow > 0 then rainbow else nil,
+			rainbowLight = model.PrimaryPart and model.PrimaryPart:FindFirstChildOfClass("PointLight") or nil,
 		}
 	end
 end
 
 -- Kolor kapelusza (do efektów przy zbieraniu)
-function MushroomView.capColor(species: string, golden: boolean): Color3
-	if golden then
-		return GOLD
-	end
-	return (SHAPES[species] or DEFAULT_SHAPE).cap
+function MushroomView.capColor(species: string, variant: string?): Color3
+	return variantColor(variant) or (SHAPES[species] or DEFAULT_SHAPE).cap
 end
 
 function MushroomView.get(id: string): MushroomInfo?
@@ -283,6 +340,18 @@ function MushroomView.updateVisibility(position: Vector3, lanternRange: number, 
 			entry.hidden = hidden
 			for _, p in entry.parts do
 				p.Transparency = if hidden then 1 else 0
+			end
+		end
+		-- Tęczowy kapelusz przechodzi przez wszystkie kolory (tylko gdy gracz jest blisko)
+		local rainbow = entry.rainbowParts
+		if rainbow and not entry.hidden and flatDistance(position, entry.info.position) < 80 then
+			local color = Color3.fromHSV((t * 0.35 + entry.phase) % 1, 0.65, 1)
+			for _, p in rainbow do
+				p.Color = color
+			end
+			local light = entry.rainbowLight
+			if light then
+				light.Color = color
 			end
 		end
 		if glows and t >= entry.bobFrom and flatDistance(position, entry.info.position) < 120 then

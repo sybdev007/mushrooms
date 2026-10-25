@@ -52,7 +52,12 @@ local STEAL_RANGE = 12 -- serwer jest łagodniejszy niż prompt przez opóźnien
 local DRY_COLOR = Color3.fromRGB(92, 60, 36)
 local PAD_EMPTY = Color3.fromRGB(96, 70, 50)
 local PAD_FULL = Color3.fromRGB(88, 128, 66)
-local PAD_GOLD = Color3.fromRGB(214, 170, 60)
+-- Płytka pod grzybem ma kolor najlepszego wariantu, żeby złodziej z daleka widział, co warto brać
+local PAD_BY_RANK = {
+	[1] = Color3.fromRGB(150, 160, 176), -- srebro
+	[2] = Color3.fromRGB(214, 170, 60), -- złoto
+	[3] = Color3.fromRGB(200, 90, 190), -- tęcza
+}
 local RATE_COLOR = "#A6F06A"
 local DRY_DONE_COLOR = "#FFD75A"
 
@@ -80,9 +85,15 @@ local function distanceTo(player: Player, part: BasePart): number
 	return Vector3.new(offset.X, 0, offset.Z).Magnitude
 end
 
-local function capColor(speciesId: string, golden: boolean): Color3
-	if golden then
-		return Color3.fromRGB(255, 205, 50)
+local function rgb(c: { number }): Color3
+	return Color3.fromRGB(c[1], c[2], c[3])
+end
+
+-- Kolor kapelusza: wariant (srebro, złoto, tęcza) ma pierwszeństwo przed kolorem gatunku
+local function capColor(speciesId: string, variant: string?): Color3
+	local def = Economy.getVariant(variant)
+	if def then
+		return rgb(def.color)
 	end
 	local species = Economy.getSpecies(speciesId)
 	local cap = species and species.cap or { 160, 120, 80 }
@@ -197,15 +208,33 @@ local function buildOwnerSign(sign: BasePart): TextLabel
 	return label
 end
 
+-- Ikony mutacji grzyba, np. "🌈✨"
+local function mutationIcons(item: Economy.DryingItem): string
+	local icons = ""
+	local variant = Economy.getVariant(item.v)
+	if variant then
+		icons ..= variant.icon
+	end
+	for _, id in item.x or {} do
+		local tag = Economy.getTag(id)
+		if tag then
+			icons ..= tag.icon
+		end
+	end
+	return icons
+end
+
 local function slotText(item: Economy.DryingItem, now: number): string
 	local value = Economy.dryingValue(item, now)
+	local icons = mutationIcons(item)
+	local prefix = if icons ~= "" then icons .. " " else ""
 	local rate = Economy.dryRatePerMinute(item, now)
 	if rate > 0 then
 		-- Jedno miejsce po przecinku tylko dla małych stawek, żeby nie było „+0/min”
 		local rateText = if rate < 10 then string.format("%.1f", rate) else string.format("%d", math.floor(rate + 0.5))
-		return string.format('💰 %d\n<font color="%s">+%s/min</font>', value, RATE_COLOR, rateText)
+		return string.format('%s💰 %d\n<font color="%s">+%s/min</font>', prefix, value, RATE_COLOR, rateText)
 	end
-	return string.format('💰 %d\n<font color="%s">✓ MAX</font>', value, DRY_DONE_COLOR)
+	return string.format('%s💰 %d\n<font color="%s">✓ MAX</font>', prefix, value, DRY_DONE_COLOR)
 end
 
 local STEM_COLOR = Color3.fromRGB(226, 214, 190)
@@ -235,7 +264,8 @@ local function styleMushroom(group: Model, item: Economy.DryingItem, slot: Attac
 	cap.Size = Vector3.new(1.3, 0.8, 1.3) * scale
 	-- Kapeluszem w dół, jak grzyb suszony na nitce
 	cap.CFrame = base * CFrame.Angles(math.rad(180), 0, 0)
-	cap.Color = capColor(item.s, item.g):Lerp(DRY_COLOR, if item.g then progress * 0.3 else progress * 0.65)
+	-- Zmutowane grzyby ciemnieją słabiej, żeby dalej było widać, że są cenne
+	cap.Color = capColor(item.s, item.v):Lerp(DRY_COLOR, if item.v then progress * 0.3 else progress * 0.65)
 	stem.Size = Vector3.new(0.35, 0.8, 0.35) * scale
 	stem.CFrame = base * CFrame.new(0, -0.55 * scale, 0)
 	stem.Color = STEM_COLOR:Lerp(DRY_COLOR, progress * 0.5)
@@ -247,13 +277,30 @@ local function buildMushroom(parent: Instance, item: Economy.DryingItem, slot: A
 	newPart(Vector3.new(0.05, 0.5, 0.05), slot.WorldCFrame * CFrame.new(0, 0.25, 0), Color3.fromRGB(200, 190, 170), group).Name = "Thread"
 	local cap = newPart(Vector3.one, slot.WorldCFrame, Color3.new(), group)
 	cap.Name = "Cap"
-	if item.g then
+	local rank = Economy.variantRank(item.v)
+	if rank >= 2 then
 		cap.Material = Enum.Material.Neon
+	elseif rank == 1 then
+		cap.Material = Enum.Material.Metal
+		cap.Reflectance = 0.25
 	end
 	local mesh = Instance.new("SpecialMesh")
 	mesh.MeshType = Enum.MeshType.Sphere
 	mesh.Parent = cap
 	newPart(Vector3.one, slot.WorldCFrame, STEM_COLOR, group).Name = "Stem"
+	-- Cechy z miejsca: „Blask” świeci, „Mech” ma zieloną czapeczkę na kapeluszu
+	for _, id in item.x or {} do
+		local tag = Economy.getTag(id)
+		if tag and id == "glowing" then
+			local light = Instance.new("PointLight")
+			light.Color = rgb(tag.color)
+			light.Range = 6
+			light.Brightness = 1.4
+			light.Parent = cap
+		elseif tag and id == "mossy" then
+			newPart(Vector3.new(0.9, 0.18, 0.9), slot.WorldCFrame * CFrame.new(0, -0.32, 0), rgb(tag.color), group).Name = "Moss"
+		end
+	end
 	group.Parent = parent
 	return group
 end
@@ -263,7 +310,7 @@ end
 local function contentKey(drying: { Economy.DryingItem }): string
 	local parts = {}
 	for _, item in drying do
-		table.insert(parts, string.format("%s%s%d", item.s, if item.g then "g" else "", item.t))
+		table.insert(parts, string.format("%s:%s:%s:%d", item.s, item.v or "", table.concat(item.x or {}, ","), item.t))
 	end
 	return table.concat(parts, "|")
 end
@@ -310,7 +357,7 @@ local function refreshRack(rack: RackState)
 			styleMushroom(group, item, slot, now)
 		end
 	end
-	-- Tabliczki i kolor płytek: zajęte stanowiska świecą zielenią, złote grzyby złotem
+	-- Tabliczki i kolor płytek: zajęte stanowiska są zielone, a pod mutacjami w kolorze wariantu
 	for index, label in rack.slotLabels do
 		local item = data.drying[index]
 		local billboard = label.Parent :: BillboardGui
@@ -320,7 +367,7 @@ local function refreshRack(rack: RackState)
 		end
 		local pad = rack.pads[index]
 		if pad then
-			pad.Color = if not item then PAD_EMPTY elseif item.g then PAD_GOLD else PAD_FULL
+			pad.Color = if not item then PAD_EMPTY else (PAD_BY_RANK[Economy.variantRank(item.v)] or PAD_FULL)
 		end
 	end
 	local count = #data.drying
@@ -403,7 +450,7 @@ local function onHang(rack: RackState, player: Player)
 	for _, index in chosen do
 		local item = table.remove(data.basket, index)
 		if item then
-			table.insert(data.drying, { s = item.s, g = item.g, t = now })
+			table.insert(data.drying, { s = item.s, v = item.v, x = item.x, t = now })
 		end
 	end
 	api.notify(player, "MSG_HUNG", { #chosen })
@@ -472,7 +519,7 @@ local function onSteal(rack: RackState, thief: Player)
 	if not item then
 		return
 	end
-	table.insert(thiefData.basket, { s = item.s, g = item.g, d = Economy.dryMultiplier(os.time() - item.t) })
+	table.insert(thiefData.basket, { s = item.s, v = item.v, x = item.x, d = Economy.dryMultiplier(os.time() - item.t) })
 	rack.protectedUntil = now + Config.Drying.stealCooldown
 	thiefLast[thief] = now
 

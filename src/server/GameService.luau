@@ -18,7 +18,8 @@ local DryingService = require(script.Parent.DryingService)
 
 type SpotState = {
 	speciesId: string,
-	golden: boolean,
+	variant: string?,
+	tags: { string }?,
 	readyAt: number,
 	visible: boolean,
 }
@@ -80,8 +81,11 @@ local function currentZone(session: Session): number
 	return Economy.zoneIndexAt(root.Position.Z)
 end
 
-local function notify(session: Session, key: string, args: { any }?, nameKey: string?)
-	Notify:FireClient(session.player, { key = key, args = args, nameKey = nameKey })
+-- mutation: { variant, tags } do pokazania etykiet w języku gracza (klient je tłumaczy)
+type MutationInfo = { variant: string?, tags: { string }? }
+
+local function notify(session: Session, key: string, args: { any }?, nameKey: string?, mutation: MutationInfo?)
+	Notify:FireClient(session.player, { key = key, args = args, nameKey = nameKey, mutation = mutation })
 end
 
 local LEADERSTAT_COINS = "💰" -- kolumna na liście graczy; emoji, żeby działała w obu językach
@@ -107,7 +111,9 @@ local function pushState(session: Session)
 	})
 end
 
-local function rollSpot(session: Session, spot: MapBuilder.Spot): (string?, boolean)
+-- Losuje gatunek, wariant i cechy grzyba. countPity = to jest odrost po zebraniu
+-- (początkowe rozstawienie lasu nie nabija gwarancji).
+local function rollSpot(session: Session, spot: MapBuilder.Spot, countPity: boolean?): (string?, string?, { string }?)
 	local species
 	if spot.grove then
 		local list = Economy.groveSpecies()
@@ -116,9 +122,25 @@ local function rollSpot(session: Session, spot: MapBuilder.Spot): (string?, bool
 		species = Economy.rollSpecies(spot.zone, session.rng:NextNumber())
 	end
 	if not species then
-		return nil, false
+		return nil, nil, nil
 	end
-	return species.id, session.rng:NextNumber() < Config.GoldenChance
+
+	-- Gwarancja: po Config.PityRolls odrostach bez Złota (albo lepszego) wymuszamy co najmniej Złoto
+	local data = session.data
+	local forced = countPity and data.pity >= Config.PityRolls
+	local variant = Economy.rollVariant(session.rng:NextNumber(), if forced then 2 else nil)
+	if countPity then
+		data.pity = if Economy.variantRank(variant) >= 2 then 0 else data.pity + 1
+	end
+
+	local tags: { string }? = nil
+	for _, tag in Economy.tagsForZone(spot.zone) do
+		if session.rng:NextNumber() < tag.chance then
+			tags = tags or {}
+			table.insert(tags :: { string }, tag.id)
+		end
+	end
+	return species.id, variant, tags
 end
 
 -- Wysyła klientowi grzyby, które właśnie odrosły
@@ -133,7 +155,8 @@ local function syncReadySpots(session: Session, now: number)
 					id = id,
 					position = spot.position,
 					species = state.speciesId,
-					golden = state.golden,
+					variant = state.variant,
+					tags = state.tags,
 				})
 			end
 		end
@@ -319,9 +342,9 @@ local function onPlayerAdded(player: Player)
 
 	-- Każdy gracz ma własne grzyby: nikt nikomu nie wyzbiera wysypu
 	for _, spot in map.spots do
-		local speciesId, golden = rollSpot(session, spot)
+		local speciesId, variant, tags = rollSpot(session, spot)
 		if speciesId then
-			session.spots[spot.id] = { speciesId = speciesId, golden = golden, readyAt = 0, visible = false }
+			session.spots[spot.id] = { speciesId = speciesId, variant = variant, tags = tags, readyAt = 0, visible = false }
 		end
 	end
 
@@ -390,20 +413,40 @@ local function onPick(player: Player, spotId: unknown)
 		return
 	end
 
-	table.insert(basket, { s = state.speciesId, g = state.golden })
+	table.insert(basket, { s = state.speciesId, v = state.variant, x = state.tags })
 	session.data.atlas[state.speciesId] = true
 
-	if state.golden then
-		local species = Economy.getSpecies(state.speciesId)
-		notify(session, "MSG_GOLDEN", nil, species and species.key or nil)
+	-- Komunikat tylko o rzadkich znaleziskach (Złoto+ albo dwie mutacje naraz), żeby nie spamować;
+	-- o zwykłym srebrze czy mchu mówi już kolorowe „+N” nad grzybem
+	local species = Economy.getSpecies(state.speciesId)
+	local rank = Economy.variantRank(state.variant)
+	local mutationCount = (if state.variant then 1 else 0) + #(state.tags or {})
+	if rank >= 2 or mutationCount >= 2 then
+		local mult = Economy.mutationMultiplier(state.variant, state.tags)
+		notify(session, "MSG_MUTATION", { string.format("%g", mult) }, species and species.key or nil, {
+			variant = state.variant,
+			tags = state.tags,
+		})
+	end
+	-- Tęcza: ogłoszenie dla całego serwera (wiadomo, czyją suszarnię warto potem odwiedzić)
+	if rank >= Config.AnnounceRank then
+		for _, other in sessions do
+			if other ~= session then
+				notify(other, "MSG_RARE_FIND", { player.DisplayName }, species and species.key or nil, {
+					variant = state.variant,
+					tags = state.tags,
+				})
+			end
+		end
 	end
 
 	-- Grzyb odrośnie później i może to być inny gatunek
-	local speciesId, golden = rollSpot(session, spot)
+	local speciesId, variant, tags = rollSpot(session, spot, true)
 	state.visible = false
 	state.readyAt = now + (if spot.grove then Config.Grove.respawnSeconds else Config.RespawnSeconds)
 	state.speciesId = speciesId or state.speciesId
-	state.golden = golden
+	state.variant = variant
+	state.tags = tags
 
 	MushroomRemoved:FireClient(player, spotId)
 	-- Korona Leszego budzi właściciela gniazda
