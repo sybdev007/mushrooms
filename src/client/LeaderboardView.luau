@@ -88,6 +88,9 @@ local function render(board: Board)
 	board.title.Text = Localize.t(def.title)
 	board.title.TextColor3 = def.color
 	local parts = {}
+	if kind == "thieves" then
+		table.insert(parts, Localize.t("BOARD_THIEVES_HINT"))
+	end
 	if def.weekly then
 		table.insert(parts, Localize.t("BOARD_WEEK_RESET"))
 	end

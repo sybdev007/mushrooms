@@ -1,23 +1,25 @@
 --!strict
--- Tablice rankingów na polanie przed chatką: drewniana rama z daszkiem, ciemna tablica
+-- Tablice rankingów na tylnej ścianie chatki (od strony Placu Portali): drewniana rama z daszkiem, ciemna tablica
 -- (ekran z SurfaceGui rysuje klient: LeaderboardView) i dwie latarenki.
 -- Ekrany mają tag "Leaderboard" i atrybut Kind; LeaderboardService wpisuje do nich wyniki.
 
 local CollectionService = game:GetService("CollectionService")
 
+local Cabin = require(script.Parent.Cabin)
 local Palette = require(script.Parent.Palette)
 
 local Boards = {}
 
 export type Placement = { kind: string, position: Vector3, width: number, height: number, lift: number, rows: number }
 
--- Wyjście z chatki patrzy na +Z, więc tablice stoją przodem do chatki (-Z); patrząc od drzwi
--- +X jest po lewej. Po bokach polany dwie tablice, nad ścieżką brama z trzecią (wysoko,
--- żeby nie zasłaniała przejścia, za pierwszą latarnią). Wszystko w środku polany, gdzie nie ma drzew.
+-- Na zewnątrz tylnej ściany chatki, przodem do Placu Portali (-Z): każdy, kto idzie do portali,
+-- przechodzi obok. Trzy tablice obok siebie od lewego narożnika do komina (komin stoi przy x = 14).
+-- Patrząc od placu, +X jest po prawej.
+local WALL_Z = Cabin.BACK_Z - 1.4
 Boards.PLACEMENTS = {
-	{ kind = "richest", position = Vector3.new(16, 0, 12), width = 11, height = 12, lift = 2.2, rows = 8 },
-	{ kind = "rare", position = Vector3.new(0, 0, 16), width = 13, height = 9, lift = 9, rows = 6 },
-	{ kind = "thieves", position = Vector3.new(-16, 0, 12), width = 11, height = 12, lift = 2.2, rows = 8 },
+	{ kind = "richest", position = Vector3.new(-13.5, 0, WALL_Z), width = 8.5, height = 10, lift = 2.4, rows = 8 },
+	{ kind = "rare", position = Vector3.new(-3.5, 0, WALL_Z), width = 8.5, height = 10, lift = 2.4, rows = 8 },
+	{ kind = "thieves", position = Vector3.new(6.5, 0, WALL_Z), width = 8.5, height = 10, lift = 2.4, rows = 8 },
 } :: { Placement }
 
 local function part(parent: Instance, name: string, size: Vector3, cf: CFrame, color: Color3, material: Enum.Material?): Part
@@ -52,7 +54,7 @@ local function buildBoard(parent: Instance, placement: Placement): BasePart
 	local model = Instance.new("Model")
 	model.Name = "Leaderboard_" .. placement.kind
 	local w, h, lift = placement.width, placement.height, placement.lift
-	-- Układ lokalny: przód tablicy patrzy na -Z świata (w stronę chatki)
+	-- Układ lokalny: przód tablicy patrzy na -Z świata (w stronę Placu Portali), tył przy ścianie
 	local base = CFrame.lookAt(placement.position, placement.position - Vector3.new(0, 0, 1))
 	local centerY = lift + h / 2
 

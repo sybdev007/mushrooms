@@ -297,3 +297,4 @@ BOARD_EMPTY,Nobody yet. Be the first!,,,Jeszcze nikt. Bądź pierwszy!
 BOARD_SERVER,this server only,,,tylko ten serwer
 BOARD_WEEK_RESET,resets every Monday,,,zeruje się w poniedziałek
 BOARD_STEALS,🏃 {1} loot,,,🏃 łupy: {1}
+BOARD_THIEVES_HINT,most mushrooms stolen from other gardens,,,najwięcej grzybów ukradzionych z cudzych ogródków
