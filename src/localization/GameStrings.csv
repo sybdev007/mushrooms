@@ -250,7 +250,7 @@ ATLAS_PAGE_CAVE,Caves,,,Jaskinie
 ATLAS_PAGE_SWAMP,Swamp,,,Bagna
 ATLAS_FORM_NORMAL,Normal,,,Zwykły
 ATLAS_SUMMARY,Sell bonus: <b>+{1}%</b>  ·  Title: <b>{2}</b>,,,Premia do ceny: <b>+{1}%</b>  ·  Tytuł: <b>{2}</b>
-ATLAS_NO_TITLE,none yet (Gold page = title),,,jeszcze brak (złota strona = tytuł)
+ATLAS_NO_TITLE,none yet (find every mushroom on a page),,,jeszcze brak (znajdź każdy grzyb na stronie)
 ATLAS_PRICE,price,,,do ceny
 ATLAS_TIER_0,Find every mushroom,,,Znajdź każdy grzyb
 ATLAS_TIER_1,Every mushroom Silver or better,,,Każdy grzyb co najmniej srebrny
@@ -298,3 +298,9 @@ BOARD_SERVER,this server only,,,tylko ten serwer
 BOARD_WEEK_RESET,resets every Monday,,,zeruje się w poniedziałek
 BOARD_STEALS,🏃 {1} loot,,,🏃 łupy: {1}
 BOARD_THIEVES_HINT,most mushrooms stolen from other gardens,,,najwięcej grzybów ukradzionych z cudzych ogródków
+TITLE_EXPLORER_FOREST,Forest Explorer,,,Odkrywca Lasu
+TITLE_EXPLORER_CAVE,Cave Explorer,,,Odkrywca Jaskiń
+TITLE_EXPLORER_SWAMP,Swamp Explorer,,,Odkrywca Bagien
+TITLE_TRACKER_FOREST,Forest Tracker,,,Tropiciel Lasu
+TITLE_TRACKER_CAVE,Cave Tracker,,,Tropiciel Jaskiń
+TITLE_TRACKER_SWAMP,Swamp Tracker,,,Tropiciel Bagien

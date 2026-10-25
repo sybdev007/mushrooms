@@ -53,11 +53,26 @@ local function update(target: Player)
 	billboard.Adornee = head :: BasePart
 	local text = billboard:FindFirstChild("Text") :: TextLabel
 	text.Text = "📖 " .. Localize.t(key)
-	-- Arcygrzybiarz tęczowo-złoty, mistrzowie złoci, znawcy srebrni
-	text.TextColor3 = if key == "TITLE_GRANDMASTER"
-		then Color3.fromRGB(255, 140, 230)
-		elseif string.find(key, "MASTER", 1, true) then Color3.fromRGB(255, 214, 80)
-		else Color3.fromRGB(214, 228, 240)
+	-- Im lepszy tytuł, tym cenniejszy kolor: odkrywca zielony, tropiciel srebrny, znawca złoty,
+	-- mistrz tęczowo-różowy, Arcygrzybiarz z tęczowym gradientem
+	text.TextColor3 = if string.find(key, "EXPLORER", 1, true)
+		then Color3.fromRGB(150, 230, 120)
+		elseif string.find(key, "TRACKER", 1, true) then Color3.fromRGB(214, 228, 240)
+		elseif string.find(key, "EXPERT", 1, true) then Color3.fromRGB(255, 214, 80)
+		else Color3.fromRGB(255, 140, 230)
+	local gradient = text:FindFirstChildOfClass("UIGradient")
+	if key == "TITLE_GRANDMASTER" and not gradient then
+		local rainbow = Instance.new("UIGradient")
+		rainbow.Color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 120, 120)),
+			ColorSequenceKeypoint.new(0.33, Color3.fromRGB(255, 236, 120)),
+			ColorSequenceKeypoint.new(0.66, Color3.fromRGB(120, 230, 255)),
+			ColorSequenceKeypoint.new(1, Color3.fromRGB(230, 130, 255)),
+		})
+		rainbow.Parent = text
+	elseif key ~= "TITLE_GRANDMASTER" and gradient then
+		gradient:Destroy()
+	end
 end
 
 local function watch(target: Player)

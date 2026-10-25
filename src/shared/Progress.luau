@@ -20,11 +20,12 @@ local Progress = {}
 Progress.PAGES = { "forest", "cave", "swamp" }
 
 -- Progi każdej strony: wszystkie gatunki co najmniej w danej randze wariantu.
--- bonus = stały dodatek do ceny przy sprzedaży; tytuł nad głową za złoto i tęczę.
+-- bonus = stały dodatek do ceny przy sprzedaży; każdy próg daje lepszy tytuł nad głową
+-- (Odkrywca → Tropiciel → Znawca → Mistrz danego świata). Pokazuje się najlepszy zdobyty.
 export type Tier = { rank: number, bonus: number, key: string, title: string? }
 Progress.TIERS = {
-	{ rank = 0, bonus = 0.03, key = "ATLAS_TIER_0" }, -- odkryj każdy gatunek
-	{ rank = 1, bonus = 0.03, key = "ATLAS_TIER_1" }, -- każdy co najmniej srebrny
+	{ rank = 0, bonus = 0.03, key = "ATLAS_TIER_0", title = "TITLE_EXPLORER_" }, -- odkryj każdy gatunek
+	{ rank = 1, bonus = 0.03, key = "ATLAS_TIER_1", title = "TITLE_TRACKER_" }, -- każdy co najmniej srebrny
 	{ rank = 2, bonus = 0.05, key = "ATLAS_TIER_2", title = "TITLE_EXPERT_" }, -- złoty
 	{ rank = 3, bonus = 0.10, key = "ATLAS_TIER_3", title = "TITLE_MASTER_" }, -- tęczowy
 } :: { Tier }

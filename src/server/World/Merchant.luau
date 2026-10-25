@@ -112,7 +112,9 @@ function Merchant.build(parent: Instance, at: CFrame, promptDistance: number): M
 	local tag = Instance.new("BillboardGui")
 	tag.Name = "NameTag"
 	tag.Size = UDim2.fromOffset(180, 46)
-	tag.StudsOffset = Vector3.new(0, 2.2, 0)
+	-- Tabliczka nad głową, ale wysunięta do przodu (w stronę sali), bo skupywacz stoi tuż przy
+	-- tylnej ścianie i szeroki napis wchodził w bale. Przód modelu patrzy na +Z świata.
+	tag.StudsOffsetWorldSpace = Vector3.new(0, 2.2, 2.6)
 	tag.MaxDistance = 40
 	tag.LightInfluence = 0
 	tag.Parent = head

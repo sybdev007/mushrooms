@@ -703,6 +703,45 @@ local function buildDecor(m: Model)
 end
 
 -- Buduje chatkę i zwraca CFrame miejsca startu (w środku, twarzą do drzwi i lasu)
+-- Bale ułożone jeden nad drugim działają w Robloxie jak drabina: postać wspina się po ścianie
+-- na dach. Niewidzialne płaskie płyty na całą grubość ścian (i wokół komina) zasłaniają szczeliny
+-- między balami, więc ściana jest gładka z obu stron. W ścianie frontowej zostaje otwór na drzwi.
+local function buildClimbGuards(m: Model)
+	local thickness = LOG_D + 0.2
+	local top = WALL_TOP + 0.5
+	local function guard(size: Vector3, position: Vector3)
+		make("Part", {
+			Name = "ClimbGuard",
+			Size = size,
+			Position = position,
+			Transparency = 1,
+			CanQuery = false,
+			CanTouch = false,
+			CastShadow = false,
+			Parent = m,
+		})
+	end
+	local width = HALF_W * 2 + 2.4
+	local height = top - FLOOR_TOP + 1
+	local centerY = FLOOR_TOP - 1 + height / 2
+	-- Tył i boki w całości
+	guard(Vector3.new(width, height, thickness), Vector3.new(0, centerY, BACK_Z))
+	for _, x in { -HALF_W, HALF_W } do
+		guard(Vector3.new(thickness, height, FRONT_Z - BACK_Z + 2.4), Vector3.new(x, centerY, (FRONT_Z + BACK_Z) / 2))
+	end
+	-- Przód: po obu stronach drzwi, nad drzwiami nadproże
+	local doorHalf = 3
+	local doorTop = rowY(5) - LOG_D / 2
+	local sideWidth = width / 2 - doorHalf
+	for _, side in { -1, 1 } do
+		guard(Vector3.new(sideWidth, height, thickness), Vector3.new(side * (doorHalf + sideWidth / 2), centerY, FRONT_Z))
+	end
+	guard(Vector3.new(doorHalf * 2, top - doorTop, thickness), Vector3.new(0, (top + doorTop) / 2, FRONT_Z))
+	-- Komin z kamieni na przemian szerszych i węższych też był drabiną
+	local chimneyTop = WALL_TOP + 11
+	guard(Vector3.new(4, chimneyTop, 3.4), Vector3.new(HALF_W - 4, chimneyTop / 2, BACK_Z - 1.6))
+end
+
 function Cabin.build(parent: Instance): CFrame
 	local m = Instance.new("Model")
 	m.Name = "Cabin"
@@ -713,6 +752,7 @@ function Cabin.build(parent: Instance): CFrame
 	buildRoof(m)
 	buildChimney(m)
 	buildPorch(m)
+	buildClimbGuards(m)
 	m.Parent = parent
 	-- Bliżej drzwi niż tylnej ściany, żeby kamera za plecami gracza nie wchodziła w bale
 	return CFrame.new(0, FLOOR_TOP + 3, -20) * CFrame.Angles(0, math.pi, 0)
