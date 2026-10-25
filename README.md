@@ -134,6 +134,10 @@ rojo build -o lantern-forager.rbxlx
   „Borowik · Rzadki” w kolorze klasy; tabliczki w ogródku też mają kolor klasy.
 - **Głębiej = częstsze mutacje** (`Config.DepthLuck`, `Economy.zoneLuck`): pierwsza niebezpieczna strefa świata ×1,
   każda kolejna +0,3 (Gęstwina ×1,3, Jar ×1,6, w jaskini i na bagnach tak samo).
+- **Balans szczęścia** (`Config.LuckBalance`, `Economy.luck`): szczęście ×N działa jak N rzutów, z których liczy się
+  najlepszy (`1 − (1 − szansa)^N`), więc szanse nigdy nie dochodzą do 100%. Darmowe bonusy (nożyk × głębokość × noc)
+  mają malejący zysk i razem zbliżają się do ×5; płatne (Wysyp ×1,5, mikstura ×2) mnożą w pełni; całość najwyżej ×8.
+  Gracz widzi wszystkie procenty w sklepie pod przyciskiem **% Szanse** (`OddsPanel`).
 - **Dzień i noc** (`Config.Cycle`, `src/shared/Cycle.luau`): 18 min nocy i 2 min świtu, liczone z zegara, więc na
   wszystkich serwerach jest ta sama pora. Każda noc ma zdarzenie: Spokojna noc, Pełnia (mutacje ×1,5), Deszcz
   (odrost 2× szybciej), Gęsta mgła (widać mniej, mutacje ×1,3), Krwawy księżyc (mutacje ×2,5, rzadki).

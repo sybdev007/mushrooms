@@ -170,13 +170,17 @@ local function render()
 		boom = state ~= nil and (state.boomUntil or 0) > now,
 		potion = potionActive,
 	}
-	local luck, parts = Economy.luck(input)
+	local luck, parts, raw = Economy.luck(input)
 	-- Kolumna „z miksturą”: jeśli mikstura już działa, to te same szanse co teraz
 	local potionInput = table.clone(input)
 	potionInput.potion = true
 	local potionLuck = Economy.luck(potionInput)
 
 	luckLine.Text = Localize.t("ODDS_YOUR_LUCK", { times(luck) })
+	if raw - luck > 0.01 then
+		-- Malejący zysk / limit: pokazujemy, ile byłoby bez balansu
+		luckLine.Text ..= '  <font size="13" color="#D6BC96">' .. Localize.t("ODDS_CAPPED", { times(raw) }) .. "</font>"
+	end
 	local names = {}
 	for _, part in parts do
 		local label = if part.key == "ODDS_DEPTH" and input.zone then zoneName(input.zone) else Localize.t(part.key)

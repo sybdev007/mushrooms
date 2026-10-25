@@ -318,6 +318,12 @@ Config.Tags = {
 -- Im głębiej w świecie, tym częstsze mutacje: pierwsza niebezpieczna strefa x1, każda kolejna +DepthLuck
 Config.DepthLuck = 0.3
 
+-- Balans szczęścia (Economy.luck). Szczęście ×L działa jak L rzutów z najlepszym wynikiem.
+-- Darmowe bonusy (nożyk × głębokość × noc) mają malejący zysk: razem zbliżają się do freeCap,
+-- ale go nie przekraczają (np. surowe ×3,75 → ×2,6, surowe ×11,9 → ×3,9).
+-- Płatne (Wysyp, mikstura) mnożą to w pełni, a całość ma twardy limit maxLuck.
+Config.LuckBalance = { freeCap = 5, maxLuck = 8 }
+
 -- Klasy grzybów według tego, jak często rosną w swojej strefie (waga w Config.Species).
 -- Grzyby strażników (korony, trufle, kielichy) są zawsze legendarne.
 export type ClassDef = { id: string, key: string, color: { number }, minWeight: number }

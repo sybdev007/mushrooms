@@ -124,14 +124,25 @@ function Economy.variantRank(id: string?): number
 end
 
 -- Wariant dla liczby r z [0, 1). minRank > 0 wymusza co najmniej taką rangę (gwarancja).
--- luck: mnożnik szans na warianty (Wysyp, mikstura szczęścia); 1 = zwykłe szanse
+-- Szansa po szczęściu: szczęście ×L działa jak L rzutów, z których liczy się najlepszy.
+-- Rośnie szybko przy małym L, wolniej przy dużym i nigdy nie dochodzi do 100%.
+local function lucky(chance: number, luck: number): number
+	local l = math.max(luck, 1)
+	if l == 1 then
+		return chance -- bez szczęścia dokładnie szansa z Config
+	end
+	return 1 - (1 - math.clamp(chance, 0, 1)) ^ l
+end
+Economy.luckyChance = lucky
+
+-- luck: szczęście z Economy.luck (nożyk, głębokość, noc, Wysyp, mikstura); 1 = zwykłe szanse
 function Economy.rollVariant(r: number, minRank: number?, luck: number?): string?
 	local floor = minRank or 0
-	r /= math.max(luck or 1, 1)
 	local acc = 0
 	for _, variant in variantsRarestFirst do
 		acc += variant.chance
-		if r < acc and variant.rank >= floor then
+		-- acc = szansa na „ten wariant albo rzadszy”, więc progi idą od najrzadszego
+		if r < lucky(acc, luck or 1) and variant.rank >= floor then
 			return variant.id
 		end
 	end
@@ -156,9 +167,12 @@ export type LuckInput = {
 }
 export type LuckPart = { key: string, mult: number }
 
--- Łączny mnożnik szans na mutacje i z czego się bierze (do tabelki szans u gracza).
+-- Łączne szczęście i z czego się bierze (do tabelki szans u gracza).
 -- Tego samego używa serwer przy losowaniu, więc tabelka zawsze mówi prawdę.
-function Economy.luck(input: LuckInput): (number, { LuckPart })
+-- Balans (Config.LuckBalance): darmowe bonusy (nożyk, głębokość, noc) mają malejący zysk
+-- i razem nie przekroczą freeCap; płatne (Wysyp, mikstura) mnożą w pełni; całość do maxLuck.
+-- Zwraca: szczęście po balansie, części (surowe mnożniki) i surowy iloczyn.
+function Economy.luck(input: LuckInput): (number, { LuckPart }, number)
 	local parts: { LuckPart } = {}
 	local function add(key: string, mult: number)
 		if mult ~= 1 then
@@ -172,29 +186,35 @@ function Economy.luck(input: LuckInput): (number, { LuckPart })
 	if input.event then
 		add(input.event.key, input.event.luck)
 	end
+	local free = 1
+	for _, part in parts do
+		free *= part.mult
+	end
+	local paid = 1
 	if input.boom then
 		add("PRODUCT_BOOM", Config.Boom.luck)
+		paid *= Config.Boom.luck
 	end
 	if input.potion then
 		add("PRODUCT_LUCK", Config.LuckPotion.luck)
+		paid *= Config.LuckPotion.luck
 	end
-	local total = 1
-	for _, part in parts do
-		total *= part.mult
-	end
-	return total, parts
+	local balance = Config.LuckBalance
+	local room = balance.freeCap - 1
+	local extra = math.max(free - 1, 0)
+	local freeLuck = 1 + extra / (1 + extra / room)
+	return math.min(freeLuck * paid, balance.maxLuck), parts, free * paid
 end
 
 -- Prawdziwe szanse na każdy wariant przy danym szczęściu (dokładnie jak w rollVariant:
 -- rzadsze warianty „zajmują” przedział pierwsze, a całość nie przekroczy 100%)
 function Economy.variantOdds(luck: number): { { id: string, chance: number } }
-	local scale = math.max(luck, 1)
 	local odds = {}
 	local previous = 0
 	local acc = 0
 	for _, variant in variantsRarestFirst do
 		acc += variant.chance
-		local upTo = math.min(acc * scale, 1)
+		local upTo = lucky(acc, luck)
 		table.insert(odds, { id = variant.id, chance = upTo - previous })
 		previous = upTo
 	end
@@ -203,7 +223,7 @@ end
 
 -- Szansa na cechę (mech, blask…) przy danym szczęściu
 function Economy.tagOdds(tag: Config.TagDef, luck: number): number
-	return math.min(tag.chance * luck, 1)
+	return lucky(tag.chance, luck)
 end
 
 -- Mnożnik szans na mutacje za głębokość strefy w jej świecie: pierwsza niebezpieczna strefa x1,

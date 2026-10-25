@@ -219,4 +219,5 @@ ODDS_BASE,Base,,,Zwykle
 ODDS_NOW,You now,,,U ciebie
 ODDS_POTION,With potion,,,Z miksturą
 ODDS_POTION_ON,Potion ✓,,,Mikstura ✓
-ODDS_FOOTER,Odds are rolled when a mushroom regrows. One variant per mushroom; place traits stack with it. After {1} regrows without Gold the next one is at least Gold.,,,Mutacja losuje się w chwili odrostu grzyba. Grzyb ma najwyżej jeden wariant; cechy miejsca mogą dojść do niego. Po {1} odrostach bez Złota następny grzyb jest co najmniej złoty.
+ODDS_FOOTER,Luck xN works like N rolls where the best one counts. Odds are rolled when a mushroom regrows. One variant per mushroom; place traits stack with it. After {1} regrows without Gold the next one is at least Gold.,,,Szczęście xN działa jak N rzutów z najlepszym wynikiem. Mutacja losuje się w chwili odrostu grzyba. Grzyb ma najwyżej jeden wariant; cechy miejsca mogą dojść do niego. Po {1} odrostach bez Złota następny grzyb jest co najmniej złoty.
+ODDS_CAPPED,(raw {1} - bonuses stack with diminishing returns),,,(surowo {1} - bonusy rosną coraz wolniej)

@@ -268,7 +268,7 @@ test("nożyk: od zwykłych szans do co najmniej podwójnych, każdy poziom ma ko
 	for zone = 1, #Config.Zones do
 		maxZone = math.max(maxZone, Economy.zoneLuck(zone))
 	end
-	local rainbow = Config.Variants[3].chance * best * maxEvent * maxZone
+	local rainbow = Economy.luckyChance(Config.Variants[3].chance, math.min(best * maxEvent * maxZone, Config.LuckBalance.freeCap))
 	check(rainbow < 0.1, string.format("tęcza przy maks. szczęściu: %.1f%%", rainbow * 100))
 end)
 
@@ -1045,6 +1045,61 @@ test("szansa na cechę nie przekracza 100%", function()
 	for _, tag in Config.Tags do
 		eq(Economy.tagOdds(tag, 1), tag.chance)
 		eq(Economy.tagOdds(tag, 1000), 1)
+	end
+end)
+
+print("Balans szczęścia (Config.LuckBalance)")
+
+local function worstCase(boom: boolean, potion: boolean): number
+	local maxEvent = Config.Cycle.events[1]
+	for _, event in Config.Cycle.events do
+		if event.luck > maxEvent.luck then
+			maxEvent = event
+		end
+	end
+	local deepest = 1
+	for zone = 1, #Config.Zones do
+		if Economy.zoneLuck(zone) > Economy.zoneLuck(deepest) then
+			deepest = zone
+		end
+	end
+	return (Economy.luck({ knifeLevel = Config.Upgrades.knife.maxLevel, zone = deepest, event = maxEvent, boom = boom, potion = potion }))
+end
+
+test("darmowe bonusy nie przekraczają freeCap, całość nie przekracza maxLuck", function()
+	check(worstCase(false, false) < Config.LuckBalance.freeCap, "darmowe x" .. worstCase(false, false))
+	check(worstCase(true, true) <= Config.LuckBalance.maxLuck, "wszystko x" .. worstCase(true, true))
+end)
+
+test("przy maksymalnym szczęściu złoto i tęcza zostają rzadkie, cechy nie są pewne", function()
+	local luck = worstCase(true, true)
+	local odds = Economy.variantOdds(luck)
+	local rainbow, goldOrBetter = 0, 0
+	for _, odd in odds do
+		local rank = Economy.variantRank(odd.id)
+		if rank >= 3 then
+			rainbow += odd.chance
+		end
+		if rank >= 2 then
+			goldOrBetter += odd.chance
+		end
+	end
+	check(rainbow < 0.05, string.format("tęcza %.1f%%", rainbow * 100))
+	check(goldOrBetter < 0.25, string.format("złoto+ %.1f%%", goldOrBetter * 100))
+	for _, tag in Config.Tags do
+		check(Economy.tagOdds(tag, luck) < 0.75, tag.id)
+	end
+end)
+
+test("mikstura zawsze się opłaca (co najmniej x1,5 szczęścia, chyba że trafiamy w limit)", function()
+	for level = 0, Config.Upgrades.knife.maxLevel do
+		for _, event in Config.Cycle.events do
+			local input = { knifeLevel = level, zone = 4, event = event, boom = false, potion = false }
+			local without = Economy.luck(input)
+			input.potion = true
+			local with = Economy.luck(input)
+			check(with >= math.min(without * 1.5, Config.LuckBalance.maxLuck) - 1e-9, "nożyk " .. level .. " " .. event.id)
+		end
 	end
 end)
 

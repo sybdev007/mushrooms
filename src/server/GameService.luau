@@ -299,7 +299,7 @@ local function rollSpot(session: Session, spot: MapBuilder.Spot, countPity: bool
 
 	local tags: { string }? = nil
 	for _, tag in Economy.tagsForZone(spot.zone) do
-		if session.rng:NextNumber() < tag.chance * luck then
+		if session.rng:NextNumber() < Economy.tagOdds(tag, luck) then
 			tags = tags or {}
 			table.insert(tags :: { string }, tag.id)
 		end
