@@ -24,7 +24,7 @@ local MUTED = Color3.fromRGB(214, 188, 150)
 local ACCENT = Color3.fromRGB(255, 214, 120)
 local GREEN = Color3.fromRGB(150, 255, 150)
 local ROW_HEIGHT = 24
-local WIDTH = 420
+local WIDTH = 470
 
 local gui = Instance.new("ScreenGui")
 gui.Name = "Odds"
@@ -41,7 +41,7 @@ panel.Size = UDim2.fromOffset(WIDTH, HEIGHT)
 panel.AnchorPoint = Vector2.new(0.5, 0.5)
 panel.Position = UDim2.fromScale(0.5, 0.5)
 panel.BackgroundColor3 = Color3.fromRGB(40, 28, 20)
-panel.BackgroundTransparency = 0.03
+panel.BackgroundTransparency = 0
 panel.Visible = false
 panel.Parent = gui
 local panelCorner = Instance.new("UICorner")
@@ -88,7 +88,7 @@ local partsLine = text("Parts", UDim2.new(1, -32, 0, 30), UDim2.fromOffset(16, 7
 partsLine.TextWrapped = true
 
 -- Kolumny: nazwa | zwykle | teraz | z miksturą
-local COLUMNS = { 0, 0.46, 0.64, 0.82 }
+local COLUMNS = { 0, 0.52, 0.68, 0.84 }
 local TABLE_TOP = 108
 local function cell(row: number, column: number, font: Enum.Font, color: Color3?): TextLabel
 	local x = COLUMNS[column]
