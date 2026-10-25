@@ -97,7 +97,11 @@ end)
 
 test("UpgradeOrder + CaveUpgradeOrder zawierają każde ulepszenie dokładnie raz, każde w swoim sklepie", function()
 	local seen = {}
-	for _, list in { { order = Config.UpgradeOrder, shop = "forest" }, { order = Config.CaveUpgradeOrder, shop = "cave" } } do
+	for _, list in {
+		{ order = Config.UpgradeOrder, shop = "forest" },
+		{ order = Config.CaveUpgradeOrder, shop = "cave" },
+		{ order = Config.SwampUpgradeOrder, shop = "swamp" },
+	} do
 		for _, id in list.order do
 			check(Config.Upgrades[id] ~= nil, "nieznane " .. id)
 			check(not seen[id], "duplikat " .. id)
@@ -473,7 +477,7 @@ end)
 test("Skarbnik: skarbiec w Sztolni, ucieczka do obozowiska dopiero na prawie maks. butach", function()
 	local lair = Config.Lair
 	eq(Config.Zones[Economy.zoneIndexAt(lair.centerZ - lair.radius)].id, "mine", "przód skarbca")
-	check(lair.centerZ + lair.radius + 8 < Config.Zones[#Config.Zones].endZ, "posąg Skarbnika za ścianą jaskini")
+	check(lair.centerZ + lair.radius + 8 < Config.Zones[9].endZ, "posąg Skarbnika za ścianą jaskini")
 	local campEnd = Config.Zones[5].endZ
 	local distance = lair.centerZ - campEnd
 	check(not Economy.escapes(distance, Economy.upgradeStat("boots", 4), Config.Skarbnik), "ucieczka przed Skarbnikiem za łatwa")
@@ -494,11 +498,83 @@ test("jaskinia: do końca Sztolni da się dojść z maks. knotem", function()
 	local speed = Economy.upgradeStat("boots", Config.Upgrades.boots.maxLevel)
 	local scale = Economy.upgradeStat("crystal", Config.Upgrades.crystal.maxLevel)
 	local need = 0
-	for zone = 6, #Config.Zones do
+	for zone = 6, 9 do
 		local def = Config.Zones[zone]
 		need += 2 * (def.endZ - def.startZ) / speed * Economy.oilDrain(zone, scale)
 	end
 	check(need * Config.ReturnMargin < oil, "sztolnia za daleko: " .. need)
+end)
+
+print("Bagna")
+
+-- Wyprawa z przystani do końca strefy bagien i powrót, z knotem z sitowia
+local function swampRoundTrip(deepest: number, wickLevel: number): number
+	local speed = Economy.upgradeStat("boots", Config.Upgrades.boots.maxLevel)
+	local scale = Economy.upgradeStat("rushwick", wickLevel)
+	local oil = 0
+	for zone = 11, deepest do
+		local def = Config.Zones[zone]
+		oil += 2 * (def.endZ - def.startZ) / speed * Economy.oilDrain(zone, scale)
+	end
+	return oil * Config.ReturnMargin
+end
+
+test("bagna: Trzęsawisko od razu, głębiej dopiero z knotem z sitowia, staw na maks.", function()
+	local oil = Economy.upgradeStat("oil", Config.Upgrades.oil.maxLevel)
+	check(swampRoundTrip(11, 0) < oil, "trzęsawisko nieosiągalne po otwarciu bagien")
+	check(swampRoundTrip(12, 0) > oil, "mokradła dostępne bez knota, brak progresu")
+	check(swampRoundTrip(13, Config.Upgrades.rushwick.maxLevel) < oil, "staw nieosiągalny nawet z knotem")
+end)
+
+test("bagna: próg wejścia, strefy po kolei, przystań bezpieczna, portal w Sztolni za skarbcem", function()
+	local need = Config.Swamp.unlockCoins
+	eq(Economy.canEnterSwamp(need - 1, false), false, "poniżej progu")
+	eq(Economy.canEnterSwamp(need, false), true, "próg")
+	eq(Economy.canEnterSwamp(0, true), true, "raz otwarte")
+	check(need > Config.Cave.unlockCoins * 10, "bagna za tanie względem jaskini")
+	eq(Config.Zones[Economy.zoneIndexAt(Config.Swamp.portal.z)].id, "mine", "portal na bagna poza Sztolnią")
+	check(Config.Swamp.portal.z > Config.Lair.centerZ + Config.Lair.radius + 8, "portal wchodzi na skarbiec")
+	check(Config.Swamp.portal.z + 6 < Config.Zones[9].endZ, "portal w ścianie Sztolni")
+	check(Economy.isSafeZone(Economy.zoneIndexAt(Config.Swamp.camp.z)), "przystań nie jest bezpieczna")
+	check(Economy.isSafeZone(Economy.zoneIndexAt(Config.Swamp.returnPortal.z)), "portal powrotny poza przystanią")
+	eq(Economy.zoneWorld(Economy.zoneIndexAt(2100)), "swamp", "świat bagien")
+	eq(Economy.zoneIndexAt(1800), 9, "między jaskinią a bagnami = koniec Sztolni")
+	local x, z = Economy.homePoint("swamp")
+	eq(x, Config.Swamp.camp.x, "dom na bagnach x")
+	eq(z, Config.Swamp.camp.z, "dom na bagnach z")
+	eq(Economy.worldOilUpgrade("swamp"), "rushwick", "knot na bagnach")
+	eq(Economy.worldOilUpgrade("forest"), nil, "w lesie bez knota")
+end)
+
+test("błędne ogniki: wyglądają jak Ognik, nic nie są warte i nie budzą strażnika", function()
+	eq(Economy.isMimic("false_wisp"), true, "ognik")
+	eq(Economy.isMimic("wisp_cap"), false, "prawdziwy ognik")
+	eq(Economy.mushroomValue("false_wisp"), 0, "wartość")
+	eq((Economy.getSpecies("false_wisp") :: any).key, (Economy.getSpecies("wisp_cap") :: any).key, "ta sama nazwa")
+	eq(Economy.guardianOf("false_wisp"), nil, "strażnik")
+	check(Config.Swamp.mimicOilLoss > 0 and Config.Swamp.mimicOilLoss < 0.5, "kara za ognik")
+end)
+
+test("Utopiec: Kielichy tylko na wyspie, ucieczka tylko na maks. butach", function()
+	local lair = Config.UtopiecLair
+	eq(Config.Zones[Economy.zoneIndexAt(lair.centerZ)].id, "pond", "wyspa poza stawem")
+	check(lair.centerZ + lair.radius + 6 < Config.Zones[13].endZ, "posąg Utopca za ścianą bagien")
+	local distance = lair.centerZ - Config.Zones[10].endZ
+	check(not Economy.escapes(distance, Economy.upgradeStat("boots", Config.Upgrades.boots.maxLevel - 1), Config.Utopiec), "ucieczka za łatwa")
+	check(Economy.escapes(distance, Economy.upgradeStat("boots", Config.Upgrades.boots.maxLevel), Config.Utopiec), "brak ucieczki na maks.")
+	for _, species in Economy.guardianSpecies("utopiec") do
+		eq(Economy.guardianOf(species.id), "utopiec", species.id)
+		check(species.value > 32000, species.id .. " nieopłacalny przy takim ryzyku")
+	end
+	check(#Economy.guardianSpecies("utopiec") > 0, "brak Kielicha")
+	eq(Economy.guardianOf("leszy_crown"), "leszy", "korona")
+	eq(Economy.guardianOf("skarbnik_truffle"), "skarbnik", "trufla")
+	for zone = 1, #Config.Zones do
+		for k = 0, 9 do
+			local rolled = Economy.rollSpecies(zone, k / 10)
+			check(rolled == nil or Economy.guardianOf(rolled.id) == nil, "grzyb strażnika losuje się w zwykłej strefie")
+		end
+	end
 end)
 
 test("portal: zamknięty poniżej progu, otwarty od progu i potem już zawsze", function()

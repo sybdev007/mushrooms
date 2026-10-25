@@ -19,6 +19,7 @@ local HoardService = require(script.Parent.HoardService)
 local World = script.Parent:WaitForChild("World")
 local LeszyModel = require(World:WaitForChild("Leszy"))
 local SkarbnikModel = require(World:WaitForChild("Skarbnik"))
+local UtopiecModel = require(World:WaitForChild("Utopiec"))
 local DryingService = require(script.Parent.DryingService)
 
 type SpotState = {
@@ -61,30 +62,109 @@ local GameService = {}
 
 local sessions: { [Player]: Session } = {}
 
--- Strażnicy skarbów: Leszy w lesie i Skarbnik w jaskini (tworzone w GameService.start)
-local leszy: ChaseService.Chaser? = nil
-local skarbnik: ChaseService.Chaser? = nil
-local leszyHoard: HoardService.Hoard? = nil
-local skarbnikHoard: HoardService.Hoard? = nil
+-- Strażnicy skarbów: Leszy w lesie, Skarbnik w jaskini, Utopiec na bagnach.
+-- Każdy ma te same zasady (ChaseService + HoardService), różnią się liczbami, modelem i komunikatami.
+type GuardianDef = {
+	settings: ChaseService.Settings,
+	model: { build: (Instance, CFrame, boolean) -> Model, setAwake: (Model, boolean) -> () },
+	woke: string,
+	caught: string,
+	gaveUp: string,
+	escaped: string,
+	hoardDrop: string,
+	respawn: number,
+}
+local GUARDIANS: { [string]: GuardianDef } = {
+	leszy = {
+		settings = Config.Leszy,
+		model = LeszyModel,
+		woke = "MSG_LESZY_WOKE",
+		caught = "MSG_CAUGHT",
+		gaveUp = "MSG_LESZY_GAVE_UP",
+		escaped = "MSG_ESCAPED",
+		hoardDrop = "MSG_HOARD_DROP",
+		respawn = Config.Grove.respawnSeconds,
+	},
+	skarbnik = {
+		settings = Config.Skarbnik,
+		model = SkarbnikModel,
+		woke = "MSG_SKARBNIK_WOKE",
+		caught = "MSG_CAUGHT_SKARBNIK",
+		gaveUp = "MSG_SKARBNIK_GAVE_UP",
+		escaped = "MSG_ESCAPED_SKARBNIK",
+		hoardDrop = "MSG_HOARD_DROP_SKARBNIK",
+		respawn = Config.Lair.respawnSeconds,
+	},
+	utopiec = {
+		settings = Config.Utopiec,
+		model = UtopiecModel,
+		woke = "MSG_UTOPIEC_WOKE",
+		caught = "MSG_CAUGHT_UTOPIEC",
+		gaveUp = "MSG_UTOPIEC_GAVE_UP",
+		escaped = "MSG_ESCAPED_UTOPIEC",
+		hoardDrop = "MSG_HOARD_DROP_UTOPIEC",
+		respawn = Config.UtopiecLair.respawnSeconds,
+	},
+}
+local chasers: { [string]: ChaseService.Chaser } = {}
+local hoards: { [string]: HoardService.Hoard } = {}
 
 local function stopChases(player: Player)
-	if leszy then
-		leszy.stop(player)
-	end
-	if skarbnik then
-		skarbnik.stop(player)
+	for _, chaser in chasers do
+		chaser.stop(player)
 	end
 end
 
--- "leszy", "skarbnik" albo nil
+-- Nazwa strażnika, który goni gracza, albo nil
 local function chasedBy(player: Player): string?
-	if leszy and leszy.isChased(player) then
-		return "leszy"
-	elseif skarbnik and skarbnik.isChased(player) then
-		return "skarbnik"
+	for name, chaser in chasers do
+		if chaser.isChased(player) then
+			return name
+		end
 	end
 	return nil
 end
+
+-- Strażnik pilnujący miejsca na grzyb (gniazdo, skarbiec, staw) albo nil
+local function spotGuardian(spot: MapBuilder.Spot): string?
+	if spot.grove then
+		return "leszy"
+	elseif spot.lair then
+		return "skarbnik"
+	end
+	return spot.guardian
+end
+
+-- Światy za portalami: flaga w zapisie, warunek wejścia i komunikaty
+type WorldGate = {
+	flag: string,
+	canEnter: (coins: number, unlocked: boolean?) -> boolean,
+	unlockCoins: number,
+	unlocked: string,
+	enter: string,
+	find: string,
+	engulfed: string,
+}
+local WORLD_GATES: { [string]: WorldGate } = {
+	cave = {
+		flag = "caveUnlocked",
+		canEnter = Economy.canEnterCave,
+		unlockCoins = Config.Cave.unlockCoins,
+		unlocked = "MSG_CAVE_UNLOCKED",
+		enter = "MSG_CAVE_ENTER",
+		find = "MSG_PORTAL_FIND",
+		engulfed = "MSG_ENGULFED_CAVE",
+	},
+	swamp = {
+		flag = "swampUnlocked",
+		canEnter = Economy.canEnterSwamp,
+		unlockCoins = Config.Swamp.unlockCoins,
+		unlocked = "MSG_SWAMP_UNLOCKED",
+		enter = "MSG_SWAMP_ENTER",
+		find = "MSG_PORTAL_FIND_SWAMP",
+		engulfed = "MSG_ENGULFED_SWAMP",
+	},
+}
 local map: MapBuilder.MapInfo
 
 local function stat(session: Session, id: string): number
@@ -104,7 +184,13 @@ end
 
 -- Koszyk + plecak górnika (ulepszenie z obozowiska w jaskini)
 local function basketMax(session: Session): number
-	return stat(session, "basket") + stat(session, "pack")
+	return stat(session, "basket") + stat(session, "pack") + stat(session, "creel")
+end
+
+-- Mnożnik spalania oleju w świecie strefy (knot z jaskini albo z bagien)
+local function oilScale(session: Session, zone: number): number
+	local upgrade = Economy.worldOilUpgrade(Economy.zoneWorld(zone))
+	return if upgrade then stat(session, upgrade) else 1
 end
 
 local function getRoot(player: Player): BasePart?
@@ -148,6 +234,7 @@ local function pushState(session: Session)
 		chased = chasedBy(session.player) ~= nil,
 		chaser = chasedBy(session.player),
 		caveUnlocked = data.caveUnlocked,
+		swampUnlocked = data.swampUnlocked,
 		dev = isDeveloper(session.player),
 	})
 end
@@ -156,8 +243,9 @@ end
 -- (początkowe rozstawienie lasu nie nabija gwarancji).
 local function rollSpot(session: Session, spot: MapBuilder.Spot, countPity: boolean?): (string?, string?, { string }?)
 	local species
-	if spot.grove or spot.lair then
-		local list = if spot.lair then Economy.lairSpecies() else Economy.groveSpecies()
+	local guardian = spotGuardian(spot)
+	if guardian then
+		local list = Economy.guardianSpecies(guardian)
 		species = list[session.rng:NextInteger(1, math.max(#list, 1))]
 	else
 		species = Economy.rollSpecies(spot.zone, session.rng:NextNumber())
@@ -286,8 +374,8 @@ local function applyCharacterStats(session: Session)
 	attachHandLantern(character)
 end
 
--- Latarnia zgasła albo strażnik złapał gracza: zabiera koszyk i wyrzuca gracza do chatki / obozowiska.
--- messageKey mówi klientowi, który ekran pokazać; guardian: "leszy" / "skarbnik", gdy to on złapał.
+-- Latarnia zgasła albo strażnik złapał gracza: zabiera koszyk i wyrzuca gracza do chatki / obozu.
+-- messageKey mówi klientowi, który ekran pokazać; guardian: kto złapał (jego grzyby wracają do legowiska).
 local function engulf(session: Session, messageKey: string?, guardian: string?)
 	stopChases(session.player)
 	local basket = session.data.basket
@@ -296,8 +384,7 @@ local function engulf(session: Session, messageKey: string?, guardian: string?)
 	local reclaimed: { HoardService.Item } = {}
 	if guardian then
 		for index = #basket, 1, -1 do
-			local id = basket[index].s
-			if (guardian == "leszy" and Economy.isGroveItem(id)) or (guardian == "skarbnik" and Economy.isLairItem(id)) then
+			if Economy.guardianOf(basket[index].s) == guardian then
 				table.insert(reclaimed, table.remove(basket, index) :: any)
 			end
 		end
@@ -311,32 +398,33 @@ local function engulf(session: Session, messageKey: string?, guardian: string?)
 	session.oil = stat(session, "oil")
 	session.oilWarned = false
 	session.oilHalfWarned = false
-	-- W jaskini gracz budzi się w obozowisku, a nie w chatce na drugim końcu świata
+	-- W jaskini i na bagnach gracz budzi się w obozie swojego świata, a nie w chatce
 	local root = getRoot(session.player)
-	local inCave = root ~= nil and Economy.zoneWorld(Economy.zoneIndexAt(root.Position.Z)) == "cave"
-	local target = if inCave and map.campCFrame then map.campCFrame else map.spawnCFrame
+	local world = if root then Economy.zoneWorld(Economy.zoneIndexAt(root.Position.Z)) else "forest"
+	local worldInfo = map.worlds[world]
+	local target = if worldInfo and worldInfo.camp then worldInfo.camp else map.spawnCFrame
 	local character = session.player.Character
 	if character then
 		character:PivotTo(target)
 	end
 	session.zone = Economy.zoneIndexAt(target.Position.Z)
-	local defaultKey = if inCave then "MSG_ENGULFED_CAVE" else "MSG_ENGULFED"
-	notify(session, messageKey or defaultKey, { lost })
+	local gate = WORLD_GATES[world]
+	notify(session, messageKey or (if gate then gate.engulfed else "MSG_ENGULFED"), { lost })
 
-	local hoard = if guardian == "skarbnik" then skarbnikHoard else leszyHoard
-	if #reclaimed > 0 and hoard then
+	local hoard = if guardian then hoards[guardian] else nil
+	if #reclaimed > 0 and hoard and guardian then
 		local placed = hoard.drop(reclaimed)
 		if placed > 0 then
 			-- Cały serwer wie, że w legowisku leży coś do zgarnięcia
-			local key = if guardian == "skarbnik" then "MSG_HOARD_DROP_SKARBNIK" else "MSG_HOARD_DROP"
 			for _, other in sessions do
-				notify(other, key, { session.player.DisplayName, placed })
+				notify(other, GUARDIANS[guardian].hoardDrop, { session.player.DisplayName, placed })
 			end
 		end
 	end
 end
 
--- Portale: w lesie za Leszym (do jaskini, od Config.Cave.unlockCoins monet) i w obozowisku (do chatki)
+-- Portale: wejście do świata (za strażnikiem poprzedniego świata), skrót na Placu Portali
+-- i powrót z obozu do chatki
 local function near(root: BasePart, point: Vector3?): boolean
 	if not point then
 		return false
@@ -345,39 +433,47 @@ local function near(root: BasePart, point: Vector3?): boolean
 	return Vector3.new(offset.X, 0, offset.Z).Magnitude <= Config.Cave.portalRadius
 end
 
+local function travel(session: Session, character: Model, target: CFrame, message: string)
+	-- Przejście przez portal kończy pościg (strażnicy nie opuszczają swojego świata)
+	stopChases(session.player)
+	character:PivotTo(target)
+	session.zone = Economy.zoneIndexAt(target.Position.Z)
+	notify(session, message)
+end
+
 local function checkPortals(session: Session, root: BasePart, now: number)
 	local character = session.player.Character
 	if not character then
 		return
 	end
-	if near(root, map.portal) and map.campCFrame then
-		local data = session.data
-		if Economy.canEnterCave(data.coins, data.caveUnlocked) then
-			local first = not data.caveUnlocked
-			data.caveUnlocked = true
-			-- Ucieczka przez portal kończy pościg (Leszy nie wchodzi do jaskini)
-			stopChases(session.player)
-			character:PivotTo(map.campCFrame)
-			session.zone = Economy.zoneIndexAt(map.campCFrame.Position.Z)
-			notify(session, if first then "MSG_CAVE_UNLOCKED" else "MSG_CAVE_ENTER")
-		elseif now - session.portalNoticeAt > 4 then
-			session.portalNoticeAt = now
-			notify(session, "MSG_PORTAL_LOCKED", { Config.Cave.unlockCoins })
+	local data = session.data :: any
+	for world, info in map.worlds do
+		local gate = WORLD_GATES[world]
+		if not gate or not info.camp then
+			continue
 		end
-	elseif near(root, map.shortcut) and map.campCFrame then
-		if session.data.caveUnlocked then
-			stopChases(session.player)
-			character:PivotTo(map.campCFrame)
-			session.zone = Economy.zoneIndexAt(map.campCFrame.Position.Z)
-			notify(session, "MSG_CAVE_ENTER")
-		elseif now - session.portalNoticeAt > 4 then
-			session.portalNoticeAt = now
-			notify(session, "MSG_PORTAL_FIND")
+		if near(root, info.portal) then
+			if gate.canEnter(data.coins, data[gate.flag]) then
+				local first = not data[gate.flag]
+				data[gate.flag] = true
+				travel(session, character, info.camp, if first then gate.unlocked else gate.enter)
+			elseif now - session.portalNoticeAt > 4 then
+				session.portalNoticeAt = now
+				notify(session, "MSG_PORTAL_LOCKED", { gate.unlockCoins })
+			end
+			return
+		elseif near(root, info.shortcut) then
+			if data[gate.flag] then
+				travel(session, character, info.camp, gate.enter)
+			elseif now - session.portalNoticeAt > 4 then
+				session.portalNoticeAt = now
+				notify(session, gate.find)
+			end
+			return
+		elseif near(root, info.returnPortal) then
+			travel(session, character, map.spawnCFrame, "MSG_PORTAL_HOME")
+			return
 		end
-	elseif near(root, map.returnPortal) then
-		character:PivotTo(map.spawnCFrame)
-		session.zone = 1
-		notify(session, "MSG_PORTAL_HOME")
 	end
 end
 
@@ -402,7 +498,7 @@ local function tick(step: number)
 					session.oilWarned = false
 				end
 			else
-				session.oil -= Economy.oilDrain(zone, stat(session, "crystal")) * step
+				session.oil -= Economy.oilDrain(zone, oilScale(session, zone)) * step
 				if not session.oilHalfWarned and session.oil <= oilMax * Config.OilWarnFraction then
 					session.oilHalfWarned = true
 					notify(session, "MSG_OIL_HALF")
@@ -540,6 +636,28 @@ local function onPick(player: Player, spotId: unknown)
 		return
 	end
 
+	local guardian = spotGuardian(spot)
+	local function regrow()
+		-- Grzyb odrośnie później i może to być inny gatunek
+		local speciesId, variant, tags = rollSpot(session, spot, true)
+		state.visible = false
+		state.readyAt = now + (if guardian then GUARDIANS[guardian].respawn else Config.RespawnSeconds)
+		state.speciesId = speciesId or state.speciesId
+		state.variant = variant
+		state.tags = tags
+		MushroomRemoved:FireClient(player, spotId)
+	end
+
+	-- Błędny ognik: udawał grzyb, a teraz kradnie olej z latarni
+	if Economy.isMimic(state.speciesId) then
+		local oilMax = stat(session, "oil")
+		session.oil = math.max(session.oil - oilMax * Config.Swamp.mimicOilLoss, 1)
+		regrow()
+		notify(session, "MSG_MIMIC", { math.floor(Config.Swamp.mimicOilLoss * 100) })
+		pushState(session)
+		return
+	end
+
 	local basket = session.data.basket
 	if #basket >= basketMax(session) then
 		notify(session, "MSG_BASKET_FULL")
@@ -573,21 +691,11 @@ local function onPick(player: Player, spotId: unknown)
 		end
 	end
 
-	-- Grzyb odrośnie później i może to być inny gatunek
-	local speciesId, variant, tags = rollSpot(session, spot, true)
-	state.visible = false
-	state.readyAt = now
-		+ (if spot.grove then Config.Grove.respawnSeconds elseif spot.lair then Config.Lair.respawnSeconds else Config.RespawnSeconds)
-	state.speciesId = speciesId or state.speciesId
-	state.variant = variant
-	state.tags = tags
-
-	MushroomRemoved:FireClient(player, spotId)
-	-- Korona Leszego budzi właściciela gniazda
-	if spot.grove and leszy and leszy.startChase(player, spot.position) then
-		notify(session, "MSG_LESZY_WOKE")
-	elseif spot.lair and skarbnik and skarbnik.startChase(player, spot.position) then
-		notify(session, "MSG_SKARBNIK_WOKE")
+	regrow()
+	-- Grzyb z legowiska budzi jego strażnika
+	local chaser = guardian and chasers[guardian]
+	if guardian and chaser and chaser.startChase(player, spot.position) then
+		notify(session, GUARDIANS[guardian].woke)
 	end
 	pushState(session)
 end
@@ -647,7 +755,7 @@ local DEV_TELEPORTS: { [string]: () -> CFrame? } = {
 		return map.spawnCFrame
 	end,
 	tpPlaza = function()
-		return CFrame.new(Config.Cave.shortcut.x, 4, Config.Cave.shortcut.z + 14) * CFrame.Angles(0, 0, 0)
+		return CFrame.new(Config.Cave.shortcut.x, 4, Config.Cave.shortcut.z + 16)
 	end,
 	tpGrove = function()
 		return CFrame.new(Config.Grove.centerX, 4, Config.Grove.centerZ - Config.Grove.radius - 8) * CFrame.Angles(0, math.pi, 0)
@@ -656,11 +764,22 @@ local DEV_TELEPORTS: { [string]: () -> CFrame? } = {
 		return CFrame.new(Config.Cave.portal.x, 4, Config.Cave.portal.z - 12) * CFrame.Angles(0, math.pi, 0)
 	end,
 	tpCamp = function()
-		return map.campCFrame
+		local info = map.worlds.cave
+		return info and info.camp
 	end,
 	tpAbyss = function()
-		local zone = Config.Zones[#Config.Zones]
-		return CFrame.new(0, 4, zone.startZ + 10) * CFrame.Angles(0, math.pi, 0)
+		return CFrame.new(0, 4, Config.Zones[8].startZ + 10) * CFrame.Angles(0, math.pi, 0)
+	end,
+	tpLair = function()
+		return CFrame.new(Config.Lair.centerX + 6, 4, Config.Lair.centerZ - Config.Lair.radius - 6) * CFrame.Angles(0, math.pi, 0)
+	end,
+	tpSwamp = function()
+		local info = map.worlds.swamp
+		return info and info.camp
+	end,
+	tpPond = function()
+		local lair = Config.UtopiecLair
+		return CFrame.new(lair.centerX + 4, 4, lair.centerZ - lair.radius - 10) * CFrame.Angles(0, math.pi, 0)
 	end,
 }
 
@@ -689,6 +808,12 @@ local function onDevAction(player: Player, action: unknown)
 		data.caveUnlocked = true
 	elseif action == "caveLock" then
 		data.caveUnlocked = false
+	elseif action == "swampUnlock" then
+		data.swampUnlocked = true
+	elseif action == "swampLock" then
+		data.swampUnlocked = false
+	elseif action == "coins1m" then
+		data.coins += 1000000
 	elseif action == "oilFull" then
 		session.oil = stat(session, "oil")
 	elseif action == "oilLow" then
@@ -749,52 +874,41 @@ function GameService.start(mapInfo: MapBuilder.MapInfo)
 	map = mapInfo
 
 	-- Strażnicy: ten sam pościg, inne liczby i modele. Złapie = koszyk przepada, a jego grzyby
-	-- wracają do legowiska, skąd każdy może je ukraść.
-	local function guardianHooks(guardian: string, caughtKey: string, gaveUpKey: string): ChaseService.Hooks
-		return {
-			onCaught = function(player: Player)
-				local session = sessions[player]
-				if session then
-					engulf(session, caughtKey, guardian)
-				end
-			end,
-			onEscaped = function(player: Player)
-				local session = sessions[player]
-				if session then
-					notify(session, "MSG_ESCAPED", { Economy.basketValue(session.data.basket) })
-				end
-			end,
-			onGaveUp = function(player: Player)
-				local session = sessions[player]
-				if session then
-					notify(session, gaveUpKey)
-				end
-			end,
-		}
-	end
-
-	leszy = ChaseService.new({
-		name = "Leszy",
-		origin = map.groveCenter,
-		statue = map.leszyStatue,
-		settings = Config.Leszy,
-		build = LeszyModel.build,
-		setAwake = LeszyModel.setAwake,
-		hooks = guardianHooks("leszy", "MSG_CAUGHT", "MSG_LESZY_GAVE_UP"),
-	})
-	skarbnik = ChaseService.new({
-		name = "Skarbnik",
-		origin = map.lairCenter,
-		statue = map.skarbnikStatue,
-		settings = Config.Skarbnik,
-		build = SkarbnikModel.build,
-		setAwake = SkarbnikModel.setAwake,
-		hooks = guardianHooks("skarbnik", "MSG_CAUGHT_SKARBNIK", "MSG_SKARBNIK_GAVE_UP"),
-	})
-
-	-- Wspólne skarbce: zabranie grzyba ze skarbca znów budzi strażnika
-	local function hoardHooks(guardian: string): HoardService.Hooks
-		return {
+	-- wracają do legowiska, skąd każdy może je ukraść (zabranie znów go budzi).
+	for name, def in GUARDIANS do
+		local place = map.guardians[name]
+		if not place then
+			continue
+		end
+		chasers[name] = ChaseService.new({
+			name = string.upper(string.sub(name, 1, 1)) .. string.sub(name, 2),
+			origin = place.origin,
+			statue = place.statue,
+			settings = def.settings,
+			build = def.model.build,
+			setAwake = def.model.setAwake,
+			hooks = {
+				onCaught = function(player: Player)
+					local session = sessions[player]
+					if session then
+						engulf(session, def.caught, name)
+					end
+				end,
+				onEscaped = function(player: Player)
+					local session = sessions[player]
+					if session then
+						notify(session, def.escaped, { Economy.basketValue(session.data.basket) })
+					end
+				end,
+				onGaveUp = function(player: Player)
+					local session = sessions[player]
+					if session then
+						notify(session, def.gaveUp)
+					end
+				end,
+			},
+		})
+		hoards[name] = HoardService.new(place.origin, name .. "Hoard", {
 			take = function(player: Player, item: HoardService.Item): boolean
 				local session = sessions[player]
 				if not session then
@@ -807,20 +921,15 @@ function GameService.start(mapInfo: MapBuilder.MapInfo)
 				end
 				table.insert(basket, { s = item.s, v = item.v, x = item.x })
 				session.data.atlas[item.s] = true
-				if guardian == "skarbnik" then
-					if skarbnik and skarbnik.startChase(player, map.lairCenter) then
-						notify(session, "MSG_SKARBNIK_WOKE")
-					end
-				elseif leszy and leszy.startChase(player, map.groveCenter) then
-					notify(session, "MSG_LESZY_WOKE")
+				local chaser = chasers[name]
+				if chaser and chaser.startChase(player, place.origin) then
+					notify(session, def.woke)
 				end
 				pushState(session)
 				return true
 			end,
-		}
+		})
 	end
-	leszyHoard = HoardService.new(map.groveCenter, "LeszyHoard", hoardHooks("leszy"))
-	skarbnikHoard = HoardService.new(map.lairCenter, "SkarbnikHoard", hoardHooks("skarbnik"))
 
 	DryingService.start(map.racks, {
 		getData = function(player: Player)

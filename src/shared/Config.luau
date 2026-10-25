@@ -28,6 +28,8 @@ export type SpeciesDef = {
 	cap: { number }, -- kolor kapelusza {r, g, b} (serwer rysuje nim grzyby na suszarniach)
 	grove: boolean?, -- rośnie tylko w Gnieździe Leszego, nie losuje się w zwykłych miejscach
 	lair: boolean?, -- rośnie tylko w Skarbcu Skarbnika (koniec jaskini)
+	guardian: string?, -- rośnie tylko w legowisku tego strażnika (np. "utopiec"); zerwanie go budzi
+	mimic: boolean?, -- błędny ognik udający grzyb: zerwanie kradnie olej, nic nie trafia do koszyka
 }
 
 export type UpgradeDef = {
@@ -161,8 +163,8 @@ Config.Zones = {
 		id = "mine",
 		key = "ZONE_MINE",
 		startZ = 1420,
-		endZ = 1580,
-		oilDrain = 8.5,
+		endZ = 1610, -- za skarbcem jest jeszcze portal na Bagna
+		oilDrain = 7.5,
 		darkness = 1.0,
 		spotCount = 9,
 		treeCount = 0,
@@ -171,7 +173,72 @@ Config.Zones = {
 		fireflies = 3,
 		mist = 3,
 	},
+	-- ===== Bagna =====
+	-- Otwarte niebo, gęsta zielona mgła, kładki na palach, błędne ogniki i Utopiec w stawie.
+	{
+		id = "jetty",
+		key = "ZONE_JETTY",
+		startZ = 2000,
+		endZ = 2040,
+		oilDrain = 0,
+		darkness = 0.5,
+		spotCount = 0,
+		treeCount = 0,
+		world = "swamp",
+		safe = true,
+		fog = { 30, 46, 30 },
+		fireflies = 10,
+		mist = 2,
+	},
+	{
+		id = "bog",
+		key = "ZONE_BOG",
+		startZ = 2040,
+		endZ = 2170,
+		oilDrain = 6,
+		darkness = 0.75,
+		spotCount = 16,
+		treeCount = 40,
+		world = "swamp",
+		fog = { 22, 40, 22 },
+		fireflies = 16,
+		mist = 6,
+	},
+	{
+		id = "wisps",
+		key = "ZONE_WISPS",
+		startZ = 2170,
+		endZ = 2300,
+		oilDrain = 9,
+		darkness = 0.9,
+		spotCount = 16,
+		treeCount = 45,
+		world = "swamp",
+		fog = { 14, 34, 30 },
+		fireflies = 22,
+		mist = 9,
+	},
+	{
+		id = "pond",
+		key = "ZONE_POND",
+		startZ = 2300,
+		endZ = 2440,
+		oilDrain = 12,
+		darkness = 1.0,
+		spotCount = 10,
+		treeCount = 40,
+		world = "swamp",
+		fog = { 8, 24, 20 },
+		fireflies = 8,
+		mist = 12,
+	},
 } :: { ZoneDef }
+
+-- Ulepszenie, które w danym świecie zmniejsza spalanie oleju (mnożnik 1 = bez zmian)
+Config.WorldOilUpgrade = {
+	cave = "crystal",
+	swamp = "rushwick",
+} :: { [string]: string }
 
 -- Jaskinia: portal za Gniazdem Leszego, otwiera się graczom z co najmniej unlockCoins monet.
 -- Raz otwarty zostaje otwarty (zapisywane), nawet gdy potem wydasz monety.
@@ -291,6 +358,20 @@ Config.Species = {
 	{ id = "gold_nugget", key = "MUSH_GOLD_NUGGET", zone = 9, value = 3200, weight = 15, cap = { 255, 196, 40 } },
 	-- Skarbiec Skarbnika (koniec Sztolni): zerwanie budzi Skarbnika
 	{ id = "skarbnik_truffle", key = "MUSH_SKARBNIK_TRUFFLE", zone = 9, value = 6000, weight = 0, cap = { 255, 220, 90 }, lair = true },
+	-- Trzęsawisko
+	{ id = "bog_bell", key = "MUSH_BOG_BELL", zone = 11, value = 4000, weight = 50, cap = { 120, 140, 70 } },
+	{ id = "peat_cap", key = "MUSH_PEAT_CAP", zone = 11, value = 5500, weight = 35, cap = { 110, 70, 50 } },
+	{ id = "frog_stool", key = "MUSH_FROG_STOOL", zone = 11, value = 7500, weight = 15, cap = { 90, 210, 90 } },
+	-- Mokradła Ogników: prawdziwe ogniki i ich podróbki (błędne ogniki)
+	{ id = "wisp_cap", key = "MUSH_WISP_CAP", zone = 12, value = 11000, weight = 45, cap = { 140, 255, 220 } },
+	{ id = "moon_lily", key = "MUSH_MOON_LILY", zone = 12, value = 16000, weight = 25, cap = { 230, 230, 255 } },
+	{ id = "false_wisp", key = "MUSH_WISP_CAP", zone = 12, value = 0, weight = 30, cap = { 140, 255, 220 }, mimic = true },
+	-- Staw Utopca
+	{ id = "drowned_cap", key = "MUSH_DROWNED_CAP", zone = 13, value = 15000, weight = 50, cap = { 60, 110, 120 } },
+	{ id = "bog_pearl", key = "MUSH_BOG_PEARL", zone = 13, value = 21000, weight = 35, cap = { 250, 250, 240 } },
+	{ id = "will_o_wisp", key = "MUSH_WILL_O_WISP", zone = 13, value = 32000, weight = 15, cap = { 180, 255, 120 } },
+	-- Kielich Utopca (legowisko na stawie): zerwanie budzi Utopca
+	{ id = "utopiec_chalice", key = "MUSH_UTOPIEC_CHALICE", zone = 13, value = 60000, weight = 0, cap = { 255, 90, 70 }, guardian = "utopiec" },
 } :: { SpeciesDef }
 
 Config.Upgrades = {
@@ -304,11 +385,16 @@ Config.Upgrades = {
 	crystal = { key = "UPG_CRYSTAL", base = 1, step = -0.1, maxLevel = 5, costBase = 3000, costGrowth = 1.8, shop = "cave" },
 	-- Plecak górnika: tyle dodatkowych miejsc w koszyku
 	pack = { key = "UPG_PACK", base = 0, step = 4, maxLevel = 6, costBase = 2500, costGrowth = 1.7, shop = "cave" },
+	-- Przystań na bagnach. Knot z sitowia: mnożnik spalania oleju na bagnach
+	rushwick = { key = "UPG_RUSHWICK", base = 1, step = -0.1, maxLevel = 6, costBase = 60000, costGrowth = 1.75, shop = "swamp" },
+	-- Wiklinowy kosz: jeszcze więcej miejsca w koszyku
+	creel = { key = "UPG_CREEL", base = 0, step = 5, maxLevel = 5, costBase = 50000, costGrowth = 1.7, shop = "swamp" },
 } :: { [string]: UpgradeDef }
 
 -- Kolejność przycisków ulepszeń: w chatce i w obozowisku w jaskini
 Config.UpgradeOrder = { "lantern", "oil", "basket", "boots", "lock" }
 Config.CaveUpgradeOrder = { "crystal", "pack" }
+Config.SwampUpgradeOrder = { "rushwick", "creel" }
 
 -- ===== Gniazdo Leszego =====
 -- Polana na końcu Mrocznego Jaru z kręgiem kamieni i grzybami „Korona Leszego”.
@@ -340,6 +426,9 @@ Config.Stations = {
 	-- Obozowisko w jaskini: skup po lewej, olej po prawej (patrząc w głąb jaskini), oba przodem do środka
 	{ kind = "shop", world = "cave", x = 13, z = 1022, radius = 4 },
 	{ kind = "oil", world = "cave", x = -13, z = 1022, radius = 3.6 },
+	-- Przystań na bagnach: skup po lewej, olej po prawej (patrząc w głąb bagien)
+	{ kind = "shop", world = "swamp", x = 15, z = 2022, radius = 4 },
+	{ kind = "oil", world = "swamp", x = -15, z = 2022, radius = 3.6 },
 } :: { StationDef }
 Config.StationTolerance = 2 -- serwer jest łagodniejszy przez opóźnienie sieci
 
@@ -349,12 +438,27 @@ Config.DevUserIds = {
 	1293490018, -- Tom
 }
 
+-- Bagna: portal za Skarbcem Skarbnika na końcu Sztolni, otwiera się graczom z co najmniej
+-- unlockCoins monet (i tylko z jaskini, więc trzeba też mieć otwartą jaskinię).
+Config.Swamp = {
+	unlockCoins = 1000000,
+	halfWidth = 60,
+	portal = { x = 0, z = 1594 }, -- w Sztolni, za posągiem Skarbnika
+	returnPortal = { x = 0, z = 2008 }, -- na przystani, prowadzi do chatki
+	camp = { x = 0, z = 2024 }, -- tu ląduje gracz po przejściu i po zgaśnięciu latarni na bagnach
+	boardwalkHalf = 3, -- kładka środkiem bagien (pół szerokości)
+	-- Błędne ogniki: zerwanie zabiera taką część pełnego oleju
+	mimicOilLoss = 0.35,
+}
+
 -- Plac Portali za chatką: kamienny plac z miejscami na portale do kolejnych światów.
 -- Środkowe miejsce zajmuje skrót do jaskini, boczne czekają na następne światy („Wkrótce”).
 Config.PortalPlaza = {
 	center = { x = 0, z = -84 },
 	radius = 30,
 	slots = { -24, 0, 24 }, -- x kolejnych portali; wszystkie stoją na z = Config.Cave.shortcut.z
+	-- Który świat ma portal na którym miejscu (reszta to fundamenty „Wkrótce...”)
+	worlds = { [0] = "cave", [-24] = "swamp" } :: { [number]: string },
 }
 
 -- Kamera: bez limitu dało się oddalić widok i oglądać las z góry
@@ -377,6 +481,25 @@ Config.Skarbnik = {
 	wakeDelay = 2.5,
 	catchRadius = 4,
 	giveUpSeconds = 50,
+}
+
+-- ===== Legowisko Utopca =====
+-- Wodnik z polskich i śląskich legend: zielony, mokry, w czerwonej czapeczce, mieszka w stawie
+-- i wciąga do wody. Pilnuje Kielichów Utopca na wysepce pośrodku stawu na końcu bagien.
+Config.UtopiecLair = {
+	centerX = 0,
+	centerZ = 2404,
+	radius = 14,
+	spots = 3,
+	spotRadius = 5,
+	respawnSeconds = 360,
+}
+
+Config.Utopiec = {
+	speed = 27.5, -- ucieka się tylko na maksymalnych butach (28)
+	wakeDelay = 0.6, -- wyskakuje ze stawu prawie od razu
+	catchRadius = 4,
+	giveUpSeconds = 55,
 }
 
 Config.Leszy = {

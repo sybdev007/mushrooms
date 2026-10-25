@@ -38,7 +38,7 @@ local chased = false
 local chaser: string? = nil -- kto goni: "leszy" albo "skarbnik"
 local targetId: string? = nil
 local wasInCabin = true -- gracz zaczyna w chatce
-local caveScale = 1 -- ulepszenie „Kryształowy wkład”: mnożnik spalania oleju w jaskini
+local upgrades: { [string]: number } = {} -- poziomy ulepszeń (knoty zmniejszają spalanie oleju w swoich światach)
 
 Signs.start()
 PortalView.start()
@@ -50,8 +50,8 @@ Remotes.get("StateUpdate").OnClientEvent:Connect(function(state)
 	oilMax = state.oilMax
 	chased = state.chased == true
 	chaser = state.chaser
-	caveScale = Economy.upgradeStat("crystal", state.upgrades.crystal or 0)
-	PortalView.setUnlocked(state.caveUnlocked == true)
+	upgrades = state.upgrades
+	PortalView.setUnlocked({ cave = state.caveUnlocked == true, swamp = state.swampUnlocked == true })
 	DevPanel.setEnabled(state.dev == true)
 	Hud.update(state)
 end)
@@ -98,7 +98,10 @@ end
 Remotes.get("MushroomRemoved").OnClientEvent:Connect(function(id)
 	-- Serwer usuwa grzyb tylko wtedy, gdy ten gracz go zebrał: czas na efekt
 	local info = MushroomView.get(id)
-	if info then
+	if info and Economy.isMimic(info.species) then
+		-- Błędny ognik rozpływa się w zielonym dymie i chichocze
+		Effects.wispTrick(info.position)
+	elseif info then
 		Effects.collect(
 			info.position,
 			MushroomView.capColor(info.species, info.variant),
@@ -120,6 +123,14 @@ local TOAST_KIND: { [string]: string } = {
 	MSG_ENGULFED = "warn",
 	MSG_LESZY_WOKE = "warn",
 	MSG_SKARBNIK_WOKE = "warn",
+	MSG_UTOPIEC_WOKE = "warn",
+	MSG_HOARD_DROP_UTOPIEC = "gold",
+	MSG_ESCAPED_SKARBNIK = "gold",
+	MSG_ESCAPED_UTOPIEC = "gold",
+	MSG_SWAMP_UNLOCKED = "gold",
+	MSG_SWAMP_ENTER = "info",
+	MSG_PORTAL_FIND_SWAMP = "warn",
+	MSG_MIMIC = "warn",
 	MSG_HOARD_DROP_SKARBNIK = "gold",
 	MSG_ROBBED = "warn",
 	MSG_RACK_ALERT = "warn",
@@ -145,6 +156,8 @@ local BLACKOUT_TITLE: { [string]: string } = {
 	MSG_CAUGHT = "CAUGHT_TITLE",
 	MSG_ENGULFED_CAVE = "ENGULF_TITLE_CAVE",
 	MSG_CAUGHT_SKARBNIK = "CAUGHT_TITLE_SKARBNIK",
+	MSG_CAUGHT_UTOPIEC = "CAUGHT_TITLE_UTOPIEC",
+	MSG_ENGULFED_SWAMP = "ENGULF_TITLE_SWAMP",
 }
 
 Remotes.get("Notify").OnClientEvent:Connect(function(payload)
@@ -171,11 +184,11 @@ Remotes.get("Notify").OnClientEvent:Connect(function(payload)
 		return
 	end
 	Hud.toast(text, TOAST_KIND[payload.key])
-	if payload.key == "MSG_LESZY_WOKE" or payload.key == "MSG_SKARBNIK_WOKE" then
+	if payload.key == "MSG_LESZY_WOKE" or payload.key == "MSG_SKARBNIK_WOKE" or payload.key == "MSG_UTOPIEC_WOKE" then
 		Effects.leszyWoke()
 	elseif payload.key == "MSG_ROBBED" or payload.key == "MSG_RACK_ALERT" then
 		Effects.play("engulf", 1.4, 0.5)
-	elseif payload.key == "MSG_STOLE" or payload.key == "MSG_ESCAPED" then
+	elseif payload.key == "MSG_STOLE" or string.sub(payload.key, 1, 11) == "MSG_ESCAPED" then
 		Effects.play("upgrade", 1.2)
 	end
 	if payload.key == "MSG_SOLD" then
@@ -264,7 +277,9 @@ RunService.RenderStepped:Connect(function(dt)
 
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
 	local speed = if humanoid then humanoid.WalkSpeed else Economy.upgradeStat("boots", 0)
-	local turnBack = Economy.shouldTurnBack(position.Z, speed, oil, caveScale)
+	local oilUpgrade = Economy.worldOilUpgrade(zoneDef.world)
+	local worldScale = if oilUpgrade then Economy.upgradeStat(oilUpgrade, upgrades[oilUpgrade] or 0) else 1
+	local turnBack = Economy.shouldTurnBack(position.Z, speed, oil, worldScale)
 	Warnings.update(dt, position, oilFraction, turnBack, zone, lanternRange, chased, chaser)
 	local heartbeat = if not safe and oilFraction < Config.OilLowFraction then 1 - oilFraction / Config.OilLowFraction * 0.6 else 0
 	Effects.setHeartbeat(if chased then 1 else heartbeat)

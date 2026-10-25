@@ -16,10 +16,13 @@ local DevAction = Remotes.get("DevAction")
 local ACTIONS: { { id: string, label: string } } = {
 	{ id = "coins10k", label = "+10 000 💰" },
 	{ id = "coins100k", label = "+100 000 💰" },
+	{ id = "coins1m", label = "+1 000 000 💰" },
 	{ id = "coinsZero", label = "Zeruj monety" },
 	{ id = "basketClear", label = "Opróżnij koszyk" },
 	{ id = "caveUnlock", label = "Odblokuj jaskinię" },
 	{ id = "caveLock", label = "Zablokuj jaskinię" },
+	{ id = "swampUnlock", label = "Odblokuj bagna" },
+	{ id = "swampLock", label = "Zablokuj bagna" },
 	{ id = "upgradesMax", label = "Ulepszenia MAX" },
 	{ id = "upgradesReset", label = "Ulepszenia na 0" },
 	{ id = "oilFull", label = "Pełny olej" },
@@ -30,6 +33,9 @@ local ACTIONS: { { id: string, label: string } } = {
 	{ id = "tpPortal", label = "TP: portal w lesie" },
 	{ id = "tpCamp", label = "TP: obozowisko" },
 	{ id = "tpAbyss", label = "TP: Otchłań" },
+	{ id = "tpLair", label = "TP: skarbiec Skarbnika" },
+	{ id = "tpSwamp", label = "TP: przystań (bagna)" },
+	{ id = "tpPond", label = "TP: staw Utopca" },
 }
 
 local gui = Instance.new("ScreenGui")

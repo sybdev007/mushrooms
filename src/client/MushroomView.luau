@@ -40,6 +40,7 @@ type Entry = {
 	bobFrom: number,
 	rainbowParts: { BasePart }?, -- kapelusze tęczowego grzyba (kolor przechodzi przez tęczę)
 	rainbowLight: PointLight?,
+	mimicLight: PointLight?, -- błędny ognik: światło drży nierówno (jedyna wskazówka dla uważnych)
 }
 
 local function rgb(r: number, g: number, b: number): Color3
@@ -75,6 +76,19 @@ local SHAPES: { [string]: Shape } = {
 	gold_nugget = { stemH = 1.2, stemD = 0.9, capW = 2.2, capH = 1.2, cap = rgb(255, 196, 40), stem = rgb(240, 220, 160), glow = true },
 	-- Złota Trufla Skarbnika: niska, okrągła, świeci złotem
 	skarbnik_truffle = { stemH = 0.4, stemD = 1.2, capW = 2.4, capH = 2.0, cap = rgb(255, 220, 90), stem = rgb(200, 160, 60), spots = true, glow = true, cluster = 3 },
+	-- Bagna
+	bog_bell = { stemH = 1.6, stemD = 0.4, capW = 1.7, capH = 1.1, cap = rgb(120, 140, 70), stem = rgb(200, 200, 160) },
+	peat_cap = { stemH = 1.0, stemD = 0.9, capW = 2.3, capH = 0.8, cap = rgb(110, 70, 50), stem = rgb(170, 140, 110), cluster = 3 },
+	frog_stool = { stemH = 1.4, stemD = 0.6, capW = 2.2, capH = 0.9, cap = rgb(90, 210, 90), stem = rgb(230, 240, 200), spots = true },
+	wisp_cap = { stemH = 1.8, stemD = 0.35, capW = 1.8, capH = 1.0, cap = rgb(140, 255, 220), stem = rgb(220, 255, 240), glow = true },
+	-- Błędny ognik wygląda jak Ognik (ten sam kształt i kolor); zdradza go tylko niespokojne światło
+	false_wisp = { stemH = 1.8, stemD = 0.35, capW = 1.8, capH = 1.0, cap = rgb(140, 255, 220), stem = rgb(220, 255, 240), glow = true },
+	moon_lily = { stemH = 2.2, stemD = 0.4, capW = 2.6, capH = 0.6, cap = rgb(230, 230, 255), stem = rgb(240, 240, 250), glow = true },
+	drowned_cap = { stemH = 2.0, stemD = 0.7, capW = 2.6, capH = 1.0, cap = rgb(60, 110, 120), stem = rgb(150, 190, 190), spots = true },
+	bog_pearl = { stemH = 0.8, stemD = 0.8, capW = 1.8, capH = 1.6, cap = rgb(250, 250, 240), stem = rgb(220, 220, 210), glow = true, cluster = 3 },
+	will_o_wisp = { stemH = 2.4, stemD = 0.4, capW = 2.2, capH = 1.4, cap = rgb(180, 255, 120), stem = rgb(220, 255, 200), glow = true, spots = true },
+	-- Kielich Utopca: wysoki czerwony kielich, świeci jak latarnia na wysepce
+	utopiec_chalice = { stemH = 2.6, stemD = 0.7, capW = 2.8, capH = 1.4, cap = rgb(255, 90, 70), stem = rgb(255, 210, 190), spots = true, glow = true, cluster = 3 },
 	heart_of_mountain = { stemH = 2.0, stemD = 0.8, capW = 2.8, capH = 1.6, cap = rgb(255, 40, 90), stem = rgb(255, 180, 200), spots = true, glow = true, cluster = 3 },
 }
 local DEFAULT_SHAPE: Shape = { stemH = 1, stemD = 0.5, capW = 1.6, capH = 0.6, cap = rgb(160, 120, 80) }
@@ -285,6 +299,7 @@ function MushroomView.add(list: { MushroomInfo })
 			bobFrom = os.clock() + 0.6, -- unoszenie dopiero po skończonym wyrastaniu
 			rainbowParts = if #rainbow > 0 then rainbow else nil,
 			rainbowLight = model.PrimaryPart and model.PrimaryPart:FindFirstChildOfClass("PointLight") or nil,
+			mimicLight = if Economy.isMimic(info.species) then model:FindFirstChildWhichIsA("PointLight", true) else nil,
 		}
 	end
 end
@@ -372,6 +387,10 @@ function MushroomView.updateVisibility(position: Vector3, lanternRange: number, 
 			if light then
 				light.Color = color
 			end
+		end
+		local mimicLight = entry.mimicLight
+		if mimicLight and not entry.hidden then
+			mimicLight.Brightness = 1.6 * (0.25 + 0.75 * math.abs(math.noise(t * 5, entry.phase * 10)))
 		end
 		if glows and t >= entry.bobFrom and flatDistance(position, entry.info.position) < 120 then
 			local bob = 0.18 * math.sin(t * 2 + entry.phase)

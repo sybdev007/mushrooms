@@ -18,6 +18,7 @@ export type Data = {
 	drying: { Economy.DryingItem }, -- grzyby na suszarni (schną także offline)
 	pity: number, -- odrosty od ostatniego Złota (albo lepszego), do gwarancji mutacji
 	caveUnlocked: boolean, -- portal do jaskini raz otwarty zostaje otwarty
+	swampUnlocked: boolean, -- to samo dla bagien
 }
 
 local STORE_NAME = "LanternForager_Prototype_v1"
@@ -56,6 +57,7 @@ function DataService.defaultData(): Data
 		drying = {},
 		pity = 0,
 		caveUnlocked = false,
+		swampUnlocked = false,
 	}
 end
 
@@ -132,6 +134,7 @@ local function reconcile(raw: any): Data
 		data.pity = math.clamp(math.floor(raw.pity), 0, Config.PityRolls)
 	end
 	data.caveUnlocked = raw.caveUnlocked == true
+	data.swampUnlocked = raw.swampUnlocked == true
 	return data
 end
 

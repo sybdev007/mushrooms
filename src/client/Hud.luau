@@ -46,11 +46,14 @@ local THEME = {
 local TITLE_FONT = Enum.Font.FredokaOne
 local BODY_FONT = Enum.Font.GothamBold
 
-local UPGRADE_ICONS = { lantern = "🔦", oil = "🛢️", basket = "🧺", boots = "🥾", lock = "🔒", crystal = "💎", pack = "🎒" }
+local UPGRADE_ICONS = { lantern = "🔦", oil = "🛢️", basket = "🧺", boots = "🥾", lock = "🔒", crystal = "💎", pack = "🎒", rushwick = "🕯️", creel = "🧺" }
 
 -- Karty w panelu: najpierw sklep w chatce, potem w obozowisku. Panel pokazuje tylko karty bieżącego sklepu.
 local ALL_UPGRADES: { string } = table.clone(Config.UpgradeOrder)
 for _, id in Config.CaveUpgradeOrder do
+	table.insert(ALL_UPGRADES, id)
+end
+for _, id in Config.SwampUpgradeOrder do
 	table.insert(ALL_UPGRADES, id)
 end
 

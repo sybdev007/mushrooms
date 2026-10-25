@@ -24,6 +24,7 @@ local speciesById: { [string]: Config.SpeciesDef } = {}
 local speciesByZone: { [number]: { Config.SpeciesDef } } = {}
 local groveSpecies: { Config.SpeciesDef } = {}
 local lairSpecies: { Config.SpeciesDef } = {}
+local guardianLists: { [string]: { Config.SpeciesDef } } = {}
 
 for _, species in Config.Species do
 	speciesById[species.id] = species
@@ -31,6 +32,13 @@ for _, species in Config.Species do
 		table.insert(groveSpecies, species)
 	elseif species.lair then
 		table.insert(lairSpecies, species)
+	elseif species.guardian then
+		local list = guardianLists[species.guardian]
+		if not list then
+			list = {}
+			guardianLists[species.guardian] = list
+		end
+		table.insert(list, species)
 	else
 		local list = speciesByZone[species.zone]
 		if not list then
@@ -48,6 +56,40 @@ end
 
 function Economy.lairSpecies(): { Config.SpeciesDef }
 	return lairSpecies
+end
+
+-- Grzyby z legowiska danego strażnika ("leszy", "skarbnik", "utopiec")
+function Economy.guardianSpecies(guardian: string): { Config.SpeciesDef }
+	if guardian == "leszy" then
+		return groveSpecies
+	elseif guardian == "skarbnik" then
+		return lairSpecies
+	end
+	return guardianLists[guardian] or {}
+end
+
+-- Którego strażnika jest ten grzyb (nil = zwykły grzyb)
+function Economy.guardianOf(speciesId: string): string?
+	local species = speciesById[speciesId]
+	if not species then
+		return nil
+	elseif species.grove then
+		return "leszy"
+	elseif species.lair then
+		return "skarbnik"
+	end
+	return species.guardian
+end
+
+-- Błędny ognik: wygląda jak grzyb, ale zerwanie kradnie olej
+function Economy.isMimic(speciesId: string): boolean
+	local species = speciesById[speciesId]
+	return species ~= nil and species.mimic == true
+end
+
+-- Ulepszenie zmniejszające spalanie oleju w danym świecie (nil w lesie)
+function Economy.worldOilUpgrade(world: string): string?
+	return Config.WorldOilUpgrade[world]
 end
 
 -- ===== Mutacje =====
@@ -183,13 +225,16 @@ function Economy.oilDrain(index: number, caveScale: number?): number
 	if not zone then
 		return 0
 	end
-	return zone.oilDrain * (if zone.world == "cave" then caveScale or 1 else 1)
+	-- Mnożnik z ulepszenia świata (knot) działa poza lasem; caveScale to mnożnik dla świata tej strefy
+	return zone.oilDrain * (if zone.world ~= "forest" then caveScale or 1 else 1)
 end
 
 -- Punkt, do którego wraca się w danym świecie (strzałka „Wracaj!”): drzwi chatki albo obozowisko
 function Economy.homePoint(world: string): (number, number)
 	if world == "cave" then
 		return Config.Cave.camp.x, Config.Cave.camp.z
+	elseif world == "swamp" then
+		return Config.Swamp.camp.x, Config.Swamp.camp.z
 	end
 	return 0, -10
 end
@@ -416,6 +461,11 @@ end
 -- Czy gracz może wejść do jaskini: raz otwarta zostaje otwarta
 function Economy.canEnterCave(coins: number, unlocked: boolean?): boolean
 	return unlocked == true or coins >= Config.Cave.unlockCoins
+end
+
+-- Bagna: tak samo, tylko z wyższym progiem
+function Economy.canEnterSwamp(coins: number, unlocked: boolean?): boolean
+	return unlocked == true or coins >= Config.Swamp.unlockCoins
 end
 
 -- Czy przedmiot z koszyka to korona z Gniazda Leszego (Leszy odbiera je, gdy złapie gracza)

@@ -18,6 +18,7 @@ local Cabin = require(World:WaitForChild("Cabin"))
 local Grove = require(World:WaitForChild("Grove"))
 local Garden = require(World:WaitForChild("Garden"))
 local Cave = require(World:WaitForChild("Cave"))
+local Swamp = require(World:WaitForChild("Swamp"))
 
 export type Spot = {
 	id: string,
@@ -25,6 +26,21 @@ export type Spot = {
 	position: Vector3,
 	grove: boolean?, -- miejsce w Gnieździe Leszego (rośnie tam Korona Leszego)
 	lair: boolean?, -- miejsce w Skarbcu Skarbnika (rośnie tam Złota Trufla)
+	guardian: string?, -- miejsce w legowisku innego strażnika (np. "utopiec")
+}
+
+-- Świat za portalem: obóz (lądowanie), portal wejściowy, skrót na Placu Portali, portal powrotny
+export type WorldInfo = {
+	camp: CFrame?,
+	portal: Vector3?,
+	shortcut: Vector3?,
+	returnPortal: Vector3?,
+}
+
+-- Legowisko strażnika: skąd rusza i jego uśpiony posąg
+export type GuardianInfo = {
+	origin: Vector3?,
+	statue: Model?,
 }
 
 export type RackInfo = {
@@ -45,6 +61,8 @@ export type MapInfo = {
 	portal: Vector3?, -- portal do jaskini (w lesie, za Gniazdem Leszego)
 	shortcut: Vector3?, -- skrót do jaskini za chatką (dla tych, którzy ją już odkryli)
 	returnPortal: Vector3?, -- portal powrotny w obozowisku
+	worlds: { [string]: WorldInfo },
+	guardians: { [string]: GuardianInfo },
 }
 
 -- Las to strefy z world = "forest"; jaskinię buduje World/Cave
@@ -394,7 +412,11 @@ end
 local function buildSpots(rng: Random): { Spot }
 	local spots: { Spot } = {}
 	for zoneIndex, zone in Config.Zones do
-		local halfWidth = (if zone.world == "cave" then Config.Cave.halfWidth else Config.ForestHalfWidth) - 8
+		local halfWidth = (
+			if zone.world == "cave" then Config.Cave.halfWidth
+			elseif zone.world == "swamp" then Config.Swamp.halfWidth
+			else Config.ForestHalfWidth
+		) - 8
 		for i = 1, zone.spotCount do
 			local x, z = findSpot(rng, -halfWidth, halfWidth, zone.startZ + 6, zone.endZ - 6, 3)
 			if x and z then
@@ -440,6 +462,21 @@ local function buildLairSpots(): { Spot }
 		local position = center + Vector3.new(math.sin(angle), 0, math.cos(angle)) * Config.Lair.spotRadius
 		occupy(position.X, position.Z, 3)
 		table.insert(spots, { id = "lair_" .. i, zone = Economy.zoneIndexAt(position.Z), position = position, lair = true })
+	end
+	return spots
+end
+
+-- Wysepka Utopca: Kielichy rosną w kole na trawie (wyspa jest trochę nad wodą)
+local ISLAND_TOP = 0.6
+local function buildUtopiecSpots(): { Spot }
+	local spots: { Spot } = {}
+	local lair = Config.UtopiecLair
+	local center = Vector3.new(lair.centerX, ISLAND_TOP, lair.centerZ)
+	for i = 1, lair.spots do
+		local angle = (i - 1) / lair.spots * math.pi * 2 + math.pi / lair.spots
+		local position = center + Vector3.new(math.sin(angle), 0, math.cos(angle)) * lair.spotRadius
+		occupy(position.X, position.Z, 3)
+		table.insert(spots, { id = "utopiec_" .. i, zone = Economy.zoneIndexAt(position.Z), position = position, guardian = "utopiec" })
 	end
 	return spots
 end
@@ -518,6 +555,8 @@ local function readExistingMap(map: Folder): MapInfo?
 		spotById = spotById,
 		groveCenter = grove,
 		racks = racks,
+		worlds = {}, -- własna mapa nie ma jaskini ani bagien
+		guardians = { leszy = { origin = grove } },
 	}
 end
 
@@ -569,7 +608,7 @@ end
 
 -- Plac Portali: okrągły bruk, latarnie dookoła, skrót do jaskini na środku i fundamenty pod kolejne portale.
 -- Zwraca pozycję skrótu.
-local function buildPortalPlaza(parent: Instance, rng: Random): Vector3
+local function buildPortalPlaza(parent: Instance, rng: Random): { [string]: Vector3 }
 	local plaza = Config.PortalPlaza
 	local center = Vector3.new(plaza.center.x, 0, plaza.center.z)
 	local folder = Instance.new("Folder")
@@ -596,12 +635,24 @@ local function buildPortalPlaza(parent: Instance, rng: Random): Vector3
 	end
 
 	local z = Config.Cave.shortcut.z
-	local shortcut = Vector3.new(Config.Cave.shortcut.x, 0, z)
+	local shortcuts: { [string]: Vector3 } = {}
+	local SHORTCUT_LOOK: { [string]: { sign: string, color: Color3 } } = {
+		cave = { sign = "SIGN_PORTAL_SHORTCUT", color = Color3.fromRGB(160, 90, 255) },
+		swamp = { sign = "SIGN_PORTAL_SHORTCUT_SWAMP", color = Color3.fromRGB(90, 230, 140) },
+	}
 	for _, x in plaza.slots do
 		-- Z chatki idzie się na plac w stronę -Z, więc przód portali patrzy na +Z
 		local cf = CFrame.new(x, 0, z) * CFrame.Angles(0, math.pi, 0)
-		if x == shortcut.X then
-			Cave.portal(folder, cf, "SIGN_PORTAL_SHORTCUT", Color3.fromRGB(160, 90, 255), "ShortcutSwirl")
+		local world = plaza.worlds[x]
+		local look = world and SHORTCUT_LOOK[world]
+		if world and look then
+			local portalModel = Cave.portal(folder, cf, look.sign, look.color, "ShortcutSwirl")
+			local swirl = portalModel:FindFirstChild("Swirl")
+			if swirl then
+				swirl:SetAttribute("World", world)
+				swirl:SetAttribute("OpenColor", look.color)
+			end
+			shortcuts[world] = Vector3.new(x, 0, z)
 		else
 			-- Fundament pod przyszły portal z tabliczką „Wkrótce...”
 			local base = Instance.new("Part")
@@ -632,7 +683,7 @@ local function buildPortalPlaza(parent: Instance, rng: Random): Vector3
 		Vector3.new(Cabin.HALF_W + 4, 0, Cabin.BACK_Z - 4),
 		Vector3.new(6, 0, center.Z + plaza.radius - 2),
 	}, rng)
-	return shortcut
+	return shortcuts
 end
 
 function MapBuilder.build(): MapInfo
@@ -685,12 +736,19 @@ function MapBuilder.build(): MapInfo
 	Cave.portal(map, CFrame.new(portal), "SIGN_PORTAL", Color3.fromRGB(160, 90, 255))
 
 	-- Plac Portali za chatką: skrót do jaskini (działa dla tych, którzy już tam byli) i miejsca na kolejne światy
-	local shortcut = buildPortalPlaza(map, decorRng)
+	local shortcuts = buildPortalPlaza(map, decorRng)
 
-	-- Jaskinia: najpierw rezerwacje (obozowisko, ścieżka, jeziorka), żeby grzyby nie wyrosły w wodzie
+	-- Jaskinia i bagna: najpierw rezerwacje (obozy, ścieżki, woda), żeby grzyby nie wyrosły w wodzie
 	for _, rect in Cave.reservedRects() do
 		table.insert(reserved, rect)
 	end
+	for _, rect in Swamp.reservedRects() do
+		table.insert(reserved, rect)
+	end
+	-- Portal na bagna w Sztolni, za skarbcem Skarbnika
+	local swampPortalDef = Config.Swamp.portal
+	local swampPortal = Vector3.new(swampPortalDef.x, 0, swampPortalDef.z)
+	table.insert(reserved, { x1 = swampPortal.X - 16, x2 = swampPortal.X + 16, z1 = swampPortal.Z - 6, z2 = swampPortal.Z + 12 })
 
 	-- Ścieżka z latarniami od ganku w głąb skraju lasu
 
@@ -710,13 +768,16 @@ function MapBuilder.build(): MapInfo
 	for _, spot in buildLairSpots() do
 		table.insert(spots, spot)
 	end
+	for _, spot in buildUtopiecSpots() do
+		table.insert(spots, spot)
+	end
 	-- Obrzeże przed lasem: las wewnątrz omija korony obrzeża
 	buildBorder(map, decorRng)
 	for _, zoneIndex in FOREST_ZONES do
 		buildZoneDecor(map, zoneIndex, decorRng)
 	end
 
-	local campCFrame, skarbnikStatue = Cave.build(map, Random.new(Config.SpotSeed + 5), {
+	local placeApi = {
 		place = function(rng: Random, x1: number, x2: number, z1: number, z2: number, radius: number)
 			local x, z = findSpot(rng, x1, x2, z1, z2, radius)
 			if x and z then
@@ -724,7 +785,14 @@ function MapBuilder.build(): MapInfo
 			end
 			return x, z
 		end,
-	})
+	}
+	local campCFrame, skarbnikStatue = Cave.build(map, Random.new(Config.SpotSeed + 5), placeApi)
+	Cave.portal(map, CFrame.new(swampPortal), "SIGN_PORTAL_SWAMP", Color3.fromRGB(90, 230, 140))
+
+	local swampCamp, utopiecStatue = Swamp.build(map, Random.new(Config.SpotSeed + 9), placeApi)
+	local swampReturnDef = Config.Swamp.returnPortal
+	local swampReturn = Vector3.new(swampReturnDef.x, 0.6, swampReturnDef.z)
+	Cave.portal(map, CFrame.new(swampReturn) * CFrame.Angles(0, math.pi, 0), "SIGN_PORTAL_HOME", Color3.fromRGB(255, 190, 90))
 	local returnDef = Config.Cave.returnPortal
 	local returnPortal = Vector3.new(returnDef.x, 0, returnDef.z)
 	-- Z obozowiska idzie się do portalu w stronę -Z, więc napis patrzy na +Z
@@ -761,8 +829,17 @@ function MapBuilder.build(): MapInfo
 		lairCenter = lairCenter(),
 		skarbnikStatue = skarbnikStatue,
 		portal = portal,
-		shortcut = shortcut,
+		shortcut = shortcuts.cave,
 		returnPortal = returnPortal,
+		worlds = {
+			cave = { camp = campCFrame, portal = portal, shortcut = shortcuts.cave, returnPortal = returnPortal },
+			swamp = { camp = swampCamp, portal = swampPortal, shortcut = shortcuts.swamp, returnPortal = swampReturn },
+		},
+		guardians = {
+			leszy = { origin = center, statue = leszyStatue },
+			skarbnik = { origin = lairCenter(), statue = skarbnikStatue },
+			utopiec = { origin = Vector3.new(Config.UtopiecLair.centerX, 0, Config.UtopiecLair.centerZ), statue = utopiecStatue },
+		},
 	}
 end
 

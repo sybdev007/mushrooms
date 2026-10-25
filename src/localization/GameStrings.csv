@@ -124,3 +124,37 @@ MSG_SKARBNIK_GAVE_UP,Skarbnik went back to his gold... for now.,,,Skarbnik wróc
 MSG_CAUGHT_SKARBNIK,Mushrooms taken by Skarbnik: {1},,,Skarbnik zabrał grzyby: {1}
 CAUGHT_TITLE_SKARBNIK,Skarbnik caught you!,,,Skarbnik cię dopadł!
 MSG_HOARD_DROP_SKARBNIK,Skarbnik caught {1}! Truffles back in the treasury: {2},,,Skarbnik dopadł gracza {1}! Trufle wróciły do skarbca: {2}
+MSG_ESCAPED_SKARBNIK,You escaped Skarbnik! Basket: {1} coins,,,Uciekłeś Skarbnikowi! W koszyku: {1} monet
+MSG_ESCAPED_UTOPIEC,You escaped the Utopiec! Basket: {1} coins,,,Uciekłeś Utopcowi! W koszyku: {1} monet
+ZONE_JETTY,Fishermen's Jetty,,,Przystań rybaków
+ZONE_BOG,The Quagmire,,,Trzęsawisko
+ZONE_WISPS,Wisp Marshes,,,Mokradła Ogników
+ZONE_POND,Utopiec's Pond,,,Staw Utopca
+MUSH_BOG_BELL,Bog Bell,,,Dzwonek bagienny
+MUSH_PEAT_CAP,Peat Cap,,,Torfowiec
+MUSH_FROG_STOOL,Frog Stool,,,Żabi stołek
+MUSH_WISP_CAP,Wisp Cap,,,Ognik
+MUSH_MOON_LILY,Moon Lily,,,Księżycowa lilia
+MUSH_DROWNED_CAP,Drowned Cap,,,Topielec
+MUSH_BOG_PEARL,Bog Pearl,,,Bagienna perła
+MUSH_WILL_O_WISP,Will-o'-the-Wisp,,,Błędny Płomień
+MUSH_UTOPIEC_CHALICE,Utopiec's Chalice,,,Kielich Utopca
+UPG_RUSHWICK,Rush Wick,,,Knot z sitowia
+UPG_RUSHWICK_DESC,Less oil burned in the swamp,,,Mniej oleju na bagnach
+UPG_CREEL,Wicker Creel,,,Wiklinowy kosz
+UPG_CREEL_DESC,Even more room for mushrooms,,,Jeszcze więcej miejsca na grzyby
+SIGN_PORTAL_SWAMP,The Swamps - 1 000 000 💰,,,Bagna - 1 000 000 💰
+SIGN_PORTAL_SHORTCUT_SWAMP,To the Swamps,,,Na bagna
+SIGN_POND,Utopiec's Pond - keep away!,,,Staw Utopca - nie podchodzić!
+MSG_SWAMP_UNLOCKED,The swamps are open! Welcome to the Fishermen's Jetty,,,Bagna otwarte! Witaj na przystani rybaków
+MSG_SWAMP_ENTER,Fishermen's Jetty,,,Przystań rybaków
+MSG_PORTAL_FIND_SWAMP,Find the portal behind Skarbnik's treasury first,,,Najpierw znajdź portal za skarbcem Skarbnika
+MSG_ENGULFED_SWAMP,Mushrooms lost: {1},,,Utracone grzyby: {1}
+ENGULF_TITLE_SWAMP,The swamp pulled you under...,,,Bagno cię wciągnęło...
+MSG_UTOPIEC_WOKE,The Utopiec woke up! Run to the jetty!,,,Utopiec się obudził! Uciekaj na przystań!
+HUD_UTOPIEC_CHASE,The Utopiec is chasing you!,,,Utopiec cię goni!
+MSG_UTOPIEC_GAVE_UP,The Utopiec slipped back into the pond... for now.,,,Utopiec wrócił do stawu... na razie.
+MSG_CAUGHT_UTOPIEC,Mushrooms taken by the Utopiec: {1},,,Utopiec zabrał grzyby: {1}
+CAUGHT_TITLE_UTOPIEC,The Utopiec dragged you under!,,,Utopiec wciągnął cię pod wodę!
+MSG_HOARD_DROP_UTOPIEC,The Utopiec caught {1}! Chalices back on the island: {2},,,Utopiec dopadł gracza {1}! Kielichy wróciły na wyspę: {2}
+MSG_MIMIC,That was a will-o'-the-wisp! It stole {1}% of your oil,,,To był błędny ognik! Ukradł ci {1}% oleju

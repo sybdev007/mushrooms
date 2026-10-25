@@ -211,7 +211,10 @@ function Warnings.update(
 )
 	pulseTime += dt
 	-- Podczas pościgu baner zawsze prowadzi do chatki, z innym napisem
-	local wantedKey = if chaser == "skarbnik" then "HUD_SKARBNIK_CHASE" else "HUD_LESZY_CHASE"
+	local wantedKey = if chaser == "skarbnik"
+		then "HUD_SKARBNIK_CHASE"
+		elseif chaser == "utopiec" then "HUD_UTOPIEC_CHASE"
+		else "HUD_LESZY_CHASE"
 	if (chased == true) ~= chaseBanner or wantedKey ~= chaserKey then
 		chaseBanner = chased == true
 		chaserKey = wantedKey
@@ -221,8 +224,9 @@ function Warnings.update(
 		turnBack = true
 	end
 	local world = Economy.zoneWorld(zone)
-	if (world == "cave") ~= inCave then
-		inCave = world == "cave"
+	-- Poza lasem baner prowadzi do obozu świata (obozowisko w jaskini, przystań na bagnach)
+	if (world ~= "forest") ~= inCave then
+		inCave = world ~= "forest"
 		refreshTexts()
 	end
 	local safe = Economy.isSafeZone(zone)

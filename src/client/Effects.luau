@@ -278,6 +278,14 @@ function Effects.sold()
 	task.delay(0.12, Effects.play, "coins", 1.15, 0.7)
 end
 
+-- Błędny ognik: zielony błysk i dym zamiast „+N”, napis z ubytkiem oleju
+function Effects.wispTrick(position: Vector3)
+	local top = position + Vector3.new(0, 1.5, 0)
+	burst(top, Color3.fromRGB(120, 255, 170), 30, 12)
+	floatingText(top, "🔥 -" .. math.floor(Config.Swamp.mimicOilLoss * 100) .. "%", Color3.fromRGB(150, 255, 170))
+	Effects.play("engulf", 1.8, 0.6)
+end
+
 function Effects.engulf()
 	Effects.play("engulf")
 end

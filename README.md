@@ -3,9 +3,10 @@
 Grzybobranie z latarnią w ciemnym lesie. Pętla:
 **wchodzisz do lasu → zbierasz grzyby → wracasz, zanim zgaśnie latarnia → sprzedajesz albo suszysz → ulepszasz → idziesz głębiej.**
 
-Trzy haki ponad podstawową pętlą:
+Haki ponad podstawową pętlą:
 - **Gniazdo Leszego** na końcu Mrocznego Jaru: zerwiesz Koronę Leszego, a on cię goni aż do chatki.
 - **Jaskinia** za portalem w Gnieździe Leszego: drugi świat od 50 000 monet, z własnym obozowiskiem, grzybami i ulepszeniami.
+- **Bagna** za portalem w Sztolni Skarbnika: trzeci świat od 1 000 000 monet, z Utopcem i błędnymi ognikami.
 - **Ogródki z suszarniami**: każdy gracz ma własny ogródek przy chatce. Grzyby schną i drożeją, ale inni gracze mogą je podkraść, gdy nie pilnujesz.
 
 Świat jest kreskówkowym low-poly budowanym kodem (bez importowanych modeli): chatka z bali, jesienny las,
@@ -48,7 +49,9 @@ rojo build -o lantern-forager.rbxlx
 | `src/server/DataService.luau` | ServerScriptService.Server | Zapis postępu (DataStore) |
 | `src/server/GameService.luau` | ServerScriptService.Server | Olej, zbieranie, sprzedaż, ulepszenia, „las cię pochłania” |
 | `src/server/ChaseService.luau` | ServerScriptService.Server | Pościg strażnika (Leszy, Skarbnik) po zerwaniu jego grzyba |
-| `src/server/World/Skarbnik.luau` | ServerScriptService.Server | Model Skarbnika z klocków |
+| `src/server/World/Skarbnik.luau` | ServerScriptService.Server | Model Skarbnika (siatka 3D, zapasowo z klocków) |
+| `src/server/World/Swamp.luau` | ServerScriptService.Server | Bagna: przystań, kładka, rozlewiska, wierzby, ogniki, staw Utopca |
+| `src/server/World/Utopiec.luau` | ServerScriptService.Server | Model Utopca (siatka 3D, zapasowo z klocków) |
 | `src/server/HoardService.luau` | ServerScriptService.Server | Skarbiec Leszego: korony odebrane złapanym, do zgarnięcia przez każdego |
 | `src/server/DryingService.luau` | ServerScriptService.Server | Suszarnie: wieszanie, sprzedaż suszonych, kradzież |
 | `src/server/World/Grove.luau` | ServerScriptService.Server | Gniazdo Leszego: krąg kamieni, tabliczka, uśpiony posąg |
@@ -104,6 +107,15 @@ rojo build -o lantern-forager.rbxlx
   goni do obozowiska, złapie = koszyk przepada, a trufle wracają do skarbca dla każdego.
 - **Jaskinia wygląda**: świecące robaczki na stropie, gigantyczne świecące grzyby z opadającymi zarodnikami,
   wodospady przy jeziorkach, rzeka lawy z mostem, wózki z rudą, świecący mech, kamyki.
+- **Bagna** (`Config.Swamp`, strefy z `world = "swamp"`, `World/Swamp.luau`): portal za skarbcem Skarbnika
+  wpuszcza od 1 000 000 monet (zapis `swampUnlocked`), skrót na Placu Portali po lewej. Przystań rybaków na palach
+  (olej, skup, dwa ulepszenia: Knot z sitowia i Wiklinowy kosz) → Trzęsawisko → Mokradła Ogników → Staw Utopca.
+  Otwarte niebo, zielona mgła, kładka środkiem, rozlewiska z liliami, wierzby płaczące, trzciny, latające ogniki.
+  **Błędne ogniki** (`mimic`): wyglądają jak cenny Ognik, ale zerwanie kradnie 35% oleju; zdradza je tylko
+  nierówno drgające światło. **Utopiec** pilnuje Kielichów (60 000) na wyspie pośrodku stawu, budzi się prawie
+  od razu i ucieka się przed nim tylko na maksymalnych butach.
+- **Strażnicy** (`GUARDIANS` w `GameService`): Leszy, Skarbnik i Utopiec działają według tych samych zasad;
+  nowy strażnik to wpis w tabeli, model w `World/` i miejsca na mapie.
 - **Las**: drzewa stoją korona przy koronie, bez nachodzenia (`CANOPY` w `MapBuilder`). Obrzeże mapy jest stawiane
   pierwsze, a reszta lasu je omija.
 - **Sterowanie**: przycisk ZBIERZ obok przycisku skoku na telefonie, `E` na klawiaturze, `X` na padzie.
