@@ -162,6 +162,12 @@ rojo build -o lantern-forager.rbxlx
   przed chatką: Najbogatsi grzybiarze, Znalezisko tygodnia (brama nad ścieżką) i Złodzieje tygodnia.
   OrderedDataStore wspólny dla wszystkich serwerów, tygodniowe tablice zerują się w poniedziałek. Bez dostępu do
   DataStore (Studio bez API) pokazują graczy z tego serwera. Panel DEV: „Księga…”, „Zadania…”, „Rankingi: odśwież”.
+- **Wspólne wyprawy** (`src/shared/Expedition.luau`, `ExpeditionView`): gracze w niebezpiecznej strefie bliżej niż
+  20 studs łączą latarnie. Grupa 2: olej −25%, światło +25%; 3: −35% / +40%; 4: −40% / +50%. Plakietka obok paska
+  oleju. Gdy komuś zgaśnie latarnia, a ktoś jest w promieniu 150 studs, gracz nie znika od razu: stoi w mroku
+  z napisem 🆘 nad głową przez 15 s, a kumpel podchodzi i trzyma F („Podnieś”), żeby oddać mu 30% oleju.
+  Bez pomocy las pochłania jak zwykle. Butelka oleju za Robuxy też podnosi. Zadanie dnia „Podnieś kumpla”.
+  Panel DEV: „Wyprawa: grupa x3”, „Wyprawa: zgaś mi latarnię”.
 - **Balans szczęścia** (`Config.LuckBalance`, `Economy.luck`): szczęście ×N działa jak N rzutów, z których liczy się
   najlepszy (`1 − (1 − szansa)^N`), więc szanse nigdy nie dochodzą do 100%. Darmowe bonusy (nożyk × głębokość × noc)
   mają malejący zysk i razem zbliżają się do ×5; płatne (Wysyp ×1,5, mikstura ×2) mnożą w pełni; całość najwyżej ×8.

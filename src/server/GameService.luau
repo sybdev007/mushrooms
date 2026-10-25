@@ -1242,6 +1242,8 @@ local function grantProduct(session: Session, key: string): boolean
 			pushState(other)
 		end
 	elseif key == "oil" then
+		-- Butelka oleju podnosi też gracza, któremu zgasła latarnia i czeka na pomoc
+		clearDowned(session)
 		session.oil = stat(session, "oil")
 		session.oilWarned = false
 		session.oilHalfWarned = false
