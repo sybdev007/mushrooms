@@ -1003,6 +1003,51 @@ test("mały ekran = krótszy bok do 500 px (wtedy Roblox daje mały przycisk sko
 	eq(UiScale.isSmallScreen(size(1920, 1080)), false, "komputer")
 end)
 
+print("Tabelka szans (Economy.luck, variantOdds, tagOdds)")
+
+test("bez bonusów szanse w tabelce = szanse z Config", function()
+	for _, odd in Economy.variantOdds(1) do
+		local def = Economy.getVariant(odd.id)
+		check(math.abs(odd.chance - def.chance) < 1e-9, odd.id)
+	end
+end)
+
+test("tabelka zgadza się z prawdziwym losowaniem", function()
+	for _, luck in { 1, 2, 3.75, 40 } do
+		local counts: { [string]: number } = {}
+		local n = 200000
+		for i = 0, n - 1 do
+			local id = Economy.rollVariant((i + 0.5) / n, nil, luck)
+			if id then
+				counts[id] = (counts[id] or 0) + 1
+			end
+		end
+		local total = 0
+		for _, odd in Economy.variantOdds(luck) do
+			total += odd.chance
+			check(math.abs((counts[odd.id] or 0) / n - odd.chance) < 1e-4, odd.id .. " przy szczęściu " .. luck)
+		end
+		check(total <= 1 + 1e-9, "suma ponad 100%")
+	end
+end)
+
+test("mikstura podwaja szczęście, części mnożą się w całość", function()
+	local base = Economy.luck({ knifeLevel = 2, zone = nil, event = nil, boom = false, potion = false })
+	local withPotion, parts = Economy.luck({ knifeLevel = 2, zone = nil, event = nil, boom = true, potion = true })
+	check(math.abs(withPotion - base * Config.LuckPotion.luck * Config.Boom.luck) < 1e-9, "iloczyn")
+	eq(#parts, 3, "nożyk + Wysyp + mikstura")
+	local plain, none = Economy.luck({ knifeLevel = 0, zone = nil, event = nil, boom = false, potion = false })
+	eq(plain, 1)
+	eq(#none, 0, "bez bonusów pusta lista")
+end)
+
+test("szansa na cechę nie przekracza 100%", function()
+	for _, tag in Config.Tags do
+		eq(Economy.tagOdds(tag, 1), tag.chance)
+		eq(Economy.tagOdds(tag, 1000), 1)
+	end
+end)
+
 print(string.format("\n%d ok, %d błędów", passed, failed))
 if failed > 0 then
 	process.exit(1)

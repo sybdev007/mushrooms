@@ -280,7 +280,8 @@ Config.RespawnSeconds = 90 -- po ilu sekundach grzyb odrasta w tym samym miejscu
 -- Każdy grzyb ma najwyżej jeden WARIANT (losowany przy odrastaniu) i dowolną liczbę CECH
 -- zależnych od miejsca. Wartość = baza × wariant × (1 + Σ(cecha − 1)) × suszenie.
 -- Cechy się sumują, a nie mnożą, żeby ceny nie uciekały w kosmos jak w Grow a Garden.
--- Losowość jest tylko z gry (nic za Robuxy), więc nie trzeba publikować szans.
+-- Mikstura szczęścia i Wysyp (za Robuxy) zwiększają szanse, więc gracz widzi wszystkie procenty
+-- w sklepie (przycisk „Szanse”, liczone przez Economy.variantOdds / Economy.tagOdds).
 export type VariantDef = {
 	id: string,
 	key: string, -- etykieta w języku gracza (CSV)

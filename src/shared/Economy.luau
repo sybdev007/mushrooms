@@ -147,6 +147,65 @@ function Economy.rollVariant(r: number, minRank: number?, luck: number?): string
 	return nil
 end
 
+export type LuckInput = {
+	knifeLevel: number,
+	zone: number?,
+	event: Config.NightEventDef?, -- zdarzenie trwającej nocy (Cycle.activeEvent)
+	boom: boolean, -- Wysyp dla całego serwera
+	potion: boolean, -- mikstura szczęścia gracza
+}
+export type LuckPart = { key: string, mult: number }
+
+-- Łączny mnożnik szans na mutacje i z czego się bierze (do tabelki szans u gracza).
+-- Tego samego używa serwer przy losowaniu, więc tabelka zawsze mówi prawdę.
+function Economy.luck(input: LuckInput): (number, { LuckPart })
+	local parts: { LuckPart } = {}
+	local function add(key: string, mult: number)
+		if mult ~= 1 then
+			table.insert(parts, { key = key, mult = mult })
+		end
+	end
+	add("UPG_KNIFE", Economy.upgradeStat("knife", input.knifeLevel))
+	if input.zone then
+		add("ODDS_DEPTH", Economy.zoneLuck(input.zone))
+	end
+	if input.event then
+		add(input.event.key, input.event.luck)
+	end
+	if input.boom then
+		add("PRODUCT_BOOM", Config.Boom.luck)
+	end
+	if input.potion then
+		add("PRODUCT_LUCK", Config.LuckPotion.luck)
+	end
+	local total = 1
+	for _, part in parts do
+		total *= part.mult
+	end
+	return total, parts
+end
+
+-- Prawdziwe szanse na każdy wariant przy danym szczęściu (dokładnie jak w rollVariant:
+-- rzadsze warianty „zajmują” przedział pierwsze, a całość nie przekroczy 100%)
+function Economy.variantOdds(luck: number): { { id: string, chance: number } }
+	local scale = math.max(luck, 1)
+	local odds = {}
+	local previous = 0
+	local acc = 0
+	for _, variant in variantsRarestFirst do
+		acc += variant.chance
+		local upTo = math.min(acc * scale, 1)
+		table.insert(odds, { id = variant.id, chance = upTo - previous })
+		previous = upTo
+	end
+	return odds
+end
+
+-- Szansa na cechę (mech, blask…) przy danym szczęściu
+function Economy.tagOdds(tag: Config.TagDef, luck: number): number
+	return math.min(tag.chance * luck, 1)
+end
+
 -- Mnożnik szans na mutacje za głębokość strefy w jej świecie: pierwsza niebezpieczna strefa x1,
 -- każda kolejna o Config.DepthLuck więcej. Strefy bezpieczne (obozy) x1.
 function Economy.zoneLuck(index: number): number
