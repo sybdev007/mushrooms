@@ -384,12 +384,15 @@ local function attachHandKnife(character: Model, level: number)
 	if not hand then
 		return
 	end
-	-- Rączka w pięści, ostrze do przodu, pochylone w dół i odchylone od ciała, żeby było
-	-- je widać zza pleców (kamera stoi za graczem)
-	local grip = hand.CFrame
-		* CFrame.new(0, if isR6 then -0.95 else -0.12, 0)
-		* CFrame.Angles(0, math.rad(-25), 0)
-		* CFrame.Angles(math.rad(-30), 0, 0)
+	-- Nóż trzymany luźno przy nodze: ostrze w dół i trochę na zewnątrz, grzbietem do tyłu.
+	-- Kierunek liczymy od ustawienia postaci (osie dłoni różnią się między rigami), a do przodu
+	-- go nie kierujemy, bo kamera stoi za graczem i ciało by go zasłaniało.
+	local root = character:FindFirstChild("HumanoidRootPart")
+	local basis = if root and root:IsA("BasePart") then root.CFrame else hand.CFrame
+	local pos = (if isR6 then hand.Position - Vector3.new(0, 0.95, 0) else hand.Position - Vector3.new(0, 0.05, 0))
+		- basis.RightVector * 0.15
+	local direction = (Vector3.new(0, -0.85, 0) - basis.RightVector * 0.45 + basis.LookVector * 0.2).Unit
+	local grip = CFrame.lookAt(pos, pos + direction, -basis.LookVector)
 	HandTools.knife(level, grip, hand).Parent = character
 end
 

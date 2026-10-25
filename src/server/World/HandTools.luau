@@ -98,7 +98,7 @@ function HandTools.lanternTier(level: number): number
 end
 
 -- base: punkt chwytu (górny pałąk), latarnia wisi w dół wzdłuż -Y
-function HandTools.lantern(level: number, base: CFrame, weldTo: BasePart?): Model
+function HandTools.lantern(level: number, base: CFrame, weldTo: BasePart?, scale: number?): Model
 	local trim = TRIMS[HandTools.lanternTier(level)]
 	local m = Instance.new("Model")
 	m.Name = "HandLantern"
@@ -154,7 +154,7 @@ function HandTools.lantern(level: number, base: CFrame, weldTo: BasePart?): Mode
 	end
 
 	m:SetAttribute("Tier", HandTools.lanternTier(level))
-	attach(m, weldTo, base, 1.2)
+	attach(m, weldTo, base, scale or 1.35)
 	return m
 end
 
@@ -219,7 +219,7 @@ function HandTools.knifeStyle(level: number): KnifeStyle
 end
 
 -- base: środek chwytu w dłoni; nóż leży wzdłuż -Z (ostrze do przodu), góra ostrza to +Y
-function HandTools.knife(level: number, base: CFrame, weldTo: BasePart?): Model
+function HandTools.knife(level: number, base: CFrame, weldTo: BasePart?, scale: number?): Model
 	local style = HandTools.knifeStyle(level)
 	local m = Instance.new("Model")
 	m.Name = "HandKnife"
@@ -317,7 +317,7 @@ function HandTools.knife(level: number, base: CFrame, weldTo: BasePart?): Model
 	end
 
 	m:SetAttribute("Level", level)
-	attach(m, weldTo, base, 1.2)
+	attach(m, weldTo, base, scale or 1.7)
 	return m
 end
 
