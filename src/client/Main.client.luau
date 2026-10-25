@@ -21,7 +21,7 @@ local Signs = require(script.Parent.Signs)
 local PortalView = require(script.Parent.PortalView)
 local DevPanel = require(script.Parent.DevPanel)
 local ShopPanel = require(script.Parent.ShopPanel)
-local RackPrompts = require(script.Parent.RackPrompts)
+local GardenPrompts = require(script.Parent.GardenPrompts)
 
 local player = Players.LocalPlayer
 
@@ -43,7 +43,7 @@ local upgrades: { [string]: number } = {} -- poziomy ulepszeń (knoty zmniejszaj
 
 Signs.start()
 PortalView.start()
-RackPrompts.start()
+GardenPrompts.start()
 
 Remotes.get("StateUpdate").OnClientEvent:Connect(function(state)
 	lanternRange = state.lanternRange
@@ -137,12 +137,23 @@ local TOAST_KIND: { [string]: string } = {
 	MSG_LUCK = "gold",
 	MSG_RESCUED = "gold",
 	MSG_OIL_BOUGHT = "info",
-	MSG_DRIED = "info",
+	MSG_HARVEST = "gold",
+	MSG_PLANTED = "gold",
+	MSG_PLANTED_SWAP = "gold",
+	MSG_COLLECTED = "gold",
+	MSG_OFFLINE_INCOME = "gold",
+	MSG_GARDEN_FULL = "warn",
+	MSG_NOTHING_TO_PLANT = "warn",
+	MSG_POT_EMPTY = "warn",
+	MSG_THIEF_RUNNING = "warn",
+	MSG_LOOT_TAGGED = "warn",
+	MSG_LOOT_DROPPED = "warn",
+	MSG_LOOT_PLANTED = "gold",
+	MSG_LOOT_DELIVERED = "gold",
+	MSG_LOOT_RECOVERED = "gold",
 	MSG_HOARD_DROP_SKARBNIK = "gold",
 	MSG_ROBBED = "warn",
 	MSG_RACK_ALERT = "warn",
-	MSG_RACK_FULL = "warn",
-	MSG_NOTHING_TO_HANG = "warn",
 	MSG_RACK_PROTECTED = "warn",
 	MSG_OWNER_GUARDING = "warn",
 	MSG_NO_RACK = "warn",
@@ -200,12 +211,17 @@ Remotes.get("Notify").OnClientEvent:Connect(function(payload)
 	Hud.toast(text, TOAST_KIND[payload.key])
 	if payload.key == "MSG_LESZY_WOKE" or payload.key == "MSG_SKARBNIK_WOKE" or payload.key == "MSG_UTOPIEC_WOKE" then
 		Effects.leszyWoke()
-	elseif payload.key == "MSG_ROBBED" or payload.key == "MSG_RACK_ALERT" then
+	elseif payload.key == "MSG_ROBBED" or payload.key == "MSG_RACK_ALERT" or payload.key == "MSG_THIEF_RUNNING" then
 		Effects.play("engulf", 1.4, 0.5)
-	elseif payload.key == "MSG_STOLE" or string.sub(payload.key, 1, 11) == "MSG_ESCAPED" then
+	elseif
+		payload.key == "MSG_STOLE"
+		or payload.key == "MSG_LOOT_PLANTED"
+		or payload.key == "MSG_LOOT_RECOVERED"
+		or string.sub(payload.key, 1, 11) == "MSG_ESCAPED"
+	then
 		Effects.play("upgrade", 1.2)
 	end
-	if payload.key == "MSG_SOLD" then
+	if payload.key == "MSG_SOLD" or payload.key == "MSG_COLLECTED" then
 		Effects.sold()
 		Hud.coinShower(tonumber(payload.args and payload.args[1]) or 0)
 	elseif payload.key == "MSG_UPGRADED" then

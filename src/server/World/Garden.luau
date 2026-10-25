@@ -1,13 +1,13 @@
 --!strict
 -- Ogródek gracza na polanie przy chatce: kwadrat trawy ogrodzony żerdziami, furtka z tabliczką
--- z imieniem właściciela, grządki z kwiatami, krzaki w rogach i suszarnia na środku.
+-- z imieniem właściciela, siatka grządek na grzyby, skrzynia na monety, kwiaty i krzaki.
 -- Lokalne -Z ogródka to strona furtki (patrzy na ścieżkę przy chatce).
--- Zwraca model suszarni; tabliczka "OwnerSign" na furtce siedzi w tym modelu,
--- żeby DryingService mógł wpisać na nią imię gracza.
+-- Zwraca model ogródka. GardenService szuka w nim: "OwnerSign" (imię na furtce),
+-- "Hub" (przyciski sadzenia i kradzieży), "Chest" (monety z grządek) i grządek "Bed<i>".
 
 local Palette = require(script.Parent.Palette)
 local Props = require(script.Parent.Props)
-local Rack = require(script.Parent.Rack)
+local Beds = require(script.Parent.Beds)
 
 local Garden = {}
 
@@ -109,13 +109,47 @@ local function flowerBed(parent: Instance, cf: CFrame, length: number, rng: Rand
 	end
 end
 
--- cf: środek ogródka na ziemi, -Z w stronę furtki. size: bok kwadratu.
-function Garden.build(parent: Instance, cf: CFrame, size: number, slots: number, rng: Random): Model
+-- Skrzynia na monety przy furtce: drewniana, z metalowymi okuciami i kupką monet na wieku
+local function chest(parent: Instance, cf: CFrame): Part
+	local metal = Palette.metal
+	local body = make(parent, {
+		Name = "Chest",
+		Size = Vector3.new(2.6, 1.6, 1.8),
+		CFrame = cf * CFrame.new(0, 0.8, 0),
+		Color = Palette.plankDark,
+	})
+	make(parent, {
+		Name = "ChestLid",
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(2.6, 1.8, 1.8),
+		CFrame = cf * CFrame.new(0, 1.6, 0),
+		Color = Palette.plank,
+		CanCollide = false,
+	})
+	for _, x in { -0.9, 0.9 } do
+		decor(make(parent, { Name = "ChestBand", Size = Vector3.new(0.22, 2.75, 1.9), CFrame = cf * CFrame.new(x, 1.25, 0), Color = metal }))
+	end
+	decor(make(parent, { Name = "ChestLock", Size = Vector3.new(0.5, 0.6, 0.2), CFrame = cf * CFrame.new(0, 1.3, -0.95), Color = Color3.fromRGB(230, 180, 60) }))
+	for i = 1, 5 do
+		decor(make(parent, {
+			Name = "Coin",
+			Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(0.14, 0.6, 0.6),
+			CFrame = cf * CFrame.new((i - 3) * 0.32, 2.55 + (i % 2) * 0.12, (i % 3 - 1) * 0.25) * VERTICAL,
+			Color = Color3.fromRGB(255, 205, 60),
+			Material = Enum.Material.Neon,
+		}))
+	end
+	return body
+end
+
+-- cf: środek ogródka na ziemi, -Z w stronę furtki. size: bok kwadratu. beds: ile grządek zbudować.
+function Garden.build(parent: Instance, cf: CFrame, size: number, beds: number, rng: Random): Model
 	local m = Instance.new("Model")
 	m.Name = "Garden"
 	local half = size / 2
 
-	-- Trawa ogródka, żwirowa dróżka od furtki do suszarni
+	-- Trawa ogródka, żwirowa dróżka od furtki do grządek
 	make(m, {
 		Name = "GardenGrass",
 		Size = Vector3.new(size, 0.2, size),
@@ -125,8 +159,8 @@ function Garden.build(parent: Instance, cf: CFrame, size: number, slots: number,
 	})
 	decor(make(m, {
 		Name = "GardenPath",
-		Size = Vector3.new(GATE_HALF * 2 - 0.4, 0.2, half - 2.6),
-		CFrame = cf * CFrame.new(0, 0.01, -half + (half - 2.6) / 2),
+		Size = Vector3.new(GATE_HALF * 2 - 0.4, 0.2, half - 6),
+		CFrame = cf * CFrame.new(0, 0.01, -half + (half - 6) / 2),
 		Color = GRAVEL,
 	}))
 
@@ -140,7 +174,7 @@ function Garden.build(parent: Instance, cf: CFrame, size: number, slots: number,
 	fence(m, at(-half, -half), at(-half, half))
 	fence(m, at(half, -half), at(half, half))
 
-	-- Furtka: dwa wyższe słupki, belka i tabliczka z imieniem (napis dokłada DryingService)
+	-- Furtka: dwa wyższe słupki, belka i tabliczka z imieniem (napis dokłada GardenService)
 	local gateH = 5.6
 	for _, side in { -1, 1 } do
 		post(m, at(side * GATE_HALF, -half), gateH, 0.75)
@@ -160,9 +194,9 @@ function Garden.build(parent: Instance, cf: CFrame, size: number, slots: number,
 	})
 	Props.hangingLantern(m, at(GATE_HALF + 0.9, -half - 0.6) + Vector3.new(0, gateH - 0.3, 0), 18)
 
-	-- Grządki z kwiatami wzdłuż boków i krzaki w tylnych rogach
+	-- Rabatki z kwiatami wzdłuż boków (w tylnej części, przód zostaje na skrzynię) i krzaki w rogach
 	for _, side in { -1, 1 } do
-		flowerBed(m, cf * CFrame.new(side * (half - 1.3), 0, -1) * CFrame.Angles(0, math.rad(90), 0), size - 7, rng)
+		flowerBed(m, cf * CFrame.new(side * (half - 1.3), 0, 2.5) * CFrame.Angles(0, math.rad(90), 0), size - 12, rng)
 		Props.bush(m, at(side * (half - 1.8), half - 1.8), rng:NextNumber(0.75, 0.95), rng, 0)
 	end
 
@@ -178,12 +212,26 @@ function Garden.build(parent: Instance, cf: CFrame, size: number, slots: number,
 		}))
 	end
 
-	-- Suszarnia w tylnej części, przodem do furtki
-	local rack = Rack.build(m, cf * CFrame.new(0, 0, 1.6), slots)
-	sign.Parent = rack
+	-- Grządki w tylnej części ogródka
+	Beds.build(m, cf * CFrame.new(0, 0, 3), beds)
+
+	-- Skrzynia na monety po lewej od furtki (patrząc od wejścia), latarnia nad nią
+	chest(m, cf * CFrame.new(-(half - 3.2), 0, -half + 3.2) * CFrame.Angles(0, math.rad(20), 0))
+
+	-- Niewidoczny punkt między furtką a grządkami: przyciski sadzenia i kradzieży, tabliczka z dochodem
+	local hub = make(m, {
+		Name = "Hub",
+		Size = Vector3.new(1, 1, 1),
+		CFrame = cf * CFrame.new(0, 2.4, -half + 6.5),
+		Transparency = 1,
+		CanCollide = false,
+		CanQuery = false,
+	})
+	sign.Name = "OwnerSign"
+	m.PrimaryPart = hub
 
 	m.Parent = parent
-	return rack
+	return m
 end
 
 return Garden

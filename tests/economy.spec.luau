@@ -308,78 +308,86 @@ test("escapesLeszy: szybszy gracz zawsze ucieka, krótsza droga pomaga", functio
 	eq(Economy.escapesLeszy(100, 0), false, "stoi w miejscu")
 end)
 
-print("Suszarnia")
-test("mnożnik suszenia rośnie od 1 do 1 + bonus", function()
-	eq(Economy.dryMultiplier(0), 1, "świeży")
-	eq(Economy.dryMultiplier(-50), 1, "czas z przyszłości")
-	eq(Economy.dryMultiplier(Config.Drying.seconds / 2), 1 + Config.Drying.bonus / 2, "w połowie")
-	eq(Economy.dryMultiplier(Config.Drying.seconds), 1 + Config.Drying.bonus, "suchy")
-	eq(Economy.dryMultiplier(Config.Drying.seconds * 10), 1 + Config.Drying.bonus, "nie rośnie w nieskończoność")
+print("Ogródek")
+test("dochód z grządki: część wartości na minutę, nawóz go mnoży", function()
+	local rate = Config.Garden.incomeRate
+	eq(Economy.plantIncome({ s = "porcini" }), 75 * rate, "borowik")
+	eq(Economy.plantIncome({ s = "porcini", v = "gold" }), 225 * rate, "złoty borowik")
+	eq(Economy.plantIncome({ s = "porcini" }, 2), 75 * rate * 2, "z nawozem x2")
+	eq(Economy.gardenIncome({ { s = "porcini", t = 0 }, { s = "honey", t = 0 } }), (75 + 4) * rate, "ogródek")
+	eq(Economy.gardenIncome({}), 0, "pusty")
+	-- Grzyb ma się zwrócić w rozsądnym czasie: dłużej niż jedna wyprawa, krócej niż godzina
+	local payback = 1 / rate
+	check(payback >= 10 and payback <= 60, string.format("zwrot po %.0f min", payback))
 end)
 
-test("wartość suszonego grzyba i suszarni", function()
-	local half = Config.Drying.seconds / 2
-	eq(Economy.dryingValue({ s = "porcini", t = 100 }, 100), 75, "świeży borowik")
-	eq(Economy.dryingValue({ s = "porcini", t = 0 }, Config.Drying.seconds), 150, "suchy borowik")
-	eq(Economy.dryingValue({ s = "honey", t = 0 }, half), 6, "opieńka w połowie (4 * 1.5)")
-	eq(Economy.rackValue({ { s = "porcini", t = 0 }, { s = "honey", v = "gold", t = 0 } }, Config.Drying.seconds), 150 + 24, "suszarnia")
-	eq(Economy.basketValue({ { s = "porcini", d = 2 } }), 150, "ukradziony suchy borowik w koszyku")
+test("dochód offline jest ograniczony", function()
+	local planted = { { s = "porcini", t = 0 } }
+	local perMinute = Economy.gardenIncome(planted)
+	eq(Economy.offlineIncome(planted, 1, 60), perMinute, "minuta")
+	eq(Economy.offlineIncome(planted, 1, 999999), perMinute * Config.Garden.offlineMinutes, "limit")
+	eq(Economy.offlineIncome(planted, 1, -100), 0, "czas z przyszłości")
 end)
 
-test("złodziej bierze najcenniejszy grzyb", function()
-	local rack = {
-		{ s = "honey", t = 0 },
-		{ s = "porcini", t = 500 },
-		{ s = "aspen_bolete", t = 0 },
-	}
-	-- t=600: borowik 75 * (1 + 100/600) = 87,5, koźlarz suchy 50 * 2 = 100
-	eq(Economy.mostValuableIndex(rack, 600), 3, "suchy koźlarz bije świeżego borowika")
-	eq(Economy.mostValuableIndex({}, 0), nil, "pusta")
+test("sadzenie: wolne grządki dostają najcenniejsze grzyby z koszyka", function()
+	local basket = { { s = "honey" }, { s = "porcini" }, { s = "parasol" }, { s = "chanterelle", v = "gold" } }
+	local moves = Economy.planPlanting(basket, {}, 2)
+	eq(#moves, 2, "liczba")
+	eq(moves[1].basket, 2, "borowik (75) pierwszy")
+	eq(moves[2].basket, 3, "kania (24) druga")
+	eq(moves[1].replace, nil, "bez wymiany")
+	eq(#Economy.planPlanting({}, {}, 3), 0, "pusty koszyk")
 end)
 
-test("na suszarnię idą najcenniejsze świeże grzyby, bez ukradzionych", function()
-	local basket = {
-		{ s = "honey" },
-		{ s = "porcini", d = 2 },
-		{ s = "parasol" },
-		{ s = "chanterelle", v = "gold" },
-	}
-	local chosen = Economy.pickForDrying(basket, 2)
-	eq(#chosen, 2, "liczba")
-	eq(chosen[1], 3, "kania (24) pierwsza")
-	eq(chosen[2], 4, "złota kurka (18) druga")
-	eq(#Economy.pickForDrying(basket, 10), 3, "ukradziony suchy borowik zostaje w koszyku")
-	eq(#Economy.pickForDrying(basket, 0), 0, "brak miejsca")
+test("sadzenie: lepszy grzyb wypiera najsłabszy posadzony, gorszy nie", function()
+	local planted = { { s = "porcini", t = 0 }, { s = "honey", t = 0 }, { s = "parasol", t = 0 } }
+	local moves = Economy.planPlanting({ { s = "chanterelle" }, { s = "aspen_bolete" } }, planted, 3)
+	eq(#moves, 1, "tylko jedna wymiana")
+	eq(moves[1].basket, 2, "koźlarz (50)")
+	eq(moves[1].replace, 2, "wypiera opieńkę (4)")
+	-- Kurka (6) jest słabsza od każdego posadzonego po wymianie (24, 50, 75), więc zostaje w koszyku
+	local mixed = Economy.planPlanting({ { s = "honey" }, { s = "porcini" } }, { { s = "parasol", t = 0 } }, 2)
+	eq(#mixed, 1, "borowik na wolną grządkę, opieńka (4) nie wypiera kani (24)")
+	eq(mixed[1].basket, 2, "borowik")
+	eq(mixed[1].replace, nil, "bez wymiany")
 end)
 
-test("miejsca na suszarnie nie wchodzą na chatkę ani ścieżkę", function()
-	for i, plot in Config.Drying.plots do
-		check(math.abs(plot.x) >= 10, "suszarnia " .. i .. " na ścieżce")
-		local onCabin = math.abs(plot.x) < 19 and plot.z > -42 and plot.z < -1
-		check(not onCabin, "suszarnia " .. i .. " w chatce")
-		eq(Economy.zoneIndexAt(plot.z), 1, "suszarnia " .. i .. " poza polaną")
+test("złodziej bierze najcenniejszy, wymiana zaczyna od najsłabszego", function()
+	local planted = { { s = "honey", t = 0 }, { s = "porcini", t = 0 }, { s = "aspen_bolete", v = "gold", t = 0 } }
+	eq(Economy.mostValuableIndex(planted), 3, "złoty koźlarz (150) bije borowika (75)")
+	eq(Economy.weakestIndex(planted), 1, "opieńka")
+	eq(Economy.mostValuableIndex({}), nil, "pusto")
+end)
+
+test("łup spowalnia: im rzadszy, tym wolniej, korony strażników najwolniej", function()
+	local plain = Economy.carrySpeed({ s = "porcini" })
+	local gold = Economy.carrySpeed({ s = "porcini", v = "gold" })
+	local rainbow = Economy.carrySpeed({ s = "porcini", v = "rainbow" })
+	check(plain < 1, "zwykły łup nie spowalnia")
+	check(gold < plain and rainbow < gold, "rzadszy nie jest cięższy")
+	eq(Economy.carrySpeed({ s = "leszy_crown" }), Config.Garden.carry.guardianSpeed, "korona Leszego")
+	-- Właściciel z butami o poziom gorszymi i tak dogoni złodzieja z najzwyklejszym łupem
+	for level = 1, Config.Upgrades.boots.maxLevel do
+		local thief = Economy.upgradeStat("boots", level) * plain
+		check(thief < Economy.upgradeStat("boots", level - 1), "poziom " .. level .. ": złodzieja nie da się dogonić")
 	end
 end)
 
-test("zarobek na minutę: stały podczas suszenia, zero po wyschnięciu", function()
-	local minutes = Config.Drying.seconds / 60
-	local porcini = { s = "porcini", t = 0 }
-	eq(Economy.dryRatePerMinute(porcini, 0), 75 * Config.Drying.bonus / minutes, "świeży borowik")
-	eq(Economy.dryRatePerMinute(porcini, Config.Drying.seconds - 1), 75 * Config.Drying.bonus / minutes, "prawie suchy")
-	eq(Economy.dryRatePerMinute(porcini, Config.Drying.seconds), 0, "suchy")
-	eq(Economy.dryRatePerMinute({ s = "porcini", v = "gold", t = 0 }, 0), 225 * Config.Drying.bonus / minutes, "złoty")
-	-- Suma zarobków przez cały czas suszenia = przyrost wartości
-	local gained = Economy.dryRatePerMinute(porcini, 0) * minutes
-	eq(math.floor(gained + 0.5), Economy.dryingValue(porcini, Config.Drying.seconds) - Economy.dryingValue(porcini, 0), "zgodność z wartością")
+test("grządki: od kilku na start do pełnej siatki ogródka", function()
+	local first = Economy.upgradeStat("beds", 0)
+	local last = Economy.upgradeStat("beds", Config.Upgrades.beds.maxLevel)
+	check(first >= 2 and first <= 4, "na start " .. first)
+	eq(last, Config.Garden.maxBeds, "maks. = tyle, ile stoi w ogródku")
+	check(Economy.upgradeStat("fertilizer", 0) == 1, "nawóz bez ulepszenia")
 end)
 
 test("ogródki: na polanie, obok chatki, bez nachodzenia na siebie, drzewa z obrzeża i ścieżkę", function()
-	local half = Config.Drying.gardenSize / 2
-	-- Suszarnia (11,4 x 7,75) musi się zmieścić z grządkami po bokach
-	check(half >= 8.5, "ogródek za mały na suszarnię i grządki")
+	local half = Config.Garden.size / 2
+	-- Siatka grządek 3 x 3 (12,8 studs) musi się zmieścić z rabatkami po bokach
+	check(half >= 12, "ogródek za mały na grządki")
 	-- Korona drzewa z obrzeża sięga do ok. halfWidth - 3 - 5,2 * 1,9
 	local borderReach = Config.ForestHalfWidth - 3 - 5.2 * 1.9
-	for i, plot in Config.Drying.plots do
+	for i, plot in Config.Garden.plots do
 		eq(Economy.zoneIndexAt(plot.z - half), 1, "ogródek " .. i .. " (przód) poza polaną")
 		eq(Economy.zoneIndexAt(plot.z + half), 1, "ogródek " .. i .. " (tył) poza polaną")
 		check(math.abs(plot.x) + half < borderReach, "ogródek " .. i .. " pod drzewami z obrzeża")
@@ -387,7 +395,7 @@ test("ogródki: na polanie, obok chatki, bez nachodzenia na siebie, drzewa z obr
 		-- Przed furtką (od strony środka) zostaje 7 studs wolnego miejsca, ścieżka do lasu biegnie przy x = 0
 		check(math.abs(plot.x) - half - 7 > 4, "furtka ogródka " .. i .. " za blisko ścieżki")
 		check(plot.z + half < Config.Zones[2].startZ - 3, "ogródek " .. i .. " na bramie do lasu")
-		for j, other in Config.Drying.plots do
+		for j, other in Config.Garden.plots do
 			if j > i then
 				local apart = math.abs(other.x - plot.x) >= half * 2 + 1 or math.abs(other.z - plot.z) >= half * 2 + 1
 				check(apart, string.format("ogródki %d i %d na sobie", i, j))
@@ -468,8 +476,8 @@ test("portal leśny stoi wyraźnie za gniazdem, skrót za chatką na polanie", f
 	local plaza = Config.PortalPlaza
 	check(plaza.center.z - plaza.radius > Config.Zones[1].startZ + 4, "plac za ścianą mapy")
 	check(plaza.center.z + plaza.radius < -35 - 5, "plac wchodzi na chatkę")
-	for _, plot in Config.Drying.plots do
-		check(plot.z - Config.Drying.gardenSize / 2 > plaza.center.z + plaza.radius, "plac wchodzi na ogródek")
+	for _, plot in Config.Garden.plots do
+		check(plot.z - Config.Garden.size / 2 > plaza.center.z + plaza.radius, "plac wchodzi na ogródek")
 	end
 	check(table.find(plaza.slots, Config.Cave.shortcut.x) ~= nil, "skrót nie stoi na miejscu na portal")
 end)
@@ -714,15 +722,15 @@ test("każdy klucz HUD_/MSG_/ENGULF_/ZONE_ użyty w kodzie jest w CSV", function
 		"src/server/World/Cabin.luau",
 		"src/server/World/Grove.luau",
 		"src/server/World/Garden.luau",
-		"src/server/DryingService.luau",
+		"src/server/GardenService.luau",
 		"src/server/ChaseService.luau",
-		"src/client/RackPrompts.luau",
+		"src/client/GardenPrompts.luau",
 	}
 	for _, path in files do
 		local source = fs.readFile(path)
 		for key in string.gmatch(source, '"((%u+)_[%u_]+)"') do
 			local prefix = string.match(key, "^(%u+)_")
-			local checked = { HUD = true, MSG = true, ENGULF = true, ZONE = true, RACK = true, CAUGHT = true, GROVE = true, YARD = true }
+			local checked = { HUD = true, MSG = true, ENGULF = true, ZONE = true, RACK = true, CAUGHT = true, GROVE = true, GARDEN = true }
 			if checked[prefix] then
 				check(csvKeys[key], path .. ": brak " .. key)
 			end

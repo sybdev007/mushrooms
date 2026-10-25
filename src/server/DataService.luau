@@ -15,7 +15,9 @@ export type Data = {
 	upgrades: { [string]: number },
 	atlas: { [string]: boolean }, -- odkryte gatunki (pod przyszły Atlas grzybów)
 	basket: { Economy.BasketItem },
-	drying: { Economy.DryingItem }, -- grzyby na suszarni (schną także offline)
+	planted: { Economy.PlantItem }, -- grzyby na grządkach w ogródku
+	pot: number, -- monety z grządek czekające w skrzyni (z ułamkiem)
+	incomeAt: number, -- os.time() ostatniego naliczenia dochodu (do dochodu offline)
 	pity: number, -- odrosty od ostatniego Złota (albo lepszego), do gwarancji mutacji
 	caveUnlocked: boolean, -- portal do jaskini raz otwarty zostaje otwarty
 	swampUnlocked: boolean, -- to samo dla bagien
@@ -24,7 +26,7 @@ export type Data = {
 }
 
 local STORE_NAME = "LanternForager_Prototype_v1"
-local DATA_VERSION = 3
+local DATA_VERSION = 4
 local MAX_ATTEMPTS = 3
 
 local DataService = {}
@@ -56,7 +58,9 @@ function DataService.defaultData(): Data
 		upgrades = upgrades,
 		atlas = {},
 		basket = {},
-		drying = {},
+		planted = {},
+		pot = 0,
+		incomeAt = 0,
 		pity = 0,
 		caveUnlocked = false,
 		swampUnlocked = false,
@@ -115,24 +119,46 @@ local function reconcile(raw: any): Data
 	if typeof(raw.basket) == "table" then
 		for _, item in raw.basket do
 			if typeof(item) == "table" and typeof(item.s) == "string" and Economy.getSpecies(item.s) then
-				-- d: mnożnik suszenia ukradzionego grzyba, w granicach tego, co daje suszarnia
-				local dried = if typeof(item.d) == "number" then math.clamp(item.d, 1, 1 + Config.Drying.bonus) else nil
+				-- d: mnożnik suszenia z dawnej suszarni (najwyżej 2x)
+				local dried = if typeof(item.d) == "number" then math.clamp(item.d, 1, 2) else nil
 				local variant, tags = readMutations(item)
 				table.insert(data.basket, { s = item.s, v = variant, x = tags, d = dried })
 			end
 		end
 	end
-	if typeof(raw.drying) == "table" then
-		local now = os.time()
-		for _, item in raw.drying do
-			if #data.drying >= Config.Drying.slots then
+	local now = os.time()
+	if typeof(raw.planted) == "table" then
+		for _, item in raw.planted do
+			if #data.planted >= Config.Garden.maxBeds then
 				break
 			end
 			if typeof(item) == "table" and typeof(item.s) == "string" and Economy.getSpecies(item.s) and typeof(item.t) == "number" then
 				local variant, tags = readMutations(item)
-				table.insert(data.drying, { s = item.s, v = variant, x = tags, t = math.min(math.floor(item.t), now) })
+				local dried = if typeof(item.d) == "number" then math.clamp(item.d, 1, 2) else nil
+				table.insert(data.planted, { s = item.s, v = variant, x = tags, d = dried, t = math.min(math.floor(item.t), now) })
 			end
 		end
+	end
+	-- Zapisy sprzed wersji 4 miały suszarnię: grzyby z niej sadzimy na grządkach
+	-- (nadmiar ponad odblokowane grządki GardenService zamieni na monety w skrzyni).
+	-- Suszenie się liczy: mnożnik zostaje zapisany w grzybie.
+	if typeof(raw.drying) == "table" then
+		for _, item in raw.drying do
+			if #data.planted >= Config.Garden.maxBeds then
+				break
+			end
+			if typeof(item) == "table" and typeof(item.s) == "string" and Economy.getSpecies(item.s) and typeof(item.t) == "number" then
+				local variant, tags = readMutations(item)
+				local dried = 1 + math.clamp((now - item.t) / 600, 0, 1)
+				table.insert(data.planted, { s = item.s, v = variant, x = tags, d = dried, t = now })
+			end
+		end
+	end
+	if typeof(raw.pot) == "number" and raw.pot >= 0 then
+		data.pot = raw.pot
+	end
+	if typeof(raw.incomeAt) == "number" then
+		data.incomeAt = math.clamp(math.floor(raw.incomeAt), 0, now)
 	end
 	if typeof(raw.pity) == "number" then
 		data.pity = math.clamp(math.floor(raw.pity), 0, Config.PityRolls)

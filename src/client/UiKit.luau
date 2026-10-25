@@ -29,6 +29,8 @@ local FALLBACK: { [string]: string } = {
 	shop = "🛒", close = "✕", sell = "💰", oil = "🛢️", bottle = "🛢️",
 	boots = "🥾", lock = "🔒", crystal = "💎", pack = "🎒", rushwick = "🕯️",
 	creel = "🧺", rescue = "💾", boom = "🍄", dry = "⚡", luck = "🍀",
+	-- Tych nie ma jeszcze w arkuszu z Figmy: zawsze emoji
+	beds = "🌱", fertilizer = "🧪",
 }
 
 UiKit.COLORS = {
@@ -61,7 +63,7 @@ end
 -- Ikona: ImageLabel z arkusza albo emoji (TextLabel), gdy arkusza jeszcze nie ma
 function UiKit.icon(name: string, parent: Instance, size: UDim2, position: UDim2, anchor: Vector2?): GuiObject
 	local object: GuiObject
-	if UiKit.hasSheet() then
+	if UiKit.hasSheet() and INDEX[name] ~= nil then
 		local image = Instance.new("ImageLabel")
 		image.ScaleType = Enum.ScaleType.Fit
 		applyIcon(image, name)

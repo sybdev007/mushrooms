@@ -8,14 +8,16 @@ export type BasketItem = {
 	s: string, -- id gatunku
 	v: string?, -- wariant (silver / gold / rainbow); brak = zwykły
 	x: { string }?, -- cechy z miejsca (mossy, glowing)
-	d: number?, -- mnożnik suszenia (grzyb ukradziony z suszarni); brak = świeży
+	d: number?, -- mnożnik suszenia (zostało ze starej suszarni w zapisach); brak = zwykły
 }
 
-export type DryingItem = {
+-- Grzyb posadzony na grządce: to samo co w koszyku plus czas posadzenia
+export type PlantItem = {
 	s: string,
 	v: string?,
 	x: { string }?,
-	t: number, -- os.time(), kiedy grzyb zawisł na suszarni
+	d: number?,
+	t: number, -- os.time(), kiedy grzyb został posadzony
 }
 
 local Economy = {}
@@ -301,75 +303,104 @@ function Economy.basketValue(basket: { BasketItem }): number
 	return sum
 end
 
--- ===== Suszarnia =====
+-- ===== Ogródek =====
 
--- Mnożnik wartości po `elapsed` sekundach suszenia: od 1 do (1 + bonus), liniowo
-function Economy.dryMultiplier(elapsed: number): number
-	local progress = math.clamp(elapsed / Config.Drying.seconds, 0, 1)
-	return 1 + Config.Drying.bonus * progress
+-- Ile monet na minutę daje posadzony grzyb. fertilizer: mnożnik z ulepszenia Nawóz (1 = bez).
+function Economy.plantIncome(item: BasketItem, fertilizer: number?): number
+	return Economy.itemValue(item) * Config.Garden.incomeRate * (fertilizer or 1)
 end
 
-function Economy.dryProgress(elapsed: number): number
-	return math.clamp(elapsed / Config.Drying.seconds, 0, 1)
-end
-
-function Economy.dryingValue(item: DryingItem, now: number): number
-	return Economy.mushroomValue(item.s, item.v, item.x, Economy.dryMultiplier(now - item.t))
-end
-
--- Ile monet na minutę zyskuje grzyb, dopóki schnie (0, gdy już suchy)
-function Economy.dryRatePerMinute(item: DryingItem, now: number): number
-	if Economy.dryProgress(now - item.t) >= 1 then
-		return 0
-	end
-	local fresh = Economy.mushroomValue(item.s, item.v, item.x)
-	return fresh * Config.Drying.bonus / (Config.Drying.seconds / 60)
-end
-
-function Economy.rackValue(rack: { DryingItem }, now: number): number
+function Economy.gardenIncome(planted: { PlantItem }, fertilizer: number?): number
 	local sum = 0
-	for _, item in rack do
-		sum += Economy.dryingValue(item, now)
+	for _, item in planted do
+		sum += Economy.plantIncome(item, fertilizer)
 	end
 	return sum
 end
 
--- Indeks najcenniejszego grzyba na suszarni (to bierze złodziej). nil = pusta.
-function Economy.mostValuableIndex(rack: { DryingItem }, now: number): number?
-	local best: number? = nil
-	local bestValue = -1
-	for index, item in rack do
-		local value = Economy.dryingValue(item, now)
-		if value > bestValue then
-			best = index
-			bestValue = value
-		end
-	end
-	return best
+-- Dochód za czas offline, najwyżej za Config.Garden.offlineMinutes
+function Economy.offlineIncome(planted: { PlantItem }, fertilizer: number?, seconds: number): number
+	local minutes = math.clamp(seconds / 60, 0, Config.Garden.offlineMinutes)
+	return Economy.gardenIncome(planted, fertilizer) * minutes
 end
 
--- Które grzyby z koszyka zawiesić: najcenniejsze, najwyżej `free` sztuk. Zwraca indeksy koszyka.
-function Economy.pickForDrying(basket: { BasketItem }, free: number): { number }
-	local order = {}
-	for index, item in basket do
-		-- Ukradzione suszone grzyby już nie schną drugi raz
-		if not item.d then
-			table.insert(order, index)
+local function extremeIndex(list: { BasketItem }, best: boolean): number?
+	local found: number? = nil
+	local foundValue = 0
+	for index, item in list do
+		local value = Economy.itemValue(item)
+		if not found or (if best then value > foundValue else value < foundValue) then
+			found = index
+			foundValue = value
 		end
 	end
+	return found
+end
+
+-- Indeks najcenniejszego posadzonego grzyba (to wyrywa złodziej). nil = pusto.
+function Economy.mostValuableIndex(list: { BasketItem }): number?
+	return extremeIndex(list, true)
+end
+
+-- Indeks najsłabszego posadzonego grzyba (ustępuje miejsca lepszemu). nil = pusto.
+function Economy.weakestIndex(list: { BasketItem }): number?
+	return extremeIndex(list, false)
+end
+
+-- Plan sadzenia z koszyka. Najpierw wolne grządki dostają najcenniejsze grzyby z koszyka,
+-- potem lepszy grzyb z koszyka wypiera najsłabszy posadzony (ten jest sprzedawany).
+-- Zwraca listę ruchów { basket = indeks w koszyku, replace = indeks grządki albo nil }.
+-- Indeksy koszyka odnoszą się do koszyka sprzed zmian.
+export type PlantMove = { basket: number, replace: number? }
+function Economy.planPlanting(basket: { BasketItem }, planted: { PlantItem }, beds: number): { PlantMove }
+	local order = {}
+	for index in basket do
+		table.insert(order, index)
+	end
 	table.sort(order, function(a, b)
-		local va = Economy.itemValue(basket[a])
-		local vb = Economy.itemValue(basket[b])
+		local va, vb = Economy.itemValue(basket[a]), Economy.itemValue(basket[b])
 		if va ~= vb then
 			return va > vb
 		end
 		return a < b
 	end)
-	local result = {}
-	for i = 1, math.min(free, #order) do
-		table.insert(result, order[i])
+	local moves: { PlantMove } = {}
+	-- Kopia wartości grządek, żeby planować wymiany bez ruszania prawdziwych danych
+	local slots: { number } = {}
+	for _, item in planted do
+		table.insert(slots, Economy.itemValue(item))
 	end
-	return result
+	for _, index in order do
+		local value = Economy.itemValue(basket[index])
+		if #slots < beds then
+			table.insert(slots, value)
+			table.insert(moves, { basket = index })
+		else
+			local weakest: number? = nil
+			for slot, slotValue in slots do
+				if not weakest or slotValue < slots[weakest] then
+					weakest = slot
+				end
+			end
+			if weakest and value > slots[weakest] then
+				slots[weakest] = value
+				table.insert(moves, { basket = index, replace = weakest })
+			else
+				break -- dalsze grzyby w koszyku są jeszcze słabsze
+			end
+		end
+	end
+	return moves
+end
+
+-- Mnożnik prędkości złodzieja niosącego ten grzyb (cięższy łup = wolniej)
+function Economy.carrySpeed(item: BasketItem): number
+	local carry = Config.Garden.carry
+	local species = speciesById[item.s]
+	if species and (species.grove or species.lair or species.guardian) then
+		return carry.guardianSpeed
+	end
+	return carry.speedByRank[Economy.variantRank(item.v)] or carry.speedByRank[0]
 end
 
 -- ===== Leszy =====

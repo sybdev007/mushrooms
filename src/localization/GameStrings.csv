@@ -50,21 +50,13 @@ MSG_ESCAPED,You escaped the Leshy! Basket: {1} coins,,,Uciekłeś Leszemu! W kos
 MSG_LESZY_GAVE_UP,The Leshy gave up... for now.,,,Leszy odpuścił... na razie.
 MSG_CAUGHT,Mushrooms taken by the Leshy: {1},,,Leszy zabrał grzyby: {1}
 CAUGHT_TITLE,The Leshy caught you!,,,Leszy cię dopadł!
-UPG_LOCK,Rack Lock,,,Kłódka suszarni
-UPG_LOCK_DESC,Thieves need longer,,,Złodziej kradnie dłużej
-RACK_HANG,Hang mushrooms,,,Rozwieś grzyby
-RACK_COLLECT,Sell dried,,,Sprzedaj suszone
-RACK_STEAL,Steal,,,Podkradnij
-RACK_YOURS,Your drying rack,,,Twoja suszarnia
-RACK_OF,{1}'s rack,,,Suszarnia: {1}
-MSG_HUNG,Hung to dry: {1}. They gain value over time!,,,Suszy się: {1}. Z czasem będą droższe!
-MSG_RACK_FULL,Your drying rack is full.,,,Suszarnia jest pełna.
-MSG_NOTHING_TO_HANG,No fresh mushrooms in your basket.,,,Nie masz świeżych grzybów w koszyku.
-MSG_STOLE,You stole a dried {1}!,,,Łup z suszarni: {1}!
-MSG_ROBBED,{2} stole your dried {1}!,,,{2} podkradł ci: {1}!
-MSG_RACK_ALERT,{1} is robbing your drying rack!,,,{1} kradnie z twojej suszarni!
-MSG_RACK_PROTECTED,This rack was just robbed. Try later.,,,Tę suszarnię ktoś przed chwilą okradł. Spróbuj później.
-MSG_OWNER_GUARDING,The owner is guarding this rack!,,,Właściciel pilnuje suszarni!
+UPG_LOCK,Garden Lock,,,Kłódka ogródka
+UPG_LOCK_DESC,Thieves need longer,,,Złodziej wyrywa dłużej
+MSG_STOLE,Got it: {1} {2}! Bring it to your garden!,,,Masz: {1} {2}! Donieś do swojego ogródka!
+MSG_ROBBED,{2} stole your {1} {3}!,,,{2} ukradł ci: {1} {3}!
+MSG_RACK_ALERT,{1} is robbing your garden!,,,{1} okrada twój ogródek!
+MSG_RACK_PROTECTED,This garden was just robbed. Try later.,,,Ten ogródek ktoś przed chwilą okradł. Spróbuj później.
+MSG_OWNER_GUARDING,The owner is guarding this garden!,,,Właściciel pilnuje ogródka!
 MSG_NO_RACK,No free garden on this server.,,,Na tym serwerze nie ma wolnego ogródka.
 MUT_SILVER,Silver,,,Srebro
 MUT_GOLD,Gold,,,Złoto
@@ -168,12 +160,34 @@ PRODUCT_BOOM,Mushroom Boom for everyone,,,Wysyp dla wszystkich
 PRODUCT_BOOM_DESC,10 min: faster regrowth and more mutations for the whole server,,,10 min: szybszy odrost i więcej mutacji dla całego serwera
 PRODUCT_OIL,Oil Bottle,,,Butelka oleju
 PRODUCT_OIL_DESC,Refill your lantern anywhere right now,,,Napełnij latarnię od razu w dowolnym miejscu
-PRODUCT_DRY,Instant Drying,,,Natychmiastowe suszenie
-PRODUCT_DRY_DESC,Everything on your rack dries right away (2x value),,,Wszystko na suszarni od razu schnie (2x wartości)
 PRODUCT_LUCK,Luck Potion,,,Mikstura szczęścia
 PRODUCT_LUCK_DESC,15 min: twice as many mutations for you,,,15 min: dwa razy więcej mutacji dla ciebie
 MSG_RESCUED,Basket saved! {1} coins of mushrooms are back,,,Koszyk uratowany! Grzyby za {1} monet wróciły
 MSG_BOOM,{1} started a Mushroom Boom! {2} min of faster regrowth and more mutations,,,{1} zafundował Wysyp! {2} min szybszego odrostu i więcej mutacji
 MSG_LUCK,Luck Potion active for {1} min,,,Mikstura szczęścia działa przez {1} min
 MSG_OIL_BOUGHT,Lantern refilled!,,,Latarnia napełniona!
-MSG_DRIED,Everything on your rack is fully dried!,,,Wszystko na suszarni jest już suche!
+GARDEN_PLANT,Plant mushrooms,,,Posadź grzyby
+GARDEN_COLLECT,Collect coins,,,Odbierz monety
+GARDEN_STEAL,Pull a mushroom,,,Wyrwij grzyb
+GARDEN_YOURS,Your garden,,,Twój ogródek
+GARDEN_OF,{1}'s garden,,,Ogródek: {1}
+UPG_BEDS,Garden Beds,,,Grządki
+UPG_BEDS_DESC,Plant more mushrooms,,,Więcej posadzonych grzybów
+UPG_FERTILIZER,Fertilizer,,,Nawóz
+UPG_FERTILIZER_DESC,More coins from your garden,,,Więcej monet z grządek
+MSG_PLANTED,Planted: {1}. They make coins every minute!,,,Posadzone: {1}. Co minutę sypią monety!
+MSG_PLANTED_SWAP,Planted: {1}. Weaker ones sold for {2} coins.,,,Posadzone: {1}. Słabsze sprzedane za {2} monet.
+MSG_GARDEN_FULL,Your beds are full of better mushrooms. Buy more beds!,,,Grządki są pełne lepszych grzybów. Kup więcej grządek!
+MSG_NOTHING_TO_PLANT,Your basket is empty. Pick mushrooms in the forest!,,,Koszyk jest pusty. Nazbieraj grzybów w lesie!
+MSG_COLLECTED,Coins from your garden: +{1},,,Monety z ogródka: +{1}
+MSG_POT_EMPTY,Nothing in the chest yet.,,,W skrzyni jeszcze nic nie ma.
+MSG_OFFLINE_INCOME,Your garden earned {1} coins while you were away!,,,Pod twoją nieobecność ogródek zarobił {1} monet!
+MSG_THIEF_RUNNING,{2} is running off with your {1} {3}! Catch them!,,,{2} ucieka z twoim grzybem: {1} {3}! Dogoń go!
+MSG_LOOT_PLANTED,{1} {2} is now growing in your garden!,,,{1} {2} rośnie teraz w twoim ogródku!
+MSG_LOOT_DELIVERED,{1} {2} is yours! (no free bed: it went to your basket),,,{1} {2} jest twój! (brak wolnej grządki: trafił do koszyka)
+MSG_LOOT_TAGGED,{2} caught you! {1} goes back.,,,{2} cię dogonił! {1} wraca do właściciela.
+MSG_LOOT_DROPPED,You dropped {1}. It went back to its owner.,,,Upuściłeś: {1}. Wraca do właściciela.
+MSG_LOOT_RECOVERED,{1} {2} is back in your garden!,,,{1} {2} wrócił do twojego ogródka!
+MSG_HARVEST,Instant harvest: +{1} coins in your chest!,,,Zbiory od razu: +{1} monet w skrzyni!
+PRODUCT_HARVEST,Instant Harvest,,,Zbiory od razu
+PRODUCT_HARVEST_DESC,30 minutes of garden coins right now,,,Od razu 30 minut monet z ogródka

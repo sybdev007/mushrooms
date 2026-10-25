@@ -28,7 +28,7 @@ local MUTED = Color3.fromRGB(214, 188, 150)
 local BUY = Color3.fromRGB(70, 160, 70)
 local ROBUX_GREEN = Color3.fromRGB(0, 176, 111)
 -- Ikona z arkusza UiKit dla każdego produktu
-local PRODUCT_ICONS = { rescue = "rescue", boom = "boom", oil = "bottle", dry = "dry", luck = "luck" }
+local PRODUCT_ICONS = { rescue = "rescue", boom = "boom", oil = "bottle", harvest = "dry", luck = "luck" }
 
 local gui = Instance.new("ScreenGui")
 gui.Name = "Shop"
@@ -254,9 +254,9 @@ local function formatCoins(value: number): string
 	return (formatted:gsub("^ ", ""))
 end
 
--- Czy gracz ma coś na własnej suszarni (wtedy karta „suszenie” jest aktywna)
-local function hasDrying(): boolean
-	for _, rack in CollectionService:GetTagged("DryingRack") do
+-- Czy coś rośnie we własnym ogródku (wtedy karta „zbiory od razu” jest aktywna)
+local function hasPlanted(): boolean
+	for _, rack in CollectionService:GetTagged("GardenPlot") do
 		if rack:GetAttribute("OwnerUserId") == player.UserId then
 			local count = rack:GetAttribute("Count")
 			return typeof(count) == "number" and count > 0
@@ -281,7 +281,7 @@ local function refreshTexts()
 		local def = Config.Products[card.key]
 		card.title.Text = Localize.t(def.key)
 		card.desc.Text = Localize.t(def.key .. "_DESC")
-		local enabled = card.key ~= "dry" or hasDrying()
+		local enabled = card.key ~= "harvest" or hasPlanted()
 		card.buy.Text = Purchases.priceText(card.key)
 		card.buy.Active = enabled
 		UiKit.recolor(card.buy, if enabled then BUY else UiKit.COLORS.locked)

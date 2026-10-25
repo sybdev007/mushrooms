@@ -1,8 +1,8 @@
 --!strict
--- Przyciski przy suszarniach (ProximityPrompt). Serwer tworzy je wszystkie wyłączone,
+-- Przyciski w ogródkach (ProximityPrompt). Serwer tworzy je wszystkie wyłączone,
 -- a tu włączamy lokalnie tylko te, które mają sens dla tego gracza:
---   własna suszarnia  -> „Rozwieś grzyby” i „Sprzedaj suszone”
---   cudza suszarnia   -> „Podkradnij” (tylko gdy coś na niej wisi)
+--   własny ogródek  -> „Posadź grzyby” i „Odbierz monety” przy skrzyni
+--   cudzy ogródek   -> „Wyrwij grzyb” (tylko gdy coś tam rośnie)
 -- Teksty przycisków są w języku gracza i zmieniają się razem z przełącznikiem EN/PL.
 
 local CollectionService = game:GetService("CollectionService")
@@ -10,7 +10,7 @@ local Players = game:GetService("Players")
 
 local Localize = require(script.Parent.Localize)
 
-local RackPrompts = {}
+local GardenPrompts = {}
 
 local player = Players.LocalPlayer
 local tracked: { [Model]: boolean } = {}
@@ -39,10 +39,10 @@ local function refresh(rack: Model)
 		end
 		if prompt:GetAttribute("Owner") == true then
 			prompt.Enabled = mine
-			prompt.ObjectText = Localize.t("RACK_YOURS")
+			prompt.ObjectText = Localize.t("GARDEN_YOURS")
 		elseif prompt:GetAttribute("Thief") == true then
 			prompt.Enabled = hasOwner and not mine and hasItems
-			prompt.ObjectText = Localize.t("RACK_OF", { if typeof(ownerName) == "string" then ownerName else "?" })
+			prompt.ObjectText = Localize.t("GARDEN_OF", { if typeof(ownerName) == "string" then ownerName else "?" })
 		end
 	end
 end
@@ -69,12 +69,12 @@ local function track(rack: Instance)
 	refresh(rack)
 end
 
-function RackPrompts.start()
-	-- Serwer oznacza każdą suszarnię tagiem "DryingRack" (w ogródkach albo na własnej mapie)
-	for _, rack in CollectionService:GetTagged("DryingRack") do
+function GardenPrompts.start()
+	-- Serwer oznacza każdy ogródek tagiem "GardenPlot"
+	for _, rack in CollectionService:GetTagged("GardenPlot") do
 		track(rack)
 	end
-	CollectionService:GetInstanceAddedSignal("DryingRack"):Connect(track)
+	CollectionService:GetInstanceAddedSignal("GardenPlot"):Connect(track)
 	Localize.onChanged(function()
 		for rack in tracked do
 			refresh(rack)
@@ -82,4 +82,4 @@ function RackPrompts.start()
 	end)
 end
 
-return RackPrompts
+return GardenPrompts

@@ -379,8 +379,12 @@ Config.Upgrades = {
 	oil = { key = "UPG_OIL", base = 30, step = 12, maxLevel = 10, costBase = 20, costGrowth = 1.55 },
 	basket = { key = "UPG_BASKET", base = 5, step = 3, maxLevel = 10, costBase = 15, costGrowth = 1.5 },
 	boots = { key = "UPG_BOOTS", base = 16, step = 1.5, maxLevel = 8, costBase = 30, costGrowth = 1.65 },
-	-- Kłódka na suszarni: ile sekund złodziej musi trzymać przycisk kradzieży
+	-- Kłódka ogródka: ile sekund złodziej musi trzymać przycisk, żeby wyrwać grzyb
 	lock = { key = "UPG_LOCK", base = 2, step = 1, maxLevel = 6, costBase = 60, costGrowth = 1.7 },
+	-- Grządki: ile grzybów można mieć posadzonych naraz (siatka 3 x 3 w ogródku)
+	beds = { key = "UPG_BEDS", base = 3, step = 1, maxLevel = 6, costBase = 150, costGrowth = 2 },
+	-- Nawóz: mnożnik dochodu z posadzonych grzybów
+	fertilizer = { key = "UPG_FERTILIZER", base = 1, step = 0.25, maxLevel = 8, costBase = 250, costGrowth = 1.85 },
 	-- Obozowisko w jaskini. Kryształowy wkład: mnożnik spalania oleju w jaskini (1 = bez zmian)
 	crystal = { key = "UPG_CRYSTAL", base = 1, step = -0.1, maxLevel = 5, costBase = 3000, costGrowth = 1.8, shop = "cave" },
 	-- Plecak górnika: tyle dodatkowych miejsc w koszyku
@@ -392,7 +396,7 @@ Config.Upgrades = {
 } :: { [string]: UpgradeDef }
 
 -- Kolejność przycisków ulepszeń: w chatce i w obozowisku w jaskini
-Config.UpgradeOrder = { "lantern", "oil", "basket", "boots", "lock" }
+Config.UpgradeOrder = { "lantern", "oil", "basket", "boots", "beds", "fertilizer", "lock" }
 Config.CaveUpgradeOrder = { "crystal", "pack" }
 Config.SwampUpgradeOrder = { "rushwick", "creel" }
 
@@ -470,11 +474,11 @@ Config.Products = {
 	rescue = { id = 0, key = "PRODUCT_RESCUE", icon = "💾" }, -- uratuj koszyk po zgaśnięciu latarni / złapaniu
 	boom = { id = 0, key = "PRODUCT_BOOM", icon = "🍄" }, -- Wysyp dla całego serwera
 	oil = { id = 0, key = "PRODUCT_OIL", icon = "🛢️" }, -- pełna latarnia od razu, w dowolnym miejscu
-	dry = { id = 0, key = "PRODUCT_DRY", icon = "⚡" }, -- wszystko na suszarni od razu suche
+	harvest = { id = 0, key = "PRODUCT_HARVEST", icon = "⚡" }, -- od razu dochód ogródka z Config.Garden.harvestMinutes
 	luck = { id = 0, key = "PRODUCT_LUCK", icon = "🍀" }, -- mikstura szczęścia: więcej mutacji
 } :: { [string]: ProductDef }
 -- Kolejność kart w sklepie (ratunek ma własny przycisk na czarnym ekranie)
-Config.ShopOrder = { "boom", "luck", "oil", "dry" }
+Config.ShopOrder = { "boom", "luck", "oil", "harvest" }
 
 -- Arkusz ikon interfejsu z Figmy (assets/ui-icons.png: 5 kolumn x 4 wiersze, pola po 204 px).
 -- Po wgraniu obrazka do Robloxa wpisz tu "rbxassetid://NUMER"; pusty = ikony z emoji.
@@ -538,29 +542,34 @@ Config.Leszy = {
 	giveUpSeconds = 45, -- dłużej nie goni (np. gracz utknął za kamieniem)
 }
 
--- ===== Suszarnie przed chatką =====
--- Każdy gracz dostaje suszarnię. Grzyby schną i zyskują na wartości,
--- ale inni gracze mogą je podkraść, gdy właściciel nie pilnuje.
-Config.Drying = {
-	slots = 6,
-	seconds = 600, -- po tylu sekundach grzyb jest w pełni suchy (schnie też, gdy gracz jest offline)
-	bonus = 1, -- w pełni suchy grzyb jest wart (1 + bonus) razy więcej
-	stealCooldown = 25, -- po kradzieży suszarnia jest chroniona przez tyle sekund
+-- ===== Ogródki graczy (jak w Steal an Egg) =====
+-- Przynosisz grzyb z lasu i sadzisz go na grządce: od tej chwili co minutę sypie monety do skrzyni
+-- (także gdy jesteś offline, do limitu). Inni gracze mogą wyrwać ci posadzony grzyb, ale muszą go
+-- donieść do swojego ogródka, niosąc go nad głową wolniej niż zwykle. Dogonisz złodzieja = grzyb wraca.
+Config.Garden = {
+	size = 26, -- bok ogródka (studs)
+	maxBeds = 9, -- tyle grządek stoi w ogródku; odblokowane są pierwsze upgradeStat("beds")
+	incomeRate = 0.04, -- posadzony grzyb daje co minutę taką część swojej wartości (oddaje się w 25 min)
+	offlineMinutes = 120, -- dochód offline najwyżej za tyle minut
+	harvestMinutes = 30, -- produkt za Robuxy: tyle minut dochodu od razu
+	stealCooldown = 25, -- po kradzieży ogródek jest chroniony przez tyle sekund
 	thiefCooldown = 8, -- ten sam złodziej może kraść co tyle sekund
+	guardRadius = 10, -- właściciel bliżej przycisków = nie da się kraść
 	promptDistance = 10,
-	-- Każdy gracz ma własny ogródek z suszarnią: po cztery z każdej strony chatki,
-	-- furtką do ścieżki prowadzącej do lasu. Ile ogródków, tylu graczy ma suszarnię,
-	-- więc ustaw rozmiar serwera na tyle samo (8).
-	gardenSize = 18,
+	carry = {
+		-- Prędkość złodzieja z łupem względem zwykłej, według rangi wariantu (0 = bez wariantu)
+		speedByRank = { [0] = 0.85, [1] = 0.8, [2] = 0.7, [3] = 0.6 },
+		guardianSpeed = 0.6, -- korony, trufle i kielichy strażników są najcięższe
+		tagRadius = 6, -- właściciel bliżej złodzieja = odbiera łup
+		timeout = 60, -- po tylu sekundach łup wraca do właściciela
+	},
+	-- Ogródki na mapie: po dwa z każdej strony chatki, furtką do środka polany.
+	-- Ile ogródków, tylu graczy ma grządki, więc ustaw rozmiar serwera na tyle samo (4).
 	plots = {
-		{ x = -38, z = -35 },
-		{ x = 38, z = -35 },
-		{ x = -38, z = -15 },
-		{ x = 38, z = -15 },
-		{ x = -38, z = 5 },
-		{ x = 38, z = 5 },
-		{ x = -38, z = 25 },
-		{ x = 38, z = 25 },
+		{ x = -40, z = -30 },
+		{ x = 40, z = -30 },
+		{ x = -40, z = 10 },
+		{ x = 40, z = 10 },
 	},
 }
 

@@ -21,7 +21,7 @@ local World = script.Parent:WaitForChild("World")
 local LeszyModel = require(World:WaitForChild("Leszy"))
 local SkarbnikModel = require(World:WaitForChild("Skarbnik"))
 local UtopiecModel = require(World:WaitForChild("Utopiec"))
-local DryingService = require(script.Parent.DryingService)
+local GardenService = require(script.Parent.GardenService)
 
 type SpotState = {
 	speciesId: string,
@@ -375,7 +375,8 @@ local function applyCharacterStats(session: Session)
 	end
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
 	if humanoid then
-		humanoid.WalkSpeed = stat(session, "boots")
+		-- Złodziej niosący grzyb idzie wolniej (GardenService.speedFactor)
+		humanoid.WalkSpeed = stat(session, "boots") * GardenService.speedFactor(session.player)
 	end
 	local root = getRoot(session.player)
 	if root then
@@ -634,7 +635,7 @@ local function onPlayerAdded(player: Player)
 	end
 
 	sessions[player] = session
-	DryingService.assign(player)
+	GardenService.assign(player)
 
 	-- Bez limitu dało się oddalić kamerę i oglądać las z góry. Zoom = kamera przysuwa się,
 	-- gdy coś (korony drzew) zasłania postać, zamiast robić je przezroczystymi.
@@ -674,7 +675,7 @@ local function onPlayerRemoving(player: Player)
 		session.rescue = nil
 		rescue.drop()
 	end
-	DryingService.release(player)
+	GardenService.release(player)
 	saveSession(session)
 end
 
@@ -892,7 +893,7 @@ local function onDevAction(player: Player, action: unknown)
 		end
 		session.oil = stat(session, "oil")
 		applyCharacterStats(session)
-		DryingService.refresh(player)
+		GardenService.refresh(player)
 	elseif action == "basketClear" then
 		table.clear(data.basket)
 	else
@@ -937,17 +938,10 @@ local function grantProduct(session: Session, key: string): boolean
 		session.oilWarned = false
 		session.oilHalfWarned = false
 		notify(session, "MSG_OIL_BOUGHT")
-	elseif key == "dry" then
-		if #data.drying == 0 then
+	elseif key == "harvest" then
+		if not GardenService.harvestNow(player) then
 			return false
 		end
-		-- Czas rozwieszenia cofamy tak, jakby grzyby wisiały już pełne 10 minut
-		local driedAt = os.time() - Config.Drying.seconds
-		for _, item in data.drying do
-			item.t = math.min(item.t, driedAt)
-		end
-		DryingService.refresh(player)
-		notify(session, "MSG_DRIED")
 	elseif key == "luck" then
 		data.luckUntil = math.max(os.time(), data.luckUntil) + Config.LuckPotion.seconds
 		notify(session, "MSG_LUCK", { math.floor(Config.LuckPotion.seconds / 60) })
@@ -1031,7 +1025,7 @@ local function onBuy(player: Player, upgradeId: unknown)
 	if upgradeId == "oil" then
 		session.oil = stat(session, "oil")
 	elseif upgradeId == "lock" then
-		DryingService.refresh(player)
+		GardenService.refresh(player)
 	end
 	applyCharacterStats(session)
 	notify(session, "MSG_UPGRADED", nil, def.key)
@@ -1099,7 +1093,7 @@ function GameService.start(mapInfo: MapBuilder.MapInfo)
 		})
 	end
 
-	DryingService.start(map.racks, {
+	GardenService.start(map.gardens, {
 		getData = function(player: Player)
 			local session = sessions[player]
 			return if session then session.data else nil
@@ -1108,16 +1102,22 @@ function GameService.start(mapInfo: MapBuilder.MapInfo)
 			local session = sessions[player]
 			return if session then basketMax(session) else 0
 		end,
-		notify = function(player: Player, key: string, args: { any }?, nameKey: string?)
+		notify = function(player: Player, key: string, args: { any }?, nameKey: string?, mutation: MutationInfo?)
 			local session = sessions[player]
 			if session then
-				notify(session, key, args, nameKey)
+				notify(session, key, args, nameKey, mutation)
 			end
 		end,
 		pushState = function(player: Player)
 			local session = sessions[player]
 			if session then
 				pushState(session)
+			end
+		end,
+		applyStats = function(player: Player)
+			local session = sessions[player]
+			if session then
+				applyCharacterStats(session)
 			end
 		end,
 	})

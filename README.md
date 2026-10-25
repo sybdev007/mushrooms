@@ -1,13 +1,13 @@
 # Lantern Forager (nazwa robocza)
 
 Grzybobranie z latarnią w ciemnym lesie. Pętla:
-**wchodzisz do lasu → zbierasz grzyby → wracasz, zanim zgaśnie latarnia → sprzedajesz albo suszysz → ulepszasz → idziesz głębiej.**
+**wchodzisz do lasu → zbierasz grzyby → wracasz, zanim zgaśnie latarnia → sprzedajesz albo sadzisz w ogródku → ulepszasz → idziesz głębiej.**
 
 Haki ponad podstawową pętlą:
 - **Gniazdo Leszego** na końcu Mrocznego Jaru: zerwiesz Koronę Leszego, a on cię goni aż do chatki.
 - **Jaskinia** za portalem w Gnieździe Leszego: drugi świat od 50 000 monet, z własnym obozowiskiem, grzybami i ulepszeniami.
 - **Bagna** za portalem w Sztolni Skarbnika: trzeci świat od 1 000 000 monet, z Utopcem i błędnymi ognikami.
-- **Ogródki z suszarniami**: każdy gracz ma własny ogródek przy chatce. Grzyby schną i drożeją, ale inni gracze mogą je podkraść, gdy nie pilnujesz.
+- **Ogródki jak w Steal an Egg**: posadzony grzyb co minutę sypie monety, ale inni gracze mogą go wyrwać i nieść do siebie. Dogonisz złodzieja = grzyb wraca.
 
 Świat jest kreskówkowym low-poly budowanym kodem (bez importowanych modeli): chatka z bali, jesienny las,
 ścieżka z latarniami, bramy stref, świecące grzyby, świetliki i mgła. Działa od razu po `rojo serve`.
@@ -53,12 +53,12 @@ rojo build -o lantern-forager.rbxlx
 | `src/server/World/Swamp.luau` | ServerScriptService.Server | Bagna: przystań, kładka, rozlewiska, wierzby, ogniki, staw Utopca |
 | `src/server/World/Utopiec.luau` | ServerScriptService.Server | Model Utopca (siatka 3D, zapasowo z klocków) |
 | `src/server/HoardService.luau` | ServerScriptService.Server | Skarbiec Leszego: korony odebrane złapanym, do zgarnięcia przez każdego |
-| `src/server/DryingService.luau` | ServerScriptService.Server | Suszarnie: wieszanie, sprzedaż suszonych, kradzież |
+| `src/server/GardenService.luau` | ServerScriptService.Server | Ogródki: sadzenie, dochód co minutę i offline, skrzynia, kradzież z noszeniem łupu |
 | `src/server/World/Grove.luau` | ServerScriptService.Server | Gniazdo Leszego: krąg kamieni, tabliczka, uśpiony posąg |
 | `src/server/World/Leszy.luau` | ServerScriptService.Server | Model Leszego z klocków |
-| `src/server/World/Rack.luau` | ServerScriptService.Server | Model suszarni: 6 stanowisk na dwupoziomowym podeście |
+| `src/server/World/Beds.luau` | ServerScriptService.Server | Siatka grządek 3 x 3 w ogródku |
 | `src/server/World/Cave.luau` | ServerScriptService.Server | Jaskinia: obozowisko, skalne ściany, strop, kryształy, jezioro, lawa, portale |
-| `src/server/World/Garden.luau` | ServerScriptService.Server | Ogródek gracza: płot, furtka z imieniem, grządki, suszarnia |
+| `src/server/World/Garden.luau` | ServerScriptService.Server | Ogródek gracza: płot, furtka z imieniem, grządki, skrzynia na monety, rabatki |
 | `src/client/Hud.luau` | StarterPlayerScripts.Client | Interfejs pod telefon, deszcz monet po sprzedaży |
 | `src/client/UiScale.luau` | StarterPlayerScripts.Client | Skala interfejsu zależna od ekranu |
 | `src/client/MushroomView.luau` | StarterPlayerScripts.Client | Rysowanie grzybów (każdy gracz ma własne) |
@@ -68,7 +68,7 @@ rojo build -o lantern-forager.rbxlx
 | `src/client/Signs.luau` | StarterPlayerScripts.Client | Napisy na tabliczkach w języku gracza |
 | `src/client/ShopPanel.luau` | StarterPlayerScripts.Client | Sklep za Robuxy, ratunek koszyka, szybki olej, liczniki Wysypu i mikstury |
 | `src/client/Purchases.luau` | StarterPlayerScripts.Client | Okno płatności Robloxa i ceny produktów |
-| `src/client/RackPrompts.luau` | StarterPlayerScripts.Client | Pokazuje graczowi właściwe przyciski przy suszarniach |
+| `src/client/GardenPrompts.luau` | StarterPlayerScripts.Client | Pokazuje graczowi właściwe przyciski w ogródkach |
 | `src/client/Localize.luau` | StarterPlayerScripts.Client | Tłumaczenia EN/PL |
 | `src/localization/GameStrings.csv` | LocalizationService | Wszystkie teksty po angielsku i polsku |
 | `tests/economy.spec.luau` | — | Testy logiki i balansu (Lune) |
@@ -90,12 +90,18 @@ rojo build -o lantern-forager.rbxlx
   Złapie = tracisz koszyk, a Leszy odnosi zabrane korony do **skarbca** na środku gniazda (`HoardService`). Skarbiec jest wspólny:
   każdy na serwerze dostaje ogłoszenie i może pobiec po korony, ale zabranie korony znów budzi Leszego. Dobiegniesz do polany = ucieczka. Bez ulepszeń butów nie da się uciec, od poziomu 3 już tak
   (pilnują tego testy, `Economy.escapesLeszy`). Wszyscy na serwerze widzą, kogo goni.
-- **Ogródki z suszarniami** (`Config.Drying`): 8 ogródków po bokach chatki, po 4 z każdej strony, furtką do środka polany.
-  Każdy gracz dostaje własny, z imieniem na furtce. W środku suszarnia z 6 osobnymi stanowiskami; nad każdym grzybem
-  tabliczka z wartością i zarobkiem `+X/min`. Właściciel: „Rozwieś grzyby” (najcenniejsze świeże z koszyka)
-  i „Sprzedaj suszone”. Grzyb schnie 10 min (także offline) i wtedy jest wart 2×. Inni gracze: „Podkradnij” zabiera
-  najcenniejszy grzyb do ich koszyka. Trzeba trzymać przycisk (2 s + poziom kłódki), nie da się, gdy właściciel stoi
-  przy suszarni, a po kradzieży suszarnia ma 25 s ochrony. Właściciel dostaje alarm, gdy ktoś zaczyna kraść.
+- **Ogródki** (`Config.Garden`, `GardenService`): 4 ogródki, po dwa z każdej strony chatki, furtką do środka polany.
+  Każdy gracz dostaje własny, z imieniem na furtce. W środku siatka 9 grządek, z czego na start odblokowane są 3
+  (ulepszenie **Grządki**, do 9). „Posadź grzyby” sadzi najcenniejsze z koszyka; gdy grządki są pełne, lepszy grzyb
+  wypiera najsłabszy (ten jest sprzedawany). Posadzony grzyb daje co minutę 4% swojej wartości (zwrot po 25 min),
+  ulepszenie **Nawóz** mnoży dochód do 3×. Monety zbierają się w skrzyni przy furtce, także offline (do 2 godzin).
+  Nad każdą grządką tabliczka z mutacjami, wartością i `+X/min`.
+- **Kradzież jak w Steal an Egg**: inny gracz trzyma „Wyrwij grzyb” (2 s + poziom kłódki) i zabiera najcenniejszy.
+  Niesie go nad głową, podświetlony na czerwono dla wszystkich, wolniej niż zwykle (zwykły łup 85% prędkości,
+  tęcza 60%, korony strażników 60%). Doniesie do swojego ogródka = łup rośnie u niego. Właściciel go dotknie
+  (6 studs) = grzyb wraca. Wyjście z polany, minuta bez doniesienia albo reset postaci = grzyb wraca.
+  Nie da się kraść, gdy właściciel stoi przy swoich grządkach, a po kradzieży ogródek ma 25 s ochrony.
+  Właściciel dostaje alarm, gdy ktoś zaczyna wyrywać, i drugi, gdy złodziej ucieka.
 - **Jaskinia** (`Config.Cave`, strefy z `world = "cave"`): portal za Gniazdem Leszego wpuszcza graczy, którzy mają
   co najmniej 50 000 monet (monety zostają, a jaskinia zostaje otwarta na zawsze, `data.caveUnlocked`).
   Obozowisko górników jest bezpieczne: beczki z olejem, kramik ze skupem i dwoma ulepszeniami jaskini
@@ -146,7 +152,7 @@ Lint: `selene src`
 Pięć produktów (`Config.Products`): **Zachowaj grzyby** (przycisk na czarnym ekranie po zgaśnięciu latarni
 lub złapaniu przez strażnika, przez 15 s), **Wysyp dla wszystkich** (10 min szybszego odrostu i więcej mutacji
 na całym serwerze, z ogłoszeniem, kto zafundował), **Butelka oleju** (też szybki przycisk przy pasku oleju,
-gdy w lesie spada poniżej 40%), **Natychmiastowe suszenie** i **Mikstura szczęścia** (15 min, 2× mutacje).
+gdy w lesie spada poniżej 40%), **Zbiory od razu** (30 minut dochodu z ogródka do skrzyni) i **Mikstura szczęścia** (15 min, 2× mutacje).
 Sklep otwiera przycisk 🛒 pod przełącznikiem języka.
 
 Jak podpiąć: Creator Hub → gra → Monetization → **Developer Products** → utwórz 5 produktów (nazwa, ikonka, cena),
@@ -156,7 +162,7 @@ numery zakupów, więc ten sam zakup nigdy nie da rzeczy dwa razy.
 
 ## Rozmiar serwera
 
-Ogródków jest 8, więc ustaw serwer na **8 graczy**: w Studio File → Game Settings → Places → (…) przy miejscu →
+Ogródki są 4, więc ustaw serwer na **4 graczy**: w Studio File → Game Settings → Places → (…) przy miejscu →
 Server Size / Max Players, albo w Creator Hub w ustawieniach miejsca. Gracz ponad limit suszarni dostaje komunikat,
 że nie ma wolnego ogródka. Małe serwery to też większa szansa, że okradnie cię ktoś, kogo potem rozpoznasz.
 
@@ -175,7 +181,7 @@ Granice stref nadal wynikają z osi Z w `Config.Zones`.
 
 1. **Zagrać 15 minut na telefonie** i sprawdzić, czy chce się zrobić „jeszcze jedno wejście”.
    Mapa ma ok. 7 tys. części; jeśli słabszy telefon klatkuje, pierwsze do odchudzenia są rzędy sosen na brzegach.
-2. ~~Suszarnia~~ zrobione (przed chatką, z kradzieżą). Dalej: więcej miejsc na suszarni jako ulepszenie.
+2. ~~Suszarnia~~ zastąpiona ogródkami z grządkami (sadzenie, dochód, kradzież z noszeniem).
 3. Wysyp i pogoda wspólna dla wszystkich serwerów, z prognozą na tablicy w chatce.
 4. Atlas grzybów (`data.atlas` już zapisuje odkryte gatunki).
 5. ~~Leszy~~ zrobione (pościg z gniazda). Dalej: grzyby-mimiki.

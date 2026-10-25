@@ -54,7 +54,7 @@ export type MapInfo = {
 	spotById: { [string]: Spot },
 	groveCenter: Vector3?, -- skąd rusza Leszy; nil = mapa bez gniazda
 	leszyStatue: Model?,
-	racks: { RackInfo },
+	gardens: { RackInfo },
 	campCFrame: CFrame?, -- obozowisko w jaskini; nil = mapa bez jaskini
 	lairCenter: Vector3?, -- skąd rusza Skarbnik
 	skarbnikStatue: Model?,
@@ -487,8 +487,8 @@ local function gardenCFrame(plot: { x: number, z: number }): CFrame
 end
 
 local function reserveGardens()
-	local half = Config.Drying.gardenSize / 2
-	for _, plot in Config.Drying.plots do
+	local half = Config.Garden.size / 2
+	for _, plot in Config.Garden.plots do
 		-- Ogródek z zapasem i miejsce przed furtką (od strony środka polany)
 		local toward = if plot.x < 0 then 1 else -1
 		local x1 = math.min(plot.x - half - 2, plot.x + toward * (half + 7))
@@ -502,10 +502,9 @@ local function buildGardens(parent: Instance): { RackInfo }
 	folder.Name = "Gardens"
 	local rng = Random.new(Config.SpotSeed + 3)
 	local racks: { RackInfo } = {}
-	for index, plot in Config.Drying.plots do
-		local model = Garden.build(folder, gardenCFrame(plot), Config.Drying.gardenSize, Config.Drying.slots, rng)
-		model.Name = "DryingRack_" .. index
-		;(model.Parent :: Instance).Name = "Garden_" .. index
+	for index, plot in Config.Garden.plots do
+		local model = Garden.build(folder, gardenCFrame(plot), Config.Garden.size, Config.Garden.maxBeds, rng)
+		model.Name = "Garden_" .. index
 		table.insert(racks, { id = index, model = model })
 	end
 	folder.Parent = parent
@@ -537,9 +536,9 @@ local function readExistingMap(map: Folder): MapInfo?
 	for _, spot in spots do
 		spotById[spot.id] = spot
 	end
-	-- Suszarnie: własne modele z folderu Map/DryingRacks albo nasze na domyślnych miejscach
 	local racks: { RackInfo } = {}
-	local racksFolder = map:FindFirstChild("DryingRacks")
+	-- Własne ogródki z folderu Map/Gardens (modele z PrimaryPart "Hub" i grządkami Slot<i>)
+	local racksFolder = map:FindFirstChild("Gardens")
 	if racksFolder then
 		for index, child in racksFolder:GetChildren() do
 			if child:IsA("Model") and child.PrimaryPart then
@@ -554,7 +553,7 @@ local function readExistingMap(map: Folder): MapInfo?
 		spots = spots,
 		spotById = spotById,
 		groveCenter = grove,
-		racks = racks,
+		gardens = racks,
 		worlds = {}, -- własna mapa nie ma jaskini ani bagien
 		guardians = { leszy = { origin = grove } },
 	}
@@ -824,7 +823,7 @@ function MapBuilder.build(): MapInfo
 		spotById = spotById,
 		groveCenter = center,
 		leszyStatue = leszyStatue,
-		racks = racks,
+		gardens = racks,
 		campCFrame = campCFrame,
 		lairCenter = lairCenter(),
 		skarbnikStatue = skarbnikStatue,
