@@ -13,6 +13,7 @@ local TweenService = game:GetService("TweenService")
 local Config = require(ReplicatedStorage.Shared.Config)
 local Localize = require(script.Parent.Localize)
 local Purchases = require(script.Parent.Purchases)
+local UiKit = require(script.Parent.UiKit)
 local UiScale = require(script.Parent.UiScale)
 
 local ShopPanel = {}
@@ -26,6 +27,8 @@ local TEXT = Color3.fromRGB(252, 238, 210)
 local MUTED = Color3.fromRGB(214, 188, 150)
 local BUY = Color3.fromRGB(70, 160, 70)
 local ROBUX_GREEN = Color3.fromRGB(0, 176, 111)
+-- Ikona z arkusza UiKit dla każdego produktu
+local PRODUCT_ICONS = { rescue = "rescue", boom = "boom", oil = "bottle", dry = "dry", luck = "luck" }
 
 local gui = Instance.new("ScreenGui")
 gui.Name = "Shop"
@@ -76,17 +79,12 @@ end
 
 local shopButton = Instance.new("TextButton")
 shopButton.Name = "ShopButton"
-shopButton.Size = UDim2.fromOffset(52, 30)
-shopButton.BackgroundColor3 = ROBUX_GREEN
-shopButton.TextColor3 = Color3.new(1, 1, 1)
-shopButton.Font = TITLE_FONT
-shopButton.TextSize = 18
-shopButton.Text = "🛒"
+shopButton.Size = UDim2.fromOffset(70, 30)
+shopButton.Text = ""
 shopButton.Parent = gui
-corner(shopButton, 8)
-stroke(shopButton, Color3.fromRGB(180, 255, 210), 1.5)
-local shopButtonScale = Instance.new("UIScale")
-shopButtonScale.Parent = shopButton
+UiKit.button(shopButton, ROBUX_GREEN, { gloss = true })
+UiKit.icon("shop", shopButton, UDim2.fromOffset(30, 30), UDim2.fromScale(0.5, 0.5), Vector2.new(0.5, 0.55))
+local shopButtonScale = shopButton:FindFirstChildOfClass("UIScale") :: UIScale
 
 local panel = Instance.new("Frame")
 panel.Name = "ShopPanel"
@@ -107,19 +105,15 @@ title.TextColor3 = Color3.fromRGB(255, 214, 120)
 local close = Instance.new("TextButton")
 close.Size = UDim2.fromOffset(32, 32)
 close.Position = UDim2.new(1, -42, 0, 10)
-close.BackgroundColor3 = Color3.fromRGB(120, 50, 40)
-close.TextColor3 = TEXT
-close.Font = TITLE_FONT
-close.TextSize = 18
-close.Text = "✕"
+close.Text = ""
 close.Parent = panel
-corner(close, 8)
+UiKit.button(close, UiKit.COLORS.wood, { gloss = true, radius = UDim.new(0, 8) })
+UiKit.icon("close", close, UDim2.fromOffset(22, 22), UDim2.fromScale(0.5, 0.5), Vector2.new(0.5, 0.5))
 
 type Card = { frame: Frame, title: TextLabel, desc: TextLabel, buy: TextButton, key: string }
 local cards: { Card } = {}
 
 for index, key in Config.ShopOrder do
-	local def = Config.Products[key]
 	local frame = Instance.new("Frame")
 	frame.Name = "Card_" .. key
 	frame.Size = UDim2.new(1, -24, 0, 64)
@@ -127,9 +121,8 @@ for index, key in Config.ShopOrder do
 	frame.BackgroundColor3 = Color3.fromRGB(64, 46, 32)
 	frame.Parent = panel
 	corner(frame)
-	local icon = text(frame, "Icon", UDim2.fromOffset(44, 44), UDim2.fromOffset(8, 10), TITLE_FONT, 36)
-	icon.TextXAlignment = Enum.TextXAlignment.Center
-	icon.Text = def.icon
+	stroke(frame, Color3.fromRGB(110, 80, 52), 1.5)
+	UiKit.icon(PRODUCT_ICONS[key] or "boom", frame, UDim2.fromOffset(50, 50), UDim2.fromOffset(6, 7))
 	local cardTitle = text(frame, "Title", UDim2.new(1, -170, 0, 24), UDim2.fromOffset(60, 8), TITLE_FONT, 20)
 	local desc = text(frame, "Desc", UDim2.new(1, -170, 0, 26), UDim2.fromOffset(60, 32), BODY_FONT, 13)
 	desc.TextColor3 = MUTED
@@ -138,12 +131,10 @@ for index, key in Config.ShopOrder do
 	buy.Name = "Buy"
 	buy.Size = UDim2.fromOffset(92, 40)
 	buy.Position = UDim2.new(1, -102, 0, 12)
-	buy.BackgroundColor3 = BUY
-	buy.TextColor3 = Color3.new(1, 1, 1)
 	buy.Font = TITLE_FONT
 	buy.TextScaled = true
 	buy.Parent = frame
-	corner(buy, 8)
+	UiKit.button(buy, BUY)
 	local pad = Instance.new("UIPadding")
 	pad.PaddingTop = UDim.new(0, 8)
 	pad.PaddingBottom = UDim.new(0, 8)
@@ -160,16 +151,19 @@ local oilButton = Instance.new("TextButton")
 oilButton.Name = "QuickOil"
 oilButton.Size = UDim2.fromOffset(86, 30)
 oilButton.AnchorPoint = Vector2.new(0, 0)
-oilButton.BackgroundColor3 = ROBUX_GREEN
-oilButton.TextColor3 = Color3.new(1, 1, 1)
 oilButton.Font = TITLE_FONT
 oilButton.TextScaled = true
 oilButton.Visible = false
 oilButton.Parent = gui
-corner(oilButton, 8)
-stroke(oilButton, Color3.fromRGB(180, 255, 210), 1.5)
-local oilScale = Instance.new("UIScale")
-oilScale.Parent = oilButton
+UiKit.button(oilButton, ROBUX_GREEN)
+UiKit.icon("bottle", oilButton, UDim2.fromOffset(28, 28), UDim2.new(0, -26, 0.5, 0), Vector2.new(0, 0.5))
+local oilPad = Instance.new("UIPadding")
+oilPad.PaddingLeft = UDim.new(0, 30)
+oilPad.PaddingRight = UDim.new(0, 6)
+oilPad.PaddingTop = UDim.new(0, 5)
+oilPad.PaddingBottom = UDim.new(0, 5)
+oilPad.Parent = oilButton
+local oilScale = oilButton:FindFirstChildOfClass("UIScale") :: UIScale
 oilButton.Activated:Connect(function()
 	Purchases.buy("oil")
 end)
@@ -187,7 +181,7 @@ local timerLayout = Instance.new("UIListLayout")
 timerLayout.Padding = UDim.new(0, 4)
 timerLayout.Parent = timers
 
-local function timerPill(name: string, color: Color3): TextLabel
+local function timerPill(name: string, color: Color3, iconName: string): TextLabel
 	local pill = Instance.new("TextLabel")
 	pill.Name = name
 	pill.Size = UDim2.fromOffset(170, 28)
@@ -203,36 +197,37 @@ local function timerPill(name: string, color: Color3): TextLabel
 	local pad = Instance.new("UIPadding")
 	pad.PaddingTop = UDim.new(0, 4)
 	pad.PaddingBottom = UDim.new(0, 4)
+	pad.PaddingLeft = UDim.new(0, 30)
+	pad.PaddingRight = UDim.new(0, 6)
 	pad.Parent = pill
+	UiKit.icon(iconName, pill, UDim2.fromOffset(26, 26), UDim2.new(0, -28, 0.5, 0), Vector2.new(0, 0.5))
 	return pill
 end
-local boomPill = timerPill("Boom", Color3.fromRGB(255, 200, 120))
-local luckPill = timerPill("Luck", Color3.fromRGB(150, 255, 150))
+local boomPill = timerPill("Boom", Color3.fromRGB(255, 200, 120), "boom")
+local luckPill = timerPill("Luck", Color3.fromRGB(150, 255, 150), "luck")
 
 -- ===== Ratunek koszyka =====
 
 local rescue = Instance.new("TextButton")
 rescue.Name = "RescueButton"
-rescue.Size = UDim2.fromOffset(300, 64)
+rescue.Size = UDim2.fromOffset(340, 64)
 rescue.AnchorPoint = Vector2.new(0.5, 0)
 rescue.Position = UDim2.new(0.5, 0, 0.58, 0)
-rescue.BackgroundColor3 = ROBUX_GREEN
-rescue.TextColor3 = Color3.new(1, 1, 1)
 rescue.Font = TITLE_FONT
 rescue.TextScaled = true
 rescue.RichText = true
 rescue.Visible = false
 rescue.Parent = rescueGui
-corner(rescue, 14)
-stroke(rescue, Color3.fromRGB(200, 255, 220), 3)
+local rescueStroke = UiKit.button(rescue, ROBUX_GREEN, { radius = UDim.new(0, 14), stroke = 4 })
+rescueStroke.Color = Color3.fromRGB(200, 255, 220)
+UiKit.icon("rescue", rescue, UDim2.fromOffset(54, 54), UDim2.new(0, -58, 0.5, 0), Vector2.new(0, 0.5))
 local rescuePad = Instance.new("UIPadding")
 rescuePad.PaddingTop = UDim.new(0, 8)
 rescuePad.PaddingBottom = UDim.new(0, 8)
-rescuePad.PaddingLeft = UDim.new(0, 12)
+rescuePad.PaddingLeft = UDim.new(0, 64)
 rescuePad.PaddingRight = UDim.new(0, 12)
 rescuePad.Parent = rescue
-local rescueScale = Instance.new("UIScale")
-rescueScale.Parent = rescue
+local rescueScale = rescue:FindFirstChildOfClass("UIScale") :: UIScale
 rescue.Activated:Connect(function()
 	Purchases.buy("rescue")
 end)
@@ -272,7 +267,7 @@ end
 
 local function refreshTexts()
 	title.Text = Localize.t("SHOP_TITLE")
-	oilButton.Text = "🛢️ " .. Purchases.priceText("oil")
+	oilButton.Text = Purchases.priceText("oil")
 	local anyCard = false
 	local visibleIndex = 0
 	for _, card in cards do
@@ -288,9 +283,8 @@ local function refreshTexts()
 		card.desc.Text = Localize.t(def.key .. "_DESC")
 		local enabled = card.key ~= "dry" or hasDrying()
 		card.buy.Text = Purchases.priceText(card.key)
-		card.buy.AutoButtonColor = enabled
 		card.buy.Active = enabled
-		card.buy.BackgroundColor3 = if enabled then BUY else Color3.fromRGB(90, 80, 70)
+		UiKit.recolor(card.buy, if enabled then BUY else UiKit.COLORS.locked)
 	end
 	panel.Size = UDim2.fromOffset(360, 60 + visibleIndex * 72)
 	shopButton.Visible = anyCard
@@ -299,6 +293,7 @@ end
 local function layout()
 	local scale = UiScale.get()
 	for _, s in { shopButtonScale, panelScale, oilScale, timersScale, rescueScale } do
+		s:SetAttribute("Base", scale) -- UiKit wraca do tej skali po wciśnięciu
 		s.Scale = scale
 	end
 	-- Pod przyciskiem języka (ten sam rachunek co w Hud.layout); panel DEV jest jeszcze niżej
@@ -328,8 +323,8 @@ function ShopPanel.offerRescue(value: number, seconds: number)
 	rescueValue = value
 	rescueEnds = os.clock() + seconds
 	rescue.Visible = true
-	rescue.Size = UDim2.fromOffset(300, 64)
-	TweenService:Create(rescue, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Size = UDim2.fromOffset(340, 72) }):Play()
+	rescue.Size = UDim2.fromOffset(340, 64)
+	TweenService:Create(rescue, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Size = UDim2.fromOffset(380, 72) }):Play()
 	task.delay(seconds, function()
 		if rescueToken == token then
 			rescue.Visible = false
@@ -358,16 +353,16 @@ task.spawn(function()
 		local now = os.time()
 		boomPill.Visible = boomUntil > now
 		if boomPill.Visible then
-			boomPill.Text = "🍄 " .. Localize.t("SHOP_BOOM_TIMER", { formatTime(boomUntil - now) })
+			boomPill.Text = Localize.t("SHOP_BOOM_TIMER", { formatTime(boomUntil - now) })
 		end
 		luckPill.Visible = luckUntil > now
 		if luckPill.Visible then
-			luckPill.Text = "🍀 " .. Localize.t("SHOP_LUCK_TIMER", { formatTime(luckUntil - now) })
+			luckPill.Text = Localize.t("SHOP_LUCK_TIMER", { formatTime(luckUntil - now) })
 		end
 		if rescue.Visible then
 			local left = math.max(0, math.ceil(rescueEnds - os.clock()))
 			rescue.Text = string.format(
-				"💾 %s  <font color=\"#FFF6C0\">%s 💰</font>  %s  (%d)",
+				"%s  <font color=\"#FFF6C0\">%s 💰</font>  %s  (%d)",
 				Localize.t("SHOP_RESCUE"),
 				formatCoins(rescueValue),
 				Purchases.priceText("rescue"),

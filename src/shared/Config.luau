@@ -476,6 +476,10 @@ Config.Products = {
 -- Kolejność kart w sklepie (ratunek ma własny przycisk na czarnym ekranie)
 Config.ShopOrder = { "boom", "luck", "oil", "dry" }
 
+-- Arkusz ikon interfejsu z Figmy (assets/ui-icons.png: 5 kolumn x 4 wiersze, pola po 204 px).
+-- Po wgraniu obrazka do Robloxa wpisz tu "rbxassetid://NUMER"; pusty = ikony z emoji.
+Config.UiIcons = { sheet = "", cell = 204, columns = 5 }
+
 -- Ile sekund po zgaśnięciu latarni / złapaniu da się jeszcze uratować koszyk.
 -- buttonSeconds: jak długo widać przycisk; serverSeconds: zapas na okno płatności Robloxa.
 Config.Rescue = { buttonSeconds = 15, serverSeconds = 40 }

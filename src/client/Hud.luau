@@ -1,6 +1,7 @@
 --!strict
 -- Interfejs budowany kodem, projektowany najpierw pod telefon.
--- Styl: ciemne drewno z bursztynową obwódką, kreskówkowa czcionka, ikony z emoji.
+-- Styl: ciemne drewno z bursztynową obwódką, kreskówkowa czcionka, ikony z Figmy (UiKit),
+-- cukierkowe przyciski z połyskiem i wciśnięciem.
 -- Duży okrągły przycisk ZBIERZ obok przycisku skoku, panel chatki na dole ekranu.
 
 local Players = game:GetService("Players")
@@ -10,6 +11,7 @@ local TweenService = game:GetService("TweenService")
 local Config = require(ReplicatedStorage.Shared.Config)
 local Economy = require(ReplicatedStorage.Shared.Economy)
 local Localize = require(script.Parent.Localize)
+local UiKit = require(script.Parent.UiKit)
 local UiScale = require(script.Parent.UiScale)
 
 export type State = {
@@ -46,7 +48,18 @@ local THEME = {
 local TITLE_FONT = Enum.Font.FredokaOne
 local BODY_FONT = Enum.Font.GothamBold
 
-local UPGRADE_ICONS = { lantern = "🔦", oil = "🛢️", basket = "🧺", boots = "🥾", lock = "🔒", crystal = "💎", pack = "🎒", rushwick = "🕯️", creel = "🧺" }
+-- Nazwa ikony z arkusza UiKit dla każdego ulepszenia
+local UPGRADE_ICONS = {
+	lantern = "lantern",
+	oil = "oil",
+	basket = "basket",
+	boots = "boots",
+	lock = "lock",
+	crystal = "crystal",
+	pack = "pack",
+	rushwick = "rushwick",
+	creel = "creel",
+}
 
 -- Karty w panelu: najpierw sklep w chatce, potem w obozowisku. Panel pokazuje tylko karty bieżącego sklepu.
 local ALL_UPGRADES: { string } = table.clone(Config.UpgradeOrder)
@@ -67,7 +80,7 @@ local lastState: State? = nil
 
 -- ===== Pomocnicze =====
 
-local CARD_STROKE = Color3.fromRGB(160, 210, 120)
+local CARD_STROKE = UiKit.darker(Color3.fromRGB(70, 104, 54), 0.45)
 
 local function corner(parent: Instance, radius: UDim?)
 	local c = Instance.new("UICorner")
@@ -159,30 +172,29 @@ gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
 
 -- Monety i koszyk (lewy górny róg)
 local stats = panel("Stats", gui, UDim2.new(0, 196, 0, 80), UDim2.new(0, 12, 0, 8))
-local coinsIcon = label("CoinsIcon", stats, UDim2.new(0, 30, 0, 30), UDim2.new(0, 10, 0, 6), TITLE_FONT, 26)
-coinsIcon.Text = "💰"
+local coinsIcon = UiKit.icon("coin", stats, UDim2.new(0, 34, 0, 34), UDim2.new(0, 8, 0, 4))
 local coinsLabel = label("Coins", stats, UDim2.new(1, -52, 0, 30), UDim2.new(0, 46, 0, 6), TITLE_FONT, 26)
 coinsLabel.TextXAlignment = Enum.TextXAlignment.Left
 coinsLabel.TextColor3 = THEME.accent
-local basketIcon = label("BasketIcon", stats, UDim2.new(0, 28, 0, 26), UDim2.new(0, 11, 0, 42), TITLE_FONT, 22)
-basketIcon.Text = "🧺"
+local basketIcon = UiKit.icon("basket", stats, UDim2.new(0, 32, 0, 32), UDim2.new(0, 9, 0, 40))
 local basketLabel = label("Basket", stats, UDim2.new(0, 60, 0, 22), UDim2.new(0, 46, 0, 40), TITLE_FONT, 20)
 basketLabel.TextXAlignment = Enum.TextXAlignment.Left
 local _, basketFill = bar(stats, UDim2.new(1, -112, 0, 10), UDim2.new(0, 104, 0, 47), Color3.fromRGB(150, 196, 90))
 
 local languageButton = Instance.new("TextButton")
 languageButton.Name = "Language"
-languageButton.Size = UDim2.new(0, 52, 0, 30)
+languageButton.Size = UDim2.new(0, 70, 0, 30)
 -- Pod panelem monet, bo prawy górny róg zajmuje lista graczy z monetami
 languageButton.Position = UDim2.new(0, 12, 0, 96)
-languageButton.BackgroundColor3 = THEME.panel
-languageButton.BackgroundTransparency = THEME.panelTransparency
-languageButton.TextColor3 = THEME.text
 languageButton.Font = TITLE_FONT
 languageButton.TextSize = 18
+languageButton.TextXAlignment = Enum.TextXAlignment.Right
 languageButton.Parent = gui
-corner(languageButton)
-stroke(languageButton)
+UiKit.button(languageButton, UiKit.COLORS.wood, { gloss = true })
+UiKit.icon("globe", languageButton, UDim2.new(0, 26, 0, 26), UDim2.new(0, 5, 0.5, 0), Vector2.new(0, 0.5))
+local languagePadding = Instance.new("UIPadding")
+languagePadding.PaddingRight = UDim.new(0, 9)
+languagePadding.Parent = languageButton
 
 -- Strefa i pasek oleju (środek u góry)
 local top = Instance.new("Frame")
@@ -197,8 +209,7 @@ local zonePill = panel("Zone", top, UDim2.new(0, 220, 0, 28), UDim2.new(0.5, 0, 
 local zoneLabel = label("Text", zonePill, UDim2.new(1, -16, 1, -4), UDim2.new(0, 8, 0, 2), TITLE_FONT, 20)
 
 local oilPanel = panel("Oil", top, UDim2.new(1, 0, 0, 32), UDim2.new(0, 0, 0, 34))
-local oilIcon = label("Icon", oilPanel, UDim2.new(0, 26, 0, 26), UDim2.new(0, 6, 0, 3), TITLE_FONT, 22)
-oilIcon.Text = "🏮"
+UiKit.icon("lantern", oilPanel, UDim2.new(0, 30, 0, 30), UDim2.new(0, 4, 0, 1))
 local oilBack, oilFill = bar(oilPanel, UDim2.new(1, -46, 0, 18), UDim2.new(0, 38, 0, 7), THEME.oil)
 local oilGradient = Instance.new("UIGradient")
 oilGradient.Color = ColorSequence.new(THEME.oilLight, THEME.oil)
@@ -218,17 +229,13 @@ pickButton.Name = "Pick"
 pickButton.Size = UDim2.new(0, 112, 0, 112)
 pickButton.Position = UDim2.new(1, -190, 1, -40)
 pickButton.AnchorPoint = Vector2.new(1, 1)
-pickButton.BackgroundColor3 = THEME.pick
 pickButton.Text = ""
-pickButton.AutoButtonColor = true
 pickButton.Parent = gui
-corner(pickButton, UDim.new(0.5, 0))
-local pickStroke = stroke(pickButton, Color3.fromRGB(255, 240, 200), 3)
-local pickScale = Instance.new("UIScale")
-pickScale.Parent = pickButton
+local pickStroke = UiKit.button(pickButton, THEME.pick, { gloss = true, radius = UDim.new(0.5, 0), stroke = 4 })
+pickStroke.Color = Color3.fromRGB(255, 240, 200)
+local pickScale = pickButton:FindFirstChildOfClass("UIScale") :: UIScale
 -- Rozmiary w ułamkach, bo cały przycisk zmienia wielkość razem z ekranem
-local pickIcon = label("Icon", pickButton, UDim2.new(1, 0, 0.54, 0), UDim2.new(0, 0, 0.1, 0), TITLE_FONT, 52)
-pickIcon.Text = "🍄"
+local pickIcon = UiKit.icon("mushroom", pickButton, UDim2.new(0.6, 0, 0.6, 0), UDim2.new(0.5, 0, 0.06, 0), Vector2.new(0.5, 0))
 local pickCaption = label("Caption", pickButton, UDim2.new(1, -12, 0.2, 0), UDim2.new(0, 6, 0.66, 0), TITLE_FONT, 20)
 local pickCaptionStroke = Instance.new("UIStroke")
 pickCaptionStroke.Thickness = 1.5
@@ -257,21 +264,22 @@ panelPadding.Parent = cabinPanel
 local sellButton = Instance.new("TextButton")
 sellButton.Name = "Sell"
 sellButton.Size = UDim2.new(1, 0, 0, 48)
-sellButton.BackgroundColor3 = THEME.sell
-sellButton.TextColor3 = Color3.fromRGB(255, 250, 236)
 sellButton.Font = TITLE_FONT
 sellButton.TextScaled = true
 sellButton.RichText = true
 sellButton.Text = ""
 sellButton.Parent = cabinPanel
-corner(sellButton)
-local sellStroke = stroke(sellButton, Color3.fromRGB(255, 226, 150), 2)
+local sellStroke = UiKit.button(sellButton, THEME.sell, { stroke = 3 })
+-- Pozycja liczona od wcięcia (UIPadding przesuwa też dzieci), więc ikona wchodzi w lewy margines
+UiKit.icon("sell", sellButton, UDim2.new(0, 44, 0, 44), UDim2.new(0, -42, 0.5, 0), Vector2.new(0, 0.5))
 local sellConstraint = Instance.new("UITextSizeConstraint")
 sellConstraint.MaxTextSize = 24
 sellConstraint.Parent = sellButton
 local sellPadding = Instance.new("UIPadding")
 sellPadding.PaddingTop = UDim.new(0, 8)
 sellPadding.PaddingBottom = UDim.new(0, 8)
+sellPadding.PaddingLeft = UDim.new(0, 48)
+sellPadding.PaddingRight = UDim.new(0, 12)
 sellPadding.Parent = sellButton
 
 local grid = Instance.new("Frame")
@@ -302,14 +310,11 @@ for order, id in ALL_UPGRADES do
 	button.Name = "Upgrade_" .. id
 	button.Text = ""
 	button.LayoutOrder = order
-	button.BackgroundColor3 = THEME.card
-	button.AutoButtonColor = true
 	button.Parent = grid
-	corner(button, UDim.new(0, 10))
-	local cardStroke = stroke(button, CARD_STROKE, 1.5)
+	local cardStroke = UiKit.button(button, THEME.card, { stroke = 2 })
+	cardStroke.Color = CARD_STROKE
 
-	local icon = label("Icon", button, UDim2.new(0, 36, 1, -8), UDim2.new(0, 4, 0, 4), TITLE_FONT, 30)
-	icon.Text = UPGRADE_ICONS[id] or "⭐"
+	UiKit.icon(UPGRADE_ICONS[id] or "lantern", button, UDim2.new(0, 38, 0, 38), UDim2.new(0, 3, 0.5, 0), Vector2.new(0, 0.5))
 	local title = label("Title", button, UDim2.new(1, -112, 0, 20), UDim2.new(0, 44, 0, 4), TITLE_FONT, 18)
 	title.TextXAlignment = Enum.TextXAlignment.Left
 	local level = label("Level", button, UDim2.new(0, 64, 0, 16), UDim2.new(1, -68, 0, 6), BODY_FONT, 13)
@@ -419,13 +424,13 @@ local function render()
 	setOilLow(not Economy.isSafeZone(state.zone) and fraction < Config.OilLowFraction)
 
 	if state.basketCount > 0 then
-		sellButton.Text = Localize.t("HUD_SELL", { formatCoins(state.basketValue) }) .. "  💰"
-		sellButton.AutoButtonColor = true
+		sellButton.Text = Localize.t("HUD_SELL", { formatCoins(state.basketValue) })
+		sellButton.Active = true
 		sellButton.BackgroundTransparency = 0
 		sellStroke.Transparency = 0
 	else
 		sellButton.Text = Localize.t("HUD_SELL_EMPTY")
-		sellButton.AutoButtonColor = false
+		sellButton.Active = false
 		sellButton.BackgroundTransparency = 0.55
 		sellStroke.Transparency = 0.7
 	end
@@ -475,7 +480,7 @@ function Hud.update(state: State)
 				card.stroke.Thickness = 4
 				TweenService:Create(card.stroke, TweenInfo.new(0.8, Enum.EasingStyle.Quad), {
 					Color = CARD_STROKE,
-					Thickness = 1.5,
+					Thickness = 2,
 				}):Play()
 			end
 		end
@@ -528,7 +533,7 @@ function Hud.setPick(enabled: boolean, visible: boolean)
 	end
 	pickEnabled = enabled
 	pickButton.BackgroundTransparency = if enabled then 0 else 0.55
-	pickIcon.TextTransparency = if enabled then 0 else 0.5
+	UiKit.setIconTransparency(pickIcon, if enabled then 0 else 0.5)
 	pickCaption.TextTransparency = if enabled then 0 else 0.4
 	pickStroke.Transparency = if enabled then 0 else 0.7
 	if enabled then
@@ -585,18 +590,10 @@ function Hud.coinShower(value: number)
 		else gui.AbsoluteSize / 2
 	local to = coinsIcon.AbsolutePosition + coinsIcon.AbsoluteSize / 2
 	for index = 1, coinCount do
-		local coin = Instance.new("TextLabel")
+		local coin = UiKit.icon("coin", gui, UDim2.fromOffset(30, 30), UDim2.fromOffset(from.X, from.Y), Vector2.new(0.5, 0.5))
 		coin.Name = "FlyingCoin"
-		coin.BackgroundTransparency = 1
-		coin.AnchorPoint = Vector2.new(0.5, 0.5)
-		coin.Size = UDim2.fromOffset(30, 30)
-		coin.Position = UDim2.fromOffset(from.X, from.Y)
-		coin.Text = "💰"
-		coin.TextScaled = true
-		coin.Font = TITLE_FONT
 		coin.ZIndex = 30
 		coin.Rotation = math.random(-25, 25)
-		coin.Parent = gui
 
 		local angle = math.random() * math.pi * 2
 		local radius = math.random(40, 100)
