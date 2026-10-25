@@ -458,7 +458,15 @@ test("portal leśny stoi wyraźnie za gniazdem, skrót za chatką na polanie", f
 	check(Config.Cave.portal.z - (g.centerZ + g.radius) >= 30, "portal za blisko gniazda")
 	check(Config.Cave.portal.z + 6 < Config.Zones[4].endZ, "portal w ścianie na końcu lasu")
 	eq(Economy.zoneIndexAt(Config.Cave.shortcut.z), 1, "skrót poza polaną")
-	check(Config.Cave.shortcut.z < -40 and Config.Cave.shortcut.z > Config.Zones[1].startZ + 10, "skrót nie stoi za chatką")
+	check(Config.Cave.shortcut.z < -80 and Config.Cave.shortcut.z > Config.Zones[1].startZ + 10, "skrót nie stoi daleko za chatką")
+	-- Plac Portali mieści się na polanie, za chatką i za ogródkami
+	local plaza = Config.PortalPlaza
+	check(plaza.center.z - plaza.radius > Config.Zones[1].startZ + 4, "plac za ścianą mapy")
+	check(plaza.center.z + plaza.radius < -35 - 5, "plac wchodzi na chatkę")
+	for _, plot in Config.Drying.plots do
+		check(plot.z - Config.Drying.gardenSize / 2 > plaza.center.z + plaza.radius, "plac wchodzi na ogródek")
+	end
+	check(table.find(plaza.slots, Config.Cave.shortcut.x) ~= nil, "skrót nie stoi na miejscu na portal")
 end)
 
 test("portal: zamknięty poniżej progu, otwarty od progu i potem już zawsze", function()

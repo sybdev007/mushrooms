@@ -48,7 +48,7 @@ Config.Zones = {
 	{
 		id = "cabin",
 		key = "ZONE_CABIN",
-		startZ = -60,
+		startZ = -120, -- za chatką jest jeszcze Plac Portali
 		endZ = 40,
 		oilDrain = 0,
 		darkness = 0,
@@ -167,7 +167,7 @@ Config.Cave = {
 	portal = { x = 0, z = 476 }, -- portal w lesie, kawałek za Gniazdem Leszego
 	-- Skrót za chatką: działa tylko dla tych, którzy już raz doszli do portalu za Leszym.
 	-- Stoi na widoku, żeby nowi gracze widzieli, że jest coś do odkrycia.
-	shortcut = { x = 0, z = -47 },
+	shortcut = { x = 0, z = -92 },
 	returnPortal = { x = 0, z = 1010 }, -- portal powrotny w obozowisku (prowadzi do chatki)
 	camp = { x = 0, z = 1025 }, -- tu ląduje gracz po przejściu i po zgaśnięciu latarni w jaskini
 	portalRadius = 4,
@@ -326,6 +326,14 @@ Config.StationTolerance = 2 -- serwer jest łagodniejszy przez opóźnienie siec
 -- oraz w prawdziwej grze dla tych kont. Dopisz tu UserId Miłosza.
 Config.DevUserIds = {
 	1293490018, -- Tom
+}
+
+-- Plac Portali za chatką: kamienny plac z miejscami na portale do kolejnych światów.
+-- Środkowe miejsce zajmuje skrót do jaskini, boczne czekają na następne światy („Wkrótce”).
+Config.PortalPlaza = {
+	center = { x = 0, z = -84 },
+	radius = 30,
+	slots = { -24, 0, 24 }, -- x kolejnych portali; wszystkie stoją na z = Config.Cave.shortcut.z
 }
 
 -- Kamera: bez limitu dało się oddalić widok i oglądać las z góry

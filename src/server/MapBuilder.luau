@@ -123,7 +123,7 @@ local RECIPES: { [number]: Recipe } = {
 local CANOPY: { [string]: number } = { pine = 5.2, birch = 5, oak = 6.8, deadTree = 4.5 }
 local TRUNK = 1.3
 
-local CLEARING_TREES = 34
+local CLEARING_TREES = 50
 local LANTERN_POSTS_Z = { 8, 30, 52, 74, 96 }
 local PATH_END_Z = 125
 
@@ -519,6 +519,102 @@ local function removeTemplateLeftovers()
 	end
 end
 
+-- Kamienie ścieżki po łamanej (od ganku za chatkę na Plac Portali)
+local function stonePath(parent: Instance, points: { Vector3 }, rng: Random)
+	local folder = Instance.new("Folder")
+	folder.Name = "PlazaPath"
+	for i = 1, #points - 1 do
+		local a, b = points[i], points[i + 1]
+		local length = (b - a).Magnitude
+		local step = 0
+		while step < length do
+			local p = a:Lerp(b, step / length) + Vector3.new(rng:NextNumber(-0.6, 0.6), 0, rng:NextNumber(-0.6, 0.6))
+			local d = rng:NextNumber(1.8, 2.8)
+			local stone = Instance.new("Part")
+			stone.Shape = Enum.PartType.Cylinder
+			stone.Anchored = true
+			stone.CanCollide = false
+			stone.CanQuery = false
+			stone.CastShadow = false
+			stone.Material = Enum.Material.SmoothPlastic
+			stone.Size = Vector3.new(0.3, d, d * rng:NextNumber(0.8, 1))
+			stone.CFrame = CFrame.new(p.X, -0.04, p.Z) * CFrame.Angles(0, 0, math.rad(90)) * CFrame.Angles(rng:NextNumber(0, math.pi * 2), 0, 0)
+			stone.Color = Palette.stone:Lerp(Palette.ground[1], rng:NextNumber(0.3, 0.5))
+			stone.Parent = folder
+			step += rng:NextNumber(2.4, 3.2)
+		end
+	end
+	folder.Parent = parent
+end
+
+-- Plac Portali: okrągły bruk, latarnie dookoła, skrót do jaskini na środku i fundamenty pod kolejne portale.
+-- Zwraca pozycję skrótu.
+local function buildPortalPlaza(parent: Instance, rng: Random): Vector3
+	local plaza = Config.PortalPlaza
+	local center = Vector3.new(plaza.center.x, 0, plaza.center.z)
+	local folder = Instance.new("Folder")
+	folder.Name = "PortalPlaza"
+	table.insert(reserved, { x1 = center.X - plaza.radius - 2, x2 = center.X + plaza.radius + 2, z1 = center.Z - plaza.radius + 4, z2 = center.Z + plaza.radius })
+
+	local paving = Instance.new("Part")
+	paving.Name = "Paving"
+	paving.Shape = Enum.PartType.Cylinder
+	paving.Anchored = true
+	paving.CanCollide = false
+	paving.CastShadow = false
+	paving.Size = Vector3.new(0.2, plaza.radius * 2, plaza.radius * 2)
+	paving.CFrame = CFrame.new(center + Vector3.new(0, -0.02, 0)) * CFrame.Angles(0, 0, math.rad(90))
+	paving.Color = Palette.stone:Lerp(Palette.ground[1], 0.35)
+	paving.Material = Enum.Material.Cobblestone
+	paving.Parent = folder
+
+	-- Latarnie na obwodzie placu
+	for _, degrees in { 25, 155, 205, 245, 295, 335 } do
+		local angle = math.rad(degrees)
+		local pos = center + Vector3.new(math.cos(angle) * (plaza.radius - 2), 0, math.sin(angle) * (plaza.radius - 2))
+		Props.lanternPost(folder, pos, math.atan2(-(center.Z - pos.Z), center.X - pos.X))
+	end
+
+	local z = Config.Cave.shortcut.z
+	local shortcut = Vector3.new(Config.Cave.shortcut.x, 0, z)
+	for _, x in plaza.slots do
+		-- Z chatki idzie się na plac w stronę -Z, więc przód portali patrzy na +Z
+		local cf = CFrame.new(x, 0, z) * CFrame.Angles(0, math.pi, 0)
+		if x == shortcut.X then
+			Cave.portal(folder, cf, "SIGN_PORTAL_SHORTCUT", Color3.fromRGB(160, 90, 255), "ShortcutSwirl")
+		else
+			-- Fundament pod przyszły portal z tabliczką „Wkrótce...”
+			local base = Instance.new("Part")
+			base.Name = "PortalFoundation"
+			base.Shape = Enum.PartType.Cylinder
+			base.Anchored = true
+			base.Size = Vector3.new(0.8, 12, 12)
+			base.CFrame = CFrame.new(x, 0.4, z) * CFrame.Angles(0, 0, math.rad(90))
+			base.Color = Color3.fromRGB(110, 104, 118)
+			base.Material = Enum.Material.Slate
+			base.Parent = folder
+			for _, side in { -1, 1 } do
+				local post = Instance.new("Part")
+				post.Anchored = true
+				post.Size = Vector3.new(0.4, 4, 0.4)
+				post.Position = Vector3.new(x + side * 2.6, 2.8, z + 5)
+				post.Color = Palette.log
+				post.Parent = folder
+			end
+			Props.signBoard(folder, CFrame.new(x, 4.2, z + 5) * CFrame.Angles(0, math.pi, 0), Vector3.new(6, 1.4, 0.3), "SIGN_PORTAL_SOON", Enum.NormalId.Front)
+		end
+	end
+	folder.Parent = parent
+
+	-- Ścieżka z ganku wzdłuż boku chatki na plac
+	stonePath(parent, {
+		Vector3.new(Cabin.HALF_W + 4, 0, Cabin.FRONT_Z + 4),
+		Vector3.new(Cabin.HALF_W + 4, 0, Cabin.BACK_Z - 4),
+		Vector3.new(6, 0, center.Z + plaza.radius - 2),
+	}, rng)
+	return shortcut
+end
+
 function MapBuilder.build(): MapInfo
 	removeTemplateLeftovers()
 
@@ -554,6 +650,8 @@ function MapBuilder.build(): MapInfo
 	reserveGardens()
 	local racks = buildGardens(map)
 
+	local decorRng = Random.new(Config.SpotSeed + 1)
+
 	-- Gniazdo Leszego: w środku i za kręgiem (posąg) nic nie rośnie
 	local center = groveCenter()
 	local groveR = Config.Grove.radius
@@ -566,12 +664,8 @@ function MapBuilder.build(): MapInfo
 	table.insert(reserved, { x1 = portal.X - 8, x2 = portal.X + 8, z1 = portal.Z - 5, z2 = FOREST_LAST.endZ })
 	Cave.portal(map, CFrame.new(portal), "SIGN_PORTAL", Color3.fromRGB(160, 90, 255))
 
-	-- Skrót do jaskini za chatką: widać go z polany, ale działa tylko dla tych, którzy już tam byli
-	local shortcutDef = Config.Cave.shortcut
-	local shortcut = Vector3.new(shortcutDef.x, 0, shortcutDef.z)
-	table.insert(reserved, { x1 = shortcut.X - 15, x2 = shortcut.X + 15, z1 = FOREST_FIRST.startZ + 8, z2 = Cabin.BACK_Z - 1 })
-	-- Z chatki idzie się do skrótu w stronę -Z, więc przód portalu patrzy na +Z
-	Cave.portal(map, CFrame.new(shortcut) * CFrame.Angles(0, math.pi, 0), "SIGN_PORTAL_SHORTCUT", Color3.fromRGB(160, 90, 255), "ShortcutSwirl")
+	-- Plac Portali za chatką: skrót do jaskini (działa dla tych, którzy już tam byli) i miejsca na kolejne światy
+	local shortcut = buildPortalPlaza(map, decorRng)
 
 	-- Jaskinia: najpierw rezerwacje (obozowisko, ścieżka, jeziorka), żeby grzyby nie wyrosły w wodzie
 	for _, rect in Cave.reservedRects() do
@@ -579,7 +673,7 @@ function MapBuilder.build(): MapInfo
 	end
 
 	-- Ścieżka z latarniami od ganku w głąb skraju lasu
-	local decorRng = Random.new(Config.SpotSeed + 1)
+
 	Props.path(map, Cabin.FRONT_Z + 9, PATH_END_Z, decorRng)
 	for i, z in LANTERN_POSTS_Z do
 		local side = if i % 2 == 0 then 1 else -1
