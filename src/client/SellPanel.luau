@@ -159,12 +159,11 @@ close.Name = "Close"
 close.Size = UDim2.fromOffset(42, 42)
 close.Position = UDim2.new(1, -12, 0, 12)
 close.AnchorPoint = Vector2.new(1, 0)
-close.Text = "✕"
-close.Font = TITLE_FONT
-close.TextScaled = true
-close.TextColor3 = Color3.new(1, 1, 1)
+close.Text = ""
 close.Parent = window
 UiKit.button(close, UiKit.COLORS.red, { stroke = 2 })
+-- Ikona z arkusza (znaku „✕” nie ma w czcionce FredokaOne, więc tekst był pusty)
+UiKit.icon("close", close, UDim2.fromScale(0.7, 0.7), UDim2.fromScale(0.5, 0.5), Vector2.new(0.5, 0.5))
 
 -- Lista grzybów
 local list = Instance.new("ScrollingFrame")

@@ -330,13 +330,11 @@ closeUpgrades.Name = "Close"
 closeUpgrades.Size = UDim2.fromOffset(40, 40)
 closeUpgrades.Position = UDim2.new(1, -10, 0, 6)
 closeUpgrades.AnchorPoint = Vector2.new(1, 0)
-closeUpgrades.Text = "✕"
-closeUpgrades.Font = TITLE_FONT
-closeUpgrades.TextScaled = true
-closeUpgrades.TextColor3 = Color3.new(1, 1, 1)
+closeUpgrades.Text = ""
 closeUpgrades.ZIndex = 11
 closeUpgrades.Parent = upgradePanel
 UiKit.button(closeUpgrades, UiKit.COLORS.red, { stroke = 2 })
+UiKit.icon("close", closeUpgrades, UDim2.fromScale(0.7, 0.7), UDim2.fromScale(0.5, 0.5), Vector2.new(0.5, 0.5))
 
 -- Zakładki światów
 local TABS = {
