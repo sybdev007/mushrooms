@@ -44,6 +44,8 @@ local ACTIONS: { { id: string, label: string } } = {
 	{ id = "questsDone", label = "Zadania: ukończ" },
 	{ id = "questsNew", label = "Zadania: nowy dzień" },
 	{ id = "boardsRefresh", label = "Rankingi: odśwież" },
+	{ id = "expeditionGroup", label = "Wyprawa: grupa x3 (60 s)" },
+	{ id = "expeditionDown", label = "Wyprawa: zgaś mi latarnię" },
 }
 
 local gui = Instance.new("ScreenGui")
