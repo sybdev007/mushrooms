@@ -211,18 +211,14 @@ end
 -- Mnożnik szans na mutacje: Wysyp dla wszystkich, mikstura szczęścia dla kupującego,
 -- nożyk gracza, zdarzenie nocy (pełnia, krwawy księżyc) i głębokość strefy
 local function luckFactor(session: Session, zone: number?): number
-	local luck = stat(session, "knife") * (if zone then Economy.zoneLuck(zone) else 1)
-	local event = Cycle.activeEvent(os.time())
-	if event then
-		luck *= event.luck
-	end
-	if boomActive() then
-		luck *= Config.Boom.luck
-	end
-	if os.time() < session.data.luckUntil then
-		luck *= Config.LuckPotion.luck
-	end
-	return luck
+	local total = Economy.luck({
+		knifeLevel = session.data.upgrades.knife or 0,
+		zone = zone,
+		event = Cycle.activeEvent(os.time()),
+		boom = boomActive(),
+		potion = os.time() < session.data.luckUntil,
+	})
+	return total
 end
 
 local function oilScale(session: Session, zone: number): number
@@ -313,7 +309,7 @@ local function rollSpot(session: Session, spot: MapBuilder.Spot, countPity: bool
 
 	local tags: { string }? = nil
 	for _, tag in Economy.tagsForZone(spot.zone) do
-		if session.rng:NextNumber() < tag.chance * luck then
+		if session.rng:NextNumber() < Economy.tagOdds(tag, luck) then
 			tags = tags or {}
 			table.insert(tags :: { string }, tag.id)
 		end

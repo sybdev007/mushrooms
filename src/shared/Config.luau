@@ -280,7 +280,8 @@ Config.RespawnSeconds = 90 -- po ilu sekundach grzyb odrasta w tym samym miejscu
 -- Każdy grzyb ma najwyżej jeden WARIANT (losowany przy odrastaniu) i dowolną liczbę CECH
 -- zależnych od miejsca. Wartość = baza × wariant × (1 + Σ(cecha − 1)) × suszenie.
 -- Cechy się sumują, a nie mnożą, żeby ceny nie uciekały w kosmos jak w Grow a Garden.
--- Losowość jest tylko z gry (nic za Robuxy), więc nie trzeba publikować szans.
+-- Mikstura szczęścia i Wysyp (za Robuxy) zwiększają szanse, więc gracz widzi wszystkie procenty
+-- w sklepie (przycisk „Szanse”, liczone przez Economy.variantOdds / Economy.tagOdds).
 export type VariantDef = {
 	id: string,
 	key: string, -- etykieta w języku gracza (CSV)
@@ -316,6 +317,12 @@ Config.Tags = {
 
 -- Im głębiej w świecie, tym częstsze mutacje: pierwsza niebezpieczna strefa x1, każda kolejna +DepthLuck
 Config.DepthLuck = 0.3
+
+-- Balans szczęścia (Economy.luck). Szczęście ×L działa jak L rzutów z najlepszym wynikiem.
+-- Darmowe bonusy (nożyk × głębokość × noc) mają malejący zysk: razem zbliżają się do freeCap,
+-- ale go nie przekraczają (np. surowe ×3,75 → ×2,6, surowe ×11,9 → ×3,9).
+-- Płatne (Wysyp, mikstura) mnożą to w pełni, a całość ma twardy limit maxLuck.
+Config.LuckBalance = { freeCap = 5, maxLuck = 8 }
 
 -- Klasy grzybów według tego, jak często rosną w swojej strefie (waga w Config.Species).
 -- Grzyby strażników (korony, trufle, kielichy) są zawsze legendarne.

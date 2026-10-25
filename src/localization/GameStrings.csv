@@ -232,3 +232,15 @@ UPG_HINT_FOREST,Forest upgrades: buy them at the cabin or the clearing.,,,Leśne
 UPG_HINT_CAVE,Cave upgrades: buy them in the miners' camp.,,,Ulepszenia jaskini kupisz w obozowisku górników.
 UPG_HINT_SWAMP,Swamp upgrades: buy them at the fishermen's jetty.,,,Ulepszenia bagien kupisz na przystani rybaków.
 MSG_UPGRADE_WHERE,You can't upgrade here. Go back to a safe camp!,,,Tu nie ulepszysz. Wróć do bezpiecznego obozu!
+SHOP_ODDS,Odds,,,Szanse
+ODDS_TITLE,Mutation odds,,,Szanse na mutacje
+ODDS_YOUR_LUCK,Your luck now: {1},,,Twoje szczęście teraz: {1}
+ODDS_NO_BONUS,No bonuses right now. Knife upgrades / deeper zones / night events / Mushroom Boom and the Luck Potion raise the odds.,,,Teraz bez bonusów. Szanse podnoszą: nożyk / głębsze strefy / zdarzenia nocy / Wysyp i mikstura szczęścia.
+ODDS_DEPTH,Depth,,,Głębokość
+ODDS_MUTATION,Mutation,,,Mutacja
+ODDS_BASE,Base,,,Zwykle
+ODDS_NOW,You now,,,U ciebie
+ODDS_POTION,With potion,,,Z miksturą
+ODDS_POTION_ON,Potion ✓,,,Mikstura ✓
+ODDS_FOOTER,Luck xN works like N rolls where the best one counts. Odds are rolled when a mushroom regrows. One variant per mushroom; place traits stack with it. After {1} regrows without Gold the next one is at least Gold.,,,Szczęście xN działa jak N rzutów z najlepszym wynikiem. Mutacja losuje się w chwili odrostu grzyba. Grzyb ma najwyżej jeden wariant; cechy miejsca mogą dojść do niego. Po {1} odrostach bez Złota następny grzyb jest co najmniej złoty.
+ODDS_CAPPED,(raw {1} - bonuses stack with diminishing returns),,,(surowo {1} - bonusy rosną coraz wolniej)

@@ -12,6 +12,7 @@ local TweenService = game:GetService("TweenService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Localize = require(script.Parent.Localize)
+local OddsPanel = require(script.Parent.OddsPanel)
 local Purchases = require(script.Parent.Purchases)
 local UiKit = require(script.Parent.UiKit)
 local UiScale = require(script.Parent.UiScale)
@@ -28,7 +29,7 @@ local MUTED = Color3.fromRGB(214, 188, 150)
 local BUY = Color3.fromRGB(70, 160, 70)
 local ROBUX_GREEN = Color3.fromRGB(0, 176, 111)
 -- Ikona z arkusza UiKit dla każdego produktu
-local PRODUCT_ICONS = { rescue = "rescue", boom = "boom", oil = "bottle", harvest = "dry", luck = "luck" }
+local PRODUCT_ICONS = { rescue = "rescue", boom = "boom", oil = "bottle", harvest = "sell", luck = "luck" }
 
 local gui = Instance.new("ScreenGui")
 gui.Name = "Shop"
@@ -100,7 +101,7 @@ stroke(panel)
 local panelScale = Instance.new("UIScale")
 panelScale.Parent = panel
 
-local title = text(panel, "Title", UDim2.new(1, -60, 0, 36), UDim2.fromOffset(16, 10), TITLE_FONT, 26)
+local title = text(panel, "Title", UDim2.new(1, -150, 0, 36), UDim2.fromOffset(16, 10), TITLE_FONT, 26)
 title.TextColor3 = Color3.fromRGB(255, 214, 120)
 local close = Instance.new("TextButton")
 close.Size = UDim2.fromOffset(32, 32)
@@ -109,6 +110,21 @@ close.Text = ""
 close.Parent = panel
 UiKit.button(close, UiKit.COLORS.wood, { gloss = true, radius = UDim.new(0, 8) })
 UiKit.icon("close", close, UDim2.fromOffset(22, 22), UDim2.fromScale(0.5, 0.5), Vector2.new(0.5, 0.5))
+
+-- „Szanse”: tabelka prawdziwych procentów na mutacje (mikstura i Wysyp są płatne, więc szanse są jawne)
+local oddsButton = Instance.new("TextButton")
+oddsButton.Name = "Odds"
+oddsButton.Size = UDim2.fromOffset(84, 32)
+oddsButton.Position = UDim2.new(1, -134, 0, 10)
+oddsButton.Font = TITLE_FONT
+oddsButton.TextScaled = true
+oddsButton.Parent = panel
+UiKit.button(oddsButton, UiKit.COLORS.wood, { radius = UDim.new(0, 8) })
+local oddsPad = Instance.new("UIPadding")
+oddsPad.PaddingTop = UDim.new(0, 6)
+oddsPad.PaddingBottom = UDim.new(0, 6)
+oddsPad.Parent = oddsButton
+oddsButton.Activated:Connect(OddsPanel.toggle)
 
 type Card = { frame: Frame, title: TextLabel, desc: TextLabel, buy: TextButton, key: string }
 local cards: { Card } = {}
@@ -267,6 +283,7 @@ end
 
 local function refreshTexts()
 	title.Text = Localize.t("SHOP_TITLE")
+	oddsButton.Text = "% " .. Localize.t("SHOP_ODDS")
 	oilButton.Text = Purchases.priceText("oil")
 	local anyCard = false
 	local visibleIndex = 0
@@ -306,6 +323,7 @@ end
 UiScale.onChanged(layout)
 
 function ShopPanel.update(state: any, safeZone: boolean)
+	OddsPanel.update(state)
 	boomUntil = state.boomUntil or 0
 	luckUntil = state.luckUntil or 0
 	oilFraction = if state.oilMax and state.oilMax > 0 then state.oil / state.oilMax else 1
