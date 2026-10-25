@@ -58,6 +58,18 @@ local SHAPES: { [string]: Shape } = {
 	glowing_agaric = { stemH = 1.6, stemD = 0.5, capW = 2.0, capH = 0.8, cap = rgb(230, 40, 40), spots = true, glow = true },
 	-- Korona Leszego: wysoka, seledynowa, świeci z daleka jak przynęta
 	leszy_crown = { stemH = 2.2, stemD = 0.6, capW = 2.6, capH = 1.1, cap = rgb(120, 255, 190), stem = rgb(200, 255, 230), spots = true, glow = true, cluster = 3 },
+	-- Jaskinia: Kryształowe Korytarze
+	cave_oyster = { stemH = 0.5, stemD = 0.45, capW = 2.0, capH = 0.35, cap = rgb(196, 200, 214), stem = rgb(220, 222, 230), cluster = 3 },
+	crystal_cap = { stemH = 1.3, stemD = 0.45, capW = 1.7, capH = 0.9, cap = rgb(120, 210, 255), stem = rgb(200, 236, 255), glow = true },
+	amethyst = { stemH = 1.6, stemD = 0.5, capW = 2.0, capH = 1.1, cap = rgb(170, 100, 255), stem = rgb(220, 200, 255), spots = true, glow = true },
+	-- Podziemne Jezioro
+	lake_cap = { stemH = 2.0, stemD = 0.35, capW = 2.4, capH = 0.5, cap = rgb(60, 170, 200), stem = rgb(170, 220, 230) },
+	pearl = { stemH = 0.9, stemD = 0.7, capW = 1.6, capH = 1.4, cap = rgb(240, 236, 255), stem = rgb(230, 230, 240), glow = true },
+	lantern_shroom = { stemH = 2.4, stemD = 0.5, capW = 2.2, capH = 1.3, cap = rgb(255, 200, 90), stem = rgb(255, 236, 190), glow = true },
+	-- Otchłań
+	ember = { stemH = 1.1, stemD = 0.6, capW = 1.9, capH = 0.8, cap = rgb(255, 110, 40), stem = rgb(90, 50, 40), spots = true, glow = true },
+	obsidian = { stemH = 1.6, stemD = 0.9, capW = 2.4, capH = 1.0, cap = rgb(50, 40, 60), stem = rgb(70, 60, 80) },
+	heart_of_mountain = { stemH = 2.0, stemD = 0.8, capW = 2.8, capH = 1.6, cap = rgb(255, 40, 90), stem = rgb(255, 180, 200), spots = true, glow = true, cluster = 3 },
 }
 local DEFAULT_SHAPE: Shape = { stemH = 1, stemD = 0.5, capW = 1.6, capH = 0.6, cap = rgb(160, 120, 80) }
 
@@ -151,7 +163,8 @@ local function buildModel(info: MushroomInfo): (Model, { BasePart }, boolean, { 
 	model.Name = info.id
 	local shape = SHAPES[info.species] or DEFAULT_SHAPE
 	local rank = Economy.variantRank(info.variant)
-	local glowing = hasTag(info, "glowing")
+	-- Blask, Kryształ i Żar (cechy z jaskini) świecą jak Blask w lesie
+	local glowing = hasTag(info, "glowing") or hasTag(info, "crystal") or hasTag(info, "abyssal")
 	local capColor = variantColor(info.variant) or shape.cap
 	local neon = rank >= 2 or shape.glow == true or glowing
 	local parts: { BasePart } = {}

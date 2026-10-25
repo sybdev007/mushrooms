@@ -77,6 +77,9 @@ sky.MoonAngularSize = 14
 local currentDarkness = 0
 local appliedDarkness = -1
 local appliedRange = -1
+-- Kolor mgły w mroku: nocny granat w lesie, w jaskini zależny od strefy (Config.Zones[].fog)
+local currentFog = DARK_FOG
+local appliedFog = DARK_FOG
 
 local function apply(d: number, lanternRange: number)
 	Lighting.Ambient = BRIGHT_AMBIENT:Lerp(DARK_AMBIENT, d)
@@ -89,7 +92,7 @@ local function apply(d: number, lanternRange: number)
 	-- Uwaga: powyżej ok. 0,5 mgła zasłania nawet postać i krąg latarni (sprawdzone w Studio przy 0,7).
 	local lanternFactor = math.clamp((40 - lanternRange) / 30, 0, 1)
 	atmosphere.Density = 0.28 + 0.14 * d + 0.05 * d * lanternFactor
-	atmosphere.Color = BRIGHT_FOG:Lerp(DARK_FOG, d)
+	atmosphere.Color = BRIGHT_FOG:Lerp(currentFog, d)
 	atmosphere.Haze = 0.5 + 0.9 * d
 
 	colorCorrection.Saturation = -0.04 - 0.3 * d
@@ -100,6 +103,13 @@ end
 function Atmosphere.update(zone: number, lanternRange: number, dt: number): number
 	local zoneDef = Config.Zones[zone] or Config.Zones[1]
 	local target = zoneDef.darkness
+	local fog = zoneDef.fog
+	local targetFog = if fog then Color3.fromRGB(fog[1], fog[2], fog[3]) else DARK_FOG
+	local fogAlpha = math.clamp(dt * CHANGE_SPEED, 0, 1)
+	currentFog = currentFog:Lerp(targetFog, fogAlpha)
+	if (Vector3.new(currentFog.R, currentFog.G, currentFog.B) - Vector3.new(targetFog.R, targetFog.G, targetFog.B)).Magnitude < SNAP then
+		currentFog = targetFog
+	end
 
 	if math.abs(target - currentDarkness) < SNAP then
 		currentDarkness = target
@@ -110,10 +120,11 @@ function Atmosphere.update(zone: number, lanternRange: number, dt: number): numb
 
 	-- Zapisujemy do Lighting tylko gdy coś się zmieniło. Wartości zmieniane o ułamki w każdej
 	-- klatce zmuszały silnik do ciągłego przeliczania oświetlenia (migotanie i spadki klatek).
-	if currentDarkness ~= appliedDarkness or lanternRange ~= appliedRange then
+	if currentDarkness ~= appliedDarkness or lanternRange ~= appliedRange or currentFog ~= appliedFog then
 		apply(currentDarkness, lanternRange)
 		appliedDarkness = currentDarkness
 		appliedRange = lanternRange
+		appliedFog = currentFog
 	end
 	return currentDarkness
 end

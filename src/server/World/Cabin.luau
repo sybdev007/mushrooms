@@ -5,7 +5,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local Config = require(ReplicatedStorage.Shared.Config)
+local Economy = require(ReplicatedStorage.Shared.Economy)
 local Palette = require(script.Parent.Palette)
 local Props = require(script.Parent.Props)
 
@@ -477,7 +477,7 @@ end
 
 -- Świecący przerywany krąg na podłodze: tu trzeba stanąć, żeby skorzystać ze stanowiska
 local function stationRing(m: Model, name: string, color: Color3)
-	local station = Config.Stations[name]
+	local station = Economy.station(name, "forest")
 	local pieces = 18
 	local length = 2 * math.pi * station.radius / pieces * 0.6
 	for i = 1, pieces do
@@ -503,7 +503,7 @@ local function buildStations(m: Model)
 	-- Szyld nad ladą na tylnej ścianie, napisem do środka chatki
 	Props.signBoard(m, CFrame.new(-5, FLOOR_TOP + 6.6, BACK_Z + 1), Vector3.new(7.5, 1.6, 0.3), "SIGN_SHOP", Enum.NormalId.Back)
 	-- Szyld nad beczką na lewej ścianie
-	Props.signBoard(m, CFrame.new(-HALF_W + 1, FLOOR_TOP + 5.4, Config.Stations.oil.z), Vector3.new(0.3, 1.4, 5.6), "SIGN_OIL", Enum.NormalId.Right)
+	Props.signBoard(m, CFrame.new(-HALF_W + 1, FLOOR_TOP + 5.4, Economy.station("oil", "forest").z), Vector3.new(0.3, 1.4, 5.6), "SIGN_OIL", Enum.NormalId.Right)
 end
 
 -- Buduje chatkę i zwraca CFrame miejsca startu (w środku, twarzą do drzwi i lasu)

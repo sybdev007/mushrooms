@@ -3,8 +3,9 @@
 Grzybobranie z latarnią w ciemnym lesie. Pętla:
 **wchodzisz do lasu → zbierasz grzyby → wracasz, zanim zgaśnie latarnia → sprzedajesz albo suszysz → ulepszasz → idziesz głębiej.**
 
-Dwa haki ponad podstawową pętlą:
+Trzy haki ponad podstawową pętlą:
 - **Gniazdo Leszego** na końcu Mrocznego Jaru: zerwiesz Koronę Leszego, a on cię goni aż do chatki.
+- **Jaskinia** za portalem w Gnieździe Leszego: drugi świat od 50 000 monet, z własnym obozowiskiem, grzybami i ulepszeniami.
 - **Ogródki z suszarniami**: każdy gracz ma własny ogródek przy chatce. Grzyby schną i drożeją, ale inni gracze mogą je podkraść, gdy nie pilnujesz.
 
 Świat jest kreskówkowym low-poly budowanym kodem (bez importowanych modeli): chatka z bali, jesienny las,
@@ -52,6 +53,7 @@ rojo build -o lantern-forager.rbxlx
 | `src/server/World/Grove.luau` | ServerScriptService.Server | Gniazdo Leszego: krąg kamieni, tabliczka, uśpiony posąg |
 | `src/server/World/Leszy.luau` | ServerScriptService.Server | Model Leszego z klocków |
 | `src/server/World/Rack.luau` | ServerScriptService.Server | Model suszarni: 6 stanowisk na dwupoziomowym podeście |
+| `src/server/World/Cave.luau` | ServerScriptService.Server | Jaskinia: obozowisko, skalne ściany, strop, kryształy, jezioro, lawa, portale |
 | `src/server/World/Garden.luau` | ServerScriptService.Server | Ogródek gracza: płot, furtka z imieniem, grządki, suszarnia |
 | `src/client/Hud.luau` | StarterPlayerScripts.Client | Interfejs pod telefon, deszcz monet po sprzedaży |
 | `src/client/UiScale.luau` | StarterPlayerScripts.Client | Skala interfejsu zależna od ekranu |
@@ -88,6 +90,14 @@ rojo build -o lantern-forager.rbxlx
   i „Sprzedaj suszone”. Grzyb schnie 10 min (także offline) i wtedy jest wart 2×. Inni gracze: „Podkradnij” zabiera
   najcenniejszy grzyb do ich koszyka. Trzeba trzymać przycisk (2 s + poziom kłódki), nie da się, gdy właściciel stoi
   przy suszarni, a po kradzieży suszarnia ma 25 s ochrony. Właściciel dostaje alarm, gdy ktoś zaczyna kraść.
+- **Jaskinia** (`Config.Cave`, strefy z `world = "cave"`): portal za Gniazdem Leszego wpuszcza graczy, którzy mają
+  co najmniej 50 000 monet (monety zostają, a jaskinia zostaje otwarta na zawsze, `data.caveUnlocked`).
+  Obozowisko górników jest bezpieczne: beczki z olejem, kramik ze skupem i dwoma ulepszeniami jaskini
+  (Kryształowy knot: mniej oleju w jaskini, Plecak górnika: większy koszyk) i portal z powrotem do chatki.
+  Dalej Kryształowe Korytarze → Podziemne Jezioro → Otchłań, 9 nowych gatunków (do 2200 monet za Serce Góry)
+  i cechy Kryształ i Żar Otchłani. Zgaśnięcie latarni w jaskini = pobudka w obozowisku. Leszy nie wchodzi do jaskini:
+  wskoczenie w portal kończy pościg. Testy pilnują, że z maks. leśnymi ulepszeniami dojdziesz do Jeziora,
+  a do końca Otchłani dopiero z Kryształowym knotem.
 - **Las**: drzewa stoją korona przy koronie, bez nachodzenia (`CANOPY` w `MapBuilder`). Obrzeże mapy jest stawiane
   pierwsze, a reszta lasu je omija.
 - **Sterowanie**: przycisk ZBIERZ obok przycisku skoku na telefonie, `E` na klawiaturze, `X` na padzie.

@@ -35,6 +35,7 @@ local oilMax = oil
 local chased = false
 local targetId: string? = nil
 local wasInCabin = true -- gracz zaczyna w chatce
+local caveScale = 1 -- ulepszenie „Kryształowy wkład”: mnożnik spalania oleju w jaskini
 
 Signs.start()
 RackPrompts.start()
@@ -44,6 +45,7 @@ Remotes.get("StateUpdate").OnClientEvent:Connect(function(state)
 	oil = state.oil
 	oilMax = state.oilMax
 	chased = state.chased == true
+	caveScale = Economy.upgradeStat("crystal", state.upgrades.crystal or 0)
 	Hud.update(state)
 end)
 
@@ -119,6 +121,10 @@ local TOAST_KIND: { [string]: string } = {
 	MSG_NO_RACK = "warn",
 	MSG_ESCAPED = "gold",
 	MSG_HOARD_DROP = "gold",
+	MSG_PORTAL_LOCKED = "warn",
+	MSG_CAVE_UNLOCKED = "gold",
+	MSG_CAVE_ENTER = "info",
+	MSG_PORTAL_HOME = "info",
 	MSG_REFILL_HINT = "info",
 	MSG_STOLE = "gold",
 }
@@ -127,6 +133,7 @@ local TOAST_KIND: { [string]: string } = {
 local BLACKOUT_TITLE: { [string]: string } = {
 	MSG_ENGULFED = "ENGULF_TITLE",
 	MSG_CAUGHT = "CAUGHT_TITLE",
+	MSG_ENGULFED_CAVE = "ENGULF_TITLE_CAVE",
 }
 
 Remotes.get("Notify").OnClientEvent:Connect(function(payload)
@@ -236,7 +243,8 @@ RunService.RenderStepped:Connect(function(dt)
 	updateLantern(character, root, oilFraction, darkness, now)
 	MushroomView.updateVisibility(position, lanternRange, zoneDef.darkness)
 
-	if zone == 1 then
+	local safe = Economy.isSafeZone(zone)
+	if safe then
 		targetId = nil
 		MushroomView.updateTarget(position, 0)
 	else
@@ -245,20 +253,20 @@ RunService.RenderStepped:Connect(function(dt)
 
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
 	local speed = if humanoid then humanoid.WalkSpeed else Economy.upgradeStat("boots", 0)
-	local turnBack = Economy.shouldTurnBack(position.Z, speed, oil)
+	local turnBack = Economy.shouldTurnBack(position.Z, speed, oil, caveScale)
 	Warnings.update(dt, position, oilFraction, turnBack, zone, lanternRange, chased)
-	local heartbeat = if zone ~= 1 and oilFraction < Config.OilLowFraction then 1 - oilFraction / Config.OilLowFraction * 0.6 else 0
+	local heartbeat = if not safe and oilFraction < Config.OilLowFraction then 1 - oilFraction / Config.OilLowFraction * 0.6 else 0
 	Effects.setHeartbeat(if chased then 1 else heartbeat)
 
-	-- Panel sprzedaży tylko przy chatce, żeby nie zasłaniał ekranu na całej polanie
-	-- Panel sprzedaży i ulepszeń tylko w kręgu przy ladzie
-	Hud.setInCabin(Economy.atStation("shop", position.X, position.Z))
+	-- Panel sprzedaży i ulepszeń tylko w kręgu przy ladzie (w chatce albo w obozowisku)
+	local shop = Economy.stationAt("shop", position.X, position.Z)
+	Hud.setShop(if shop then shop.world else nil)
 
-	-- Po powrocie z lasu z niepełną latarnią: podpowiedź, gdzie jest olej
-	local inCabin = zone == 1 and position.Z < -13
+	-- Po powrocie z niepełną latarnią: podpowiedź, gdzie jest olej (wnętrze chatki albo obozowisko)
+	local inCabin = safe and (zoneDef.world == "cave" or position.Z < -13)
 	if inCabin and not wasInCabin and oil < oilMax - 0.5 and not Economy.atStation("oil", position.X, position.Z) then
 		Hud.toast(Localize.t("MSG_REFILL_HINT"), "info")
 	end
 	wasInCabin = inCabin
-	Hud.setPick(targetId ~= nil, zone ~= 1)
+	Hud.setPick(targetId ~= nil, not safe)
 end)

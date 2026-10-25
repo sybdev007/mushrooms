@@ -12,6 +12,11 @@ export type ZoneDef = {
 	darkness: number, -- 0 = jasno, 1 = całkowity mrok
 	spotCount: number, -- ile miejsc na grzyby jest w strefie
 	treeCount: number,
+	world: string, -- "forest" albo "cave": osobne światy połączone portalem
+	safe: boolean?, -- chatka / obozowisko: olej się nie pali, można tankować i handlować
+	fog: { number }?, -- kolor mgły w mroku (domyślnie nocny granat lasu)
+	fireflies: number?, -- świetliki (w jaskini: pyłki) na sekundę wokół gracza
+	mist: number?, -- mgiełka przy ziemi
 }
 
 export type SpeciesDef = {
@@ -31,11 +36,14 @@ export type UpgradeDef = {
 	maxLevel: number,
 	costBase: number, -- koszt pierwszego poziomu
 	costGrowth: number, -- mnożnik kosztu na każdy kolejny poziom
+	shop: string?, -- gdzie się kupuje: "forest" (chatka, domyślnie) albo "cave" (obozowisko)
 }
 
 local Config = {}
 
 -- Las ciągnie się wzdłuż osi +Z od chatki. Indeks 1 to zawsze bezpieczna chatka.
+-- Za lasem, daleko dalej na osi Z, leży Jaskinia (osobny świat, wejście przez portal za Leszym).
+-- Strefy jaskini też idą wzdłuż +Z, więc cała logika stref (olej, mrok, powrót) działa tak samo.
 Config.Zones = {
 	{
 		id = "cabin",
@@ -46,6 +54,10 @@ Config.Zones = {
 		darkness = 0,
 		spotCount = 0,
 		treeCount = 0,
+		world = "forest",
+		safe = true,
+		fireflies = 5,
+		mist = 0,
 	},
 	{
 		id = "edge",
@@ -56,6 +68,9 @@ Config.Zones = {
 		darkness = 0.35,
 		spotCount = 18,
 		treeCount = 45,
+		world = "forest",
+		fireflies = 9,
+		mist = 0.5,
 	},
 	{
 		id = "thicket",
@@ -66,6 +81,9 @@ Config.Zones = {
 		darkness = 0.7,
 		spotCount = 14,
 		treeCount = 75,
+		world = "forest",
+		fireflies = 12,
+		mist = 2.5,
 	},
 	{
 		id = "ravine",
@@ -76,8 +94,81 @@ Config.Zones = {
 		darkness = 1.0,
 		spotCount = 10,
 		treeCount = 95,
+		world = "forest",
+		fireflies = 4,
+		mist = 6,
+	},
+	-- ===== Jaskinia =====
+	{
+		id = "camp",
+		key = "ZONE_CAMP",
+		startZ = 1000,
+		endZ = 1040,
+		oilDrain = 0,
+		darkness = 0.55,
+		spotCount = 0,
+		treeCount = 0,
+		world = "cave",
+		safe = true,
+		fog = { 40, 30, 22 },
+		fireflies = 3,
+		mist = 0,
+	},
+	{
+		id = "crystal",
+		key = "ZONE_CRYSTAL",
+		startZ = 1040,
+		endZ = 1160,
+		oilDrain = 3.0,
+		darkness = 0.8,
+		spotCount = 16,
+		treeCount = 0,
+		world = "cave",
+		fog = { 18, 22, 44 },
+		fireflies = 6,
+		mist = 0.5,
+	},
+	{
+		id = "lake",
+		key = "ZONE_LAKE",
+		startZ = 1160,
+		endZ = 1290,
+		oilDrain = 4.5,
+		darkness = 0.9,
+		spotCount = 13,
+		treeCount = 0,
+		world = "cave",
+		fog = { 10, 26, 34 },
+		fireflies = 4,
+		mist = 4,
+	},
+	{
+		id = "abyss",
+		key = "ZONE_ABYSS",
+		startZ = 1290,
+		endZ = 1420,
+		oilDrain = 6.5,
+		darkness = 1.0,
+		spotCount = 10,
+		treeCount = 0,
+		world = "cave",
+		fog = { 30, 8, 12 },
+		fireflies = 2,
+		mist = 7,
 	},
 } :: { ZoneDef }
+
+-- Jaskinia: portal za Gniazdem Leszego, otwiera się graczom z co najmniej unlockCoins monet.
+-- Raz otwarty zostaje otwarty (zapisywane), nawet gdy potem wydasz monety.
+Config.Cave = {
+	unlockCoins = 50000,
+	halfWidth = 46, -- jaskinia jest węższa niż las
+	ceiling = 34, -- wysokość stropu
+	portal = { x = 0, z = 451 }, -- portal w lesie, za Gniazdem Leszego
+	returnPortal = { x = 0, z = 1004 }, -- portal powrotny w obozowisku (prowadzi do chatki)
+	camp = { x = 0, z = 1020 }, -- tu ląduje gracz po przejściu i po zgaśnięciu latarni w jaskini
+	portalRadius = 4,
+}
 
 Config.ForestHalfWidth = 70 -- las ma szerokość 2 * 70 studs
 Config.OilRefillPerSecond = 25 -- tankowanie latarni w chatce
@@ -125,6 +216,8 @@ Config.Variants = {
 Config.Tags = {
 	{ id = "mossy", key = "MUT_MOSSY", icon = "🌿", zone = 3, chance = 0.08, mult = 1.5, color = { 110, 176, 72 } },
 	{ id = "glowing", key = "MUT_GLOWING", icon = "✨", zone = 4, chance = 0.1, mult = 2, color = { 110, 255, 214 } },
+	{ id = "crystal", key = "MUT_CRYSTAL", icon = "💎", zone = 7, chance = 0.1, mult = 2, color = { 120, 200, 255 } },
+	{ id = "abyssal", key = "MUT_ABYSSAL", icon = "🔥", zone = 8, chance = 0.08, mult = 2.5, color = { 255, 90, 60 } },
 } :: { TagDef }
 
 -- Ukryta gwarancja: po tylu odrostach bez Złota (albo lepszego) następny grzyb jest co najmniej złoty
@@ -153,6 +246,18 @@ Config.Species = {
 	{ id = "glowing_agaric", key = "MUSH_GLOWING", zone = 4, value = 160, weight = 7, cap = { 230, 40, 40 } },
 	-- Gniazdo Leszego (na końcu Jaru): zerwanie budzi Leszego
 	{ id = "leszy_crown", key = "MUSH_LESZY_CROWN", zone = 4, value = 220, weight = 0, cap = { 120, 255, 190 }, grove = true },
+	-- Kryształowe Korytarze
+	{ id = "cave_oyster", key = "MUSH_CAVE_OYSTER", zone = 6, value = 110, weight = 50, cap = { 196, 200, 214 } },
+	{ id = "crystal_cap", key = "MUSH_CRYSTAL_CAP", zone = 6, value = 170, weight = 35, cap = { 120, 210, 255 } },
+	{ id = "amethyst", key = "MUSH_AMETHYST", zone = 6, value = 260, weight = 15, cap = { 170, 100, 255 } },
+	-- Podziemne Jezioro
+	{ id = "lake_cap", key = "MUSH_LAKE_CAP", zone = 7, value = 300, weight = 50, cap = { 60, 170, 200 } },
+	{ id = "pearl", key = "MUSH_PEARL", zone = 7, value = 420, weight = 35, cap = { 240, 236, 255 } },
+	{ id = "lantern_shroom", key = "MUSH_LANTERN_SHROOM", zone = 7, value = 600, weight = 15, cap = { 255, 200, 90 } },
+	-- Otchłań
+	{ id = "ember", key = "MUSH_EMBER", zone = 8, value = 700, weight = 50, cap = { 255, 110, 40 } },
+	{ id = "obsidian", key = "MUSH_OBSIDIAN", zone = 8, value = 950, weight = 38, cap = { 50, 40, 60 } },
+	{ id = "heart_of_mountain", key = "MUSH_HEART", zone = 8, value = 2200, weight = 12, cap = { 255, 40, 90 } },
 } :: { SpeciesDef }
 
 Config.Upgrades = {
@@ -162,10 +267,15 @@ Config.Upgrades = {
 	boots = { key = "UPG_BOOTS", base = 16, step = 1.5, maxLevel = 8, costBase = 30, costGrowth = 1.65 },
 	-- Kłódka na suszarni: ile sekund złodziej musi trzymać przycisk kradzieży
 	lock = { key = "UPG_LOCK", base = 2, step = 1, maxLevel = 6, costBase = 60, costGrowth = 1.7 },
+	-- Obozowisko w jaskini. Kryształowy wkład: mnożnik spalania oleju w jaskini (1 = bez zmian)
+	crystal = { key = "UPG_CRYSTAL", base = 1, step = -0.1, maxLevel = 5, costBase = 3000, costGrowth = 1.8, shop = "cave" },
+	-- Plecak górnika: tyle dodatkowych miejsc w koszyku
+	pack = { key = "UPG_PACK", base = 0, step = 4, maxLevel = 6, costBase = 2500, costGrowth = 1.7, shop = "cave" },
 } :: { [string]: UpgradeDef }
 
--- Kolejność przycisków ulepszeń w chatce
+-- Kolejność przycisków ulepszeń: w chatce i w obozowisku w jaskini
 Config.UpgradeOrder = { "lantern", "oil", "basket", "boots", "lock" }
+Config.CaveUpgradeOrder = { "crystal", "pack" }
 
 -- ===== Gniazdo Leszego =====
 -- Polana na końcu Mrocznego Jaru z kręgiem kamieni i grzybami „Korona Leszego”.
@@ -189,10 +299,15 @@ Config.Hoard = {
 
 -- Stanowiska w chatce. Olej leje się tylko przy beczce, a sprzedaż i ulepszenia działają
 -- tylko przy ladzie. x, z = środek kręgu na podłodze, radius = promień kręgu (studs).
+export type StationDef = { kind: string, world: string, x: number, z: number, radius: number }
 Config.Stations = {
-	oil = { x = -8.6, z = -17.2, radius = 3.3 },
-	shop = { x = -5, z = -28.2, radius = 4 },
-}
+	-- Chatka
+	{ kind = "oil", world = "forest", x = -8.6, z = -17.2, radius = 3.3 },
+	{ kind = "shop", world = "forest", x = -5, z = -28.2, radius = 4 },
+	-- Obozowisko w jaskini
+	{ kind = "oil", world = "cave", x = -13, z = 1022, radius = 3.6 },
+	{ kind = "shop", world = "cave", x = 13, z = 1022, radius = 4 },
+} :: { StationDef }
 Config.StationTolerance = 2 -- serwer jest łagodniejszy przez opóźnienie sieci
 
 -- Komendy deweloperskie na czacie (np. /coins 1000000) działają w Studio

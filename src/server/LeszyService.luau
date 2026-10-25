@@ -124,7 +124,7 @@ local function step(_dt: number)
 			LeszyService.stop(player)
 			continue
 		end
-		if Economy.zoneIndexAt(root.Position.Z) == 1 then
+		if Economy.isSafeZone(Economy.zoneIndexAt(root.Position.Z)) then
 			LeszyService.stop(player)
 			hooks.onEscaped(player)
 			continue

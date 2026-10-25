@@ -9,13 +9,12 @@ local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local Economy = require(ReplicatedStorage.Shared.Economy)
 local Localize = require(script.Parent.Localize)
 local UiScale = require(script.Parent.UiScale)
 
 local Warnings = {}
 
--- Punkt, do którego prowadzi strzałka: drzwi chatki
-local CABIN_DOOR = Vector3.new(0, 0, -10)
 local EYES_FRACTION = 0.15 -- poniżej tylu procent oleju w ciemnych strefach pojawiają się oczy
 
 local gui = Instance.new("ScreenGui")
@@ -123,9 +122,11 @@ UiScale.onChanged(function()
 end)
 
 local chaseBanner = false
+local inCave = false -- w jaskini baner prowadzi do obozowiska, nie do chatki
 
 local function refreshTexts()
-	bannerText.Text = if chaseBanner then "👹 " .. Localize.t("HUD_LESZY_CHASE") else "⚠ " .. Localize.t("HUD_TURN_BACK")
+	local turnBackKey = if inCave then "HUD_TURN_BACK_CAMP" else "HUD_TURN_BACK"
+	bannerText.Text = if chaseBanner then "👹 " .. Localize.t("HUD_LESZY_CHASE") else "⚠ " .. Localize.t(turnBackKey)
 end
 refreshTexts()
 Localize.onChanged(refreshTexts)
@@ -215,10 +216,16 @@ function Warnings.update(
 	if chaseBanner then
 		turnBack = true
 	end
+	local world = Economy.zoneWorld(zone)
+	if (world == "cave") ~= inCave then
+		inCave = world == "cave"
+		refreshTexts()
+	end
+	local safe = Economy.isSafeZone(zone)
 
 	-- Winieta: od 25% oleju w dół coraz mocniej, z pulsowaniem jak bicie serca
 	local danger = 0
-	if zone ~= 1 and oilFraction < Config.OilLowFraction then
+	if not safe and oilFraction < Config.OilLowFraction then
 		danger = 1 - oilFraction / Config.OilLowFraction
 	end
 	if turnBack then
@@ -239,7 +246,8 @@ function Warnings.update(
 	-- Baner ze strzałką do chatki
 	banner.Visible = turnBack
 	if turnBack then
-		local toDoor = CABIN_DOOR - rootPosition
+		local homeX, homeZ = Economy.homePoint(world)
+		local toDoor = Vector3.new(homeX, 0, homeZ) - rootPosition
 		local flatDir = Vector3.new(toDoor.X, 0, toDoor.Z)
 		local camera = Workspace.CurrentCamera
 		local forward = Vector3.new(camera.CFrame.LookVector.X, 0, camera.CFrame.LookVector.Z)
@@ -248,12 +256,15 @@ function Warnings.update(
 			local d = flatDir.Unit
 			arrow.Rotation = math.deg(math.atan2(d:Dot(right.Unit), d:Dot(forward.Unit)))
 		end
-		distanceText.Text = Localize.t("HUD_DISTANCE", { math.floor(flatDir.Magnitude / 3.5) }) -- 3,5 studs ≈ 1 m
+		local distanceKey = if inCave then "HUD_DISTANCE_CAMP" else "HUD_DISTANCE"
+		distanceText.Text = Localize.t(distanceKey, { math.floor(flatDir.Magnitude / 3.5) }) -- 3,5 studs ≈ 1 m
 		bannerScale.Scale = uiScale * (1 + 0.04 * math.sin(pulseTime * 6))
 	end
 
 	-- Oczy w ciemności, gdy latarnia prawie gaśnie
-	if zone >= 3 and oilFraction < EYES_FRACTION and os.clock() >= nextEyesAt then
+	-- Oczy Leszego tylko w ciemnym lesie (do jaskini Leszy nie wchodzi)
+	local zoneDef = Config.Zones[zone]
+	if world == "forest" and zoneDef and zoneDef.darkness >= 0.7 and oilFraction < EYES_FRACTION and os.clock() >= nextEyesAt then
 		nextEyesAt = os.clock() + math.random(50, 80) / 10
 		spawnEyes(rootPosition, lanternRange)
 	end

@@ -38,6 +38,7 @@ type Session = {
 	lastAction: number,
 	rng: Random,
 	spots: { [string]: SpotState },
+	portalNoticeAt: number, -- kiedy ostatnio mówiliśmy „portal zamknięty” (żeby nie spamować)
 }
 
 local TICK_SECONDS = 0.2
@@ -60,6 +61,11 @@ local map: MapBuilder.MapInfo
 
 local function stat(session: Session, id: string): number
 	return Economy.upgradeStat(id, session.data.upgrades[id] or 0)
+end
+
+-- Koszyk + plecak górnika (ulepszenie z obozowiska w jaskini)
+local function basketMax(session: Session): number
+	return stat(session, "basket") + stat(session, "pack")
 end
 
 local function getRoot(player: Player): BasePart?
@@ -95,7 +101,7 @@ local function pushState(session: Session)
 		oil = math.max(session.oil, 0),
 		oilMax = stat(session, "oil"),
 		basketCount = #data.basket,
-		basketMax = stat(session, "basket"),
+		basketMax = basketMax(session),
 		basketValue = Economy.basketValue(data.basket),
 		lanternRange = stat(session, "lantern"),
 		zone = session.zone,
@@ -262,12 +268,17 @@ local function engulf(session: Session, messageKey: string?)
 	session.oil = stat(session, "oil")
 	session.oilWarned = false
 	session.oilHalfWarned = false
+	-- W jaskini gracz budzi się w obozowisku, a nie w chatce na drugim końcu świata
+	local root = getRoot(session.player)
+	local inCave = root ~= nil and Economy.zoneWorld(Economy.zoneIndexAt(root.Position.Z)) == "cave"
+	local target = if inCave and map.campCFrame then map.campCFrame else map.spawnCFrame
 	local character = session.player.Character
 	if character then
-		character:PivotTo(map.spawnCFrame)
+		character:PivotTo(target)
 	end
-	session.zone = 1
-	notify(session, messageKey or "MSG_ENGULFED", { lost })
+	session.zone = Economy.zoneIndexAt(target.Position.Z)
+	local defaultKey = if inCave then "MSG_ENGULFED_CAVE" else "MSG_ENGULFED"
+	notify(session, messageKey or defaultKey, { lost })
 
 	if #reclaimed > 0 then
 		local placed = HoardService.drop(reclaimed)
@@ -280,6 +291,41 @@ local function engulf(session: Session, messageKey: string?)
 	end
 end
 
+-- Portale: w lesie za Leszym (do jaskini, od Config.Cave.unlockCoins monet) i w obozowisku (do chatki)
+local function near(root: BasePart, point: Vector3?): boolean
+	if not point then
+		return false
+	end
+	local offset = root.Position - point
+	return Vector3.new(offset.X, 0, offset.Z).Magnitude <= Config.Cave.portalRadius
+end
+
+local function checkPortals(session: Session, root: BasePart, now: number)
+	local character = session.player.Character
+	if not character then
+		return
+	end
+	if near(root, map.portal) and map.campCFrame then
+		local data = session.data
+		if Economy.canEnterCave(data.coins, data.caveUnlocked) then
+			local first = not data.caveUnlocked
+			data.caveUnlocked = true
+			-- Ucieczka przez portal kończy pościg (Leszy nie wchodzi do jaskini)
+			LeszyService.stop(session.player)
+			character:PivotTo(map.campCFrame)
+			session.zone = Economy.zoneIndexAt(map.campCFrame.Position.Z)
+			notify(session, if first then "MSG_CAVE_UNLOCKED" else "MSG_CAVE_ENTER")
+		elseif now - session.portalNoticeAt > 4 then
+			session.portalNoticeAt = now
+			notify(session, "MSG_PORTAL_LOCKED", { Config.Cave.unlockCoins })
+		end
+	elseif near(root, map.returnPortal) then
+		character:PivotTo(map.spawnCFrame)
+		session.zone = 1
+		notify(session, "MSG_PORTAL_HOME")
+	end
+end
+
 local function tick(step: number)
 	local now = os.clock()
 	for _, session in sessions do
@@ -288,8 +334,8 @@ local function tick(step: number)
 			local zone = Economy.zoneIndexAt(root.Position.Z)
 			session.zone = zone
 			local oilMax = stat(session, "oil")
-			if zone == 1 then
-				-- Olej leje się tylko przy beczce w chatce; na polanie latarnia nie traci, ale się nie napełnia
+			if Economy.isSafeZone(zone) then
+				-- Olej leje się tylko przy beczce; na polanie / w obozie latarnia nie traci, ale się nie napełnia
 				if Economy.atStation("oil", root.Position.X, root.Position.Z, Config.StationTolerance) then
 					session.oil = math.min(oilMax, session.oil + Config.OilRefillPerSecond * step)
 				end
@@ -301,7 +347,7 @@ local function tick(step: number)
 					session.oilWarned = false
 				end
 			else
-				session.oil -= Config.Zones[zone].oilDrain * step
+				session.oil -= Economy.oilDrain(zone, stat(session, "crystal")) * step
 				if not session.oilHalfWarned and session.oil <= oilMax * Config.OilWarnFraction then
 					session.oilHalfWarned = true
 					notify(session, "MSG_OIL_HALF")
@@ -314,6 +360,9 @@ local function tick(step: number)
 					engulf(session)
 				end
 			end
+		end
+		if root then
+			checkPortals(session, root, now)
 		end
 		syncReadySpots(session, now)
 		pushState(session)
@@ -351,6 +400,7 @@ local function onPlayerAdded(player: Player)
 		lastAction = 0,
 		rng = Random.new(),
 		spots = {},
+		portalNoticeAt = 0,
 	}
 	session.oil = stat(session, "oil")
 
@@ -436,7 +486,7 @@ local function onPick(player: Player, spotId: unknown)
 	end
 
 	local basket = session.data.basket
-	if #basket >= stat(session, "basket") then
+	if #basket >= basketMax(session) then
 		notify(session, "MSG_BASKET_FULL")
 		return
 	end
@@ -552,6 +602,12 @@ local function onBuy(player: Player, upgradeId: unknown)
 	if not def or not canAct(session) then
 		return
 	end
+	-- Ulepszenia z obozowiska kupuje się tylko tam, z chatki tylko w chatce
+	local root = getRoot(player)
+	local station = root and Economy.stationAt("shop", root.Position.X, root.Position.Z, Config.StationTolerance)
+	if not station or station.world ~= Economy.upgradeShop(upgradeId) then
+		return
+	end
 	local level = session.data.upgrades[upgradeId] or 0
 	local cost = Economy.upgradeCost(upgradeId, level)
 	if not cost then
@@ -604,7 +660,7 @@ function GameService.start(mapInfo: MapBuilder.MapInfo)
 				return false
 			end
 			local basket = session.data.basket
-			if #basket >= stat(session, "basket") then
+			if #basket >= basketMax(session) then
 				notify(session, "MSG_BASKET_FULL")
 				return false
 			end
@@ -625,7 +681,7 @@ function GameService.start(mapInfo: MapBuilder.MapInfo)
 		end,
 		basketMax = function(player: Player): number
 			local session = sessions[player]
-			return if session then stat(session, "basket") else 0
+			return if session then basketMax(session) else 0
 		end,
 		notify = function(player: Player, key: string, args: { any }?, nameKey: string?)
 			local session = sessions[player]

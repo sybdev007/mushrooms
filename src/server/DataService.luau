@@ -17,6 +17,7 @@ export type Data = {
 	basket: { Economy.BasketItem },
 	drying: { Economy.DryingItem }, -- grzyby na suszarni (schną także offline)
 	pity: number, -- odrosty od ostatniego Złota (albo lepszego), do gwarancji mutacji
+	caveUnlocked: boolean, -- portal do jaskini raz otwarty zostaje otwarty
 }
 
 local STORE_NAME = "LanternForager_Prototype_v1"
@@ -54,6 +55,7 @@ function DataService.defaultData(): Data
 		basket = {},
 		drying = {},
 		pity = 0,
+		caveUnlocked = false,
 	}
 end
 
@@ -129,6 +131,7 @@ local function reconcile(raw: any): Data
 	if typeof(raw.pity) == "number" then
 		data.pity = math.clamp(math.floor(raw.pity), 0, Config.PityRolls)
 	end
+	data.caveUnlocked = raw.caveUnlocked == true
 	return data
 end
 

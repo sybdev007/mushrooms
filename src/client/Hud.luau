@@ -46,7 +46,13 @@ local THEME = {
 local TITLE_FONT = Enum.Font.FredokaOne
 local BODY_FONT = Enum.Font.GothamBold
 
-local UPGRADE_ICONS = { lantern = "🔦", oil = "🛢️", basket = "🧺", boots = "🥾", lock = "🔒" }
+local UPGRADE_ICONS = { lantern = "🔦", oil = "🛢️", basket = "🧺", boots = "🥾", lock = "🔒", crystal = "💎", pack = "🎒" }
+
+-- Karty w panelu: najpierw sklep w chatce, potem w obozowisku. Panel pokazuje tylko karty bieżącego sklepu.
+local ALL_UPGRADES: { string } = table.clone(Config.UpgradeOrder)
+for _, id in Config.CaveUpgradeOrder do
+	table.insert(ALL_UPGRADES, id)
+end
 
 local callbacks = {
 	pick = {} :: { () -> () },
@@ -55,7 +61,6 @@ local callbacks = {
 }
 
 local lastState: State? = nil
-local inCabin = true
 
 -- ===== Pomocnicze =====
 
@@ -228,10 +233,14 @@ pickCaptionStroke.Color = Color3.fromRGB(90, 40, 10)
 pickCaptionStroke.Parent = pickCaption
 
 -- Panel chatki: sprzedaż i ulepszenia (karty po dwie w rzędzie, rzędów tyle, ile trzeba)
-local UPGRADE_ROWS = math.ceil(#Config.UpgradeOrder / 2)
+local UPGRADE_ROWS = math.ceil(math.max(#Config.UpgradeOrder, #Config.CaveUpgradeOrder) / 2)
 local CARD_ROW_HEIGHT = 56
 local PANEL_HEIGHT = 16 + 56 + UPGRADE_ROWS * CARD_ROW_HEIGHT
+local function panelHeight(rows: number): number
+	return 16 + 56 + rows * CARD_ROW_HEIGHT
+end
 local cabinPanel = panel("CabinPanel", gui, UDim2.new(0.94, 0, 0, PANEL_HEIGHT), UDim2.new(0.5, 0, 1, -14), Vector2.new(0.5, 1))
+cabinPanel.Visible = false -- pokazuje go Hud.setShop przy ladzie
 local panelSize = Instance.new("UISizeConstraint")
 panelSize.MaxSize = Vector2.new(600, PANEL_HEIGHT)
 panelSize.Parent = cabinPanel
@@ -285,7 +294,7 @@ type Card = {
 }
 local cards: { [string]: Card } = {}
 
-for order, id in Config.UpgradeOrder do
+for order, id in ALL_UPGRADES do
 	local button = Instance.new("TextButton")
 	button.Name = "Upgrade_" .. id
 	button.Text = ""
@@ -404,7 +413,7 @@ local function render()
 	local fraction = if state.oilMax > 0 then math.clamp(state.oil / state.oilMax, 0, 1) else 0
 	oilFill.Size = UDim2.new(fraction, 0, 1, 0)
 	oilText.Text = string.format("%s  %d/%d", Localize.t("HUD_OIL"), math.ceil(state.oil), state.oilMax)
-	setOilLow(state.zone ~= 1 and fraction < Config.OilLowFraction)
+	setOilLow(not Economy.isSafeZone(state.zone) and fraction < Config.OilLowFraction)
 
 	if state.basketCount > 0 then
 		sellButton.Text = Localize.t("HUD_SELL", { formatCoins(state.basketValue) }) .. "  💰"
@@ -479,14 +488,31 @@ function Hud.refreshTexts()
 	render()
 end
 
-function Hud.setInCabin(value: boolean)
-	if value ~= inCabin then
-		inCabin = value
-		cabinPanel.Visible = value
-		if value then
-			pop(cabinPanel, 0.06)
+-- shop: "forest" (lada w chatce), "cave" (kramik w obozowisku) albo nil (panel schowany)
+local currentShop: string? = nil
+function Hud.setShop(shop: string?)
+	if shop == currentShop then
+		return
+	end
+	currentShop = shop
+	cabinPanel.Visible = shop ~= nil
+	if not shop then
+		return
+	end
+	local visibleCount = 0
+	for id, card in cards do
+		local visible = Economy.upgradeShop(id) == shop
+		card.button.Visible = visible
+		if visible then
+			visibleCount += 1
 		end
 	end
+	-- Panel tak wysoki, ile rzędów kart ma ten sklep
+	local rows = math.max(1, math.ceil(visibleCount / 2))
+	cabinPanel.Size = UDim2.new(0.94, 0, 0, panelHeight(rows))
+	panelSize.MaxSize = Vector2.new(600, panelHeight(rows))
+	gridLayout.CellSize = UDim2.new(0.5, -4, 1 / rows, -6)
+	pop(cabinPanel, 0.06)
 end
 
 local pickPulse: Tween? = nil

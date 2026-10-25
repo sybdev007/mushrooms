@@ -17,6 +17,7 @@ local Props = require(World:WaitForChild("Props"))
 local Cabin = require(World:WaitForChild("Cabin"))
 local Grove = require(World:WaitForChild("Grove"))
 local Garden = require(World:WaitForChild("Garden"))
+local Cave = require(World:WaitForChild("Cave"))
 
 export type Spot = {
 	id: string,
@@ -37,7 +38,20 @@ export type MapInfo = {
 	groveCenter: Vector3?, -- skąd rusza Leszy; nil = mapa bez gniazda
 	leszyStatue: Model?,
 	racks: { RackInfo },
+	campCFrame: CFrame?, -- obozowisko w jaskini; nil = mapa bez jaskini
+	portal: Vector3?, -- portal do jaskini (w lesie, za Gniazdem Leszego)
+	returnPortal: Vector3?, -- portal powrotny w obozowisku
 }
+
+-- Las to strefy z world = "forest"; jaskinię buduje World/Cave
+local FOREST_ZONES: { number } = {}
+for index, zone in Config.Zones do
+	if zone.world == "forest" then
+		table.insert(FOREST_ZONES, index)
+	end
+end
+local FOREST_FIRST = Config.Zones[FOREST_ZONES[1]]
+local FOREST_LAST = Config.Zones[FOREST_ZONES[#FOREST_ZONES]]
 
 type Builder = (Instance, Vector3, number, Random, number) -> ()
 
@@ -200,7 +214,8 @@ end
 
 local function buildGround(parent: Instance)
 	local halfWidth = Config.ForestHalfWidth
-	for zoneIndex, zone in Config.Zones do
+	for _, zoneIndex in FOREST_ZONES do
+		local zone = Config.Zones[zoneIndex]
 		local length = zone.endZ - zone.startZ
 		local ground = Instance.new("Part")
 		ground.Name = "Ground_" .. zone.id
@@ -227,8 +242,8 @@ end
 
 local function buildWalls(parent: Instance)
 	local halfWidth = Config.ForestHalfWidth
-	local first = Config.Zones[1]
-	local last = Config.Zones[#Config.Zones]
+	local first = FOREST_FIRST
+	local last = FOREST_LAST
 	local totalLength = last.endZ - first.startZ
 	local centerZ = first.startZ + totalLength / 2
 	local function wall(size: Vector3, position: Vector3)
@@ -255,8 +270,8 @@ local function buildBorder(parent: Instance, rng: Random)
 	local folder = Instance.new("Folder")
 	folder.Name = "Border"
 	local halfWidth = Config.ForestHalfWidth
-	local first = Config.Zones[1]
-	local last = Config.Zones[#Config.Zones]
+	local first = FOREST_FIRST
+	local last = FOREST_LAST
 	local function darknessAt(z: number): number
 		return if z < first.endZ then 0.2 else Config.Zones[math.max(2, Economy.zoneIndexAt(z))].darkness
 	end
@@ -374,8 +389,8 @@ end
 
 local function buildSpots(rng: Random): { Spot }
 	local spots: { Spot } = {}
-	local halfWidth = Config.ForestHalfWidth - 8
 	for zoneIndex, zone in Config.Zones do
+		local halfWidth = (if zone.world == "cave" then Config.Cave.halfWidth else Config.ForestHalfWidth) - 8
 		for i = 1, zone.spotCount do
 			local x, z = findSpot(rng, -halfWidth, halfWidth, zone.startZ + 6, zone.endZ - 6, 3)
 			if x and z then
@@ -528,8 +543,8 @@ function MapBuilder.build(): MapInfo
 	table.insert(reserved, { x1 = -Cabin.HALF_W - 4, x2 = Cabin.HALF_W + 4, z1 = Cabin.BACK_Z - 5, z2 = Cabin.FRONT_Z + 10 })
 
 	-- Bramy na początku każdej strefy leśnej
-	for zoneIndex = 2, #Config.Zones do
-		local zone = Config.Zones[zoneIndex]
+	for i = 2, #FOREST_ZONES do
+		local zone = Config.Zones[FOREST_ZONES[i]]
 		Props.gate(map, zone.startZ, zone.key)
 		table.insert(reserved, { x1 = -9.5, x2 = 9.5, z1 = zone.startZ - 2.5, z2 = zone.startZ + 2.5 })
 	end
@@ -543,6 +558,17 @@ function MapBuilder.build(): MapInfo
 	local groveR = Config.Grove.radius
 	table.insert(reserved, { x1 = center.X - groveR - 3, x2 = center.X + groveR + 3, z1 = center.Z - groveR - 5, z2 = center.Z + groveR + 8 })
 	local leszyStatue = Grove.build(map, center, groveR, Random.new(Config.SpotSeed + 2))
+
+	-- Portal do jaskini za gniazdem, napisem w stronę nadchodzącego gracza
+	local portalDef = Config.Cave.portal
+	local portal = Vector3.new(portalDef.x, 0, portalDef.z)
+	table.insert(reserved, { x1 = portal.X - 8, x2 = portal.X + 8, z1 = portal.Z - 5, z2 = FOREST_LAST.endZ })
+	Cave.portal(map, CFrame.new(portal), "SIGN_PORTAL", Color3.fromRGB(160, 90, 255))
+
+	-- Jaskinia: najpierw rezerwacje (obozowisko, ścieżka, jeziorka), żeby grzyby nie wyrosły w wodzie
+	for _, rect in Cave.reservedRects() do
+		table.insert(reserved, rect)
+	end
 
 	-- Ścieżka z latarniami od ganku w głąb skraju lasu
 	local decorRng = Random.new(Config.SpotSeed + 1)
@@ -561,9 +587,23 @@ function MapBuilder.build(): MapInfo
 	end
 	-- Obrzeże przed lasem: las wewnątrz omija korony obrzeża
 	buildBorder(map, decorRng)
-	for zoneIndex = 1, #Config.Zones do
+	for _, zoneIndex in FOREST_ZONES do
 		buildZoneDecor(map, zoneIndex, decorRng)
 	end
+
+	local campCFrame = Cave.build(map, Random.new(Config.SpotSeed + 5), {
+		place = function(rng: Random, x1: number, x2: number, z1: number, z2: number, radius: number)
+			local x, z = findSpot(rng, x1, x2, z1, z2, radius)
+			if x and z then
+				occupy(x, z, radius)
+			end
+			return x, z
+		end,
+	})
+	local returnDef = Config.Cave.returnPortal
+	local returnPortal = Vector3.new(returnDef.x, 0, returnDef.z)
+	-- Z obozowiska idzie się do portalu w stronę -Z, więc napis patrzy na +Z
+	Cave.portal(map, CFrame.new(returnPortal) * CFrame.Angles(0, math.pi, 0), "SIGN_PORTAL_HOME", Color3.fromRGB(255, 190, 90))
 
 	-- Miejsce startu: w chatce, twarzą do drzwi i lasu
 	local spawn = Instance.new("SpawnLocation")
@@ -592,6 +632,9 @@ function MapBuilder.build(): MapInfo
 		groveCenter = center,
 		leszyStatue = leszyStatue,
 		racks = racks,
+		campCFrame = campCFrame,
+		portal = portal,
+		returnPortal = returnPortal,
 	}
 end
 

@@ -52,12 +52,17 @@ test("zoneIndexAt na granicach stref", function()
 	eq(Economy.zoneIndexAt(159.9), 2, "koniec skraju lasu")
 	eq(Economy.zoneIndexAt(160), 3, "początek gęstwiny")
 	eq(Economy.zoneIndexAt(300), 4, "początek jaru")
-	eq(Economy.zoneIndexAt(9999), 4, "za mapą")
+	eq(Economy.zoneIndexAt(600), 4, "między lasem a jaskinią = koniec jaru")
+	eq(Economy.zoneIndexAt(1000), 5, "obozowisko")
+	eq(Economy.zoneIndexAt(9999), #Config.Zones, "za jaskinią")
 end)
 
 test("strefy są ciągłe i rosną w mroku i zużyciu oleju", function()
 	local zones = Config.Zones
 	for i = 2, #zones do
+		if zones[i].world ~= zones[i - 1].world or zones[i].safe then
+			continue -- nowy świat zaczyna się od bezpiecznego obozowiska
+		end
 		eq(zones[i].startZ, zones[i - 1].endZ, "ciągłość strefy " .. i)
 		check(zones[i].oilDrain > zones[i - 1].oilDrain, "zużycie oleju musi rosnąć w strefie " .. i)
 		check(zones[i].darkness > zones[i - 1].darkness, "mrok musi rosnąć w strefie " .. i)
@@ -89,12 +94,15 @@ test("latarnia nie przekracza limitu PointLight (60)", function()
 	check(Economy.upgradeStat("lantern", def.maxLevel) <= 60, "zasięg ponad 60")
 end)
 
-test("Config.UpgradeOrder zawiera każde ulepszenie dokładnie raz", function()
+test("UpgradeOrder + CaveUpgradeOrder zawierają każde ulepszenie dokładnie raz, każde w swoim sklepie", function()
 	local seen = {}
-	for _, id in Config.UpgradeOrder do
-		check(Config.Upgrades[id] ~= nil, "nieznane " .. id)
-		check(not seen[id], "duplikat " .. id)
-		seen[id] = true
+	for _, list in { { order = Config.UpgradeOrder, shop = "forest" }, { order = Config.CaveUpgradeOrder, shop = "cave" } } do
+		for _, id in list.order do
+			check(Config.Upgrades[id] ~= nil, "nieznane " .. id)
+			check(not seen[id], "duplikat " .. id)
+			eq(Economy.upgradeShop(id), list.shop, "sklep " .. id)
+			seen[id] = true
+		end
 	end
 	for id in Config.Upgrades do
 		check(seen[id] == true, "brak w kolejności: " .. id)
@@ -102,10 +110,13 @@ test("Config.UpgradeOrder zawiera każde ulepszenie dokładnie raz", function()
 end)
 
 print("Grzyby")
-test("każda strefa leśna ma grzyby, chatka nie ma", function()
-	eq(#Economy.speciesForZone(1), 0, "chatka")
-	for zone = 2, #Config.Zones do
-		check(#Economy.speciesForZone(zone) > 0, "brak grzybów w strefie " .. zone)
+test("każda strefa poza chatką i obozowiskiem ma grzyby", function()
+	for zone, def in Config.Zones do
+		if def.safe then
+			eq(#Economy.speciesForZone(zone), 0, def.id)
+		else
+			check(#Economy.speciesForZone(zone) > 0, "brak grzybów w strefie " .. def.id)
+		end
 	end
 end)
 
@@ -126,8 +137,15 @@ test("głębsza strefa jest warta więcej", function()
 		end
 		return total / weights
 	end
-	for zone = 3, #Config.Zones do
-		check(average(zone) > average(zone - 1) * 2, "strefa " .. zone .. " za mało opłacalna")
+	-- W każdym świecie kolejna strefa jest warta ponad dwa razy więcej; jaskinia startuje wyżej niż koniec lasu
+	local previous: number? = nil
+	for zone, def in Config.Zones do
+		if not def.safe then
+			if previous then
+				check(average(zone) > average(previous) * 1.6, "strefa " .. def.id .. " za mało opłacalna")
+			end
+			previous = zone
+		end
 	end
 end)
 
@@ -196,8 +214,11 @@ test("cechy rosną tylko w swoich strefach, głębiej więcej zysku", function()
 	eq(#Economy.tagsForZone(2), 0, "skraj lasu")
 	check(#Economy.tagsForZone(3) > 0, "gęstwina bez cech")
 	check(#Economy.tagsForZone(4) > 0, "jar bez cech")
-	for zone = 3, #Config.Zones do
-		check(Economy.expectedMultiplier(zone) > Economy.expectedMultiplier(zone - 1), "strefa " .. zone .. " nie daje więcej mutacji")
+	-- Głębiej w każdym świecie co najmniej tyle samo mutacji (pierwsza strefa jaskini zaczyna od nowa)
+	for _, ids in { { 2, 3, 4 }, { 6, 7, 8 } } do
+		for i = 2, #ids do
+			check(Economy.expectedMultiplier(ids[i]) > Economy.expectedMultiplier(ids[i - 1]), "strefa " .. ids[i] .. " nie daje więcej mutacji")
+		end
 	end
 end)
 
@@ -238,7 +259,7 @@ end)
 test("korona jest warta więcej niż najdroższy zwykły grzyb", function()
 	local best = 0
 	for _, species in Config.Species do
-		if not species.grove then
+		if not species.grove and Economy.zoneWorld(species.zone) == "forest" then
 			best = math.max(best, species.value)
 		end
 	end
@@ -249,8 +270,8 @@ end)
 
 test("gniazdo leży w Mrocznym Jarze, w granicach mapy", function()
 	local g = Config.Grove
-	eq(Economy.zoneIndexAt(g.centerZ - g.radius), #Config.Zones, "przód kręgu")
-	local last = Config.Zones[#Config.Zones]
+	eq(Config.Zones[Economy.zoneIndexAt(g.centerZ - g.radius)].id, "ravine", "przód kręgu")
+	local last = Config.Zones[4]
 	check(g.centerZ + g.radius + 8 < last.endZ, "posąg za ścianą mapy")
 	check(math.abs(g.centerX) + g.radius < Config.ForestHalfWidth - 6, "krąg za szeroki")
 end)
@@ -410,7 +431,57 @@ end)
 test("z pełnymi ulepszeniami da się przejść cały las", function()
 	local oil = Economy.upgradeStat("oil", Config.Upgrades.oil.maxLevel)
 	local speed = Economy.upgradeStat("boots", Config.Upgrades.boots.maxLevel)
-	check(roundTripOil(#Config.Zones, speed) < oil, "las za długi nawet na maks.")
+	check(roundTripOil(4, speed) < oil, "las za długi nawet na maks.")
+end)
+
+-- Wyprawa z obozowiska do końca strefy jaskini i powrót, z ulepszeniem kryształowego knota
+local function caveRoundTrip(deepest: number, speed: number, crystalLevel: number): number
+	local scale = Economy.upgradeStat("crystal", crystalLevel)
+	local oil = 0
+	for zone = 6, deepest do
+		local def = Config.Zones[zone]
+		oil += 2 * (def.endZ - def.startZ) / speed * Economy.oilDrain(zone, scale)
+	end
+	return oil * Config.ReturnMargin
+end
+
+test("jaskinia: z maks. leśnymi ulepszeniami do Jeziora tak, do końca Otchłani dopiero z knotem", function()
+	local oil = Economy.upgradeStat("oil", Config.Upgrades.oil.maxLevel)
+	local speed = Economy.upgradeStat("boots", Config.Upgrades.boots.maxLevel)
+	check(caveRoundTrip(7, speed, 0) < oil, "jezioro nieosiągalne po otwarciu jaskini")
+	check(caveRoundTrip(8, speed, 0) > oil, "otchłań dostępna bez knota, brak progresu")
+	check(caveRoundTrip(8, speed, Config.Upgrades.crystal.maxLevel) < oil, "otchłań nieosiągalna nawet z knotem")
+end)
+
+test("portal: zamknięty poniżej progu, otwarty od progu i potem już zawsze", function()
+	local need = Config.Cave.unlockCoins
+	eq(Economy.canEnterCave(need - 1, false), false, "poniżej progu")
+	eq(Economy.canEnterCave(need, false), true, "próg")
+	eq(Economy.canEnterCave(0, true), true, "raz otwarty")
+end)
+
+test("jaskinia leży za lasem, strefy jaskini idą po kolei i obozowisko jest bezpieczne", function()
+	local forestEnd = Config.Zones[4].endZ
+	local previousEnd: number? = nil
+	for index, zone in Config.Zones do
+		if zone.world == "cave" then
+			check(zone.startZ > forestEnd + 100, zone.id .. " za blisko lasu")
+			if previousEnd then
+				eq(zone.startZ, previousEnd, zone.id .. " nie styka się z poprzednią")
+			end
+			previousEnd = zone.endZ
+			eq(Economy.zoneWorld(Economy.zoneIndexAt((zone.startZ + zone.endZ) / 2)), "cave", zone.id)
+			eq(Economy.zoneIndexAt((zone.startZ + zone.endZ) / 2), index, zone.id .. " indeks")
+		end
+	end
+	local camp = Config.Cave.camp
+	check(Economy.isSafeZone(Economy.zoneIndexAt(camp.z)), "obozowisko nie jest bezpieczne")
+	check(Economy.isSafeZone(Economy.zoneIndexAt(Config.Cave.returnPortal.z)), "portal powrotny poza obozowiskiem")
+	eq(Config.Zones[Economy.zoneIndexAt(Config.Cave.portal.z)].id, "ravine", "portal leśny poza jarem")
+	eq(Economy.returnOilNeeded(camp.z, 16), 0, "w obozowisku nic nie trzeba")
+	-- Z głębi jaskini liczymy drogę do obozowiska, nie do chatki
+	local fromCrystal = Economy.returnOilNeeded(1100, 20)
+	check(math.abs(fromCrystal - 60 / 20 * Config.Zones[6].oilDrain) < 0.001, "powrót w jaskini: " .. fromCrystal)
 end)
 
 print("Powrót do chatki")
@@ -585,13 +656,24 @@ end)
 
 print("Stanowiska w chatce i skarbiec Leszego")
 
-test("stanowiska leżą w chatce, nie nachodzą na siebie ani na miejsce startu", function()
-	local oil, shop = Config.Stations.oil, Config.Stations.shop
-	for name, station in Config.Stations do
-		-- Wnętrze chatki: x od -12 do 12, z od -34 do -14 (ściany z bali mają grubość)
-		assert(station.x - station.radius >= -12.3 and station.x + station.radius <= 12.3, name .. " wystaje w bok")
-		assert(station.z - station.radius >= -34.3 and station.z + station.radius <= -13.5, name .. " wystaje przez ścianę")
+test("stanowiska leżą w chatce i w obozowisku, nie nachodzą na siebie ani na miejsce startu", function()
+	local oil, shop = Economy.station("oil", "forest"), Economy.station("shop", "forest")
+	for _, station in Config.Stations do
+		local name = station.world .. "/" .. station.kind
+		if station.world == "forest" then
+			-- Wnętrze chatki: x od -12 do 12, z od -34 do -14 (ściany z bali mają grubość)
+			assert(station.x - station.radius >= -12.3 and station.x + station.radius <= 12.3, name .. " wystaje w bok")
+			assert(station.z - station.radius >= -34.3 and station.z + station.radius <= -13.5, name .. " wystaje przez ścianę")
+		else
+			assert(Economy.isSafeZone(Economy.zoneIndexAt(station.z)), name .. " poza obozowiskiem")
+			assert(math.abs(station.x) + station.radius < Config.Cave.halfWidth, name .. " w ścianie jaskini")
+		end
 	end
+	local campOil, campShop = Economy.station("oil", "cave"), Economy.station("shop", "cave")
+	local campDistance = math.sqrt((campOil.x - campShop.x) ^ 2 + (campOil.z - campShop.z) ^ 2)
+	assert(campDistance > campOil.radius + campShop.radius + Config.StationTolerance * 2, "kręgi w obozowisku za blisko")
+	eq(Economy.atStation("shop", Config.Cave.camp.x, Config.Cave.camp.z), false, "lądowanie w obozowisku przy kramiku")
+	eq(Economy.atStation("oil", Config.Cave.camp.x, Config.Cave.camp.z), false, "lądowanie w obozowisku przy beczkach")
 	local distance = math.sqrt((oil.x - shop.x) ^ 2 + (oil.z - shop.z) ^ 2)
 	assert(distance > oil.radius + shop.radius + Config.StationTolerance * 2, "kręgi za blisko siebie: " .. distance)
 	-- Gracz startuje w (0, -20): nie powinien od razu stać w żadnym kręgu
@@ -600,7 +682,8 @@ test("stanowiska leżą w chatce, nie nachodzą na siebie ani na miejsce startu"
 end)
 
 test("atStation: środek tak, brzeg tak, za kręgiem nie, tolerancja serwera", function()
-	local shop = Config.Stations.shop
+	local shop = Economy.station("shop", "forest")
+	eq((Economy.stationAt("shop", shop.x, shop.z) :: any).world, "forest", "świat sklepu")
 	eq(Economy.atStation("shop", shop.x, shop.z), true, "środek")
 	eq(Economy.atStation("shop", shop.x + shop.radius, shop.z), true, "brzeg")
 	eq(Economy.atStation("shop", shop.x + shop.radius + 1, shop.z), false, "za kręgiem")

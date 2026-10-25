@@ -9,6 +9,7 @@ local SoundService = game:GetService("SoundService")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
+local Config = require(ReplicatedStorage.Shared.Config)
 local Sounds = require(ReplicatedStorage.Shared.Sounds)
 
 local Effects = {}
@@ -157,14 +158,14 @@ mist.Rate = 0
 mist.Parent = mistHolder
 
 -- Ile świetlików i mgły w której strefie
-local FIREFLY_RATE = { 5, 9, 12, 4 }
-local MIST_RATE = { 0, 0.5, 2.5, 6 }
 
 function Effects.updateParticles(rootPosition: Vector3, zone: number)
 	fireflyHolder.Position = Vector3.new(rootPosition.X, 4, rootPosition.Z + 10)
 	mistHolder.Position = Vector3.new(rootPosition.X, 0.6, rootPosition.Z + 8)
-	fireflies.Rate = FIREFLY_RATE[zone] or 0
-	mist.Rate = MIST_RATE[zone] or 0
+	-- Ile czego w strefie: Config.Zones (w jaskini zamiast świetlików lecą pyłki w świetle latarni)
+	local zoneDef = Config.Zones[zone]
+	fireflies.Rate = if zoneDef then zoneDef.fireflies or 0 else 0
+	mist.Rate = if zoneDef then zoneDef.mist or 0 else 0
 end
 
 -- ===== Efekty jednorazowe =====

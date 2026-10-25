@@ -147,11 +147,44 @@ function Economy.zoneIndexAt(z: number): number
 		return 1
 	end
 	for index = 2, #zones do
-		if z < zones[index].endZ then
+		local zone = zones[index]
+		if z < zone.startZ then
+			return index - 1 -- przerwa między lasem a jaskinią należy do końca lasu
+		end
+		if z < zone.endZ then
 			return index
 		end
 	end
 	return #zones
+end
+
+-- Bezpieczna strefa (chatka, obozowisko): olej się nie pali, działa tankowanie i handel
+function Economy.isSafeZone(index: number): boolean
+	local zone = Config.Zones[index]
+	return zone ~= nil and zone.safe == true
+end
+
+-- "forest" albo "cave"
+function Economy.zoneWorld(index: number): string
+	local zone = Config.Zones[index]
+	return if zone then zone.world else "forest"
+end
+
+-- Ile oleju na sekundę pali się w strefie. caveScale: ulepszenie „Kryształowy wkład” (tylko w jaskini).
+function Economy.oilDrain(index: number, caveScale: number?): number
+	local zone = Config.Zones[index]
+	if not zone then
+		return 0
+	end
+	return zone.oilDrain * (if zone.world == "cave" then caveScale or 1 else 1)
+end
+
+-- Punkt, do którego wraca się w danym świecie (strzałka „Wracaj!”): drzwi chatki albo obozowisko
+function Economy.homePoint(world: string): (number, number)
+	if world == "cave" then
+		return Config.Cave.camp.x, Config.Cave.camp.z
+	end
+	return 0, -10
 end
 
 -- Wartość statystyki (np. zasięg latarni) na danym poziomie ulepszenia
@@ -304,40 +337,74 @@ end
 
 -- Ile oleju zużyje powrót prosto do chatki z pozycji z przy danej prędkości chodu.
 -- Liczy każdą strefę osobno, bo im głębiej, tym szybciej pali się olej.
-function Economy.returnOilNeeded(z: number, speed: number): number
+-- W jaskini liczy drogę do obozowiska. caveScale: mnożnik spalania w jaskini (ulepszenie).
+function Economy.returnOilNeeded(z: number, speed: number, caveScale: number?): number
 	if speed <= 0 then
 		return math.huge
 	end
 	local zones = Config.Zones
 	local current = Economy.zoneIndexAt(z)
 	local oil = 0
-	for index = current, 2, -1 do
+	for index = current, 1, -1 do
 		local zone = zones[index]
+		if zone.safe then
+			break -- doszliśmy do chatki albo obozowiska
+		end
 		local from = if index == current then math.min(z, zone.endZ) else zone.endZ
 		local distance = math.max(from - zone.startZ, 0)
-		oil += distance / speed * zone.oilDrain
+		oil += distance / speed * Economy.oilDrain(index, caveScale)
 	end
 	return oil
 end
 
 -- Czy już czas wracać: olej na powrót z zapasem przekracza to, co zostało w latarni
-function Economy.shouldTurnBack(z: number, speed: number, oil: number): boolean
-	if Economy.zoneIndexAt(z) == 1 then
+function Economy.shouldTurnBack(z: number, speed: number, oil: number, caveScale: number?): boolean
+	if Economy.isSafeZone(Economy.zoneIndexAt(z)) then
 		return false
 	end
-	return Economy.returnOilNeeded(z, speed) * Config.ReturnMargin >= oil
+	return Economy.returnOilNeeded(z, speed, caveScale) * Config.ReturnMargin >= oil
 end
 
 -- Ile grzybów las zabiera z koszyka, gdy zgaśnie latarnia
--- Czy gracz stoi w kręgu stanowiska w chatce ("oil" albo "shop"). tolerance: zapas dla serwera.
-function Economy.atStation(name: string, x: number, z: number, tolerance: number?): boolean
-	local station = Config.Stations[name]
-	if not station then
-		return false
+-- Stanowisko danego rodzaju, w którego kręgu stoi gracz ("oil" albo "shop"), albo nil.
+-- Zwraca całą definicję, bo sklep w jaskini sprzedaje inne ulepszenia niż w chatce.
+-- tolerance: zapas dla serwera (opóźnienie sieci).
+function Economy.stationAt(kind: string, x: number, z: number, tolerance: number?): Config.StationDef?
+	for _, station in Config.Stations do
+		if station.kind == kind then
+			local dx, dz = x - station.x, z - station.z
+			local radius = station.radius + (tolerance or 0)
+			if dx * dx + dz * dz <= radius * radius then
+				return station
+			end
+		end
 	end
-	local dx, dz = x - station.x, z - station.z
-	local radius = station.radius + (tolerance or 0)
-	return dx * dx + dz * dz <= radius * radius
+	return nil
+end
+
+function Economy.atStation(kind: string, x: number, z: number, tolerance: number?): boolean
+	return Economy.stationAt(kind, x, z, tolerance) ~= nil
+end
+
+-- Pierwsze stanowisko danego rodzaju w danym świecie (do budowy mapy)
+function Economy.station(kind: string, world: string): Config.StationDef
+	for _, station in Config.Stations do
+		if station.kind == kind and station.world == world then
+			return station
+		end
+	end
+	error("Brak stanowiska " .. kind .. " w świecie " .. world)
+end
+
+-- Sklep: "forest" (chatka) albo "cave" (obozowisko); ulepszenie bez pola shop jest w chatce
+function Economy.upgradeShop(id: string): string
+	local def = Config.Upgrades[id]
+	return if def and def.shop then def.shop else "forest"
+end
+
+-- Czy gracz może wejść do jaskini: raz otwarta zostaje otwarta
+function Economy.canEnterCave(coins: number, unlocked: boolean?): boolean
+	return unlocked == true or coins >= Config.Cave.unlockCoins
 end
 
 -- Czy przedmiot z koszyka to korona z Gniazda Leszego (Leszy odbiera je, gdy złapie gracza)

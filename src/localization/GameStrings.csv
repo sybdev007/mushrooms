@@ -79,3 +79,32 @@ PROMPT_TAKE_CROWN,Take,,,Zabierz
 MSG_HOARD_DROP,The Leshy caught {1}! Crowns back in the nest: {2},,,Leszy dopadł gracza {1}! Korony wróciły do gniazda: {2}
 MSG_REFILL_HINT,Stand by the oil barrel to refill your lantern,,,Stań przy beczce z olejem żeby napełnić latarnię
 MSG_DEV_COINS,Dev: coins {1},,,Dev: monety {1}
+ZONE_CAMP,Miners' Camp,,,Obozowisko górników
+ZONE_CRYSTAL,Crystal Tunnels,,,Kryształowe Korytarze
+ZONE_LAKE,Underground Lake,,,Podziemne Jezioro
+ZONE_ABYSS,The Abyss,,,Otchłań
+MUSH_CAVE_OYSTER,Cave Oyster,,,Boczniak jaskiniowy
+MUSH_CRYSTAL_CAP,Crystal Cap,,,Kryształówka
+MUSH_AMETHYST,Amethyst Shroom,,,Ametystówka
+MUSH_LAKE_CAP,Lake Bell,,,Dzwonek jeziorny
+MUSH_PEARL,Pearl Puffball,,,Perłowa purchawka
+MUSH_LANTERN_SHROOM,Lantern Shroom,,,Latarnik
+MUSH_EMBER,Ember Cap,,,Żarnik
+MUSH_OBSIDIAN,Obsidian Bolete,,,Obsydianowy borowik
+MUSH_HEART,Heart of the Mountain,,,Serce Góry
+MUT_CRYSTAL,Crystal,,,Kryształ
+MUT_ABYSSAL,Abyssal,,,Żar Otchłani
+UPG_CRYSTAL,Crystal Wick,,,Kryształowy knot
+UPG_CRYSTAL_DESC,Less oil burned in the caves,,,Mniej oleju w jaskini
+UPG_PACK,Miner's Pack,,,Plecak górnika
+UPG_PACK_DESC,More room for mushrooms,,,Więcej miejsca na grzyby
+SIGN_PORTAL,The Caves - 50 000 💰,,,Jaskinia - 50 000 💰
+SIGN_PORTAL_HOME,Back to the cabin,,,Powrót do chatki
+MSG_PORTAL_LOCKED,The portal opens at {1} coins,,,Portal otwiera się od {1} monet
+MSG_CAVE_UNLOCKED,The caves are open! Welcome to the Miners' Camp,,,Jaskinia otwarta! Witaj w obozowisku górników
+MSG_CAVE_ENTER,Miners' Camp,,,Obozowisko górników
+MSG_PORTAL_HOME,Back at the cabin,,,Z powrotem w chatce
+MSG_ENGULFED_CAVE,Mushrooms lost: {1},,,Utracone grzyby: {1}
+ENGULF_TITLE_CAVE,The darkness swallowed you...,,,Ciemność cię pochłonęła...
+HUD_TURN_BACK_CAMP,Head back to the camp!,,,Wracaj do obozowiska!
+HUD_DISTANCE_CAMP,{1} m to the camp,,,{1} m do obozowiska
