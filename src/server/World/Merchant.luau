@@ -113,8 +113,9 @@ function Merchant.build(parent: Instance, at: CFrame, promptDistance: number): M
 	tag.Name = "NameTag"
 	tag.Size = UDim2.fromOffset(180, 46)
 	-- Tabliczka nad głową, ale wysunięta do przodu (w stronę sali), bo skupywacz stoi tuż przy
-	-- tylnej ścianie i szeroki napis wchodził w bale. Przód modelu patrzy na +Z świata.
-	tag.StudsOffsetWorldSpace = Vector3.new(0, 2.2, 2.6)
+	-- tylnej ścianie i szeroki napis wchodził w bale. StudsOffsetWorldSpace liczy się w osiach głowy,
+	-- a przód to lokalne -Z, więc „do przodu” = ujemne Z.
+	tag.StudsOffsetWorldSpace = Vector3.new(0, 2.2, -2.6)
 	tag.MaxDistance = 40
 	tag.LightInfluence = 0
 	tag.Parent = head
