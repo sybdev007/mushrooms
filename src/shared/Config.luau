@@ -195,6 +195,12 @@ Config.Stations = {
 }
 Config.StationTolerance = 2 -- serwer jest łagodniejszy przez opóźnienie sieci
 
+-- Komendy deweloperskie na czacie (np. /coins 1000000) działają w Studio
+-- oraz w prawdziwej grze dla tych kont. Dopisz tu UserId Miłosza.
+Config.DevUserIds = {
+	1293490018, -- Tom
+}
+
 -- Kamera: bez limitu dało się oddalić widok i oglądać las z góry
 Config.CameraMaxZoom = 22
 

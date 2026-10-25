@@ -6,6 +6,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local TextChatService = game:GetService("TextChatService")
 
 local Shared = ReplicatedStorage.Shared
 local Config = require(Shared.Config)
@@ -510,6 +511,38 @@ local function onSell(player: Player)
 	pushState(session)
 end
 
+-- ===== Komendy deweloperskie =====
+
+local function isDeveloper(player: Player): boolean
+	if RunService:IsStudio() then
+		return true
+	end
+	if game.CreatorType == Enum.CreatorType.User and player.UserId == game.CreatorId then
+		return true
+	end
+	return table.find(Config.DevUserIds, player.UserId) ~= nil
+end
+
+-- /coins 1000000 dodaje monety, /coins -500 odejmuje (bez liczby: +1000)
+local function setupDevCommands()
+	local folder = TextChatService:FindFirstChild("TextChatCommands") or TextChatService
+	local command = Instance.new("TextChatCommand")
+	command.Name = "DevCoins"
+	command.PrimaryAlias = "/coins"
+	command.Parent = folder
+	command.Triggered:Connect(function(source: TextSource, text: string)
+		local player = Players:GetPlayerByUserId(source.UserId)
+		local session = player and sessions[player]
+		if not (player and session and isDeveloper(player)) then
+			return
+		end
+		local amount = math.floor(tonumber(string.match(text, "^%S+%s+(%-?%d+)")) or 1000)
+		session.data.coins = math.max(0, session.data.coins + amount)
+		notify(session, "MSG_DEV_COINS", { amount })
+		pushState(session)
+	end)
+end
+
 local function onBuy(player: Player, upgradeId: unknown)
 	local session = sessions[player]
 	if not session or typeof(upgradeId) ~= "string" then
@@ -607,6 +640,8 @@ function GameService.start(mapInfo: MapBuilder.MapInfo)
 			end
 		end,
 	})
+
+	setupDevCommands()
 
 	PickMushroom.OnServerEvent:Connect(onPick)
 	SellBasket.OnServerEvent:Connect(onSell)

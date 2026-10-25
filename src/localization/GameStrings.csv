@@ -78,3 +78,4 @@ SIGN_OIL,Lantern Oil,,,Olej do latarni
 PROMPT_TAKE_CROWN,Take,,,Zabierz
 MSG_HOARD_DROP,The Leshy caught {1}! Crowns back in the nest: {2},,,Leszy dopadł gracza {1}! Korony wróciły do gniazda: {2}
 MSG_REFILL_HINT,Stand by the oil barrel to refill your lantern,,,Stań przy beczce z olejem żeby napełnić latarnię
+MSG_DEV_COINS,Dev: coins {1},,,Dev: monety {1}
