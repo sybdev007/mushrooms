@@ -388,7 +388,7 @@ local function attachHandKnife(character: Model, level: number)
 	-- je widać zza pleców (kamera stoi za graczem)
 	local grip = hand.CFrame
 		* CFrame.new(0, if isR6 then -0.95 else -0.12, 0)
-		* CFrame.Angles(0, math.rad(25), 0)
+		* CFrame.Angles(0, math.rad(-25), 0)
 		* CFrame.Angles(math.rad(-30), 0, 0)
 	HandTools.knife(level, grip, hand).Parent = character
 end
