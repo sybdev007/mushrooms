@@ -244,3 +244,56 @@ ODDS_POTION,With potion,,,Z miksturą
 ODDS_POTION_ON,Potion ✓,,,Mikstura ✓
 ODDS_FOOTER,Luck xN works like N rolls where the best one counts. Odds are rolled when a mushroom regrows. One variant per mushroom; place traits stack with it. After {1} regrows without Gold the next one is at least Gold.,,,Szczęście xN działa jak N rzutów z najlepszym wynikiem. Mutacja losuje się w chwili odrostu grzyba. Grzyb ma najwyżej jeden wariant; cechy miejsca mogą dojść do niego. Po {1} odrostach bez Złota następny grzyb jest co najmniej złoty.
 ODDS_CAPPED,(raw {1} - bonuses stack with diminishing returns),,,(surowo {1} - bonusy rosną coraz wolniej)
+ATLAS_TITLE,Mushroom Atlas,,,Grzybopedia
+ATLAS_PAGE_FOREST,Forest,,,Las
+ATLAS_PAGE_CAVE,Caves,,,Jaskinie
+ATLAS_PAGE_SWAMP,Swamp,,,Bagna
+ATLAS_FORM_NORMAL,Normal,,,Zwykły
+ATLAS_SUMMARY,Sell bonus: <b>+{1}%</b>  ·  Title: <b>{2}</b>,,,Premia do ceny: <b>+{1}%</b>  ·  Tytuł: <b>{2}</b>
+ATLAS_NO_TITLE,none yet (Gold page = title),,,jeszcze brak (złota strona = tytuł)
+ATLAS_PRICE,price,,,do ceny
+ATLAS_TIER_0,Find every mushroom,,,Znajdź każdy grzyb
+ATLAS_TIER_1,Every mushroom Silver or better,,,Każdy grzyb co najmniej srebrny
+ATLAS_TIER_2,Every mushroom Gold or better,,,Każdy grzyb co najmniej złoty
+ATLAS_TIER_3,Every mushroom Rainbow,,,Każdy grzyb tęczowy
+TITLE_EXPERT_FOREST,Forest Expert,,,Znawca Lasu
+TITLE_EXPERT_CAVE,Cave Expert,,,Znawca Jaskiń
+TITLE_EXPERT_SWAMP,Swamp Expert,,,Znawca Bagien
+TITLE_MASTER_FOREST,Forest Master,,,Mistrz Lasu
+TITLE_MASTER_CAVE,Cave Master,,,Mistrz Jaskiń
+TITLE_MASTER_SWAMP,Swamp Master,,,Mistrz Bagien
+TITLE_GRANDMASTER,Grand Forager,,,Arcygrzybiarz
+MSG_ATLAS_NEW_SPECIES,New in the Atlas: {1}{2}!,,,Nowy wpis w Grzybopedii: {1}{2}!
+MSG_ATLAS_NEW_FORM,Atlas: new form of {1}{2}!,,,Grzybopedia: nowa forma - {1}{2}!
+MSG_ATLAS_TIER,Atlas page {1} complete! Prices +{2}% forever,,,Strona {1} w Grzybopedii ukończona! Ceny +{2}% na zawsze
+MSG_SOLD_BONUS,Sold for {1} coins! (+{2}% from the Atlas),,,Sprzedane! Monety: +{1} (+{2}% z Grzybopedii)
+MSG_QUEST_DONE,Daily quest done! +{1} coins,,,Zadanie na dziś zrobione! +{1} monet
+MSG_QUESTS_ALL_DONE,All daily quests done! +{1} coins and a {2}-minute Luck Potion,,,Wszystkie zadania na dziś zrobione! +{1} monet i mikstura szczęścia na {2} min
+MSG_QUESTS_NEW,New daily quests are waiting (📜),,,Nowe zadania na dziś czekają (📜)
+MSG_LOGIN_REWARD,Login streak day {1}! +{2} coins,,,Seria logowań: dzień {1}! +{2} monet
+MSG_LOGIN_REWARD_LUCK,Login streak day {1}! +{2} coins and a {3}-minute Luck Potion,,,Seria logowań: dzień {1}! +{2} monet i mikstura szczęścia na {3} min
+QUESTS_TITLE,Daily quests,,,Zadania na dziś
+QUESTS_RESET,New quests in {1},,,Nowe zadania za {1}
+QUESTS_REROLL,Swap,,,Wymień
+QUESTS_BONUS,All 3: +{1} coins + Luck Potion {2} min,,,Wszystkie 3: +{1} monet + mikstura szczęścia {2} min
+QUESTS_BONUS_DONE,Today's bonus collected ✔,,,Premia za dziś odebrana ✔
+QUESTS_STREAK,Login streak: {1} days,,,Seria logowań: {1} dni z rzędu
+QUESTS_STREAK_HINT,Come back tomorrow for day {1}: +{2} coins (miss a day and the streak resets),,,Wróć jutro po dzień {1}: +{2} monet (dzień przerwy zeruje serię)
+QUESTS_DAY,Day {1},,,Dzień {1}
+QUEST_PICK,Pick {1} mushrooms,,,Zbierz {1} grzybów
+QUEST_PICK_MUTATED,Pick {1} mutated mushrooms,,,Zbierz {1} grzybów z mutacją
+QUEST_PICK_GOLD,Find a Gold or Rainbow mushroom,,,Znajdź złotego albo tęczowego grzyba
+QUEST_SELL,Sell {1} mushrooms,,,Sprzedaj {1} grzybów
+QUEST_ESCAPE,Escape a guardian with their treasure,,,Ucieknij strażnikowi z jego skarbem
+QUEST_STEAL,Bring a stolen mushroom to your garden,,,Donieś ukradziony grzyb do swojego ogródka
+QUEST_PLANT,Plant {1} mushrooms in your garden,,,Posadź {1} grzyby w ogródku
+QUEST_COLLECT,Collect coins from your garden chest {1} times,,,Zbierz monety ze skrzyni w ogródku {1} razy
+QUEST_UPGRADE,Buy {1} upgrades,,,Kup {1} ulepszenia
+QUEST_DISCOVER,Add a new entry to the Atlas,,,Dodaj nowy wpis do Grzybopedii
+BOARD_RICHEST,Richest foragers,,,Najbogatsi grzybiarze
+BOARD_RARE,Find of the week,,,Znalezisko tygodnia
+BOARD_THIEVES,Thieves of the week,,,Złodzieje tygodnia
+BOARD_EMPTY,Nobody yet. Be the first!,,,Jeszcze nikt. Bądź pierwszy!
+BOARD_SERVER,this server only,,,tylko ten serwer
+BOARD_WEEK_RESET,resets every Monday,,,zeruje się w poniedziałek
+BOARD_STEALS,🏃 {1} loot,,,🏃 łupy: {1}

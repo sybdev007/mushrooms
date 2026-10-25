@@ -11,12 +11,14 @@ local NAMES = {
 	"MushroomSync", -- lista grzybów, które właśnie pojawiły się dla tego gracza
 	"MushroomRemoved", -- grzyb zebrany (zniknął)
 	"Notify", -- komunikat do pokazania na ekranie
+	"ProgressUpdate", -- Grzybopedia, zadania, seria logowań (ProgressService)
 	-- klient -> serwer
 	"PickMushroom",
 	"SellBasket",
 	"BuyUpgrade",
 	"DevAction", -- panel DEV (serwer sprawdza, czy gracz jest deweloperem)
 	"StudioPurchase", -- zakup produktu bez numeru (id = 0), działa tylko w Studio
+	"QuestReroll", -- wymiana jednego zadania dziennie
 }
 
 local folder: Folder

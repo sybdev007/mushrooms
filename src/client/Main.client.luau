@@ -25,6 +25,10 @@ local ShopPanel = require(script.Parent.ShopPanel)
 local GardenPrompts = require(script.Parent.GardenPrompts)
 local SellPanel = require(script.Parent.SellPanel)
 local MerchantView = require(script.Parent.MerchantView)
+local _AtlasPanel = require(script.Parent.AtlasPanel)
+local _QuestPanel = require(script.Parent.QuestPanel)
+local _LeaderboardView = require(script.Parent.LeaderboardView)
+local _TitleView = require(script.Parent.TitleView)
 
 local player = Players.LocalPlayer
 
@@ -187,6 +191,15 @@ local TOAST_KIND: { [string]: string } = {
 	MSG_PORTAL_HOME = "info",
 	MSG_REFILL_HINT = "info",
 	MSG_STOLE = "gold",
+	MSG_ATLAS_NEW_SPECIES = "gold",
+	MSG_ATLAS_NEW_FORM = "gold",
+	MSG_ATLAS_TIER = "gold",
+	MSG_QUEST_DONE = "gold",
+	MSG_QUESTS_ALL_DONE = "gold",
+	MSG_QUESTS_NEW = "info",
+	MSG_LOGIN_REWARD = "gold",
+	MSG_LOGIN_REWARD_LUCK = "gold",
+	MSG_SOLD_BONUS = "gold",
 }
 
 -- Komunikaty, po których gracz ląduje w chatce z czarnym ekranem: klucz -> tytuł
