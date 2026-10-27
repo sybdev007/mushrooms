@@ -689,6 +689,34 @@ local function buildDecor(m: Model)
 	for _, dx in { -1.9, 1.9 } do
 		make("Part", { Name = "BenchLeg", Size = Vector3.new(0.3, 1, 1.1), Position = Vector3.new(-11 + dx, deckTop + 0.5, benchZ), Color = Palette.plankDark, Parent = m })
 	end
+	-- Bujany fotel po prawej od drzwi, przodem do lasu: tu gracz budzi się po złym śnie (cutscenka)
+	local chair = Instance.new("Model")
+	chair.Name = "RockingChair"
+	local cx, cz = 9.5, FRONT_Z + 3.2
+	local seat = make("Part", { Name = "Seat", Size = Vector3.new(2.4, 0.3, 2.2), Position = Vector3.new(cx, deckTop + 1.45, cz), Color = Palette.plank, Parent = chair })
+	make("Part", { Name = "Back", Size = Vector3.new(2.4, 2.6, 0.25), CFrame = CFrame.new(cx, deckTop + 2.8, cz - 1.15) * CFrame.Angles(math.rad(-12), 0, 0), Color = Palette.plank, Parent = chair })
+	for _, dy in { 0.6, 1.2, 1.8 } do
+		decor(make("Part", { Size = Vector3.new(2.5, 0.16, 0.3), CFrame = CFrame.new(cx, deckTop + 1.5 + dy, cz - 1.0 - dy * 0.2) * CFrame.Angles(math.rad(-12), 0, 0), Color = Palette.plankDark, Parent = chair }))
+	end
+	for _, side in { -1, 1 } do
+		local x = cx + side * 1.15
+		make("Part", { Name = "Arm", Size = Vector3.new(0.3, 0.2, 2.2), Position = Vector3.new(x, deckTop + 2.25, cz + 0.05), Color = Palette.plankDark, Parent = chair })
+		for _, dz in { -0.9, 0.9 } do
+			make("Part", { Name = "Leg", Size = Vector3.new(0.25, 1.2, 0.25), Position = Vector3.new(x, deckTop + 0.85, cz + dz), Color = Palette.plankDark, Parent = chair })
+		end
+		make("Part", { Name = "ArmPost", Size = Vector3.new(0.22, 0.8, 0.22), Position = Vector3.new(x, deckTop + 1.85, cz + 0.95), Color = Palette.plankDark, Parent = chair })
+		-- Płozy: trzy odcinki ułożone w łuk
+		for k, angle in { -14, 0, 14 } do
+			local dz = (k - 2) * 1.05
+			make("Part", { Name = "Rocker", Size = Vector3.new(0.3, 0.22, 1.15), CFrame = CFrame.new(x, deckTop + 0.2 + math.abs(dz) * 0.12, cz + dz) * CFrame.Angles(math.rad(angle), 0, 0), Color = Palette.log, Parent = chair })
+		end
+	end
+	-- Poduszka w kratkę
+	decor(make("Part", { Name = "Cushion", Size = Vector3.new(2.1, 0.2, 1.9), Position = Vector3.new(cx, deckTop + 1.7, cz + 0.05), Color = Color3.fromRGB(176, 60, 50), Parent = chair }))
+	chair.PrimaryPart = seat
+	chair:SetAttribute("Pivot", Vector3.new(cx, deckTop, cz))
+	chair.Parent = m
+
 	local flowerColors = { Color3.fromRGB(236, 96, 96), Color3.fromRGB(250, 210, 90), Color3.fromRGB(180, 130, 240) }
 	for side = -1, 1, 2 do
 		local pot = Vector3.new(side * 5, deckTop, FRONT_Z + 5.2)

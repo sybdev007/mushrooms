@@ -31,6 +31,8 @@ local _LeaderboardView = require(script.Parent.LeaderboardView)
 local _TitleView = require(script.Parent.TitleView)
 local ExpeditionView = require(script.Parent.ExpeditionView)
 local Expedition = require(Shared:WaitForChild("Expedition"))
+local IntroCutscene = require(script.Parent.IntroCutscene)
+local Tutorial = require(script.Parent.Tutorial)
 
 local player = Players.LocalPlayer
 
@@ -58,10 +60,17 @@ MerchantView.start()
 
 -- Skąd wylatują monety po sprzedaży (przycisk w panelu sprzedaży)
 local sellShowerFrom: Vector2? = nil
+local introStarted = false
 SellPanel.onSell(function(indices, key, from)
 	sellShowerFrom = from
 	SellBasket:FireServer(indices, key)
 end)
+-- Tylko w Studio: testy samouczka otwierają panel sprzedaży atrybutem (narzędzia Studio nie klikają ProximityPrompt)
+if RunService:IsStudio() then
+	player:GetAttributeChangedSignal("DevOpenSell"):Connect(function()
+		SellPanel.open()
+	end)
+end
 
 Remotes.get("StateUpdate").OnClientEvent:Connect(function(state)
 	lanternRange = state.lanternRange
@@ -78,6 +87,16 @@ Remotes.get("StateUpdate").OnClientEvent:Connect(function(state)
 		SellPanel.setBasket(state.basket, state.basketKey)
 	end
 	Hud.update(state)
+	-- Pierwsze wejście do gry: cutscenka ze złym snem, potem samouczek
+	if state.tutorial == 0 and not IntroCutscene.isPlaying() and not introStarted then
+		introStarted = true
+		IntroCutscene.play(function()
+			Remotes.get("TutorialStep"):FireServer(1)
+		end)
+	elseif state.tutorial ~= 0 then
+		introStarted = false
+	end
+	Tutorial.update(state)
 end)
 
 Remotes.get("MushroomSync").OnClientEvent:Connect(function(list)

@@ -28,6 +28,7 @@ export type Data = {
 	swampUnlocked: boolean, -- to samo dla bagien
 	luckUntil: number, -- os.time(), do kiedy działa mikstura szczęścia
 	receipts: { string }, -- ostatnie obsłużone zakupy (Roblox może przysłać ten sam drugi raz)
+	tutorial: number, -- krok samouczka (0 = cutscenka na start, Config.Tutorial.done = skończony)
 }
 
 local STORE_NAME = "LanternForager_Prototype_v1"
@@ -75,6 +76,7 @@ function DataService.defaultData(): Data
 		swampUnlocked = false,
 		luckUntil = 0,
 		receipts = {},
+		tutorial = 0,
 	}
 end
 
@@ -106,6 +108,12 @@ local function reconcile(raw: any): Data
 	local data = DataService.defaultData()
 	if typeof(raw) ~= "table" then
 		return data
+	end
+	-- Samouczek: nowy gracz zaczyna od cutscenki, a stare zapisy (sprzed samouczka) mają go za sobą
+	if typeof(raw.tutorial) == "number" then
+		data.tutorial = math.clamp(math.floor(raw.tutorial), 0, Config.Tutorial.done)
+	else
+		data.tutorial = Config.Tutorial.done
 	end
 	if typeof(raw.coins) == "number" and raw.coins >= 0 then
 		data.coins = math.floor(raw.coins)

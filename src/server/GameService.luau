@@ -28,6 +28,7 @@ local UtopiecModel = require(World:WaitForChild("Utopiec"))
 local HandTools = require(World:WaitForChild("HandTools"))
 local GardenService = require(script.Parent.GardenService)
 local ProgressService = require(script.Parent.ProgressService)
+local TutorialService = require(script.Parent.TutorialService)
 local LeaderboardService = require(script.Parent.LeaderboardService)
 
 type SpotState = {
@@ -58,6 +59,7 @@ type Session = {
 	downedUntil: number?, -- latarnia zgasła i gracz czeka na podniesienie (os.clock końca)
 	downed: { Instance }?, -- przycisk „Podnieś” i napis SOS nad głową
 	debugGroupUntil: number?, -- panel DEV: udawana grupa 3 graczy do tej chwili (os.clock)
+	tutorialSpots: { [string]: Vector3 }?, -- grzyby samouczka tego gracza (TutorialService)
 }
 
 type Rescue = {
@@ -292,6 +294,7 @@ local function pushState(session: Session)
 		luckUntil = data.luckUntil,
 		boomUntil = boomUntil,
 		dev = isDeveloper(session.player),
+		tutorial = data.tutorial,
 	})
 end
 
@@ -767,6 +770,10 @@ local function tick(step: number)
 			else
 				-- Wspólna wyprawa: połączone latarnie palą mniej
 				session.oil -= Economy.oilDrain(zone, oilScale(session, zone)) * Expedition.drain(session.group) * step
+				-- W samouczku latarnia nigdy nie gaśnie do końca (ostrzeżenia działają, Leszy nie łapie)
+				if session.data.tutorial < Config.Tutorial.done then
+					session.oil = math.max(session.oil, 1)
+				end
 				if not session.oilHalfWarned and session.oil <= oilMax * Config.OilWarnFraction then
 					session.oilHalfWarned = true
 					notify(session, "MSG_OIL_HALF")
@@ -869,6 +876,7 @@ local function onPlayerAdded(player: Player)
 		notify(session, "MSG_NO_SAVE")
 	end
 	syncReadySpots(session, os.clock())
+	TutorialService.onJoin(session :: any)
 	pushState(session)
 end
 
@@ -942,6 +950,11 @@ local function onPick(player: Player, spotId: unknown)
 		return
 	end
 	session.lastPick = now
+
+	-- Grzyby samouczka mają własną obsługę
+	if TutorialService.pick(session :: any, spotId) then
+		return
+	end
 
 	local state = session.spots[spotId]
 	local spot = map.spotById[spotId]
@@ -1091,6 +1104,7 @@ local function onSell(player: Player, indices: unknown, key: unknown)
 		notify(session, "MSG_SOLD", { value })
 	end
 	ProgressService.event(player, "sell", count)
+	TutorialService.onSold(session :: any)
 	pushState(session)
 end
 
@@ -1192,6 +1206,13 @@ local function onDevAction(player: Player, action: unknown)
 		session.oil = stat(session, "oil")
 		applyCharacterStats(session)
 		GardenService.refresh(player)
+	elseif action == "tutorialReset" then
+		TutorialService.reset(session :: any)
+	elseif action == "tutorialNext" then
+		local step = session.data.tutorial
+		TutorialService.setStep(session :: any, if step >= 6 then Config.Tutorial.done else step + 1)
+	elseif action == "tutorialSkip" then
+		TutorialService.setStep(session :: any, Config.Tutorial.done)
 	elseif action == "basketClear" then
 		table.clear(data.basket)
 	elseif action == "cycleDawn" or action == "cycleNight" then
@@ -1315,6 +1336,11 @@ local function onBuy(player: Player, upgradeId: unknown)
 	if not def or not cooledDown(session) then
 		return
 	end
+	-- Samouczek: w kroku z ulepszeniem wolno kupić tylko olej
+	if not TutorialService.canBuy(session :: any, upgradeId) then
+		notify(session, "TUT_ONLY_OIL")
+		return
+	end
 	-- Ulepszenia kupuje się w bezpiecznej strefie świata, do którego należą (leśne w chatce i na polanie,
 	-- jaskiniowe w obozowisku). W lesie się nie da, bo ulepszenie oleju napełnia latarnię.
 	local root = getRoot(player)
@@ -1343,6 +1369,7 @@ local function onBuy(player: Player, upgradeId: unknown)
 	notify(session, "MSG_UPGRADED", nil, def.key)
 	ProgressService.event(player, "upgrade", 1)
 	pushState(session)
+	TutorialService.onBought(session :: any, upgradeId)
 end
 
 function GameService.start(mapInfo: MapBuilder.MapInfo)
@@ -1459,7 +1486,28 @@ function GameService.start(mapInfo: MapBuilder.MapInfo)
 				applyCharacterStats(session)
 			end
 		end,
-		onEvent = ProgressService.event,
+		onEvent = function(player: Player, kind: string, count: number?)
+			ProgressService.event(player, kind, count)
+			local session = sessions[player]
+			if session then
+				TutorialService.event(session :: any, kind)
+			end
+		end,
+	})
+	TutorialService.start({
+		pushState = function(session: any)
+			pushState(session)
+		end,
+		notify = function(session: any, key: string, args: { any }?)
+			notify(session, key, args)
+		end,
+		basketMax = function(session: any): number
+			return basketMax(session)
+		end,
+		stat = function(session: any, id: string): number
+			return stat(session, id)
+		end,
+		rootOf = getRoot,
 	})
 
 	setupDevCommands()
@@ -1468,6 +1516,14 @@ function GameService.start(mapInfo: MapBuilder.MapInfo)
 	SellBasket.OnServerEvent:Connect(onSell)
 	BuyUpgrade.OnServerEvent:Connect(onBuy)
 	Remotes.get("DevAction").OnServerEvent:Connect(onDevAction)
+	Remotes.get("TutorialStep").OnServerEvent:Connect(function(player, step)
+		local session = sessions[player]
+		if not session or typeof(step) ~= "number" then
+			return
+		end
+		-- Klient sam kończy tylko cutscenki; resztę kroków pilnuje serwer
+		TutorialService.clientStep(session :: any, step)
+	end)
 	Remotes.get("StudioPurchase").OnServerEvent:Connect(onStudioPurchase)
 	MarketplaceService.ProcessReceipt = processReceipt
 

@@ -560,6 +560,69 @@ Config.MushroomSprites = { sheet = "rbxassetid://136090318037259", cell = 64, co
 -- Tekstura „kratki” na voxelowe grzyby w lesie (assets/voxel-noise.png). Pusta = gładkie klocki.
 Config.VoxelNoise = { texture = "rbxassetid://77358626050293" }
 
+-- ===== Samouczek =====
+-- Kroki: 0 cutscenka (zły sen) → 1 zbieranie do pełnego plecaka → 2 sprzedaż → 3 ulepszenie oleju →
+-- 4 zebranie grzybów do ogródka → 5 sadzenie → 6 kradzież (cutscenka + opis) → done.
+-- Grzyby samouczka rosną przy ścieżce tylko dla tego gracza (id "tut_N"); 5 opieniek po 4 monety
+-- daje dokładnie 20 monet, czyli tyle, ile kosztuje pierwsze ulepszenie oleju.
+Config.Tutorial = {
+	done = 100,
+	species = "honey",
+	-- x, z grzybów przy ścieżce (las zaczyna się od z = 40, bliżej chatki nie da się zbierać).
+	-- Pierwszy widać z ganku w cutscence. Najdalszy to ok. 2,5 s marszu od polany, więc 7 oleju starcza z zapasem.
+	spots = {
+		{ 2.6, 48 }, { -3.1, 56 }, { -0.1, 64 }, { -5.1, 72 }, { -0.7, 80 },
+	},
+	gardenSpots = { { -1.6, 46 }, { 1.2, 58 }, { -5.1, 68 } },
+	lowOil = 7, -- tyle oleju zostaje po zapełnieniu plecaka (mało, ale na pewno wystarczy na powrót)
+	upgrade = "oil", -- jedyne ulepszenie, które można kliknąć w samouczku
+	reward = 50, -- monety na koniec samouczka
+}
+
+-- ===== Dźwięk =====
+-- Numery dźwięków z Creator Store (rbxassetid://...). Pusty = cisza w tym miejscu.
+-- Muzyka i większość efektów to licencjonowane biblioteki Robloxa (APM, Pro Sound Effects);
+-- dźwięki interfejsu i memowe to darmowe uploady społeczności (mogą kiedyś zniknąć – wtedy cisza).
+-- Pełna lista z uzasadnieniem: docs/Muzyka i SFX do Lantern Forager.md
+-- Numery dźwięków (rbxassetid://...). Pusty = cisza w tym miejscu. Szczegóły i źródła: reports/ w repo.
+Config.Audio = {
+	music = {
+		dream = "rbxassetid://9042880599", -- sen: spokojny, tajemniczy las nocą
+		eerie = "rbxassetid://9125603091", -- mityczny grzyb świeci, coś się budzi
+		chase = "rbxassetid://9043770732", -- pościg Leszego
+		wake = "rbxassetid://9039609965", -- poranek przy chatce po złym śnie
+		tutorial = "rbxassetid://9041810309", -- lekka pętla do samouczka i sklepu
+		heist = "rbxassetid://9044410283", -- skradanie się złodzieja w ogródku
+	},
+	sfx = {
+		forest = "rbxassetid://9112764040", -- szum lasu nocą (pętla)
+		birds = "rbxassetid://9112831284", -- ptaki o poranku (pętla)
+		footstep = "rbxassetid://9114518233",
+		pick = "rbxassetid://79662193870612", -- zerwanie grzyba („pyk”)
+		shimmer = "rbxassetid://135385970610304", -- mityczny grzyb lśni
+		rumble = "rbxassetid://9112823563", -- ziemia drży
+		roar = "rbxassetid://9113980319", -- ryk Leszego
+		heartbeat = "rbxassetid://9043365842", -- bicie serca (pętla)
+		sting = "rbxassetid://138524319910012", -- złapany! (uderzenie)
+		gasp = "rbxassetid://9125572450", -- przebudzenie
+		creak = "rbxassetid://9120829478", -- skrzypienie bujanego fotela
+		bubble = "rbxassetid://109359226723492", -- chmurka z myślą
+		whoosh = "rbxassetid://9120718279", -- okno samouczka wjeżdża
+		blip = "rbxassetid://9120300066", -- pisanie tekstu literka po literce
+		ping = "rbxassetid://127036696152728", -- strzałka / cel
+		full = "rbxassetid://98180814011947", -- plecak pełny
+		warn = "rbxassetid://98180814011947", -- mało oleju
+		coin = "rbxassetid://9113848418",
+		sell = "rbxassetid://90531793028786", -- sprzedaż („ka-ching”)
+		levelup = "rbxassetid://99980076888596", -- ulepszenie
+		click = "rbxassetid://88442833509532",
+		plant = "rbxassetid://9120633824", -- sadzenie w ogródku
+		alarm = "rbxassetid://1842379470", -- ktoś kradnie
+		sneak = "rbxassetid://9113532211", -- złodziej się skrada
+		boom = "rbxassetid://6308606116", -- memowy akcent
+	},
+}
+
 -- Ile sekund po zgaśnięciu latarni / złapaniu da się jeszcze uratować koszyk.
 -- buttonSeconds: jak długo widać przycisk; serverSeconds: zapas na okno płatności Robloxa.
 Config.Rescue = { buttonSeconds = 15, serverSeconds = 40 }

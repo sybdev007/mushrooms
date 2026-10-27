@@ -19,6 +19,7 @@ local NAMES = {
 	"DevAction", -- panel DEV (serwer sprawdza, czy gracz jest deweloperem)
 	"StudioPurchase", -- zakup produktu bez numeru (id = 0), działa tylko w Studio
 	"QuestReroll", -- wymiana jednego zadania dziennie
+	"TutorialStep", -- klient: skończyłem krok samouczka (serwer sprawdza, czy może przejść dalej)
 }
 
 local folder: Folder

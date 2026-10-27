@@ -19,6 +19,7 @@ local Grove = require(World:WaitForChild("Grove"))
 local Garden = require(World:WaitForChild("Garden"))
 local Cave = require(World:WaitForChild("Cave"))
 local Swamp = require(World:WaitForChild("Swamp"))
+local Leszy = require(World:WaitForChild("Leszy"))
 
 export type Spot = {
 	id: string,
@@ -685,8 +686,21 @@ local function buildPortalPlaza(parent: Instance, rng: Random): { [string]: Vect
 	return shortcuts
 end
 
+-- Rekwizyty do cutscenek po stronie klienta (klient nie ma dostępu do budowniczych z serwera):
+-- uśpiony Leszy do klonowania w scenie snu
+local function buildCutsceneProps()
+	if ReplicatedStorage:FindFirstChild("CutsceneProps") then
+		return
+	end
+	local folder = Instance.new("Folder")
+	folder.Name = "CutsceneProps"
+	Leszy.build(folder, CFrame.new(0, -500, 0), false)
+	folder.Parent = ReplicatedStorage
+end
+
 function MapBuilder.build(): MapInfo
 	removeTemplateLeftovers()
+	buildCutsceneProps()
 
 	local existing = Workspace:FindFirstChild("Map")
 	if existing and existing:IsA("Folder") then

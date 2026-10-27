@@ -107,7 +107,21 @@ local function apply(d: number, lanternRange: number)
 	colorCorrection.TintColor = Color3.new(1, 1, 1):Lerp(DARK_TINT, d)
 end
 
+-- Cutscenka sama ustawia światło: na ten czas Atmosphere nic nie zapisuje do Lighting,
+-- a po wznowieniu od razu przywraca klimat strefy
+local paused = false
+function Atmosphere.setPaused(value: boolean)
+	paused = value
+	if not value then
+		appliedDarkness = -1
+		currentClock = (Lighting.ClockTime :: number)
+	end
+end
+
 function Atmosphere.update(zone: number, lanternRange: number, dt: number): number
+	if paused then
+		return currentDarkness
+	end
 	local zoneDef = Config.Zones[zone] or Config.Zones[1]
 	local dawn = Workspace:GetAttribute("CyclePhase") == "dawn"
 	-- O świcie mrok w lesie słabnie (w jaskini nie ma słońca)

@@ -643,6 +643,17 @@ function MushroomView.capColor(species: string, variant: string?): Color3
 	return variantColor(variant) or (SHAPES[species] or DEFAULT_SHAPE).cap
 end
 
+-- Grzyby, których id zaczyna się od `prefix` (np. "tut_" w samouczku)
+function MushroomView.withPrefix(prefix: string): { MushroomInfo }
+	local list = {}
+	for id, entry in entries do
+		if string.sub(id, 1, #prefix) == prefix then
+			table.insert(list, entry.info)
+		end
+	end
+	return list
+end
+
 function MushroomView.get(id: string): MushroomInfo?
 	local entry = entries[id]
 	return entry and entry.info
@@ -725,7 +736,14 @@ end
 
 -- W ciemnych strefach widać tylko grzyby w zasięgu latarni (świecące widać zawsze).
 -- Przy okazji złote i świecące delikatnie się unoszą.
+-- Cutscenka ogląda grzyby z innego miejsca niż stoi gracz (aury liczą odległość od tego punktu)
+local viewer: Vector3? = nil
+function MushroomView.setViewer(at: Vector3?)
+	viewer = at
+end
+
 function MushroomView.updateVisibility(position: Vector3, lanternRange: number, darkness: number)
+	position = viewer or position
 	local visibleRange = if darkness >= 0.7 then lanternRange + 2 else math.huge
 	local t = os.clock()
 	for _, entry in entries do

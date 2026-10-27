@@ -597,6 +597,9 @@ type Card = {
 }
 local cards: { [string]: Card } = {}
 
+-- Samouczek: tylko to ulepszenie można kliknąć, reszta kart jest przyciemniona
+local tutorialFocus: string? = nil
+
 local CARD_REST = UDim2.fromOffset(0, 8)
 local CARD_LIFT = UDim2.fromOffset(0, 0)
 
@@ -772,7 +775,21 @@ for order, id in ALL_UPGRADES do
 		iconPop(card, 1.6)
 		UiKit.burst(gui, centerOf(icon), 6)
 	end)
+	-- Przyciemnienie karty w samouczku (gdy kupić można tylko inne ulepszenie)
+	local veil = Instance.new("Frame")
+	veil.Name = "TutorialVeil"
+	veil.Size = UDim2.fromScale(1, 1)
+	veil.BackgroundColor3 = Color3.new(0, 0, 0)
+	veil.BackgroundTransparency = 0.45
+	veil.Visible = false
+	veil.ZIndex = 30
+	veil.Parent = body
+	corner(veil, UDim.new(0, 20))
 	buy.Activated:Connect(function()
+		if tutorialFocus and tutorialFocus ~= id then
+			UiKit.shake(buy)
+			return
+		end
 		if card.maxed then
 			iconPop(card, 1.3)
 			return
@@ -1068,6 +1085,10 @@ render = function()
 			UiKit.setIcon(card.buyIcon, "star")
 		end
 		card.buyStroke.Color = OUTLINE
+		local veil = card.body:FindFirstChild("TutorialVeil")
+		if veil and veil:IsA("Frame") then
+			veil.Visible = tutorialFocus ~= nil and tutorialFocus ~= id
+		end
 	end
 end
 
@@ -1137,6 +1158,30 @@ end
 
 function Hud.upgradesOpen(): boolean
 	return upgradePanel.Visible
+end
+
+-- Dla samouczka: przycisk „Ulepszenia”, przycisk kupna danej karty i blokada innych kart
+function Hud.upgradeButton(): GuiObject
+	return upgradeButton
+end
+
+function Hud.upgradeBuyButton(id: string): GuiObject?
+	local card = cards[id]
+	return card and card.buy
+end
+
+function Hud.setTutorialFocus(id: string?)
+	tutorialFocus = id
+	render()
+end
+
+-- Panel monet i koszyka w lewym górnym rogu oraz pasek oleju (do podświetlania w samouczku)
+function Hud.statsPanel(): GuiObject
+	return stats
+end
+
+function Hud.oilPanel(): GuiObject
+	return oilPanel
 end
 
 local pickPulse: Tween? = nil
