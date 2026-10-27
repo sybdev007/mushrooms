@@ -33,6 +33,7 @@ local ExpeditionView = require(script.Parent.ExpeditionView)
 local Expedition = require(Shared:WaitForChild("Expedition"))
 local IntroCutscene = require(script.Parent.IntroCutscene)
 local Tutorial = require(script.Parent.Tutorial)
+local LeszyAnimator = require(script.Parent.LeszyAnimator)
 
 local player = Players.LocalPlayer
 
@@ -57,6 +58,7 @@ Signs.start()
 PortalView.start()
 GardenPrompts.start()
 MerchantView.start()
+LeszyAnimator.start()
 
 -- Skąd wylatują monety po sprzedaży (przycisk w panelu sprzedaży)
 local sellShowerFrom: Vector2? = nil

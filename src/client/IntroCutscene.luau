@@ -18,6 +18,7 @@ local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local LeszyRig = require(ReplicatedStorage.Shared.LeszyRig)
 local Atmosphere = require(script.Parent.Atmosphere)
 local Audio = require(script.Parent.Audio)
 local Localize = require(script.Parent.Localize)
@@ -48,6 +49,23 @@ type Scene = {
 	animator: Animator?,
 	tracks: { [string]: AnimationTrack },
 	leszy: Model?,
+	leszyRig: LeszyRig.Rig?,
+	leszyAnim: string, -- rise / stand / roar / run / lunge
+	leszyAnimAt: number,
+	leszyPhase: number,
+	leszyLastSin: number,
+	r15: boolean,
+	motors: { [string]: any }, -- Motor6D albo AnimationConstraint (nowsze awatary), oba mają Transform
+	posing: boolean, -- własna poza zbierania nadpisuje animacje
+	effort: number, -- drżenie przy wyrywaniu mitycznego grzyba
+	held: Model?,
+	heldCap: BasePart?,
+	heldRainbow: boolean,
+	lanternLight: PointLight?,
+	lanternGlass: BasePart?,
+	oilGauge: Frame?,
+	oilFill: Frame?,
+	subtitle: TextLabel?,
 	gui: ScreenGui,
 	fade: Frame,
 	bars: { Frame },
@@ -168,6 +186,19 @@ local function makeClone(s: Scene)
 	s.clone = clone
 	s.root = root
 	s.animator = animator
+	s.r15 = humanoid.RigType == Enum.HumanoidRigType.R15
+	for _, d in clone:GetDescendants() do
+		if d:IsA("Motor6D") or d:IsA("AnimationConstraint") then
+			s.motors[d.Name] = d
+		end
+	end
+	-- Latarnia klona: w śnie miga i gaśnie, kiedy kończy się olej
+	local attachment = root:FindFirstChild("LanternAttachment")
+	local light = attachment and attachment:FindFirstChild("Lantern")
+	s.lanternLight = if light and light:IsA("PointLight") then light else nil
+	local hand = clone:FindFirstChild("HandLantern")
+	local glass = hand and hand:FindFirstChild("LanternGlass", true)
+	s.lanternGlass = if glass and glass:IsA("BasePart") then glass else nil
 	local ids = {
 		walk = animationId(character, { "walk", "WalkAnim" }),
 		run = animationId(character, { "run", "RunAnim" }),
@@ -255,6 +286,209 @@ local function crouch(s: Scene, down: boolean)
 	end
 end
 
+-- ===== Zbieranie: własna poza (R15) i grzyb w dłoni =====
+-- Kucnięcie, ręka do grzyba, potem grzyb przed twarzą (ogląda) albo wysoko nad głową (mityczny).
+-- Motor6D.Transform ustawiamy po kroku animacji (Stepped), a na czas pozy animacje są zatrzymane.
+
+local pickValue = Instance.new("NumberValue") -- 1 = przykucnięty, ręka przy ziemi
+local liftValue = Instance.new("NumberValue") -- 1 = grzyb przed twarzą
+local highValue = Instance.new("NumberValue") -- 1 = grzyb wysoko nad głową
+
+local function rxd(d: number): CFrame
+	return CFrame.Angles(math.rad(d), 0, 0)
+end
+local function rzd(d: number): CFrame
+	return CFrame.Angles(0, 0, math.rad(d))
+end
+
+local function poseClone(s: Scene)
+	if not s.posing then
+		return
+	end
+	local k, l, h = pickValue.Value, liftValue.Value, highValue.Value
+	local tremble = s.effort * math.noise(os.clock() * 28, 4.2) * 7
+	local function set(name: string, cf: CFrame)
+		local motor = s.motors[name]
+		if motor then
+			motor.Transform = cf
+		end
+	end
+	set("Root", CFrame.new(0, -1.0 * k, 0) * rxd(-6 * k))
+	set("Waist", rxd(-30 * k + 8 * h + tremble))
+	set("Neck", rxd(-24 * k + 16 * l + 26 * h))
+	set("RightHip", rxd(80 * k))
+	set("LeftHip", rxd(66 * k))
+	set("RightKnee", rxd(-112 * k))
+	set("LeftKnee", rxd(-98 * k))
+	set("RightAnkle", rxd(32 * k))
+	set("LeftAnkle", rxd(32 * k))
+	set("RightShoulder", rxd(64 * k * (1 - l) + 92 * l * (1 - h) + 172 * h + tremble) * rzd(-6 * l))
+	set("RightElbow", rxd(18 * k + 58 * l * (1 - h) + 6 * h))
+	set("RightWrist", rxd(-10 * l))
+	set("LeftShoulder", rxd(20 * k + 12 * l) * rzd(-16 * k - 28 * h))
+	set("LeftElbow", rxd(26 * k + 20 * l))
+end
+
+local function beginPose(s: Scene)
+	s.posing = true
+	for _, track in s.tracks do
+		if track.IsPlaying then
+			track:Stop(0.15)
+		end
+	end
+end
+
+local function endPose(s: Scene)
+	s.posing = false
+	for _, motor in s.motors do
+		motor.Transform = CFrame.new()
+	end
+	pickValue.Value, liftValue.Value, highValue.Value = 0, 0, 0
+	s.effort = 0
+end
+
+local function dropMushroom(s: Scene)
+	if s.held then
+		s.held:Destroy()
+	end
+	s.held = nil
+	s.heldCap = nil
+	s.heldRainbow = false
+end
+
+-- Grzyb w prawej dłoni (stopka w pięści, kapelusz za palcami)
+local function holdMushroom(s: Scene, mythic: boolean)
+	dropMushroom(s)
+	local clone = s.clone
+	local hand = clone and (clone:FindFirstChild("RightHand") or clone:FindFirstChild("Right Arm"))
+	if not clone or not hand or not hand:IsA("BasePart") then
+		return
+	end
+	local scale = if mythic then 1.15 else 1
+	local model = Instance.new("Model")
+	model.Name = "HeldMushroom"
+	local function piece(size: Vector3, offset: number, color: Color3, neon: boolean): Part
+		local p = Instance.new("Part")
+		p.Size = size * scale
+		p.CFrame = hand.CFrame * CFrame.new(0, -hand.Size.Y / 2 - offset * scale, 0)
+		p.Color = color
+		p.Material = if neon then Enum.Material.Neon else Enum.Material.SmoothPlastic
+		p.CanCollide = false
+		p.CanQuery = false
+		p.CanTouch = false
+		p.Massless = true
+		p.Anchored = false
+		p.Parent = model
+		local weld = Instance.new("WeldConstraint")
+		weld.Part0 = hand
+		weld.Part1 = p
+		weld.Parent = p
+		return p
+	end
+	piece(Vector3.new(0.3, 0.62, 0.3), 0.18, Color3.fromRGB(238, 228, 204), false)
+	local cap = piece(Vector3.new(0.86, 0.36, 0.86), 0.62, if mythic then Color3.fromRGB(255, 120, 200) else Color3.fromRGB(150, 92, 52), mythic)
+	piece(Vector3.new(0.62, 0.2, 0.62), 0.84, if mythic then Color3.new(1, 1, 1) else Color3.fromRGB(122, 74, 42), mythic)
+	if mythic then
+		local light = Instance.new("PointLight")
+		light.Range = 12
+		light.Brightness = 2.5
+		light.Parent = cap
+		local sparkles = Instance.new("ParticleEmitter")
+		sparkles.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+		sparkles.Rate = 26
+		sparkles.Lifetime = NumberRange.new(0.5, 0.9)
+		sparkles.Speed = NumberRange.new(1, 2.5)
+		sparkles.SpreadAngle = Vector2.new(180, 180)
+		sparkles.Size = NumberSequence.new(0.35, 0)
+		sparkles.LightEmission = 1
+		sparkles.Color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 90, 90)),
+			ColorSequenceKeypoint.new(0.33, Color3.fromRGB(255, 230, 90)),
+			ColorSequenceKeypoint.new(0.66, Color3.fromRGB(90, 220, 255)),
+			ColorSequenceKeypoint.new(1, Color3.fromRGB(200, 120, 255)),
+		})
+		sparkles.Parent = cap
+	end
+	model.Parent = clone
+	s.held = model
+	s.heldCap = cap
+	s.heldRainbow = mythic
+end
+
+-- Iskierki w miejscu zerwanego grzyba
+local function burstAt(at: Vector3, color: Color3, count: number)
+	local holder = Instance.new("Attachment")
+	holder.WorldPosition = at
+	holder.Parent = Workspace.Terrain
+	local emitter = Instance.new("ParticleEmitter")
+	emitter.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+	emitter.Rate = 0
+	emitter.Lifetime = NumberRange.new(0.4, 0.8)
+	emitter.Speed = NumberRange.new(3, 6)
+	emitter.SpreadAngle = Vector2.new(180, 180)
+	emitter.Acceleration = Vector3.new(0, -6, 0)
+	emitter.Size = NumberSequence.new(0.4, 0)
+	emitter.LightEmission = 1
+	emitter.Color = ColorSequence.new(color)
+	emitter.Parent = holder
+	emitter:Emit(count)
+	task.delay(1.5, function()
+		holder:Destroy()
+	end)
+end
+
+-- Całe zerwanie: kucnięcie → grzyb znika z ziemi i jest w dłoni → wstaje z grzybem przed twarzą (albo nad głową)
+local function pickUp(s: Scene, id: string, at: Vector3, mythic: boolean): boolean
+	if not s.r15 then
+		-- Starszy awatar (R6): bez własnej pozy, tylko schylenie całego ciała
+		crouch(s, true)
+		if not wait(0.5) then
+			return false
+		end
+		MushroomView.remove(id)
+		Audio.play("pick", { jitter = 0.08 })
+		holdMushroom(s, mythic)
+		crouch(s, false)
+		return wait(0.5)
+	end
+	beginPose(s)
+	tween(pickValue, 0.45, { Value = 1 }, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+	if not wait(0.45) then
+		return false
+	end
+	if mythic then
+		-- Siedzi mocno: szarpie, aż puści
+		s.effort = 1
+		Audio.play("rumble", { volume = 0.4, duration = 0.9 })
+		if not wait(0.8) then
+			return false
+		end
+		s.effort = 0
+	end
+	MushroomView.remove(id)
+	holdMushroom(s, mythic)
+	Audio.play("pick", { jitter = 0.08 })
+	burstAt(at + Vector3.new(0, 0.6, 0), if mythic then Color3.fromRGB(255, 200, 255) else Color3.fromRGB(255, 226, 150), if mythic then 40 else 14)
+	tween(pickValue, 0.5, { Value = 0 }, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut)
+	tween(liftValue, 0.5, { Value = 1 }, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+	if mythic then
+		tween(highValue, 0.55, { Value = 1 }, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+	end
+	return wait(0.55)
+end
+
+-- Grzyb ląduje w plecaku: ręka za plecy, grzyb znika z „pyk”
+local function stash(s: Scene): boolean
+	tween(liftValue, 0.3, { Value = 0 }, Enum.EasingStyle.Quad)
+	if not wait(0.28) then
+		return false
+	end
+	dropMushroom(s)
+	Audio.play("blip", { volume = 0.6, pitch = 1.3 })
+	endPose(s)
+	return true
+end
+
 -- ===== Leszy =====
 
 local function makeLeszy(s: Scene, at: CFrame)
@@ -264,9 +498,19 @@ local function makeLeszy(s: Scene, at: CFrame)
 		return
 	end
 	local leszy = proto:Clone()
+	-- Tego Leszego animuje scena (LeszyAnimator go pomija)
+	leszy:SetAttribute("Scripted", true)
 	leszy:PivotTo(at)
 	leszy.Parent = Workspace
 	s.leszy = leszy
+	s.leszyRig = LeszyRig.new(leszy)
+	s.leszyAnim = "rise"
+	s.leszyAnimAt = os.clock()
+end
+
+local function leszyDo(s: Scene, kind: string)
+	s.leszyAnim = kind
+	s.leszyAnimAt = os.clock()
 end
 
 local function leszyEyes(s: Scene, awake: boolean)
@@ -277,6 +521,12 @@ local function leszyEyes(s: Scene, awake: boolean)
 	for _, part in leszy:GetChildren() do
 		if part.Name == "Eye" and part:IsA("BasePart") then
 			part.Color = if awake then Color3.fromRGB(255, 40, 30) else Color3.fromRGB(90, 20, 18)
+		elseif part.Name == "Heart" and part:IsA("BasePart") then
+			tween(part, 0.4, { Color = if awake then Color3.fromRGB(120, 255, 150) else Color3.fromRGB(40, 90, 56) })
+			local glow = part:FindFirstChild("HeartLight")
+			if glow and glow:IsA("PointLight") then
+				tween(glow, 0.4, { Brightness = if awake then 2.4 else 0.3 })
+			end
 		end
 	end
 	local head = leszy:FindFirstChild("Head")
@@ -287,6 +537,43 @@ local function leszyEyes(s: Scene, awake: boolean)
 end
 
 local leszyValue = Instance.new("CFrameValue")
+
+-- Poza Leszego w tej klatce (wołane z pętli kamery)
+local function animateLeszy(s: Scene, dt: number)
+	local rig = s.leszyRig
+	if not s.leszy or not rig then
+		return
+	end
+	local now = os.clock()
+	local age = now - s.leszyAnimAt
+	local kind = s.leszyAnim
+	local speed = if kind == "run" or kind == "lunge" then 1 else 0
+	s.leszyPhase += dt * (1.2 + speed * 7.4)
+	local pose, hips = LeszyRig.gait(now, s.leszyPhase, speed)
+	if kind == "rise" then
+		-- Wyłazi z ziemi skulony i powoli się prostuje
+		local k = 1 - math.clamp((age - 0.4) / 1.8, 0, 1)
+		k = k * k * (3 - 2 * k)
+		local p2, h2 = LeszyRig.crouch(1, now)
+		pose, hips = LeszyRig.mix(pose, hips, p2, h2, k)
+	elseif kind == "roar" then
+		local p2, h2 = LeszyRig.roar(1, now)
+		pose, hips = LeszyRig.mix(pose, hips, p2, h2, math.clamp(age / 0.3, 0, 1))
+	elseif kind == "lunge" then
+		local p2, h2 = LeszyRig.lunge(1)
+		pose, hips = LeszyRig.mix(pose, hips, p2, h2, math.clamp(age / 0.35, 0, 1))
+	end
+	LeszyRig.apply(rig, leszyValue.Value, pose, hips)
+	-- Ciężkie kroki w biegu: łupnięcie i drgnięcie kamery
+	if speed > 0 then
+		local sn = math.sin(s.leszyPhase)
+		if (sn > 0) ~= (s.leszyLastSin > 0) then
+			Audio.play("footstep", { volume = 1.3, pitch = 0.42, jitter = 0.06 })
+			s.shake = math.max(s.shake, 0.22)
+		end
+		s.leszyLastSin = sn
+	end
+end
 
 -- ===== Światło =====
 
@@ -412,6 +699,139 @@ local function setCaption(s: Scene, text: string, show: boolean, time: number?)
 	local stroke = s.caption:FindFirstChildOfClass("UIStroke")
 	if stroke then
 		tween(stroke, t, { Transparency = if show then 0 else 1 })
+	end
+end
+
+-- Napis na dole ekranu (nad dolnym pasem) – krótkie zdania, które tłumaczą, co się dzieje
+local function buildSubtitle(s: Scene)
+	local label = Instance.new("TextLabel")
+	label.Name = "Subtitle"
+	label.BackgroundTransparency = 1
+	label.AnchorPoint = Vector2.new(0.5, 0.5)
+	label.Position = UDim2.fromScale(0.5, 0.835)
+	label.Size = UDim2.fromScale(0.86, 0.065)
+	label.Font = TITLE_FONT
+	label.TextScaled = true
+	label.TextColor3 = Color3.fromRGB(255, 236, 200)
+	label.TextTransparency = 1
+	label.Text = ""
+	label.ZIndex = 6
+	label.Parent = s.gui
+	local limit = Instance.new("UITextSizeConstraint")
+	limit.MaxTextSize = 34
+	limit.Parent = label
+	local stroke = UiKit.outline(label, 3)
+	stroke.Transparency = 1
+	s.subtitle = label
+end
+
+local function subtitle(s: Scene, text: string?, color: Color3?)
+	local label = s.subtitle
+	if not label then
+		return
+	end
+	local stroke = label:FindFirstChildOfClass("UIStroke")
+	if text then
+		label.Text = text
+		label.TextColor3 = color or Color3.fromRGB(255, 236, 200)
+		local scale = label:FindFirstChildOfClass("UIScale") or Instance.new("UIScale")
+		scale.Parent = label
+		scale.Scale = 1.15
+		tween(scale, 0.3, { Scale = 1 }, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+		tween(label, 0.25, { TextTransparency = 0 })
+		if stroke then
+			tween(stroke, 0.25, { Transparency = 0 })
+		end
+	else
+		tween(label, 0.4, { TextTransparency = 1 })
+		if stroke then
+			tween(stroke, 0.4, { Transparency = 1 })
+		end
+	end
+end
+
+-- Pasek oleju w śnie (u góry, pod pasem kinowym): spada, miga na czerwono, a przy zerze latarnia gaśnie
+local oilValue = Instance.new("NumberValue")
+
+local function buildOilGauge(s: Scene)
+	local frame = Instance.new("Frame")
+	frame.Name = "Oil"
+	frame.AnchorPoint = Vector2.new(0.5, 0)
+	frame.Position = UDim2.new(0.5, 0, 0.125, 0)
+	frame.Size = UDim2.fromOffset(300, 46)
+	frame.BackgroundColor3 = Color3.fromRGB(44, 32, 26)
+	frame.BackgroundTransparency = 0.1
+	frame.Visible = false
+	frame.ZIndex = 3
+	frame.Parent = s.gui
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 14)
+	corner.Parent = frame
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = OUTLINE
+	stroke.Thickness = 3
+	stroke.Parent = frame
+	local icon = UiKit.icon("lantern", frame, UDim2.fromOffset(36, 36), UDim2.new(0, 8, 0.5, 0), Vector2.new(0, 0.5))
+	icon.ZIndex = 4
+	local label = Instance.new("TextLabel")
+	label.BackgroundTransparency = 1
+	label.Position = UDim2.fromOffset(50, 10)
+	label.Size = UDim2.fromOffset(70, 26)
+	label.Font = TITLE_FONT
+	label.TextScaled = true
+	label.TextColor3 = Color3.fromRGB(255, 220, 160)
+	label.Text = Localize.t("HUD_OIL")
+	label.ZIndex = 4
+	label.Parent = frame
+	local back = Instance.new("Frame")
+	back.Position = UDim2.fromOffset(124, 13)
+	back.Size = UDim2.fromOffset(162, 20)
+	back.BackgroundColor3 = Color3.fromRGB(22, 14, 10)
+	back.ZIndex = 4
+	back.Parent = frame
+	local backCorner = Instance.new("UICorner")
+	backCorner.CornerRadius = UDim.new(1, 0)
+	backCorner.Parent = back
+	local fill = Instance.new("Frame")
+	fill.Size = UDim2.fromScale(0.5, 1)
+	fill.BackgroundColor3 = Color3.fromRGB(255, 170, 56)
+	fill.ZIndex = 5
+	fill.Parent = back
+	local fillCorner = Instance.new("UICorner")
+	fillCorner.CornerRadius = UDim.new(1, 0)
+	fillCorner.Parent = fill
+	s.oilGauge = frame
+	s.oilFill = fill
+end
+
+-- Co klatkę: pasek i latarnia klona zależnie od oleju
+local function updateOil(s: Scene)
+	local oil = oilValue.Value
+	local now = os.clock()
+	local fill = s.oilFill
+	if fill then
+		fill.Size = UDim2.fromScale(math.clamp(oil, 0, 1), 1)
+		local low = oil < 0.25
+		local flash = if low then 0.5 + 0.5 * math.sin(now * 12) else 0
+		fill.BackgroundColor3 = Color3.fromRGB(255, 170, 56):Lerp(Color3.fromRGB(255, 50, 40), if low then 0.6 + 0.4 * flash else 0)
+		local gauge = s.oilGauge
+		if gauge then
+			gauge.Rotation = if low then math.sin(now * 40) * 1.5 * flash else 0
+		end
+	end
+	local strength = 1
+	if oil <= 0.001 then
+		strength = 0
+	elseif oil < 0.25 then
+		strength = (0.35 + 0.65 * oil / 0.25) * (0.55 + 0.45 * math.noise(now * 7, 1.3) + 0.2)
+	end
+	local light = s.lanternLight
+	if light then
+		light.Brightness = 2.2 * math.clamp(strength, 0, 1.2)
+	end
+	local glass = s.lanternGlass
+	if glass then
+		glass.Color = Color3.fromRGB(40, 26, 18):Lerp(Color3.fromRGB(255, 206, 120), math.clamp(strength, 0, 1))
 	end
 end
 
@@ -595,6 +1015,12 @@ local function cleanup(s: Scene)
 	if s.leszy then
 		s.leszy:Destroy()
 	end
+	if s.leszyRig then
+		LeszyRig.destroy(s.leszyRig)
+		s.leszyRig = nil
+	end
+	dropMushroom(s)
+	pickValue.Value, liftValue.Value, highValue.Value = 0, 0, 0
 	MushroomView.remove("cut_small")
 	MushroomView.remove("cut_mythic")
 	MushroomView.remove("cut_nice")
@@ -686,7 +1112,7 @@ local function run(s: Scene)
 
 	phaseStart = os.clock()
 	s.gui:SetAttribute("Phase", "walk")
-	-- 1. Spacer ścieżką z latarnią, kamera z boku powoli jedzie za graczem
+	-- 1. Spacer ścieżką z latarnią, kamera z boku powoli jedzie za graczem. U góry pasek oleju, który spada.
 	moveTo(s, onPath(82, 0.8), 5.2, "walk", 0.9)
 	shot(look(onPath(62, 11) + Vector3.new(0, 5.5, 0), onPath(70) + Vector3.new(0, 2, 0)), look(onPath(76, 10) + Vector3.new(0, 4, 0), onPath(82) + Vector3.new(0, 1.5, 0)), 5.4, 50)
 	local steps = task.spawn(function()
@@ -695,97 +1121,136 @@ local function run(s: Scene)
 			task.wait(0.42)
 		end
 	end)
-	if not wait(5.2) then
+	oilValue.Value = 0.45
+	if s.oilGauge then
+		s.oilGauge.Visible = true
+	end
+	tween(oilValue, 7, { Value = 0.26 }, Enum.EasingStyle.Linear)
+	if not wait(0.9) then
+		return
+	end
+	subtitle(s, Localize.t("CUT_SUB_OIL"))
+	if not wait(3.2) then
+		return
+	end
+	subtitle(s, nil)
+	if not wait(1.1) then
 		return
 	end
 
 	phaseStart = os.clock()
 	s.gui:SetAttribute("Phase", "pick")
-	-- Zbiera grzybka: zbliżenie z dołu
-	shot(look(SMALL + Vector3.new(2.6, 0.9, 2.2), SMALL + Vector3.new(0, 1, 0)), look(SMALL + Vector3.new(2.2, 1.2, 1.4), SMALL + Vector3.new(0, 1, 0)), 1.6, 50)
-	play(s, "idle")
-	crouch(s, true)
-	if not wait(0.5) then
+	-- Zbiera grzybka: zbliżenie z boku, kuca, zrywa, ogląda i chowa do plecaka
+	task.cancel(steps)
+	shot(look(SMALL + Vector3.new(6.5, 3.2, 4.5), SMALL + Vector3.new(-0.6, 1.6, -1.2)), look(SMALL + Vector3.new(5.4, 2.8, 3.2), SMALL + Vector3.new(-0.6, 2, -1.2)), 2.8, 50)
+	if not pickUp(s, "cut_small", SMALL, false) then
 		return
 	end
-	MushroomView.remove("cut_small")
-	Audio.play("pick", { jitter = 0.08 })
-	if not wait(0.4) then
+	if not wait(0.6) then
 		return
 	end
-	crouch(s, false)
-	if not wait(0.5) then
+	if not stash(s) then
+		return
+	end
+	if not wait(0.25) then
 		return
 	end
 
 	phaseStart = os.clock()
 	s.gui:SetAttribute("Phase", "mythic")
-	-- 2. W oddali lśni tęczowy grzyb: kamera zza pleców, muzyka gęstnieje
+	-- 2. W oddali lśni tęczowy grzyb: kamera zza pleców, muzyka gęstnieje, latarnia zaczyna migać
 	Audio.music("eerie", 1.5)
 	Audio.play("shimmer")
 	shot(look(onPath(80, -1.5) + Vector3.new(0, 3.4, -1), MYTHIC + Vector3.new(0, 1.5, 0)), look(onPath(88, -1.2) + Vector3.new(0, 2.6, 0), MYTHIC + Vector3.new(0, 1.2, 0)), 4.2, 45)
 	moveTo(s, MYTHIC - Vector3.new(0, 0, 1.6), 4, "walk", 0.75)
-	if not wait(4) then
+	steps = task.spawn(function()
+		while not cancelled() do
+			Audio.play("footstep", { volume = 0.45, jitter = 0.12 })
+			task.wait(0.5)
+		end
+	end)
+	tween(oilValue, 4, { Value = 0.1 }, Enum.EasingStyle.Linear)
+	if not wait(1.2) then
+		return
+	end
+	Audio.play("warn", { volume = 0.7 })
+	subtitle(s, Localize.t("CUT_SUB_LOW"), Color3.fromRGB(255, 130, 110))
+	if not wait(2.8) then
 		return
 	end
 	task.cancel(steps)
+	subtitle(s, nil)
 
 	phaseStart = os.clock()
 	s.gui:SetAttribute("Phase", "grab")
-	-- Zrywa go: błysk, iskry, ziemia drży, światło czerwienieje
-	shot(look(MYTHIC + Vector3.new(-3, 1.4, -3.5), MYTHIC + Vector3.new(0, 1.2, 0)), look(MYTHIC + Vector3.new(-2.4, 1.2, -2.8), MYTHIC + Vector3.new(0, 1.2, 0)), 1.8, 48)
-	crouch(s, true)
-	if not wait(0.6) then
+	-- Wyrywa go z wysiłkiem i unosi nad głowę: błysk, iskry
+	shot(look(MYTHIC + Vector3.new(-8, 3.2, 5.5), MYTHIC + Vector3.new(0, 1.8, -1.4)), look(MYTHIC + Vector3.new(-6.8, 2.6, 4.6), MYTHIC + Vector3.new(0, 3.2, -1.4)), 2.6, 54)
+	if not pickUp(s, "cut_mythic", MYTHIC, true) then
 		return
 	end
-	MushroomView.remove("cut_mythic")
-	Audio.play("pick")
 	Audio.play("boom", { volume = 0.6 })
 	s.fade.BackgroundColor3 = Color3.new(1, 1, 1)
-	s.fade.BackgroundTransparency = 0.2
+	s.fade.BackgroundTransparency = 0.25
 	tween(s.fade, 0.5, { BackgroundTransparency = 1 })
-	if not wait(0.6) then
+	if not wait(0.9) then
 		return
 	end
 	s.fade.BackgroundColor3 = Color3.new(0, 0, 0)
-	crouch(s, false)
+	-- Latarnia gaśnie: ostatnie mrugnięcia i ciemność
 	Audio.music(nil, 0.4)
+	tween(oilValue, 0.6, { Value = 0 }, Enum.EasingStyle.Quad)
+	if not wait(0.6) then
+		return
+	end
+	Audio.play("whoosh", { volume = 0.5, pitch = 0.6 })
+	subtitle(s, Localize.t("CUT_SUB_OUT"), Color3.fromRGB(255, 130, 110))
+	tween(highValue, 0.8, { Value = 0 }, Enum.EasingStyle.Quad)
+	tween(liftValue, 0.8, { Value = 0.5 }, Enum.EasingStyle.Quad)
+	setLighting(s, "danger", 1.2)
+	if not wait(1.2) then
+		return
+	end
 	Audio.play("rumble", { duration = 3 })
 	s.shake = 0.35
-	setLighting(s, "danger", 1.2)
-	if not wait(1.4) then
-		return
-	end
-
-	phaseStart = os.clock()
-	s.gui:SetAttribute("Phase", "leszy")
-	-- 3. Leszy wstaje z ziemi, oczy się zapalają, ryk
-	makeLeszy(s, CFrame.lookAt(LESZY_RISE - Vector3.new(0, 13, 0), MYTHIC - Vector3.new(0, 13, 0)))
-	leszyValue.Value = CFrame.lookAt(LESZY_RISE - Vector3.new(0, 13, 0), Vector3.new(MYTHIC.X, -13, MYTHIC.Z))
-	tween(leszyValue, 2.2, { Value = CFrame.lookAt(LESZY_RISE, Vector3.new(MYTHIC.X, 0, MYTHIC.Z)) }, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
-	shot(look(LESZY_RISE + Vector3.new(-6, 2, -7), LESZY_RISE + Vector3.new(0, 7, 0)), look(LESZY_RISE + Vector3.new(-4.5, 3, -5.2), LESZY_RISE + Vector3.new(0, 10, 0)), 2.6, 60)
-	s.shake = 0.5
-	if not wait(1.8) then
-		return
-	end
-	phaseStart = os.clock()
-	s.gui:SetAttribute("Phase", "eyes")
-	-- Zbliżenie na twarz: oczy zapłoną
-	shot(look(LESZY_RISE + Vector3.new(-2.2, 10.5, -4.5), LESZY_RISE + Vector3.new(0, 11, 0)), look(LESZY_RISE + Vector3.new(-1.6, 10.8, -3.2), LESZY_RISE + Vector3.new(0, 11, 0)), 1.2, 40)
-	s.shake = 0.15
-	if not wait(0.5) then
-		return
-	end
-	leszyEyes(s, true)
-	Audio.play("roar")
-	s.shake = 0.7
+	subtitle(s, Localize.t("CUT_SUB_LESZY"), Color3.fromRGB(255, 110, 90))
 	if not wait(1.2) then
 		return
 	end
 
 	phaseStart = os.clock()
+	s.gui:SetAttribute("Phase", "leszy")
+	-- 3. Leszy wyłazi z ziemi skulony i się prostuje
+	subtitle(s, nil)
+	makeLeszy(s, CFrame.lookAt(LESZY_RISE - Vector3.new(0, 13, 0), MYTHIC - Vector3.new(0, 13, 0)))
+	leszyValue.Value = CFrame.lookAt(LESZY_RISE - Vector3.new(0, 13, 0), Vector3.new(MYTHIC.X, -13, MYTHIC.Z))
+	tween(leszyValue, 2.2, { Value = CFrame.lookAt(LESZY_RISE, Vector3.new(MYTHIC.X, 0, MYTHIC.Z)) }, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+	shot(look(LESZY_RISE + Vector3.new(-8, 2, -13), LESZY_RISE + Vector3.new(0, 7, 0)), look(LESZY_RISE + Vector3.new(-6.5, 2.6, -11), LESZY_RISE + Vector3.new(0, 10.5, 0)), 2.6, 60)
+	s.shake = 0.5
+	if not wait(2.2) then
+		return
+	end
+	phaseStart = os.clock()
+	s.gui:SetAttribute("Phase", "eyes")
+	-- Zbliżenie na twarz: oczy i serce zapłoną, ryk z rękami w górze
+	shot(look(LESZY_RISE + Vector3.new(-2.4, 12.8, -6.5), LESZY_RISE + Vector3.new(0, 13, 0)), nil, 0, 40)
+	s.shake = 0.15
+	if not wait(0.5) then
+		return
+	end
+	leszyEyes(s, true)
+	leszyDo(s, "roar")
+	Audio.play("roar")
+	s.shake = 0.7
+	-- Kamera odskakuje, żeby było widać całą sylwetkę z łapami w górze
+	shot(look(LESZY_RISE + Vector3.new(-2.4, 12.8, -6.5), LESZY_RISE + Vector3.new(0, 13, 0)), look(LESZY_RISE + Vector3.new(-5, 6.5, -15), LESZY_RISE + Vector3.new(0, 11, 0)), 0.9, 52, Enum.EasingStyle.Quart)
+	if not wait(1.3) then
+		return
+	end
+
+	phaseStart = os.clock()
 	s.gui:SetAttribute("Phase", "chase")
-	-- 4. Pościg: gracz biegnie ścieżką do chatki, kamera ucieka przed nim, Leszy dogania
+	-- 4. Pościg: gracz biegnie ścieżką do chatki z grzybem w ręce, Leszy dudni za nim i dogania
+	endPose(s)
 	Audio.music("chase", 0.3)
 	table.insert(s.loops, Audio.loop("heartbeat", 0.9) :: Sound)
 	s.shake = 0.12
@@ -794,6 +1259,7 @@ local function run(s: Scene)
 	local runTo = onPath(76)
 	moveTo(s, runTo, 5, "run", 1.25)
 	leszyValue.Value = CFrame.lookAt(LESZY_RISE, runFrom)
+	leszyDo(s, "run")
 	tween(leszyValue, 5, { Value = CFrame.lookAt(onPath(81), runTo) }, Enum.EasingStyle.Linear)
 	shot(look(runFrom + Vector3.new(1.5, 2.6, -6), runFrom + Vector3.new(0, 2.2, 2)), look(runTo + Vector3.new(1.5, 2.8, -6.5), runTo + Vector3.new(0, 3, 3)), 5, 72, Enum.EasingStyle.Linear)
 	local crack = task.spawn(function()
@@ -808,9 +1274,10 @@ local function run(s: Scene)
 
 	phaseStart = os.clock()
 	s.gui:SetAttribute("Phase", "caught")
-	-- Złapany: Leszy skacze, uderzenie, czerń
-	tween(leszyValue, 0.5, { Value = CFrame.lookAt(runTo + Vector3.new(0, 0, 1.5), runTo - Vector3.new(0, 0, 3)) * CFrame.Angles(math.rad(-25), 0, 0) }, Enum.EasingStyle.Back, Enum.EasingDirection.In)
-	shot(look(runTo + Vector3.new(0.5, 3.2, -4), runTo + Vector3.new(0, 4, 3)), look(runTo + Vector3.new(0.3, 3, -2.6), runTo + Vector3.new(0, 4.5, 3)), 0.6, 85, Enum.EasingStyle.Quad)
+	-- Złapany: Leszy rzuca się z łapami do przodu, uderzenie, czerń
+	leszyDo(s, "lunge")
+	tween(leszyValue, 0.5, { Value = CFrame.lookAt(runTo + Vector3.new(0, 0, 1.5), runTo - Vector3.new(0, 0, 3)) }, Enum.EasingStyle.Back, Enum.EasingDirection.In)
+	shot(look(runTo + Vector3.new(0.5, 3.2, -4), runTo + Vector3.new(0, 4.5, 3)), look(runTo + Vector3.new(0.3, 3, -2.6), runTo + Vector3.new(0, 5.5, 3)), 0.6, 85, Enum.EasingStyle.Quad)
 	s.shake = 1
 	if not wait(0.6) then
 		return
@@ -820,6 +1287,10 @@ local function run(s: Scene)
 	Audio.play("sting")
 	s.fade.BackgroundTransparency = 0
 	s.shake = 0
+	if s.oilGauge then
+		s.oilGauge.Visible = false
+	end
+	dropMushroom(s)
 	if not wait(1.6) then
 		return
 	end
@@ -839,6 +1310,7 @@ local function run(s: Scene)
 		s.leszy = nil
 	end
 	setLighting(s, "morning", 0)
+	oilValue.Value = 1
 	local chair = Workspace:FindFirstChild("RockingChair", true)
 	local pivotAttr = chair and chair:GetAttribute("Pivot")
 	local pivot = if typeof(pivotAttr) == "Vector3" then pivotAttr else Vector3.new(9.5, 1, -9.8)
@@ -893,6 +1365,10 @@ local function run(s: Scene)
 	end
 	Audio.play("creak", { volume = 0.6, duration = 2.5 })
 	if not thought(s, Localize.t("CUT_DREAM"), 1.6) then
+		return
+	end
+	-- Wniosek ze snu: bez oleju przychodzi Leszy
+	if not thought(s, Localize.t("CUT_DREAM2"), 1.5) then
 		return
 	end
 
@@ -956,7 +1432,18 @@ function IntroCutscene.play(onDone: (() -> ())?)
 		cameraCf = CFrame.new(),
 		fov = 70,
 		onDone = onDone,
+		leszyAnim = "stand",
+		leszyAnimAt = 0,
+		leszyPhase = 0,
+		leszyLastSin = 0,
+		r15 = false,
+		motors = {},
+		posing = false,
+		effort = 0,
+		heldRainbow = false,
 	}
+	buildSubtitle(s)
+	buildOilGauge(s)
 	scene = s
 	Atmosphere.setPaused(true)
 	-- Bez HUD-u, listy graczy i czatu; postać gracza niewidoczna i nieruchoma
@@ -1020,12 +1507,21 @@ function IntroCutscene.play(onDone: (() -> ())?)
 				root.CFrame = rootValue.Value
 			end
 		end
-		local leszy = s.leszy
-		if leszy then
-			-- Leszy kołysze się na boki, kiedy idzie
-			local sway = CFrame.Angles(0, 0, math.sin(os.clock() * 6) * 0.06)
-			leszy:PivotTo(leszyValue.Value * sway)
+		animateLeszy(s, dt)
+		updateOil(s)
+		-- Mityczny grzyb w dłoni mieni się kolorami tęczy
+		local cap = s.heldCap
+		if cap and s.heldRainbow then
+			cap.Color = Color3.fromHSV((os.clock() * 0.45) % 1, 0.55, 1)
+			local light = cap:FindFirstChildOfClass("PointLight")
+			if light then
+				light.Color = cap.Color
+			end
 		end
+	end))
+	-- Własna poza zbierania nadpisuje animacje po ich kroku
+	table.insert(s.connections, RunService.Stepped:Connect(function()
+		poseClone(s)
 	end))
 
 	skip.Text = Localize.t("CUT_SKIP")

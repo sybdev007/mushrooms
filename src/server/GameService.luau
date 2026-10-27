@@ -295,6 +295,7 @@ local function pushState(session: Session)
 		boomUntil = boomUntil,
 		dev = isDeveloper(session.player),
 		tutorial = data.tutorial,
+		tutorialSell = TutorialService.sellRule(session :: any),
 	})
 end
 
@@ -1069,6 +1070,13 @@ local function onSell(player: Player, indices: unknown, key: unknown)
 	end
 	local basket = session.data.basket
 	if #basket == 0 then
+		return
+	end
+	-- Samouczek: sprzedaż po kolei (jeden, dwa zaznaczone, wszystko) – inny sposób nie przejdzie
+	if not TutorialService.canSell(session :: any, indices) then
+		notify(session, "TUT_SELL_WRONG")
+		session.basketKey = nil
+		pushState(session)
 		return
 	end
 	-- Koszyk zmienił się od czasu, gdy klient go pokazał: nic nie sprzedajemy, wysyłamy świeży

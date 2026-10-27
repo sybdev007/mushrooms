@@ -333,8 +333,8 @@ local function updateSpotlight()
 	ringStroke.Transparency = 0.2 * (1 - math.sin(os.clock() * 6))
 	local bob = math.sin(os.clock() * 5) * 8
 	hand.Position = UDim2.fromOffset(pos.X + size.X * 0.55, pos.Y + size.Y + bob - 6)
-	-- Podpowiedź nad celem albo pod nim (gdzie jest więcej miejsca)
-	local above = pos.Y > screen.Y / 2
+	-- Podpowiedź pod celem, jeśli się mieści (wtedy nie zasłania karty nad przyciskiem), inaczej nad nim
+	local above = pos.Y + size.Y + 60 + 70 > screen.Y
 	local hx = math.clamp(pos.X + size.X / 2 - 150, 10, screen.X - 310)
 	hint.Position = UDim2.fromOffset(hx, if above then pos.Y - 80 else pos.Y + size.Y + 60)
 end
@@ -638,6 +638,7 @@ end
 -- ===== Kroki =====
 
 local stepNow = -2
+local sellRule: string? = nil
 local basketCount = 0
 local basketMax = 5
 local seen: { [string]: boolean } = {}
@@ -767,14 +768,8 @@ local function update()
 	elseif step == 2 then
 		setMission("sell", t("TUT_M_SELL"), 0)
 		if SellPanel.isOpen() then
+			-- W panelu prowadzi kupiec i strzałka (SellPanel.setGuide), tu nic nie zasłaniamy
 			setTarget(nil)
-			if once("sellpanel") then
-				window({
-					{ title = t("TUT_SELL1_T"), text = t("TUT_SELL1"), icon = "sell", demo = "sellOne" },
-					{ title = t("TUT_SELL2_T"), text = t("TUT_SELL2"), icon = "check", demo = "sellSelected" },
-					{ title = t("TUT_SELL3_T"), text = t("TUT_SELL3"), icon = "coins", demo = "sellAll" },
-				})
-			end
 		else
 			setTarget(Vector3.new(Config.Merchant.x, 0, Config.Merchant.z + 5))
 		end
@@ -804,6 +799,10 @@ end
 RunService.RenderStepped:Connect(function()
 	update()
 	updateSpotlight()
+	-- Karta misji chowa się, kiedy otwarty jest panel sprzedaży albo ulepszeń (nachodziła na nie)
+	if lastMission ~= "" then
+		tracker.Visible = not (SellPanel.isOpen() or Hud.upgradesOpen())
+	end
 	-- Strzałka nad celem podskakuje i się kręci, linia biegnie od gracza
 	local at = target
 	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
@@ -873,6 +872,9 @@ function Tutorial.update(state: any)
 	local previousCount = basketCount
 	basketCount = state.basketCount or 0
 	basketMax = state.basketMax or 5
+	-- Sprzedaż krok po kroku: tryb panelu przychodzi od serwera
+	sellRule = if step == 2 and typeof(state.tutorialSell) == "string" then state.tutorialSell else nil
+	SellPanel.setGuide(sellRule)
 	if step ~= stepNow then
 		stepNow = step
 		if step >= DONE then

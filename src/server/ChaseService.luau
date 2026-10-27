@@ -175,7 +175,15 @@ function ChaseService.new(options: Options): Chaser
 			local bob = if awake then math.abs(math.sin(t)) * 0.35 else 0
 			local sway = if awake then math.sin(t) * 0.06 else math.sin(t) * 0.02
 			local look = if distance > 0.1 then CFrame.lookAt(chase.position, target) else CFrame.new(chase.position)
-			chase.model:PivotTo(look * CFrame.new(0, bob, 0) * CFrame.Angles(0, 0, sway))
+			local root = chase.model.PrimaryPart
+			if chase.model:GetAttribute("Rig") == true and root then
+				-- Model ze szkieletem (Leszy): serwer przesuwa tylko pivot, ręce i nogi rusza klient (LeszyAnimator).
+				-- Do tego mniej danych po sieci niż przy przesuwaniu każdej części.
+				root.CFrame = look * root.PivotOffset:Inverse()
+				chase.model:SetAttribute("Moving", awake)
+			else
+				chase.model:PivotTo(look * CFrame.new(0, bob, 0) * CFrame.Angles(0, 0, sway))
+			end
 
 			if awake and distance <= settings.catchRadius then
 				self.stop(player)

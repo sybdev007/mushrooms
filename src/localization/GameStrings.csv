@@ -328,41 +328,45 @@ TUT_DONE_MSG,Tutorial complete! +{1} coins,,,Samouczek ukończony! +{1} monet
 TUT_REWARD_COINS,+{1} coins,,,+{1} monet
 TUT_REWARD_TEXT,For finishing the tutorial,,,Za ukończenie samouczka
 TUT_WELCOME_T,Welcome forager!,,,Witaj grzybiarzu!
-TUT_WELCOME,That was just a dream... but the forest is real. Mushrooms glow at night - pick them and sell them for coins. The rarer the mushroom the bigger the haul.,,,To był tylko sen… ale las jest prawdziwy. Nocą grzyby świecą – zbieraj je i sprzedawaj za monety. Im rzadszy grzyb tym większy zarobek.
-TUT_PICK_T,Picking mushrooms,,,Zbieranie grzybów
-TUT_PICK,Follow the golden trail. Walk up to a mushroom and press COLLECT or E. It lands in your basket.,,,Idź za złotą smugą. Podejdź do grzyba i wciśnij ZBIERZ albo E. Grzyb trafi do koszyka.
+TUT_WELCOME,At night mushrooms glow in the forest. Pick them and sell them for coins.,,,Nocą w lesie świecą grzyby. Zbieraj je i sprzedawaj za monety.
+TUT_PICK_T,Picking,,,Zbieranie
+TUT_PICK,Follow the golden line to a mushroom. Tap COLLECT or press E.,,,Idź za złotą linią do grzyba. Kliknij ZBIERZ albo wciśnij E.
 TUT_BASKET_T,Your basket,,,Twój koszyk
-TUT_BASKET,Nice! Every mushroom goes into your basket. The counter at the top shows how many fit. Fill it up!,,,Brawo! Każdy grzyb ląduje w koszyku. Licznik u góry pokazuje ile się zmieści. Napełnij go!
-TUT_FULL_TOAST,Basket full! Sell it at the forager's cabin,,,Plecak pełny! Sprzedaj go w domku grzybiarza
-TUT_FULL_T,Basket full!,,,Plecak pełny!
-TUT_FULL,No more room. Head back to the forager's cabin and sell your haul to the merchant. A bigger basket can be bought as an upgrade.,,,Nie ma już miejsca. Wracaj do domku grzybiarza i sprzedaj łup kupcowi. Większy koszyk kupisz w ulepszeniach.
+TUT_BASKET,The mushroom is in your basket! The counter at the top shows how many more fit.,,,Grzyb jest w koszyku! Licznik u góry pokazuje ile jeszcze się zmieści.
+TUT_FULL_TOAST,Basket full! Sell your mushrooms at the cabin,,,Koszyk pełny! Sprzedaj grzyby w chatce
+TUT_FULL_T,Basket full!,,,Koszyk pełny!
+TUT_FULL,Go back to the cabin and sell your mushrooms to the merchant.,,,Wróć do chatki i sprzedaj grzyby kupcowi.
 TUT_OIL_T,Lantern oil,,,Olej w latarni
-TUT_OIL,Your lantern burns oil out in the forest. When it runs dry the Leszy comes for you! Refill it for free at the oil barrel in the cabin. Watch the bar and head back in time - right now you have just enough to make it home.,,,Latarnia w lesie spala olej. Kiedy zgaśnie – przychodzi Leszy! Za darmo napełnisz ją przy beczce w chatce. Pilnuj paska i wracaj na czas – teraz starczy ci akurat na powrót.
+TUT_OIL,Remember the dream? When the oil runs out the Leszy comes. Watch the bar and head back in time. Refill for free at the barrel in the cabin.,,,Pamiętasz sen? Gdy olej się skończy – przyjdzie Leszy. Pilnuj paska i wracaj na czas. Olej dolejesz za darmo przy beczce w chatce.
 TUT_M_PICK,Pick mushrooms {1}/{2},,,Zbierz grzyby {1}/{2}
-TUT_M_SELL,Sell your basket to the merchant,,,Sprzedaj koszyk kupcowi
-TUT_SELL1_T,Sell one,,,Sprzedaj jeden
-TUT_SELL1,Tap a mushroom card and press Sell to sell just that one. Great for testing prices.,,,Kliknij kartę grzyba i wciśnij Sprzedaj – sprzedasz tylko ten jeden. Dobre na sprawdzenie cen.
-TUT_SELL2_T,Sell selected,,,Sprzedaj zaznaczone
-TUT_SELL2,Tick a few cards and sell them in one go. Keep your shiny ones for the garden!,,,Zaznacz kilka kart i sprzedaj je za jednym razem. Błyszczące zostaw do ogródka!
-TUT_SELL3_T,Sell all,,,Sprzedaj wszystko
-TUT_SELL3,In a hurry? Sell all empties the whole basket at once. Now sell everything!,,,Spieszysz się? Sprzedaj wszystko opróżnia cały koszyk naraz. Teraz sprzedaj wszystko!
-TUT_M_UPG,Upgrade your Oil Tank,,,Ulepsz Zbiornik oleju
-TUT_SPOT_UPG,Open Upgrades (or press R),,,Otwórz Ulepszenia (albo wciśnij R)
-TUT_SPOT_BUY,Buy the Oil Tank - more oil means longer trips!,,,Kup Zbiornik oleju – więcej oleju to dłuższe wyprawy!
+TUT_M_SELL,Sell to the merchant,,,Sprzedaj grzyby kupcowi
+TUT_M_UPG,Upgrade the oil tank,,,Ulepsz zbiornik oleju
+TUT_SPOT_UPG,Tap Upgrades (or press R),,,Kliknij Ulepszenia (albo R)
+TUT_SPOT_BUY,Buy the Oil Tank - longer trips!,,,Kup Zbiornik oleju – dłuższe wyprawy!
 TUT_UPG_T,Upgrades,,,Ulepszenia
-TUT_UPG,Coins buy upgrades: a brighter lantern - a bigger tank - a roomier basket - faster boots. Each level makes the next trip better. Open them anytime with R.,,,Za monety kupujesz ulepszenia: jaśniejszą latarnię – większy zbiornik – pojemniejszy koszyk – szybsze buty. Każdy poziom to lepsza kolejna wyprawa. Otworzysz je zawsze klawiszem R.
-TUT_GARDEN_MISSION_T,Mission: the garden,,,Misja: ogródek
-TUT_GARDEN_MISSION,Pick 3 more mushrooms by the path - they are for your garden. Planted mushrooms make coins even when you sleep!,,,Zbierz jeszcze 3 grzyby przy ścieżce – będą do ogródka. Posadzone grzyby zarabiają nawet kiedy śpisz!
-TUT_M_GARDEN,Pick mushrooms for the garden {1}/{2},,,Zbierz grzyby do ogródka {1}/{2}
+TUT_UPG,Spend coins on a brighter lantern and a bigger tank. Every upgrade makes your trips better.,,,Za monety kupisz lepszą latarnię i większy zbiornik. Każde ulepszenie to lepsza wyprawa.
+TUT_GARDEN_MISSION_T,Mission: garden,,,Misja: ogródek
+TUT_GARDEN_MISSION,Pick 3 mushrooms by the path. Plant them in your garden and they earn coins for you.,,,Zbierz 3 grzyby przy ścieżce. Posadzisz je w ogródku i będą zarabiać same.
+TUT_M_GARDEN,Mushrooms for the garden {1}/{2},,,Grzyby do ogródka {1}/{2}
 TUT_M_PLANT,Plant mushrooms in your garden,,,Posadź grzyby w ogródku
 TUT_PLANT_T,Your garden,,,Twój ogródek
-TUT_PLANT,Walk to your garden gate and press E on Plant mushrooms. Your best mushrooms grow in the beds and drop coins into the chest every minute - collect them at the gate.,,,Podejdź do furtki ogródka i wciśnij E przy Posadź grzyby. Najlepsze grzyby rosną na grządkach i co minutę sypią monety do skrzyni – odbierzesz je przy furtce.
+TUT_PLANT,Go to the gate and press E on Plant mushrooms. Planted mushrooms drop coins into the chest every minute.,,,Podejdź do furtki i wciśnij E przy Posadź grzyby. Posadzone grzyby co minutę dają monety do skrzyni.
 TUT_M_STEAL,Watch out for thieves!,,,Uwaga na złodziei!
 TUT_THIEF,THIEF!,,,ZŁODZIEJ!
 TUT_THIEF_FAIL,...nice try,,,…no ładnie
 TUT_STEAL_T,Thieves!,,,Złodzieje!
-TUT_STEAL,Other players can sneak in and pull your most valuable mushroom. A thief carries it slowly and glows red - touch them and the mushroom comes back!,,,Inni gracze mogą się zakraść i wyrwać twój najcenniejszy grzyb. Złodziej niesie go powoli i świeci na czerwono – dotknij go a grzyb wróci!
+TUT_STEAL,Other players can pull your best mushroom. A thief glows red and walks slowly. Touch them to get it back.,,,Inni gracze mogą wyrwać twój najlepszy grzyb. Złodziej świeci na czerwono i idzie wolno. Dotknij go a grzyb wróci.
 TUT_STEAL2_T,Defend and steal,,,Broń się i kradnij
-TUT_STEAL2,A Garden Lock makes pulling slower. And yes - you can steal too! Bring a loot mushroom to your own garden and it is yours. If you leave the clearing or a minute passes it goes back.,,,Kłódka ogródka sprawia że wyrywanie trwa dłużej. I tak – ty też możesz kraść! Donieś łup do swojego ogródka a będzie twój. Wyjdziesz z polany albo minie minuta – grzyb wraca.
+TUT_STEAL2,A lock makes pulling slower. You can steal too: carry a mushroom to your own garden.,,,Kłódka wydłuża wyrywanie. Ty też możesz kraść: zanieś grzyb do swojego ogródka.
 TUT_DONE_T,You're a forager now!,,,Jesteś grzybiarzem!
-TUT_DONE,The forest is yours. Go deeper - find rare mushrooms and maybe... that mythic one from your dream. Just keep your lantern lit.,,,Las należy do ciebie. Idź głębiej – szukaj rzadkich grzybów i może… tego mitycznego ze snu. Tylko nie daj zgasnąć latarni.
+TUT_DONE,Go deeper into the forest and find rare mushrooms. And watch your oil!,,,Idź głębiej w las i szukaj rzadkich grzybów. I pilnuj oleju!
+TUT_SELL_WRONG,Follow the arrow,,,Zrób to co pokazuje strzałka
+SELLTUT_ONE,Sell one mushroom: tap the price under it,,,Sprzedaj jeden grzyb: kliknij cenę pod nim
+SELLTUT_PICK,Now select 2 mushrooms (circle in the corner),,,Teraz zaznacz 2 grzyby (kółko w rogu karty)
+SELLTUT_TWO,Great! Now sell the selected ones,,,Super! Teraz sprzedaj zaznaczone
+SELLTUT_ALL,Sell the rest at once: Sell all,,,Resztę sprzedaj naraz: Sprzedaj wszystko
+CUT_SUB_OIL,Out in the forest the lantern burns oil...,,,W lesie latarnia spala olej…
+CUT_SUB_LOW,The oil is running low!,,,Olej się kończy!
+CUT_SUB_OUT,The lantern went out...,,,Latarnia zgasła…
+CUT_SUB_LESZY,In the dark the Leszy wakes up!,,,W ciemności budzi się Leszy!
+CUT_DREAM2,Gotta watch my oil!,,,Muszę pilnować oleju!

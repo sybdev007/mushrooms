@@ -22,6 +22,7 @@ export type Session = {
 	data: any,
 	oil: number,
 	tutorialSpots: { [string]: Vector3 }?,
+	tutorialSell: number?, -- ile sprzedaży z trzech (jeden / dwa zaznaczone / wszystko) już było
 }
 
 export type Api = {
@@ -82,6 +83,7 @@ function TutorialService.setStep(session: Session, step: number)
 	if step == 2 then
 		-- Plecak pełny: olej spada nisko (ostrzeżenie), ale zostaje go na powrót do chatki
 		session.oil = math.min(session.oil, Config.Tutorial.lowOil)
+		session.tutorialSell = 0
 	elseif step == 3 then
 		-- Gwarancja, że stać na pierwsze ulepszenie oleju
 		local cost = Economy.upgradeCost(Config.Tutorial.upgrade, data.upgrades[Config.Tutorial.upgrade] or 0)
@@ -147,9 +149,46 @@ function TutorialService.pick(session: Session, spotId: string): boolean
 	return true
 end
 
+-- Sprzedaż w samouczku po kolei: najpierw 1 grzyb sam ("one"), potem 2 zaznaczone ("two"),
+-- na końcu reszta przyciskiem „Sprzedaj wszystko” ("all"). Przy małym koszyku kroki się skracają.
+function TutorialService.sellRule(session: Session): string?
+	if session.data.tutorial ~= 2 then
+		return nil
+	end
+	local stage = session.tutorialSell or 0
+	local n = #session.data.basket
+	if stage == 0 and n >= 4 then
+		return "one"
+	elseif stage <= 1 and n >= 3 then
+		return "two"
+	end
+	return "all"
+end
+
+local lastRule: { [Player]: string } = {}
+
+function TutorialService.canSell(session: Session, indices: any): boolean
+	local rule = TutorialService.sellRule(session)
+	if not rule then
+		return true
+	end
+	lastRule[session.player] = rule
+	if rule == "all" then
+		return indices == nil
+	end
+	return typeof(indices) == "table" and #indices == (if rule == "one" then 1 else 2)
+end
+
 function TutorialService.onSold(session: Session)
-	if session.data.tutorial == 2 and #session.data.basket == 0 then
+	if session.data.tutorial ~= 2 then
+		return
+	end
+	if #session.data.basket == 0 then
 		TutorialService.setStep(session, 3)
+	else
+		-- Następny sposób sprzedaży (jeśli koszyk był mały, sellRule sam przeskoczy dalej)
+		local rule = lastRule[session.player]
+		session.tutorialSell = if rule == "one" then 1 else 2
 	end
 end
 
@@ -190,6 +229,9 @@ end
 
 function TutorialService.start(serviceApi: Api)
 	api = serviceApi
+	game:GetService("Players").PlayerRemoving:Connect(function(player)
+		lastRule[player] = nil
+	end)
 end
 
 return TutorialService

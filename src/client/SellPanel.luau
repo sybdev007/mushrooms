@@ -7,6 +7,7 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
 local Economy = require(ReplicatedStorage.Shared.Economy)
@@ -42,6 +43,10 @@ local basketKey = ""
 local selected: { [number]: boolean } = {}
 local sellCallback: ((indices: { number }?, key: string, from: Vector2?) -> ())? = nil
 local greetingKey = GREETINGS[1]
+-- Samouczek: "one" = sprzedaj 1 grzyb jego ceną, "two" = zaznacz 2 i sprzedaj zaznaczone, "all" = sprzedaj wszystko.
+-- Wtedy działa tylko to, co wskazuje strzałka (serwer i tak pilnuje tego samego).
+local guide: string? = nil
+local GUIDE_STEP = { one = 1, two = 2, all = 3 }
 
 local function corner(parent: Instance, radius: UDim?)
 	local c = Instance.new("UICorner")
@@ -329,7 +334,7 @@ local sellAll, sellAllText = footerButton("SellAll", 3, 220, THEME.gold, "coins"
 
 -- ===== Karty =====
 
-type Card = { button: TextButton, check: Frame, checkIcon: GuiObject, stroke: UIStroke, scale: UIScale, color: Color3 }
+type Card = { button: TextButton, check: Frame, checkIcon: GuiObject, stroke: UIStroke, scale: UIScale, color: Color3, sellOne: TextButton }
 local cards: { Card } = {}
 
 local function selectedIndices(): { number }
@@ -378,12 +383,14 @@ local function refreshFooter()
 	selectAllText.Text = Localize.t(if allSelected then "SELL_UNSELECT_ALL" else "SELL_SELECT_ALL")
 	sellSelectedText.Text = Localize.t("SELL_SELECTED", { #indices }) .. "<br/>" .. formatCoins(selectedValue)
 	sellAllText.Text = Localize.t("SELL_ALL") .. "<br/>" .. formatCoins(Economy.basketValue(basket))
-	local canSelected = #indices > 0
+	local canSelected = #indices > 0 and (guide == nil or (guide == "two" and #indices == 2))
+	local canAll = #basket > 0 and (guide == nil or guide == "all")
 	sellSelected.Active = canSelected
 	UiKit.recolor(sellSelected, if canSelected then THEME.green else THEME.locked)
-	sellAll.Active = #basket > 0
-	UiKit.recolor(sellAll, if #basket > 0 then THEME.gold else THEME.locked)
-	selectAll.Active = #basket > 0
+	sellAll.Active = canAll
+	UiKit.recolor(sellAll, if canAll then THEME.gold else THEME.locked)
+	selectAll.Active = #basket > 0 and guide == nil
+	UiKit.recolor(selectAll, if guide == nil then UiKit.COLORS.wood else THEME.locked)
 	for _, button in { selectAll, sellSelected, sellAll } do
 		local st = button:FindFirstChildOfClass("UIStroke")
 		if st then
@@ -398,6 +405,13 @@ local function refreshFooter()
 		card.stroke.Color = if on then THEME.selected else OUTLINE
 		card.stroke.Thickness = if on then 4.5 else 3
 		TweenService:Create(card.scale, TweenInfo.new(0.2, Enum.EasingStyle.Back), { Scale = if on then 1.04 else 1 }):Play()
+		-- W samouczku przyciski cen działają tylko w kroku „sprzedaj jeden”
+		local priceOn = guide == nil or guide == "one"
+		UiKit.recolor(card.sellOne, if priceOn then THEME.green else THEME.locked)
+		local st = card.sellOne:FindFirstChildOfClass("UIStroke")
+		if st then
+			st.Color = OUTLINE
+		end
 	end
 end
 
@@ -557,6 +571,11 @@ local function buildCard(index: number, item: Item): Card
 		TweenService:Create(artScale, TweenInfo.new(0.2), { Scale = 1 }):Play()
 	end)
 	button.Activated:Connect(function()
+		-- Samouczek: zaznaczać wolno tylko w kroku „dwa zaznaczone” i tylko dwa pierwsze grzyby
+		if guide ~= nil and not (guide == "two" and index <= 2) then
+			UiKit.shake(button)
+			return
+		end
 		selected[index] = if selected[index] then nil else true
 		scale.Scale = 0.9
 		refreshFooter()
@@ -565,9 +584,13 @@ local function buildCard(index: number, item: Item): Card
 		end
 	end)
 	sellOne.Activated:Connect(function()
+		if guide ~= nil and guide ~= "one" then
+			UiKit.shake(sellOne)
+			return
+		end
 		requestSell({ index }, sellOne)
 	end)
-	return { button = button, check = check, checkIcon = checkIcon, stroke = cardStroke, scale = scale, color = cardColor }
+	return { button = button, check = check, checkIcon = checkIcon, stroke = cardStroke, scale = scale, color = cardColor, sellOne = sellOne }
 end
 
 local function rebuild()
@@ -584,10 +607,19 @@ local function rebuild()
 	refreshFooter()
 end
 
+-- Co mówi kupiec: powitanie albo (w samouczku) co teraz kliknąć
+local function speechText(): string
+	if guide and #basket > 0 then
+		local key = if guide == "one" then "SELLTUT_ONE" elseif guide == "all" then "SELLTUT_ALL" elseif #selectedIndices() >= 2 then "SELLTUT_TWO" else "SELLTUT_PICK"
+		return string.format("<font color=\"#C8342C\">%d/3</font>  %s", GUIDE_STEP[guide] or 1, Localize.t(key))
+	end
+	return Localize.t(if #basket == 0 then "NPC_EMPTY" else greetingKey)
+end
+
 local function refreshTexts()
 	npcName.Text = Localize.t("NPC_NAME")
 	roleTitle.Text = Localize.t("NPC_ROLE")
-	speech.Text = Localize.t(if #basket == 0 then "NPC_EMPTY" else greetingKey)
+	speech.Text = speechText()
 	rebuild()
 end
 
@@ -595,6 +627,10 @@ end
 
 selectAll.Activated:Connect(function()
 	if #basket == 0 then
+		return
+	end
+	if guide ~= nil then
+		UiKit.shake(selectAll)
 		return
 	end
 	local all = #selectedIndices() == #basket
@@ -608,14 +644,14 @@ selectAll.Activated:Connect(function()
 end)
 sellSelected.Activated:Connect(function()
 	local indices = selectedIndices()
-	if #indices > 0 then
+	if #indices > 0 and (guide == nil or (guide == "two" and #indices == 2)) then
 		requestSell(indices, sellSelected)
 	else
 		UiKit.shake(sellSelected)
 	end
 end)
 sellAll.Activated:Connect(function()
-	if #basket > 0 then
+	if #basket > 0 and (guide == nil or guide == "all") then
 		requestSell(nil, sellAll)
 	else
 		UiKit.shake(sellAll)
@@ -628,7 +664,84 @@ dim.Activated:Connect(function()
 	SellPanel.close()
 end)
 
+-- ===== Samouczek: strzałka i złota obwódka na tym, co trzeba kliknąć =====
+
+local ring = Instance.new("Frame")
+ring.Name = "GuideRing"
+ring.BackgroundTransparency = 1
+ring.AnchorPoint = Vector2.new(0.5, 0.5)
+ring.Visible = false
+ring.ZIndex = 50
+ring.Parent = gui
+corner(ring, UDim.new(0, 18))
+local ringStroke = stroke(ring, Color3.fromRGB(255, 214, 70), 5)
+local arrow = UiKit.icon("upgrade", gui, UDim2.fromOffset(64, 64), UDim2.fromScale(0.5, 0.5), Vector2.new(0.5, 1))
+arrow.Rotation = 180
+arrow.Visible = false
+arrow.ZIndex = 51
+local lastTarget: GuiObject? = nil
+
+local function guideTarget(): GuiObject?
+	if not guide or #basket == 0 then
+		return nil
+	end
+	if guide == "one" then
+		local card = cards[1]
+		return card and card.sellOne
+	elseif guide == "two" then
+		for index = 1, 2 do
+			local card = cards[index]
+			if card and not selected[index] then
+				return card.check
+			end
+		end
+		return sellSelected
+	end
+	return sellAll
+end
+
+RunService.RenderStepped:Connect(function()
+	local target = if gui.Enabled then guideTarget() else nil
+	ring.Visible = target ~= nil
+	arrow.Visible = target ~= nil
+	if not target then
+		lastTarget = nil
+		return
+	end
+	local now = os.clock()
+	local center = target.AbsolutePosition + target.AbsoluteSize / 2
+	local pulse = 1 + 0.08 * math.sin(now * 7)
+	ring.Position = UDim2.fromOffset(center.X, center.Y)
+	ring.Size = UDim2.fromOffset((target.AbsoluteSize.X + 14) * pulse, (target.AbsoluteSize.Y + 14) * pulse)
+	ringStroke.Transparency = 0.25 * (1 - math.sin(now * 7))
+	local bob = math.abs(math.sin(now * 5)) * 12
+	arrow.Position = UDim2.fromOffset(center.X, target.AbsolutePosition.Y - 4 - bob)
+	if target ~= lastTarget then
+		-- Nowy cel: strzałka wskakuje, kupiec mówi następną rzecz
+		lastTarget = target
+		arrow.Size = UDim2.fromOffset(20, 20)
+		TweenService:Create(arrow, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Size = UDim2.fromOffset(64, 64) }):Play()
+		speech.Text = speechText()
+		bubble.BackgroundColor3 = Color3.fromRGB(255, 240, 160)
+		TweenService:Create(bubble, TweenInfo.new(0.6), { BackgroundColor3 = Color3.new(1, 1, 1) }):Play()
+	end
+end)
+
 -- ===== API =====
+
+-- Tryb samouczka (nil = zwykły panel)
+function SellPanel.setGuide(mode: string?)
+	if mode == guide then
+		return
+	end
+	guide = mode
+	table.clear(selected)
+	lastTarget = nil
+	if gui.Enabled then
+		speech.Text = speechText()
+		refreshFooter()
+	end
+end
 
 function SellPanel.onSell(callback: (indices: { number }?, key: string, from: Vector2?) -> ())
 	sellCallback = callback
@@ -640,7 +753,7 @@ function SellPanel.setBasket(items: { Item }, key: string)
 	basketKey = key
 	table.clear(selected)
 	if gui.Enabled then
-		speech.Text = Localize.t(if #basket == 0 then "NPC_EMPTY" else greetingKey)
+		speech.Text = speechText()
 		rebuild()
 	end
 end
