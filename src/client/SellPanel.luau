@@ -11,6 +11,7 @@ local TweenService = game:GetService("TweenService")
 
 local Economy = require(ReplicatedStorage.Shared.Economy)
 local Localize = require(script.Parent.Localize)
+local MushroomArt = require(script.Parent.MushroomArt)
 local UiKit = require(script.Parent.UiKit)
 local UiScale = require(script.Parent.UiScale)
 
@@ -418,59 +419,78 @@ local function buildCard(index: number, item: Item): Card
 	local scale = Instance.new("UIScale")
 	scale.Parent = button
 
-	-- Jasne koło i grzybek z ramek: kapelusz (półkole z kropkami) i trzon
-	local glow = Instance.new("Frame")
-	glow.Name = "Glow"
-	glow.Size = UDim2.fromOffset(72, 72)
-	glow.AnchorPoint = Vector2.new(0.5, 0.5)
-	glow.Position = UDim2.new(0.5, 0, 0, 44)
-	glow.BackgroundColor3 = Color3.new(1, 1, 1)
-	glow.BackgroundTransparency = 0.7
-	glow.Parent = button
-	corner(glow, UDim.new(1, 0))
-	local art = Instance.new("Frame")
-	art.Name = "Art"
-	art.Size = UDim2.fromOffset(66, 56)
-	art.Position = UDim2.new(0.5, 0, 0, 16)
-	art.AnchorPoint = Vector2.new(0.5, 0)
-	art.BackgroundTransparency = 1
-	art.Parent = button
-	local stem = Instance.new("Frame")
-	stem.Size = UDim2.fromOffset(22, 28)
-	stem.Position = UDim2.new(0.5, 0, 1, 0)
-	stem.AnchorPoint = Vector2.new(0.5, 1)
-	stem.BackgroundColor3 = Color3.fromRGB(246, 234, 210)
-	stem.Parent = art
-	corner(stem, UDim.new(0, 8))
-	stroke(stem, OUTLINE, 2.5)
-	local cap = Instance.new("Frame")
-	cap.Size = UDim2.fromOffset(64, 34)
-	cap.Position = UDim2.fromScale(0.5, 0)
-	cap.AnchorPoint = Vector2.new(0.5, 0)
-	cap.BackgroundColor3 = capColor(item)
-	cap.ZIndex = 2
-	cap.Parent = art
-	corner(cap, UDim.new(0.5, 0))
-	stroke(cap, OUTLINE, 2.5)
-	for k, spot in { { 0.3, 0.35, 9 }, { 0.62, 0.28, 7 }, { 0.78, 0.6, 6 } } do
-		local dot = Instance.new("Frame")
-		dot.Name = "Spot" .. k
-		dot.Size = UDim2.fromOffset(spot[3], spot[3])
-		dot.AnchorPoint = Vector2.new(0.5, 0.5)
-		dot.Position = UDim2.fromScale(spot[1], spot[2])
-		dot.BackgroundColor3 = Color3.new(1, 1, 1)
-		dot.BackgroundTransparency = 0.25
-		dot.ZIndex = 3
-		dot.Parent = cap
-		corner(dot, UDim.new(1, 0))
+	-- Pikselowy grzybek z aurą według rzadkości (MushroomArt); bez arkusza – grzybek z ramek
+	local artBox = Instance.new("Frame")
+	artBox.Name = "ArtBox"
+	artBox.Size = UDim2.fromOffset(72, 72)
+	artBox.Position = UDim2.new(0.5, 0, 0, 4)
+	artBox.AnchorPoint = Vector2.new(0.5, 0)
+	artBox.BackgroundTransparency = 1
+	artBox.ZIndex = 0 -- pod napisami karty
+	artBox.Parent = button
+	local artScale = Instance.new("UIScale")
+	artScale.Parent = artBox
+	local art: GuiObject? = MushroomArt.build(artBox, item, {
+		active = function()
+			return gui.Enabled
+		end,
+		stroke = cardStroke,
+	})
+	if not art then
+		local glow = Instance.new("Frame")
+		glow.Name = "Glow"
+		glow.Size = UDim2.fromOffset(72, 72)
+		glow.AnchorPoint = Vector2.new(0.5, 0.5)
+		glow.Position = UDim2.new(0.5, 0, 0, 44)
+		glow.BackgroundColor3 = Color3.new(1, 1, 1)
+		glow.BackgroundTransparency = 0.7
+		glow.Parent = button
+		corner(glow, UDim.new(1, 0))
+		local drawn = Instance.new("Frame")
+		drawn.Name = "Art"
+		drawn.Size = UDim2.fromOffset(66, 56)
+		drawn.Position = UDim2.new(0.5, 0, 0, 16)
+		drawn.AnchorPoint = Vector2.new(0.5, 0)
+		drawn.BackgroundTransparency = 1
+		drawn.Parent = button
+		local stem = Instance.new("Frame")
+		stem.Size = UDim2.fromOffset(22, 28)
+		stem.Position = UDim2.new(0.5, 0, 1, 0)
+		stem.AnchorPoint = Vector2.new(0.5, 1)
+		stem.BackgroundColor3 = Color3.fromRGB(246, 234, 210)
+		stem.Parent = drawn
+		corner(stem, UDim.new(0, 8))
+		stroke(stem, OUTLINE, 2.5)
+		local cap = Instance.new("Frame")
+		cap.Size = UDim2.fromOffset(64, 34)
+		cap.Position = UDim2.fromScale(0.5, 0)
+		cap.AnchorPoint = Vector2.new(0.5, 0)
+		cap.BackgroundColor3 = capColor(item)
+		cap.ZIndex = 2
+		cap.Parent = drawn
+		corner(cap, UDim.new(0.5, 0))
+		stroke(cap, OUTLINE, 2.5)
+		for k, spot in { { 0.3, 0.35, 9 }, { 0.62, 0.28, 7 }, { 0.78, 0.6, 6 } } do
+			local dot = Instance.new("Frame")
+			dot.Name = "Spot" .. k
+			dot.Size = UDim2.fromOffset(spot[3], spot[3])
+			dot.AnchorPoint = Vector2.new(0.5, 0.5)
+			dot.Position = UDim2.fromScale(spot[1], spot[2])
+			dot.BackgroundColor3 = Color3.new(1, 1, 1)
+			dot.BackgroundTransparency = 0.25
+			dot.ZIndex = 3
+			dot.Parent = cap
+			corner(dot, UDim.new(1, 0))
+		end
+		if Economy.variantRank(item.v) >= 2 then
+			-- Złote i tęczowe kapelusze lśnią
+			local shine = Instance.new("UIGradient")
+			shine.Color = ColorSequence.new(Color3.new(1, 1, 1), capColor(item))
+			shine.Rotation = 45
+			shine.Parent = cap
+		end
 	end
-	if Economy.variantRank(item.v) >= 2 then
-		-- Złote i tęczowe kapelusze lśnią
-		local shine = Instance.new("UIGradient")
-		shine.Color = ColorSequence.new(Color3.new(1, 1, 1), capColor(item))
-		shine.Rotation = 45
-		shine.Parent = cap
-	end
+	button.ClipsDescendants = true
 
 	local mutation = label(button, "Mutation", UDim2.fromOffset(70, 20), UDim2.fromOffset(8, 6), TITLE_FONT, 18)
 	mutation.TextXAlignment = Enum.TextXAlignment.Left
@@ -528,11 +548,13 @@ local function buildCard(index: number, item: Item): Card
 
 	button.MouseEnter:Connect(function()
 		cardStroke.Thickness = math.max(cardStroke.Thickness, 4)
-		TweenService:Create(art, TweenInfo.new(0.25, Enum.EasingStyle.Back), { Rotation = -8 }):Play()
+		TweenService:Create(artBox, TweenInfo.new(0.25, Enum.EasingStyle.Back), { Rotation = -8 }):Play()
+		TweenService:Create(artScale, TweenInfo.new(0.25, Enum.EasingStyle.Back), { Scale = 1.15 }):Play()
 	end)
 	button.MouseLeave:Connect(function()
 		cardStroke.Thickness = if selected[index] then 4.5 else 3
-		TweenService:Create(art, TweenInfo.new(0.2), { Rotation = 0 }):Play()
+		TweenService:Create(artBox, TweenInfo.new(0.2), { Rotation = 0 }):Play()
+		TweenService:Create(artScale, TweenInfo.new(0.2), { Scale = 1 }):Play()
 	end)
 	button.Activated:Connect(function()
 		selected[index] = if selected[index] then nil else true
