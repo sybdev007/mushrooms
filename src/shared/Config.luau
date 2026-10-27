@@ -557,6 +557,8 @@ Config.UiIcons2 = { sheet = "rbxassetid://78510472231486", cell = 204, columns =
 -- Pikselowe grzybki do kart w skupie (assets/mushroom-sprites.png z tools/mushroom_sprites.py): po dwie
 -- warstwy na kształt i efekty aur. Pusty numer = stare grzybki z ramek.
 Config.MushroomSprites = { sheet = "rbxassetid://136090318037259", cell = 64, columns = 8 }
+-- Tekstura „kratki” na voxelowe grzyby w lesie (assets/voxel-noise.png). Pusta = gładkie klocki.
+Config.VoxelNoise = { texture = "rbxassetid://77358626050293" }
 
 -- Ile sekund po zgaśnięciu latarni / złapaniu da się jeszcze uratować koszyk.
 -- buttonSeconds: jak długo widać przycisk; serverSeconds: zapas na okno płatności Robloxa.

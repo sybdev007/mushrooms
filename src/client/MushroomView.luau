@@ -1,13 +1,15 @@
 --!strict
 -- Grzyby istnieją tylko na kliencie danego gracza (każdy ma własny las).
--- Serwer mówi, gdzie co rośnie, a ten moduł rysuje grzyby: każdy gatunek ma swój kształt,
--- wyrastają z ziemi, złote i świecące lśnią i lekko się unoszą.
+-- Serwer mówi, gdzie co rośnie, a ten moduł rysuje grzyby: voxelowe, z klocków (schodkowy kapelusz,
+-- kwadratowe kropki, piksele cienia i buzia na trzonie). Każdy gatunek ma swój kształt, grzyby wyrastają
+-- z ziemi, złote i świecące lśnią i się unoszą, a rzadsze mają aury (zarodniki, krążące kostki, słup światła).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
+local Config = require(ReplicatedStorage.Shared.Config)
 local Economy = require(ReplicatedStorage.Shared.Economy)
 local Localize = require(script.Parent.Localize)
 
@@ -43,6 +45,8 @@ type Entry = {
 	rainbowParts: { BasePart }?, -- kapelusze tęczowego grzyba (kolor przechodzi przez tęczę)
 	rainbowLight: PointLight?,
 	mimicLight: PointLight?, -- błędny ognik: światło drży nierówno (jedyna wskazówka dla uważnych)
+	aura: any?, -- krążące kostki, słup światła i zarodniki rzadszych grzybów (typ Aura niżej)
+	fxParts: { BasePart },
 }
 
 local function rgb(r: number, g: number, b: number): Color3
@@ -107,7 +111,6 @@ local function hasTag(info: MushroomInfo, id: string): boolean
 end
 local STEM = rgb(235, 225, 205)
 local SPARKLE = "rbxasset://textures/particles/sparkles_main.dds"
-local VERTICAL = CFrame.Angles(0, 0, math.rad(90))
 
 local MushroomView = {}
 
@@ -166,44 +169,337 @@ local function makePart(name: string, size: Vector3, cframe: CFrame, color: Colo
 	return p
 end
 
--- Jeden grzybek: trzon + kapelusz (spłaszczona kula przez SpecialMesh)
-local function buildOne(model: Model, base: Vector3, shape: Shape, scale: number, capColor: Color3, neon: boolean, parts: { BasePart }): BasePart
-	local stemH, stemD = shape.stemH * scale, shape.stemD * scale
-	local capW, capH = shape.capW * scale, shape.capH * scale
-	local stem = makePart("Stem", Vector3.new(stemH, stemD, stemD), CFrame.new(base + Vector3.new(0, stemH / 2, 0)) * VERTICAL, shape.stem or STEM)
-	stem.Parent = model
-	table.insert(parts, stem)
+-- ===== Voxelowe grzyby =====
+-- Kapelusz z warstw klocków (schodkowa kopuła jak w grach z pikselami), ciemniejszy brzeg,
+-- jaśniejszy czubek, kwadratowe kropki i „piksele” cienia na bokach; trzon z podstawką i buzią.
+-- Wymiary klocków są zaokrąglane do jednego „voxela”, żeby wszystko wyglądało jak z kostek.
 
-	local capCenter = base + Vector3.new(0, stemH, 0)
-	local cap = makePart("Cap", Vector3.new(capW, capH * 2, capW), CFrame.new(capCenter), capColor)
-	if neon then
-		cap.Material = Enum.Material.Neon
-	end
-	local mesh = Instance.new("SpecialMesh")
-	mesh.MeshType = Enum.MeshType.Sphere
-	mesh.Parent = cap
-	cap.Parent = model
-	table.insert(parts, cap)
+-- Profile kapeluszy: szerokość kolejnych warstw (od dołu) jako ułamek szerokości kapelusza
+local PROFILES: { [string]: { number } } = {
+	dome = { 1.0, 0.94, 0.82, 0.64, 0.38 },
+	flat = { 1.0, 0.96, 0.84, 0.56 },
+	funnel = { 0.42, 0.66, 0.88, 1.0 },
+	parasol = { 1.0, 0.78, 0.3 },
+	bell = { 1.0, 0.78, 0.72, 0.64, 0.5, 0.28 },
+	ball = { 0.72, 0.94, 1.0, 1.0, 0.92, 0.66 },
+}
+local FORMS: { [string]: string } = {
+	slippery_jack = "flat", bay_bolete = "flat", aspen_bolete = "flat", porcini = "flat", coal_cap = "flat",
+	peat_cap = "flat", drowned_cap = "flat", obsidian = "flat", cave_oyster = "flat",
+	chanterelle = "funnel", saffron_milk_cap = "funnel", ember = "funnel",
+	parasol = "parasol", moon_lily = "parasol", lake_cap = "parasol",
+	lantern_shroom = "bell", wisp_cap = "bell", false_wisp = "bell", will_o_wisp = "bell", bog_bell = "bell",
+	pearl = "ball", bog_pearl = "ball", skarbnik_truffle = "ball",
+	crystal_cap = "crystal", amethyst = "crystal", silver_vein = "crystal", gold_nugget = "crystal",
+	leszy_crown = "crown",
+}
+local EYE = rgb(43, 27, 18)
+local BLUSH = rgb(255, 150, 160)
+-- Voxelowe grzyby są trochę większe od dawnych gładkich, żeby było widać klocki i buzie
+local SIZE = 1.25
+-- Tekstura „kratki”: półprzezroczyste ciemniejsze i jaśniejsze kwadraty, jeden na voxel
+local NOISE = ((Config :: any).VoxelNoise and (Config :: any).VoxelNoise.texture or "") :: string
+local NOISE_FACES = { Enum.NormalId.Top, Enum.NormalId.Front, Enum.NormalId.Back, Enum.NormalId.Left, Enum.NormalId.Right }
+local TEXTURED: { [string]: boolean } = { Cap = true, Stem = true, StemBase = true }
 
-	if shape.spots then
-		for k = 1, 6 do
-			local theta = k * math.pi * 2 / 6 + (k % 2) * 0.4
-			local phi = math.rad(if k % 2 == 0 then 35 else 58)
-			local offset = Vector3.new(
-				capW / 2 * math.sin(phi) * math.cos(theta),
-				capH * math.cos(phi),
-				capW / 2 * math.sin(phi) * math.sin(theta)
-			)
-			local spot = makePart("Spot", Vector3.new(0.26, 0.26, 0.26) * scale, CFrame.new(capCenter + offset), Color3.new(1, 1, 1))
-			spot.Shape = Enum.PartType.Ball
-			spot.Parent = model
-			table.insert(parts, spot)
-		end
+local function texturize(part: BasePart, u: number)
+	if NOISE == "" then
+		return
 	end
-	return cap
+	-- Na jasnych kolorach (złoto, biel) ciemne kratki wyglądały brudno, więc tam są delikatniejsze
+	local _, sat, v = part.Color:ToHSV()
+	local base = if v > 0.85 and sat < 0.9 then 0.35 else 0
+	for _, face in NOISE_FACES do
+		local t = Instance.new("Texture")
+		t.Transparency = base
+		t:SetAttribute("BaseT", base)
+		t.Texture = NOISE
+		t.Face = face
+		-- Tekstura ma 8 x 8 kratek, więc jedna kratka = jeden voxel
+		t.StudsPerTileU = u * 8
+		t.StudsPerTileV = u * 8
+		t.OffsetStudsU = math.random(0, 7) * u
+		t.OffsetStudsV = math.random(0, 7) * u
+		t.Parent = part
+	end
 end
 
-local function buildModel(info: MushroomInfo): (Model, { BasePart }, boolean, { BasePart })
+local function darken(c: Color3, k: number): Color3
+	return c:Lerp(Color3.new(0, 0, 0), k)
+end
+local function lighten(c: Color3, k: number): Color3
+	return c:Lerp(Color3.new(1, 1, 1), k)
+end
+
+-- Jeden grzybek. origin: CFrame w miejscu wyrastania (obrócony losowo wokół pionu).
+-- Zwraca środek kapelusza (do świateł i efektów).
+local function buildOne(model: Model, origin: CFrame, shape: Shape, species: string, scale: number, capColor: Color3, neon: boolean, parts: { BasePart }, face: boolean): BasePart
+	local capW, capH = shape.capW * scale * SIZE, shape.capH * scale * SIZE
+	local stemH, stemD = shape.stemH * scale * SIZE, shape.stemD * scale * SIZE
+	local u = math.clamp(capW / 7, 0.16, 0.42)
+	local function snap(v: number): number
+		return math.max(u, math.round(v / u) * u)
+	end
+	local form = FORMS[species] or "dome"
+	local stemColor = shape.stem or STEM
+	if form == "funnel" then
+		stemColor = darken(capColor, 0.08)
+	end
+
+	local function add(name: string, size: Vector3, offset: CFrame, color: Color3, material: Enum.Material?): Part
+		local p = makePart(name, size, origin * offset, color)
+		if material then
+			p.Material = material
+		end
+		if TEXTURED[name] then
+			texturize(p, u)
+		end
+		p.Parent = model
+		table.insert(parts, p)
+		return p
+	end
+
+	-- Trzon z szerszą podstawką i ciemniejszym paskiem z jednej strony
+	local sd = snap(stemD)
+	local sh = math.max(u * 2, stemH)
+	if form ~= "ball" then
+		add("Stem", Vector3.new(sd, sh, sd), CFrame.new(0, sh / 2, 0), stemColor)
+		add("StemShade", Vector3.new(0.04, sh * 0.96, sd * 0.4), CFrame.new(sd / 2 + 0.01, sh / 2, sd * 0.2), darken(stemColor, 0.12))
+		add("StemBase", Vector3.new(snap(sd * 1.3), u, snap(sd * 1.3)), CFrame.new(0, u / 2, 0), darken(stemColor, 0.05))
+	else
+		add("Stem", Vector3.new(sd, u * 1.5, sd), CFrame.new(0, u * 0.75, 0), stemColor)
+		sh = u * 1.2
+	end
+
+	-- Kapelusz z warstw
+	local profile = PROFILES[form] or PROFILES.dome
+	local capParts: { BasePart } = {}
+	local bottom = if form == "ball" then sh else sh - math.min(capH * 0.3, u * 1.5)
+	local material = if neon then Enum.Material.Neon else nil
+	local top = bottom
+	local center: BasePart
+	if form == "crystal" then
+		-- Kryształ: trzy pochylone kolumny zamiast kopuły
+		local h = snap(capH * 1.6)
+		local mid = add("Cap", Vector3.new(snap(capW * 0.42), h, snap(capW * 0.42)), CFrame.new(0, bottom + h / 2, 0) * CFrame.Angles(0, math.rad(45), 0), capColor, material)
+		table.insert(capParts, mid)
+		for _, side in { -1, 1 } do
+			local sh2 = snap(h * 0.7)
+			local shard = add("Cap", Vector3.new(snap(capW * 0.3), sh2, snap(capW * 0.3)), CFrame.new(side * capW * 0.3, bottom + sh2 / 2, 0) * CFrame.Angles(0, 0, math.rad(-side * 24)), lighten(capColor, 0.12))
+			table.insert(capParts, shard)
+		end
+		add("Shine", Vector3.new(u * 0.5, h * 0.7, 0.04), CFrame.new(0, bottom + h * 0.55, 0) * CFrame.Angles(0, math.rad(45), 0) * CFrame.new(-capW * 0.1, 0, -capW * 0.21 - 0.02), lighten(capColor, 0.6), material)
+		top = bottom + h
+		center = mid
+	else
+		local layerH = math.max(u, snap(capH * (if form == "ball" then 1.7 else 1.25) / #profile))
+		for i, frac in profile do
+			local w = snap(capW * frac)
+			local color = if i == 1 then darken(capColor, 0.18) elseif i == #profile then lighten(capColor, 0.14) else lighten(capColor, (i - 2) * 0.04)
+			-- Świecące grzyby: neon tylko na czubku (i na kropkach), żeby reszta zachowała pikselową kratkę
+			local layerMaterial = if material and i >= #profile then material else nil
+			if material and not layerMaterial then
+				color = lighten(color, 0.12)
+			end
+			local layer = add("Cap", Vector3.new(w, layerH, w), CFrame.new(0, top + layerH / 2, 0), color, layerMaterial)
+			table.insert(capParts, layer)
+			top += layerH
+		end
+		center = capParts[math.max(1, #capParts // 2)]
+
+		-- Kurka: jaśniejszy środek lejka na górze
+		if form == "funnel" then
+			local tw = snap(capW * profile[#profile] * 0.7)
+			add("Top", Vector3.new(tw, 0.04, tw), CFrame.new(0, top + 0.02, 0), lighten(capColor, 0.25), material)
+		end
+
+		-- Blaszki pod kapeluszem (ciemniejsza płytka)
+		if form ~= "ball" and form ~= "funnel" then
+			local gw = snap(capW * profile[1] * 0.8)
+			add("Gills", Vector3.new(gw, 0.06, gw), CFrame.new(0, bottom - 0.03, 0), darken(stemColor, 0.2))
+		end
+
+		-- Kropki: kwadratowe, na bokach dolnych warstw i na czubku
+		if shape.spots then
+			local dot = u * 0.9
+			local count = 0
+			for i = 2, math.min(#profile - 1, 4) do
+				local w = snap(capW * profile[i])
+				local y = bottom + (i - 0.5) * layerH
+				for k = 0, 3 do
+					if (k + i) % 2 == 0 then
+						local angle = k * math.pi / 2
+						local lateral = (if (k + i) % 4 == 0 then 0.22 else -0.2) * w
+						local off = CFrame.Angles(0, angle, 0) * CFrame.new(lateral, y, -w / 2 - 0.01)
+						add("Spot", Vector3.new(dot, math.min(dot, layerH * 0.9), 0.06), off, Color3.new(1, 1, 1), material)
+						count += 1
+					end
+				end
+			end
+			local tw = snap(capW * profile[#profile])
+			for _, dx in { -0.22, 0.22 } do
+				add("Spot", Vector3.new(dot, 0.06, dot), CFrame.new(dx * tw, top + 0.02, dx * tw * 0.6), Color3.new(1, 1, 1), material)
+			end
+		end
+
+		-- „Piksele” cienia i blasku na bokach, jak na teksturze z kratki
+		if scale >= 0.9 then
+			for k = 0, 3 do
+				local i = 1 + (k % math.max(1, #profile - 1))
+				local w = snap(capW * profile[i])
+				local y = bottom + (i - 0.5) * layerH
+				local angle = k * math.pi / 2 + math.pi / 4
+				local off = CFrame.Angles(0, math.round(angle / (math.pi / 2)) * math.pi / 2, 0) * CFrame.new(((k % 3) - 1) * w * 0.3, y, -w / 2 - 0.012)
+				add("Pixel", Vector3.new(u, math.min(u, layerH * 0.9), 0.04), off, if k % 2 == 0 then darken(capColor, 0.14) else lighten(capColor, 0.2))
+			end
+		end
+
+		-- Korona Leszego: trzy rogi z klocków na czubku
+		if form == "crown" then
+			local tw = snap(capW * profile[#profile - 1])
+			for k, dx in { -0.42, 0, 0.42 } do
+				local h = snap(capH * (if k == 2 then 1.1 else 0.8))
+				local prong = add("Cap", Vector3.new(u, h, u), CFrame.new(dx * tw, top - layerH + h / 2, 0), lighten(capColor, 0.1), material)
+				table.insert(capParts, prong)
+				add("Spot", Vector3.new(u * 1.05, u * 0.6, u * 1.05), CFrame.new(dx * tw, top - layerH + h, 0), Color3.new(1, 1, 1), Enum.Material.Neon)
+			end
+		end
+	end
+
+	-- Buzia na trzonie (oczka, rumieńce); tylko na większych grzybach
+	if face and sd >= 0.4 and sh >= 0.8 and form ~= "ball" then
+		local y = math.min(sh * 0.55, bottom - u * 1.2)
+		local z = -sd / 2 - 0.015
+		local e = math.max(0.08, sd * 0.14)
+		for _, side in { -1, 1 } do
+			add("Eye", Vector3.new(e, e * 1.5, 0.03), CFrame.new(side * sd * 0.2, y, z), EYE)
+			add("Blush", Vector3.new(e * 1.2, e * 0.7, 0.03), CFrame.new(side * sd * 0.36, y - e * 1.2, z), BLUSH)
+		end
+		add("Mouth", Vector3.new(e * 1.4, e * 0.5, 0.03), CFrame.new(0, y - e * 1.1, z), EYE)
+	elseif face and form == "ball" then
+		local r = snap(capW * 1.0) / 2
+		local y = sh + (top - sh) * 0.45
+		local e = math.max(0.1, capW * 0.07)
+		for _, side in { -1, 1 } do
+			add("Eye", Vector3.new(e, e * 1.5, 0.03), CFrame.new(side * capW * 0.15, y, -r - 0.015), EYE)
+			add("Blush", Vector3.new(e * 1.2, e * 0.7, 0.03), CFrame.new(side * capW * 0.28, y - e * 1.2, -r - 0.015), BLUSH)
+		end
+	end
+
+	center:SetAttribute("CapTop", top)
+	return center
+end
+
+-- ===== Aury rzadszych grzybów =====
+-- Rzadki: światło w kolorze klasy. Epicki: w górę lecą voxelowe zarodniki.
+-- Legendarny: złote kostki krążą wokół, z nieba świeci słup światła. Złoty: krążące złote kostki.
+-- Tęczowy (mityczny): tęczowy kapelusz, tęczowe krążące kostki, słup światła i kolorowe zarodniki.
+
+type Aura = {
+	orbit: { BasePart },
+	orbitRadius: number,
+	orbitHeight: number,
+	orbitRainbow: boolean,
+	pillar: BasePart?,
+	spores: { Color3 }?,
+	nextSpore: number,
+	capTop: number,
+}
+
+local CLASS_RANK: { [string]: number } = { common = 0, uncommon = 1, rare = 2, epic = 3, legendary = 4 }
+local TAG_SPORES: { [string]: { Color3 } } = {
+	glowing = { rgb(110, 255, 214), rgb(220, 255, 245) },
+	crystal = { rgb(120, 200, 255), rgb(230, 245, 255) },
+	abyssal = { rgb(255, 90, 40), rgb(255, 190, 60) },
+	mossy = { rgb(110, 190, 72), rgb(180, 230, 120) },
+}
+local activeSpores = 0
+local MAX_SPORES = 70
+
+local function buildAura(model: Model, info: MushroomInfo, origin: CFrame, shape: Shape, capColor: Color3, capTop: number, fxParts: { BasePart }): (Aura?, Color3?)
+	local class = Economy.speciesClass(info.species)
+	local rank = CLASS_RANK[class.id] or 0
+	local variant = info.variant
+	local classColor = rgb(class.color[1], class.color[2], class.color[3])
+	local aura: Aura = { orbit = {}, orbitRadius = shape.capW * SIZE * 0.85 + 0.4, orbitHeight = capTop * 0.6, orbitRainbow = false, nextSpore = 0, capTop = capTop }
+	local any = false
+	local light: Color3? = if rank >= 2 then classColor else nil
+
+	local orbitColor: Color3? = nil
+	if rank >= 4 or variant == "gold" then
+		orbitColor = rgb(255, 205, 60)
+	end
+	if variant == "rainbow" then
+		orbitColor = Color3.new(1, 1, 1)
+		aura.orbitRainbow = true
+	end
+	if orbitColor then
+		local cube = math.clamp(shape.capW / 7, 0.16, 0.36)
+		for k = 1, if variant == "rainbow" then 6 else 4 do
+			local p = makePart("Orbit", Vector3.new(cube, cube, cube), origin, orbitColor)
+			p.Material = Enum.Material.Neon
+			p.Parent = model
+			p:SetAttribute("Index", k)
+			table.insert(aura.orbit, p)
+			table.insert(fxParts, p)
+		end
+		any = true
+	end
+	if rank >= 4 or variant == "rainbow" then
+		-- Słup światła widoczny z daleka
+		local pillar = makePart("Pillar", Vector3.new(shape.capW * SIZE * 0.7, 16, shape.capW * SIZE * 0.7), origin * CFrame.new(0, 8, 0), if variant == "rainbow" then rgb(255, 160, 230) else rgb(255, 214, 90))
+		pillar.Material = Enum.Material.Neon
+		pillar.Transparency = 0.86
+		pillar:SetAttribute("BaseT", 0.86)
+		pillar.Parent = model
+		aura.pillar = pillar
+		table.insert(fxParts, pillar)
+		any = true
+	end
+	local spores: { Color3 }? = nil
+	if rank == 3 then
+		spores = { classColor, rgb(255, 150, 240), lighten(classColor, 0.5) }
+	end
+	if variant == "rainbow" then
+		spores = { rgb(255, 80, 80), rgb(255, 210, 60), rgb(110, 255, 110), rgb(80, 210, 255), rgb(190, 110, 255) }
+	end
+	for _, tag in info.tags or {} do
+		if not spores and TAG_SPORES[tag] then
+			spores = TAG_SPORES[tag]
+		end
+	end
+	if spores then
+		aura.spores = spores
+		any = true
+	end
+	return if any then aura else nil, light
+end
+
+-- Jeden zarodnik: kostka leci w górę, obraca się i znika
+local function spawnSpore(origin: Vector3, aura: Aura)
+	if activeSpores >= MAX_SPORES or not aura.spores then
+		return
+	end
+	activeSpores += 1
+	local colors = aura.spores
+	local s = 0.12 + math.random() * 0.12
+	local start = origin + Vector3.new((math.random() - 0.5) * aura.orbitRadius, aura.capTop * (0.4 + math.random() * 0.6), (math.random() - 0.5) * aura.orbitRadius)
+	local p = makePart("Spore", Vector3.new(s, s, s), CFrame.new(start) * CFrame.Angles(math.random() * 3, math.random() * 3, 0), colors[math.random(1, #colors)])
+	p.Material = Enum.Material.Neon
+	p.Parent = folder
+	local tween = TweenService:Create(p, TweenInfo.new(1.4 + math.random() * 0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
+		CFrame = CFrame.new(start + Vector3.new((math.random() - 0.5) * 1.2, 2.2 + math.random() * 1.5, (math.random() - 0.5) * 1.2)) * CFrame.Angles(math.random() * 6, math.random() * 6, 0),
+		Transparency = 1,
+		Size = Vector3.new(s, s, s) * 0.4,
+	})
+	tween.Completed:Connect(function()
+		activeSpores -= 1
+		p:Destroy()
+	end)
+	tween:Play()
+end
+
+local function buildModel(info: MushroomInfo): (Model, { BasePart }, boolean, { BasePart }, Aura?, { BasePart })
 	local model = Instance.new("Model")
 	model.Name = info.id
 	local shape = SHAPES[info.species] or DEFAULT_SHAPE
@@ -212,22 +508,29 @@ local function buildModel(info: MushroomInfo): (Model, { BasePart }, boolean, { 
 	local glowing = hasTag(info, "glowing") or hasTag(info, "crystal") or hasTag(info, "abyssal")
 	local capColor = variantColor(info.variant) or shape.cap
 	local neon = rank >= 2 or shape.glow == true or glowing
+	if not (rank >= 1) and glowing and not shape.glow then
+		-- Blask bez wariantu: kolor gatunku rozjaśniony w stronę seledynu
+		capColor = shape.cap:Lerp(rgb(110, 255, 214), 0.45)
+	end
 	local parts: { BasePart } = {}
+	local yaw = math.random() * math.pi * 2
+	local origin = CFrame.new(info.position) * CFrame.Angles(0, yaw, 0)
 
 	local mainCap: BasePart
 	if shape.cluster then
-		-- Opieńki rosną kępkami
-		mainCap = buildOne(model, info.position, shape, 1.15, capColor, neon, parts)
+		-- Kępka: duży grzyb z buzią i mniejsze obok
+		mainCap = buildOne(model, origin, shape, info.species, 1.15, capColor, neon, parts, true)
 		for k = 1, shape.cluster - 1 do
 			local angle = k * 2.3
-			local offset = Vector3.new(math.cos(angle), 0, math.sin(angle)) * 0.7
-			buildOne(model, info.position + offset, shape, 0.8, capColor, neon, parts)
+			local at = origin * CFrame.new(math.cos(angle) * 0.85 * SIZE, 0, math.sin(angle) * 0.85 * SIZE) * CFrame.Angles(0, angle, 0)
+			buildOne(model, at, shape, info.species, 0.75, capColor, neon, parts, false)
 		end
 	else
-		mainCap = buildOne(model, info.position, shape, 1, capColor, neon, parts)
+		mainCap = buildOne(model, origin, shape, info.species, 1, capColor, neon, parts, true)
 	end
+	local capTop = (mainCap:GetAttribute("CapTop") :: number?) or shape.stemH + shape.capH
 
-	-- Kapelusze (bez trzonów i kropek) dostają kolor i materiał wariantu
+	-- Kapelusze dostają materiał wariantu; tęczowe zmieniają kolor w updateVisibility
 	local caps: { BasePart } = {}
 	for _, p in parts do
 		if p.Name == "Cap" then
@@ -236,29 +539,30 @@ local function buildModel(info: MushroomInfo): (Model, { BasePart }, boolean, { 
 				-- Srebro: metaliczny połysk zamiast świecenia
 				p.Material = Enum.Material.Metal
 				p.Reflectance = 0.3
-			elseif glowing and rank == 0 and not shape.glow then
-				-- Blask bez wariantu: kolor gatunku rozjaśniony w stronę seledynu
-				p.Color = shape.cap:Lerp(rgb(110, 255, 214), 0.45)
 			end
 		end
 	end
 
-	-- Mech: zielone łaty na kapeluszu
+	-- Mech: zielone kostki na kapeluszu
 	if hasTag(info, "mossy") then
+		local u = math.clamp(shape.capW * SIZE / 7, 0.16, 0.42)
 		for k = 1, 3 do
 			local angle = k * 2.1
-			local patch = makePart("Moss", Vector3.new(0.5, 0.18, 0.5), mainCap.CFrame * CFrame.new(math.cos(angle) * 0.45, mainCap.Size.Y * 0.38, math.sin(angle) * 0.45), MOSS)
+			local patch = makePart("Moss", Vector3.new(u * 1.6, u * 0.5, u * 1.6), origin * CFrame.new(math.cos(angle) * shape.capW * SIZE * 0.22, capTop + u * 0.1, math.sin(angle) * shape.capW * SIZE * 0.22), MOSS)
 			patch.Parent = model
 			table.insert(parts, patch)
 		end
 	end
 
+	local fxParts: { BasePart } = {}
+	local aura, classLight = buildAura(model, info, origin, shape, capColor, capTop, fxParts)
+
 	local light: PointLight? = nil
-	if neon then
+	if neon or classLight then
 		local newLight = Instance.new("PointLight")
-		newLight.Color = if glowing and rank < 2 then rgb(110, 255, 214) else capColor
+		newLight.Color = if neon then (if glowing and rank < 2 then rgb(110, 255, 214) else capColor) else classLight :: Color3
 		newLight.Range = if rank >= 2 then 10 else 8
-		newLight.Brightness = 1.6
+		newLight.Brightness = if neon then 1.6 else 0.9
 		newLight.Parent = mainCap
 		light = newLight
 	end
@@ -285,12 +589,11 @@ local function buildModel(info: MushroomInfo): (Model, { BasePart }, boolean, { 
 
 	model.PrimaryPart = mainCap
 	model.Parent = folder
-	-- Tęcza: kapelusze i światło zmieniają kolor w updateVisibility
 	local rainbow = if rank == 3 then caps else {}
 	if light and rank == 3 then
 		light:SetAttribute("Rainbow", true)
 	end
-	return model, parts, neon or rank >= 1, rainbow
+	return model, parts, neon or rank >= 1, rainbow, aura, fxParts
 end
 
 -- Grzyb wyrasta z ziemi: części startują schowane pod ziemią i wyskakują na swoje miejsce
@@ -313,7 +616,7 @@ function MushroomView.add(list: { MushroomInfo })
 				targetId = nil
 			end
 		end
-		local model, parts, animated, rainbow = buildModel(info)
+		local model, parts, animated, rainbow, aura, fxParts = buildModel(info)
 		-- Pozycję spoczynkową bierzemy przed animacją wyrastania (potem części są pod ziemią)
 		local basePivot = model:GetPivot()
 		growIn(parts)
@@ -329,6 +632,8 @@ function MushroomView.add(list: { MushroomInfo })
 			rainbowParts = if #rainbow > 0 then rainbow else nil,
 			rainbowLight = model.PrimaryPart and model.PrimaryPart:FindFirstChildOfClass("PointLight") or nil,
 			mimicLight = if Economy.isMimic(info.species) then model:FindFirstChildWhichIsA("PointLight", true) else nil,
+			aura = aura,
+			fxParts = fxParts,
 		}
 	end
 end
@@ -362,6 +667,14 @@ function MushroomView.remove(id: string)
 	local info = TweenInfo.new(0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 	for _, p in entry.parts do
 		TweenService:Create(p, info, { CFrame = p.CFrame + Vector3.new(0, 1.6, 0), Transparency = 1 }):Play()
+		for _, child in p:GetChildren() do
+			if child:IsA("Texture") then
+				TweenService:Create(child, info, { Transparency = 1 }):Play()
+			end
+		end
+	end
+	for _, p in entry.fxParts do
+		TweenService:Create(p, info, { Transparency = 1 }):Play()
 	end
 	task.delay(0.25, function()
 		entry.model:Destroy()
@@ -422,6 +735,15 @@ function MushroomView.updateVisibility(position: Vector3, lanternRange: number, 
 			entry.hidden = hidden
 			for _, p in entry.parts do
 				p.Transparency = if hidden then 1 else 0
+				-- Tekstury rysują się niezależnie od przezroczystości części, więc chowamy je osobno
+				for _, child in p:GetChildren() do
+					if child:IsA("Texture") then
+						child.Transparency = if hidden then 1 else ((child:GetAttribute("BaseT") :: number?) or 0)
+					end
+				end
+			end
+			for _, p in entry.fxParts do
+				p.Transparency = if hidden then 1 else ((p:GetAttribute("BaseT") :: number?) or 0)
 			end
 		end
 		-- Tęczowy kapelusz przechodzi przez wszystkie kolory (tylko gdy gracz jest blisko)
@@ -443,6 +765,33 @@ function MushroomView.updateVisibility(position: Vector3, lanternRange: number, 
 		if glows and t >= entry.bobFrom and flatDistance(position, entry.info.position) < 120 then
 			local bob = 0.18 * math.sin(t * 2 + entry.phase)
 			entry.model:PivotTo(entry.basePivot * CFrame.new(0, bob, 0) * CFrame.Angles(0, math.sin(t * 0.7 + entry.phase) * 0.15, 0))
+		end
+		-- Aura: krążące kostki, pulsujący słup światła i zarodniki (tylko blisko gracza)
+		local aura = entry.aura :: Aura?
+		if aura and not entry.hidden then
+			local distance = flatDistance(position, entry.info.position)
+			if distance < 90 then
+				local n = #aura.orbit
+				for i, p in aura.orbit do
+					local a = t * 1.4 + i * math.pi * 2 / n + entry.phase
+					local at = entry.info.position + Vector3.new(math.cos(a) * aura.orbitRadius, aura.orbitHeight + math.sin(t * 2 + i) * 0.3, math.sin(a) * aura.orbitRadius)
+					p.CFrame = CFrame.new(at) * CFrame.Angles(t * 2 + i, t * 1.5, 0)
+					if aura.orbitRainbow then
+						p.Color = Color3.fromHSV((t * 0.35 + i / n) % 1, 0.7, 1)
+					end
+				end
+				local pillar = aura.pillar
+				if pillar then
+					pillar.Transparency = 0.84 + 0.06 * math.sin(t * 2.2 + entry.phase)
+					if aura.orbitRainbow then
+						pillar.Color = Color3.fromHSV((t * 0.2 + entry.phase) % 1, 0.5, 1)
+					end
+				end
+				if aura.spores and distance < 50 and t >= aura.nextSpore then
+					aura.nextSpore = t + 0.25 + math.random() * 0.3
+					spawnSpore(entry.info.position, aura)
+				end
+			end
 		end
 	end
 end
