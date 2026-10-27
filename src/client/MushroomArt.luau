@@ -255,8 +255,8 @@ local function step()
 		local fx = handle.fx
 		if handle.glow then
 			local pulse = if fx.pulse then 0.5 + 0.5 * math.sin(t * 3) else 0.5
-			handle.glow.ImageTransparency = 0.45 - pulse * 0.3
-			handle.glow.Size = UDim2.fromScale(1.35 + pulse * 0.15, 1.35 + pulse * 0.15)
+			handle.glow.ImageTransparency = 0.3 - pulse * 0.3
+			handle.glow.Size = UDim2.fromScale(1.5 + pulse * 0.25, 1.5 + pulse * 0.25)
 		end
 		if handle.rays then
 			handle.rays.Rotation = (t * 25) % 360
@@ -321,9 +321,9 @@ function MushroomArt.build(parent: GuiObject, item: Item, options: Options?): Fr
 	}
 
 	if fx.rays then
-		local rays = image(root, "Rays", FX.rays, UDim2.fromScale(1.7, 1.7), false)
+		local rays = image(root, "Rays", FX.rays, UDim2.fromScale(2.1, 2.1), false)
 		rays.ImageColor3 = fx.rays
-		rays.ImageTransparency = 0.15
+		rays.ImageTransparency = 0
 		rays.ZIndex = root.ZIndex
 		if fx.rainbow then
 			local g = Instance.new("UIGradient")
@@ -334,7 +334,8 @@ function MushroomArt.build(parent: GuiObject, item: Item, options: Options?): Fr
 	end
 	if fx.glow then
 		local glow = image(root, "Glow", FX.glow, UDim2.fromScale(1.4, 1.4), false)
-		glow.ImageColor3 = fx.glow
+		-- Jaśniejsza od koloru klasy, żeby było ją widać na karcie w tym samym kolorze
+		glow.ImageColor3 = fx.glow:Lerp(Color3.new(1, 1, 1), 0.55)
 		glow.ImageTransparency = 0.35
 		glow.ZIndex = root.ZIndex
 		handle.glow = glow

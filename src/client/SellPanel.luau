@@ -422,8 +422,8 @@ local function buildCard(index: number, item: Item): Card
 	-- Pikselowy grzybek z aurą według rzadkości (MushroomArt); bez arkusza – grzybek z ramek
 	local artBox = Instance.new("Frame")
 	artBox.Name = "ArtBox"
-	artBox.Size = UDim2.fromOffset(72, 72)
-	artBox.Position = UDim2.new(0.5, 0, 0, 4)
+	artBox.Size = UDim2.fromOffset(82, 82)
+	artBox.Position = UDim2.new(0.5, 0, 0, -4)
 	artBox.AnchorPoint = Vector2.new(0.5, 0)
 	artBox.BackgroundTransparency = 1
 	artBox.ZIndex = 0 -- pod napisami karty
