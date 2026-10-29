@@ -93,7 +93,7 @@ function Skarbnik.build(parent: Instance, at: CFrame, awake: boolean): Model
 		block(b, "Socket", "Head", Vector3.new(0.6, 0.45, 0.1), cf(side * 0.45, 9.65, -1.16), SOCKET)
 		block(b, "Eye", "Head", Vector3.new(0.36, 0.26, 0.08), cf(side * 0.45, 9.63, -1.2), eyeColor, { neon = true })
 		block(b, "Brow", "Head", Vector3.new(0.75, 0.25, 0.3), cf(side * 0.45, 10.0, -1.12) * rot(0, 0, side * -12), BEARD)
-		block(b, "Hair", "Head", Vector3.new(0.3, 0.9, 1.2), cf(side * 0.98, 9.3, 0), BEARD)
+		block(b, "Hair", "Head", Vector3.new(0.22, 0.7, 0.9), cf(side * 0.98, 9.05, 0.1), BEARD_SHADE)
 	end
 	block(b, "Nose", "Head", Vector3.new(0.4, 0.6, 0.45), cf(0, 9.25, -1.3), NOSE)
 	block(b, "Mustache", "Head", Vector3.new(1.5, 0.35, 0.3), cf(0, 8.85, -1.25), BEARD)
@@ -110,11 +110,12 @@ function Skarbnik.build(parent: Instance, at: CFrame, awake: boolean): Model
 	block(b, "BadgePlate", "Head", Vector3.new(0.7, 0.7, 0.06), cf(0, 11.35, -1.1), BRASS_DARK)
 	block(b, "Hammer", "Head", Vector3.new(0.12, 0.8, 0.08), cf(0, 11.35, -1.15) * rot(0, 0, 40), BRASS)
 	block(b, "Hammer", "Head", Vector3.new(0.12, 0.8, 0.08), cf(0, 11.35, -1.15) * rot(0, 0, -40), BRASS)
-	for i, feather in { { -0.25, -18, 1.7 }, { 0, 0, 2.0 }, { 0.25, 18, 1.7 }, { -0.12, -8, 1.5 }, { 0.12, 8, 1.5 } } do
-		local tilt = feather[2]
-		local length = feather[3]
-		local color = if i <= 3 then PLUME else PLUME_LIGHT
-		block(b, "Plume", "Head", Vector3.new(0.26, length, 0.26), cf(feather[1], 12.4, -0.75) * rot(12, 0, tilt) * cf(0, length / 2, 0), color)
+	-- Pióropusz: pęk zielonych piór wyrastający z mosiężnej tulejki nad odznaką
+	block(b, "PlumeBase", "Head", Vector3.new(0.4, 0.4, 0.4), cf(0, 12.5, -0.75), BRASS)
+	for i, feather in { { 0, 0, 0, 2.3 }, { -0.2, 8, -24, 2.0 }, { 0.2, 8, 24, 2.0 }, { -0.12, -10, -12, 1.8 }, { 0.12, -10, 12, 1.8 }, { 0, 18, 0, 1.9 }, { -0.3, 14, -38, 1.5 }, { 0.3, 14, 38, 1.5 } } do
+		local length = feather[4]
+		local color = if i % 2 == 0 then PLUME else PLUME_LIGHT
+		block(b, "Plume", "Head", Vector3.new(0.32, length, 0.32), cf(feather[1], 12.6, -0.75) * rot(feather[2], 0, feather[3]) * cf(0, length / 2, 0), color)
 	end
 
 	-- ===== Ręce: rękawy munduru, mosiężne mankiety, duże blade dłonie =====
@@ -132,11 +133,13 @@ function Skarbnik.build(parent: Instance, at: CFrame, awake: boolean): Model
 			block(b, "Finger", fore, Vector3.new(0.22, 0.5, 0.22), cf(side * 2.2, 3.25, -0.05 + dz), SKIN_SHADE)
 		end
 	end
-	-- Kilof w prawej ręce: trzonek w dół i do przodu, żelazny grot przy ziemi
-	RigBlocks.rod(b, "Handle", "ForearmR", Vector3.new(2.15, 4.4, -0.15), Vector3.new(2.25, 0.9, -1.0), 0.26, WOOD)
-	block(b, "PickHead", "ForearmR", Vector3.new(0.34, 0.34, 2.2), cf(2.25, 0.95, -1.0) * rot(14, 0, 0), IRON, { texture = 0.6 })
-	block(b, "PickTip", "ForearmR", Vector3.new(0.22, 0.22, 0.5), cf(2.25, 0.82, -2.25) * rot(30, 0, 0), IRON_DARK)
-	block(b, "PickTip", "ForearmR", Vector3.new(0.22, 0.22, 0.5), cf(2.25, 1.22, 0.2) * rot(-10, 0, 0), IRON_DARK)
+	-- Kilof w prawej ręce: trzonek ukosem w dół i do przodu, żelazny grot w poprzek (dobrze widać go z przodu)
+	local pickEnd = Vector3.new(1.55, 1.0, -1.9)
+	RigBlocks.rod(b, "Handle", "ForearmR", Vector3.new(2.2, 4.5, -0.1), pickEnd, 0.32, WOOD)
+	block(b, "PickHead", "ForearmR", Vector3.new(2.6, 0.42, 0.42), CFrame.new(pickEnd) * rot(0, 0, -8), IRON, { texture = 0.6 })
+	block(b, "PickTip", "ForearmR", Vector3.new(0.6, 0.28, 0.28), CFrame.new(pickEnd + Vector3.new(-1.5, -0.32, 0)) * rot(0, 0, 30), IRON_DARK)
+	block(b, "PickTip", "ForearmR", Vector3.new(0.6, 0.28, 0.28), CFrame.new(pickEnd + Vector3.new(1.5, 0.05, 0)) * rot(0, 0, -30), IRON_DARK)
+	block(b, "PickCollar", "ForearmR", Vector3.new(0.5, 0.55, 0.5), CFrame.new(pickEnd), IRON_DARK)
 	-- Latarnia w lewej ręce z upiornym płomieniem
 	block(b, "LanternRing", "ForearmL", Vector3.new(0.1, 0.4, 0.4), cf(-2.15, 3.35, -0.1), BRASS)
 	block(b, "LanternCap", "ForearmL", Vector3.new(0.75, 0.25, 0.75), cf(-2.15, 3.05, -0.1), BRASS_DARK)

@@ -112,12 +112,14 @@ function Utopiec.build(parent: Instance, at: CFrame, awake: boolean): Model
 		local length = 1.4 + (i % 3) * 0.45
 		block(b, "Weed", "Head", Vector3.new(0.34, length, 0.26), cf(x, 8.3 - length / 2, 0.3), WEED[(i % #WEED) + 1])
 	end
-	-- Czerwona spiczasta czapka, przekrzywiona
-	block(b, "CapBrim", "Head", Vector3.new(2.5, 0.22, 2.3), cf(0, 8.82, -0.4), CAP_SHADE)
-	block(b, "Cap", "Head", Vector3.new(2.3, 0.65, 2.1), cf(0, 9.25, -0.35), CAP, { texture = 0.6 })
-	block(b, "Cap", "Head", Vector3.new(1.6, 0.7, 1.5), cf(0.05, 9.9, -0.25) * rot(-6, 0, -5), CAP, { texture = 0.6 })
-	block(b, "Cap", "Head", Vector3.new(1.0, 0.7, 0.95), cf(0.2, 10.5, -0.1) * rot(-12, 0, -12), CAP_SHADE)
-	block(b, "CapTip", "Head", Vector3.new(0.5, 0.6, 0.5), cf(0.5, 10.95, 0.1) * rot(-18, 0, -30), CAP)
+	-- Czerwona spiczasta czapka: stożek z kilku pięter, czubek opada do tyłu
+	block(b, "CapBrim", "Head", Vector3.new(2.6, 0.25, 2.4), cf(0, 8.82, -0.5), CAP_SHADE)
+	block(b, "Cap", "Head", Vector3.new(2.2, 0.6, 2.05), cf(0, 9.22, -0.45), CAP, { texture = 0.6 })
+	block(b, "Cap", "Head", Vector3.new(1.65, 0.6, 1.55), cf(0, 9.8, -0.4) * rot(-4, 0, 0), CAP, { texture = 0.6 })
+	block(b, "Cap", "Head", Vector3.new(1.1, 0.55, 1.05), cf(0, 10.35, -0.3) * rot(-10, 0, 0), CAP, { texture = 0.6 })
+	block(b, "Cap", "Head", Vector3.new(0.65, 0.5, 0.65), cf(0, 10.8, -0.12) * rot(-24, 0, 0), CAP_SHADE)
+	block(b, "CapTip", "Head", Vector3.new(0.42, 0.42, 0.55), cf(0, 11.05, 0.25) * rot(-50, 0, 0), CAP)
+	block(b, "Pompon", "Head", Vector3.new(0.45, 0.45, 0.45), cf(0, 11.0, 0.62), rgb(236, 232, 214))
 
 	-- ===== Ręce: długie, chude, błoniaste łapy =====
 	for _, side in { -1, 1 } do
