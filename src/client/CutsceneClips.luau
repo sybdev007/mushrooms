@@ -230,6 +230,30 @@ Clips.patSoil = {
 	events = { { t = 0.65, name = "pat" }, { t = 0.85, name = "pat" }, { t = 1.05, name = "pat" }, { t = 1.25, name = "pat" } },
 }
 
+-- Sadzenie od zera: klęka, rozgrzebuje ziemię dwoma ruchami (dig), wkłada grzybek prawą ręką (place),
+-- klepie ziemię dookoła (pat) i wstaje. Tułów pochyla się mniej niż przy klepaniu, żeby głowa nie wchodziła w grządkę.
+Clips.plantSeed = {
+	length = 3.4,
+	keys = {
+		{ t = 0, pose = NEUTRAL },
+		{ t = 0.45, ease = "out", pose = merge(KNEEL, { Waist = { rx = -24 }, Neck = { rx = -26 }, LeftShoulder = { rx = 62, rz = -10 }, LeftElbow = { rx = 22 }, RightShoulder = { rx = 62, rz = 10 }, RightElbow = { rx = 22 } }) },
+		-- Rozgrzebuje: dłonie zgarniają ziemię na boki
+		{ t = 0.7, ease = "snap", pose = { LeftShoulder = { rx = 54, rz = -28 }, RightShoulder = { rx = 54, rz = 28 }, LeftElbow = { rx = 40 }, RightElbow = { rx = 40 } } },
+		{ t = 0.9, pose = { LeftShoulder = { rx = 64, rz = -6 }, RightShoulder = { rx = 64, rz = 6 }, LeftElbow = { rx = 16 }, RightElbow = { rx = 16 } } },
+		{ t = 1.1, ease = "snap", pose = { LeftShoulder = { rx = 54, rz = -30 }, RightShoulder = { rx = 54, rz = 30 }, LeftElbow = { rx = 40 }, RightElbow = { rx = 40 } } },
+		-- Wkłada grzybek: prawa ręka w dół do dołka, lewa opiera się o kolano
+		{ t = 1.45, ease = "out", pose = { RightShoulder = { rx = 70, rz = 4 }, RightElbow = { rx = 10 }, RightWrist = { rx = 20 }, LeftShoulder = { rx = 20, rz = -10 }, LeftElbow = { rx = 60 }, Neck = { rx = -30 } } },
+		{ t = 1.75, pose = { RightShoulder = { rx = 64 }, RightElbow = { rx = 18 }, RightWrist = { rx = 0 } } },
+		-- Klepie dookoła
+		{ t = 1.95, ease = "snap", pose = { LeftShoulder = { rx = 66, rz = -8 }, LeftElbow = { rx = 14 }, RightShoulder = { rx = 50 }, RightElbow = { rx = 34 } } },
+		{ t = 2.15, ease = "snap", pose = { LeftShoulder = { rx = 50 }, LeftElbow = { rx = 34 }, RightShoulder = { rx = 66 }, RightElbow = { rx = 14 } } },
+		{ t = 2.35, ease = "snap", pose = { LeftShoulder = { rx = 66 }, LeftElbow = { rx = 14 }, RightShoulder = { rx = 66 }, RightElbow = { rx = 14 } } },
+		{ t = 2.7, pose = { Neck = { rx = -8, rz = 8 }, Waist = { rx = -10 } } },
+		{ t = 3.4, ease = "out", pose = merge(UP_LEGS, { Waist = { rx = 0 }, Neck = { rx = 0, rz = 0 }, LeftShoulder = { rx = 0, rz = 0 }, RightShoulder = { rx = 0, rz = 0 }, LeftElbow = { rx = 0 }, RightElbow = { rx = 0 }, RightWrist = { rx = 0 } }) },
+	},
+	events = { { t = 0.7, name = "dig" }, { t = 1.1, name = "dig" }, { t = 1.5, name = "place" }, { t = 1.95, name = "pat" }, { t = 2.15, name = "pat" }, { t = 2.35, name = "pat" } },
+}
+
 -- Ociera pot z czoła przedramieniem (zdarzenie sweat), wzdycha z ulgą i opiera ręce na biodrach
 Clips.wipeSweat = {
 	length = 2.4,
@@ -307,6 +331,60 @@ Clips.peek = {
 	},
 }
 
+-- Zza rogu chatki (ściana z boku, róg przed nim): skulony wychyla się do przodu (głowa wychodzi za róg),
+-- cofa się szybko, wychyla jeszcze raz, a potem chichocze i zaciera ręce (zdarzenia hehe, rub)
+local CROUCH = { Root = { y = -0.55, rx = -8, z = 0.4 }, Waist = { rx = -22 }, LeftHip = { rx = 30 }, RightHip = { rx = 30 }, LeftKnee = { rx = -46 }, RightKnee = { rx = -46 }, LeftAnkle = { rx = 16 }, RightAnkle = { rx = 16 } }
+Clips.peekOut = {
+	length = 4.6,
+	keys = {
+		{ t = 0, pose = merge(NEUTRAL, merge(CROUCH, { LeftShoulder = { rx = 40, rz = -14 }, LeftElbow = { rx = 80 }, RightShoulder = { rx = 40, rz = 14 }, RightElbow = { rx = 80 } })) },
+		{ t = 0.55, ease = "out", pose = { Root = { z = -0.9, y = -0.65, rx = -14 }, Waist = { rx = -30 }, Neck = { rx = 24, ry = 10 } } },
+		{ t = 1.1, pose = { Neck = { rx = 20, ry = -16 } } },
+		{ t = 1.3, ease = "snap", pose = { Root = { z = 0.5, y = -0.5, rx = -6 }, Waist = { rx = -16 }, Neck = { rx = 6, ry = 0 } } },
+		{ t = 1.75, ease = "out", pose = { Root = { z = -1.0, y = -0.62, rx = -14 }, Waist = { rx = -28 }, Neck = { rx = 24, ry = 4 } } },
+		-- Zaciera ręce przed sobą
+		{ t = 2.4, ease = "out", pose = { LeftShoulder = { rx = 70, rz = 24 }, RightShoulder = { rx = 70, rz = -24 }, LeftElbow = { rx = 92 }, RightElbow = { rx = 92 }, Neck = { rx = 14 } } },
+		{ t = 2.6, ease = "snap", pose = { LeftWrist = { ry = 34 }, RightWrist = { ry = -34 }, Root = { y = -0.55 } } },
+		{ t = 2.8, ease = "snap", pose = { LeftWrist = { ry = -34 }, RightWrist = { ry = 34 }, Root = { y = -0.68 } } },
+		{ t = 3.0, ease = "snap", pose = { LeftWrist = { ry = 34 }, RightWrist = { ry = -34 }, Root = { y = -0.55 } } },
+		{ t = 3.2, ease = "snap", pose = { LeftWrist = { ry = -34 }, RightWrist = { ry = 34 }, Root = { y = -0.68 } } },
+		{ t = 3.4, ease = "snap", pose = { LeftWrist = { ry = 34 }, RightWrist = { ry = -34 }, Root = { y = -0.55 } } },
+		-- Chichot: ramiona podskakują
+		{ t = 3.6, ease = "snap", pose = { Waist = { rx = -18 }, Neck = { rx = 2, rz = 8 } } },
+		{ t = 3.75, ease = "snap", pose = { Waist = { rx = -26 }, Neck = { rx = 10, rz = -6 } } },
+		{ t = 3.9, ease = "snap", pose = { Waist = { rx = -18 }, Neck = { rx = 2, rz = 8 } } },
+		{ t = 4.05, ease = "snap", pose = { Waist = { rx = -26 }, Neck = { rx = 10, rz = -6 } } },
+		{ t = 4.6, pose = { LeftWrist = { ry = 0 }, RightWrist = { ry = 0 }, Neck = { rx = 12, rz = 0 } } },
+	},
+	events = { { t = 0.55, name = "peek" }, { t = 1.3, name = "hide" }, { t = 1.75, name = "peek" }, { t = 2.6, name = "rub" }, { t = 3.6, name = "hehe" } },
+}
+
+-- Skok przez płot: nogi podkulone, ręce do góry (poza na czas lotu)
+Clips.vault = {
+	length = 0.6,
+	keys = {
+		{ t = 0, pose = NEUTRAL },
+		{
+			t = 0.15,
+			ease = "out",
+			pose = {
+				Root = { rx = -10 },
+				LeftHip = { rx = 80, rz = -10 },
+				RightHip = { rx = 60, rz = 10 },
+				LeftKnee = { rx = -110 },
+				RightKnee = { rx = -90 },
+				LeftShoulder = { rx = 150, rz = -30 },
+				RightShoulder = { rx = 150, rz = 30 },
+				LeftElbow = { rx = 20 },
+				RightElbow = { rx = 20 },
+				Waist = { rx = -10 },
+				Neck = { rx = 10 },
+			},
+		},
+		{ t = 0.6, pose = { Root = { rx = -24 }, LeftHip = { rx = 20 }, RightHip = { rx = 40 }, LeftKnee = { rx = -30 }, RightKnee = { rx = -50 } } },
+	},
+}
+
 -- Skradanie na paluszkach jak w kreskówce: zgięty, łapy jak szpony, wysokie kolana, rozgląda się (pętla).
 -- Zdarzenia step przy każdym postawieniu stopy.
 local SNEAK_BODY = {
@@ -340,7 +418,7 @@ Clips.lookAround = {
 		{ t = 0.4, pose = { Neck = { ry = 60, rx = 8 }, Waist = { ry = 14 } } },
 		{ t = 0.9, pose = { Neck = { ry = -60 }, Waist = { ry = -14 } } },
 		{ t = 1.3, pose = { Neck = { ry = 0, rx = 4 }, Waist = { ry = 0 } } },
-		{ t = 1.6, ease = "back", pose = { RightShoulder = { rx = 128, rz = -26 }, RightElbow = { rx = 140 }, RightWrist = { rx = 0 }, Neck = { rx = 10 } } },
+		{ t = 1.6, ease = "back", pose = { RightShoulder = { rx = 104, rz = -44 }, RightElbow = { rx = 128 }, RightWrist = { rx = 0 }, Neck = { rx = 10 } } },
 		{ t = 2.2, pose = { Neck = { rx = 6, rz = 8 } } },
 	},
 	events = { { t = 1.6, name = "shh" } },

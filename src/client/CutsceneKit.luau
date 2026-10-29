@@ -8,6 +8,7 @@
 --   Dymki: mowa i myśli nad głową aktora (tekst pisany literka po literce), wykrzyknik „!” i „?”.
 
 local ContentProvider = game:GetService("ContentProvider")
+local ProximityPromptService = game:GetService("ProximityPromptService")
 local Lighting = game:GetService("Lighting")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -18,6 +19,7 @@ local Workspace = game:GetService("Workspace")
 local Atmosphere = require(script.Parent.Atmosphere)
 local Audio = require(script.Parent.Audio)
 local Localize = require(script.Parent.Localize)
+local ThiefLook = require(script.Parent.ThiefLook)
 local UiKit = require(script.Parent.UiKit)
 
 local player = Players.LocalPlayer
@@ -145,6 +147,8 @@ export type Actor = {
 	freeRoot: boolean, -- true = korzeń ustawia ktoś inny (np. bujany fotel)
 	head: BasePart?,
 	props: { Instance },
+	faceRig: ThiefLook.Rig?, -- mimika złodzieja (maska z oczami, usta)
+	mover: number?, -- numer aktualnego ruchu (path/hop/move); starszy ruch sam się wyłącza
 }
 
 export type Scene = {
@@ -633,6 +637,9 @@ function Kit.actor(s: Scene, options: ActorOptions?): Actor?
 			d.LocalTransparencyModifier = 0
 		elseif d:IsA("Decal") then
 			d.LocalTransparencyModifier = 0
+		elseif d:IsA("BillboardGui") or d:IsA("ProximityPrompt") then
+			-- Tytuł nad głową i podobne napisy nie mają co robić w scence
+			d:Destroy()
 		end
 	end
 	-- Nóż zawsze precz; latarnia tylko jeśli scena jej chce
@@ -662,71 +669,15 @@ function Kit.actor(s: Scene, options: ActorOptions?): Actor?
 	humanoid.NameDisplayDistance = 0
 	root.Anchored = true
 
+	local faceRig: ThiefLook.Rig? = nil
 	if o.thief then
-		-- Ciemna bluza z kapturem, maska bandyty, czapka i worek na plecach
-		for _, d in clone:GetDescendants() do
-			if d:IsA("Shirt") or d:IsA("Pants") or d:IsA("ShirtGraphic") or d:IsA("Accessory") then
-				d:Destroy()
-			end
-		end
-		local skin = Color3.fromRGB(234, 184, 146)
-		local hoodie = Color3.fromRGB(40, 38, 52)
-		local trousers = Color3.fromRGB(28, 26, 34)
-		for _, part in clone:GetChildren() do
-			if part:IsA("BasePart") and part ~= root then
-				local n = part.Name
-				if n == "Head" or n:find("Hand") then
-					part.Color = skin
-				elseif n:find("Leg") or n:find("Foot") or n == "LowerTorso" then
-					part.Color = trousers
-				else
-					part.Color = hoodie
-				end
-			end
-		end
-		local head = clone:FindFirstChild("Head") :: BasePart?
-		local torso = (clone:FindFirstChild("UpperTorso") or clone:FindFirstChild("Torso")) :: BasePart?
-		local function glue(name: string, size: Vector3, offset: CFrame, color: Color3, to: BasePart?, shape: Enum.PartType?)
-			if not to then
-				return
-			end
-			local p = Instance.new("Part")
-			p.Name = name
-			p.Size = size
-			p.Color = color
-			p.Material = Enum.Material.SmoothPlastic
-			if shape then
-				p.Shape = shape
-			end
-			p.CanCollide = false
-			p.CanQuery = false
-			p.CanTouch = false
-			p.Massless = true
-			p.CFrame = to.CFrame * offset
-			p.Parent = clone
-			local w = Instance.new("WeldConstraint")
-			w.Part0 = to
-			w.Part1 = p
-			w.Parent = p
-		end
-		if head then
-			local hs = head.Size
-			glue("Mask", Vector3.new(hs.X + 0.06, hs.Y * 0.24, hs.Z + 0.06), CFrame.new(0, hs.Y * 0.08, 0), Color3.fromRGB(20, 20, 24), head)
-			glue("Beanie", Vector3.new(hs.X + 0.1, hs.Y * 0.32, hs.Z + 0.1), CFrame.new(0, hs.Y * 0.42, 0), Color3.fromRGB(196, 40, 40), head)
-			glue("Pompom", Vector3.new(0.5, 0.5, 0.5), CFrame.new(0, hs.Y * 0.68, 0), Color3.new(1, 1, 1), head, Enum.PartType.Ball)
-			-- Oczy błyszczące spod maski
-			for _, side in { -1, 1 } do
-				glue("Eye", Vector3.new(0.16, 0.12, 0.05), CFrame.new(side * hs.X * 0.2, hs.Y * 0.08, -hs.Z / 2 - 0.04), Color3.new(1, 1, 1), head)
-			end
-			for _, d in head:GetChildren() do
-				if d:IsA("Decal") and d.Name == "face" then
-					d.Transparency = 0
-				end
-			end
-		end
-		if torso then
-			local ts = torso.Size
-			glue("Sack", Vector3.new(ts.X * 0.8, ts.Y * 0.9, ts.X * 0.7), CFrame.new(0, ts.Y * 0.1, ts.Z / 2 + ts.X * 0.3), Color3.fromRGB(176, 136, 86), torso, Enum.PartType.Ball)
+		local rig = ThiefLook.dress(clone)
+		if rig then
+			faceRig = rig
+			rig.costume.Parent = Workspace
+			Kit.onCleanup(s, function()
+				rig.costume:Destroy()
+			end)
 		end
 	end
 
@@ -776,14 +727,47 @@ function Kit.actor(s: Scene, options: ActorOptions?): Actor?
 		clipFired = {},
 		shake = 0,
 		freeRoot = false,
-		head = clone:FindFirstChild("Head") :: BasePart?,
+		head = if faceRig then faceRig.head else clone:FindFirstChild("Head") :: BasePart?,
 		props = {},
+		faceRig = faceRig,
+		mover = 0,
 	}
 	table.insert(s.actors, actor)
 	return actor
 end
 
+-- Mimika złodzieja: smirk / grin / o / shh (inni aktorzy nie mają twarzy do zmiany)
+function Kit.expression(actor: Actor, name: string)
+	if actor.faceRig then
+		ThiefLook.expression(actor.faceRig, name)
+	end
+end
+
+-- Źrenice złodzieja: x, y od -1 do 1; time > 0 = płynnie
+function Kit.eyes(actor: Actor, x: number, y: number, time: number?)
+	local rig = actor.faceRig
+	if not rig then
+		return
+	end
+	if not time or time <= 0 then
+		ThiefLook.look(rig, x, y)
+		return
+	end
+	local from = rig.look
+	local t0 = os.clock()
+	local c: RBXScriptConnection? = nil
+	c = RunService.RenderStepped:Connect(function()
+		local k = math.clamp((os.clock() - t0) / time, 0, 1)
+		k = k * k * (3 - 2 * k)
+		ThiefLook.look(rig, from.X + (x - from.X) * k, from.Y + (y - from.Y) * k)
+		if k >= 1 and c then
+			c:Disconnect()
+		end
+	end)
+end
+
 function Kit.place(actor: Actor, at: Vector3, facing: Vector3)
+	actor.mover = (actor.mover or 0) + 1
 	local h = actor.hip
 	local look = Vector3.new(facing.X, 0, facing.Z)
 	if look.Magnitude < 0.01 then
@@ -829,12 +813,112 @@ function Kit.move(actor: Actor, to: Vector3, time: number, anim: string?, speed:
 	local from = actor.rootValue.Value.Position
 	local goal = to + Vector3.new(0, h, 0)
 	local dir = Vector3.new(goal.X - from.X, 0, goal.Z - from.Z)
+	actor.mover = (actor.mover or 0) + 1
 	if anim then
 		Kit.track(actor, anim, speed)
 	end
 	if dir.Magnitude > 0.05 then
 		tween(actor.rootValue, time, { Value = CFrame.lookAt(goal, goal + dir.Unit) }, Enum.EasingStyle.Linear)
 	end
+end
+
+-- Idzie po trasie (punkty na ziemi) ze stałą prędkością, płynnie skręcając na zakrętach.
+-- Zwraca czas całej drogi. Kolejny path/move/hop przejmuje aktora.
+function Kit.path(s: Scene, actor: Actor, points: { Vector3 }, speed: number, anim: string?, animSpeed: number?): number
+	local h = actor.hip
+	local start = actor.rootValue.Value.Position - Vector3.new(0, h, 0)
+	local pts = { start }
+	for _, p in points do
+		table.insert(pts, p)
+	end
+	local lengths: { number } = {}
+	local total = 0
+	for i = 2, #pts do
+		local d = (Vector3.new(pts[i].X, 0, pts[i].Z) - Vector3.new(pts[i - 1].X, 0, pts[i - 1].Z)).Magnitude
+		lengths[i] = d
+		total += d
+	end
+	if total < 0.01 then
+		return 0
+	end
+	if anim then
+		Kit.track(actor, anim, animSpeed)
+	end
+	actor.mover = (actor.mover or 0) + 1
+	local id = actor.mover
+	local look = actor.rootValue.Value.LookVector
+	local t0 = os.clock()
+	local last = t0
+	local c: RBXScriptConnection? = nil
+	c = RunService.RenderStepped:Connect(function()
+		if actor.mover ~= id or s.cancelled then
+			if c then
+				c:Disconnect()
+			end
+			return
+		end
+		local now = os.clock()
+		local dt = now - last
+		last = now
+		local dist = math.min(total, (now - t0) * speed)
+		local acc = 0
+		local pos = pts[#pts]
+		local dir = look
+		for i = 2, #pts do
+			local seg = lengths[i]
+			if dist <= acc + seg or i == #pts then
+				local k = if seg > 0 then math.clamp((dist - acc) / seg, 0, 1) else 1
+				pos = pts[i - 1]:Lerp(pts[i], k)
+				local d = Vector3.new(pts[i].X - pts[i - 1].X, 0, pts[i].Z - pts[i - 1].Z)
+				if d.Magnitude > 0.01 then
+					dir = d.Unit
+				end
+				break
+			end
+			acc += seg
+		end
+		-- Skręt nie jest skokowy: kierunek patrzenia dogania kierunek drogi
+		local blend = math.clamp(dt * 9, 0, 1)
+		local mixed = look:Lerp(dir, blend)
+		if mixed.Magnitude > 0.01 then
+			look = Vector3.new(mixed.X, 0, mixed.Z).Unit
+		end
+		local at = pos + Vector3.new(0, h, 0)
+		actor.rootValue.Value = CFrame.lookAt(at, at + look)
+		if dist >= total and c then
+			c:Disconnect()
+		end
+	end)
+	table.insert(s.connections, c)
+	return total / speed
+end
+
+-- Skok łukiem (np. przez płot): z miejsca do celu w czasie time, najwyżej o height nad ziemią
+function Kit.hop(s: Scene, actor: Actor, to: Vector3, time: number, height: number)
+	local h = actor.hip
+	local from = actor.rootValue.Value.Position - Vector3.new(0, h, 0)
+	local dir = Vector3.new(to.X - from.X, 0, to.Z - from.Z)
+	local look = if dir.Magnitude > 0.01 then dir.Unit else actor.rootValue.Value.LookVector
+	actor.mover = (actor.mover or 0) + 1
+	local id = actor.mover
+	local t0 = os.clock()
+	local c: RBXScriptConnection? = nil
+	c = RunService.RenderStepped:Connect(function()
+		if actor.mover ~= id or s.cancelled then
+			if c then
+				c:Disconnect()
+			end
+			return
+		end
+		local k = math.clamp((os.clock() - t0) / time, 0, 1)
+		local p = from:Lerp(to, k) + Vector3.new(0, 4 * k * (1 - k) * height, 0)
+		local at = p + Vector3.new(0, h, 0)
+		actor.rootValue.Value = CFrame.lookAt(at, at + look)
+		if k >= 1 and c then
+			c:Disconnect()
+		end
+	end)
+	table.insert(s.connections, c)
 end
 
 -- Klip z klatek kluczowych. weight = jak mocno nadpisuje animacje (1 = całkiem). events(name) przy zdarzeniach.
@@ -1026,6 +1110,11 @@ function Kit.begin(sounds: { string }?): Scene
 	end)
 	hideCharacter(true)
 	setFrozen(true)
+	-- Podpowiedzi „E” (np. „Posadź grzyby” przy furtce) nie mogą wisieć w kadrze
+	pcall(function()
+		Kit.save(s, ProximityPromptService, { "Enabled" })
+		ProximityPromptService.Enabled = false
+	end)
 
 	local camera = Workspace.CurrentCamera
 	if camera then
@@ -1045,7 +1134,15 @@ function Kit.begin(sounds: { string }?): Scene
 		cam.CameraType = Enum.CameraType.Scriptable
 		local base = if s.cameraFn then s.cameraFn() else s.camera.Value
 		cam.CFrame = base * offset
-		cam.FieldOfView = s.fov.Value
+		-- Kadr ma tę samą szerokość co na ekranie 16:9: w węższym oknie (telefon w pionie, Studio z panelami)
+		-- pionowy kąt rośnie, inaczej ujęcia robiłyby się za ciasne
+		local size = cam.ViewportSize
+		local aspect = if size.Y > 0 then size.X / size.Y else 16 / 9
+		local fov = s.fov.Value
+		if aspect < 16 / 9 then
+			fov = math.deg(2 * math.atan(math.tan(math.rad(fov) / 2) * (16 / 9) / aspect))
+		end
+		cam.FieldOfView = math.min(fov, 100)
 		-- Inne moduły potrafią w trakcie włączyć swój interfejs (np. panel DEV przy każdej aktualizacji stanu)
 		for _, g in player.PlayerGui:GetChildren() do
 			if g:IsA("ScreenGui") and g ~= s.gui and g.Enabled and g.Name ~= "Cutscene" then

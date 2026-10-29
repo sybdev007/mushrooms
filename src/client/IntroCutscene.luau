@@ -181,6 +181,216 @@ local function burstAt(where: Vector3, color: Color3, count: number)
 	end)
 end
 
+-- ===== Magia polany: mityczny grzyb =====
+-- Zamiast kanciastego słupa: miękka tęczowa poświata, iskry płynące w górę, migotki wokół kapelusza,
+-- świetliki z warkoczami krążące po spirali i pulsujące światło jak bicie serca.
+
+type Glade = { folder: Folder, intensity: NumberValue, emitters: { ParticleEmitter }, burst: (number) -> () }
+
+local RAINBOW = ColorSequence.new({
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 110, 130)),
+	ColorSequenceKeypoint.new(0.25, Color3.fromRGB(255, 220, 110)),
+	ColorSequenceKeypoint.new(0.5, Color3.fromRGB(120, 255, 170)),
+	ColorSequenceKeypoint.new(0.75, Color3.fromRGB(110, 200, 255)),
+	ColorSequenceKeypoint.new(1, Color3.fromRGB(220, 130, 255)),
+})
+
+local function gladeMagic(s: Kit.Scene, center: Vector3): Glade
+	local folder = Instance.new("Folder")
+	folder.Name = "GladeMagic"
+	folder.Parent = Workspace
+	Kit.onCleanup(s, function()
+		folder:Destroy()
+	end)
+	local intensity = Instance.new("NumberValue")
+	intensity.Value = 1
+	local function anchor(name: string, size: Vector3, cf: CFrame): Part
+		local p = Instance.new("Part")
+		p.Name = name
+		p.Size = size
+		p.CFrame = cf
+		p.Transparency = 1
+		p.Anchored = true
+		p.CanCollide = false
+		p.CanQuery = false
+		p.CanTouch = false
+		p.CastShadow = false
+		p.Parent = folder
+		return p
+	end
+	local emitters: { ParticleEmitter } = {}
+	local function emitter(parent: Instance, props: { [string]: any }): ParticleEmitter
+		local e = Instance.new("ParticleEmitter")
+		e.LightEmission = 1
+		e.LightInfluence = 0
+		for k, v in props do
+			(e :: any)[k] = v
+		end
+		e:SetAttribute("BaseRate", e.Rate)
+		e.Parent = parent
+		table.insert(emitters, e)
+		return e
+	end
+
+	-- Poświata: miękkie, wolno obracające się obłoki światła wokół kapelusza
+	local core = anchor("Core", Vector3.new(1, 1, 1), CFrame.new(center + Vector3.new(0, 1.6, 0)))
+	emitter(core, {
+		Texture = "rbxasset://textures/particles/smoke_main.dds",
+		Color = RAINBOW,
+		Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 3), NumberSequenceKeypoint.new(0.5, 6), NumberSequenceKeypoint.new(1, 7.5) }),
+		Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.3, 0.86), NumberSequenceKeypoint.new(1, 1) }),
+		Lifetime = NumberRange.new(2.4, 3.2),
+		Rate = 4,
+		Speed = NumberRange.new(0.1, 0.3),
+		RotSpeed = NumberRange.new(-25, 25),
+		Rotation = NumberRange.new(0, 360),
+		SpreadAngle = Vector2.new(180, 180),
+	})
+	-- Migotki: małe gwiazdki zapalające się wokół kapelusza
+	emitter(core, {
+		Texture = "rbxasset://textures/particles/sparkles_main.dds",
+		Color = RAINBOW,
+		Shape = Enum.ParticleEmitterShape.Sphere,
+		ShapeStyle = Enum.ParticleEmitterShapeStyle.Volume,
+		Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(0.4, 0.45), NumberSequenceKeypoint.new(1, 0) }),
+		Transparency = NumberSequence.new(0.1, 1),
+		Lifetime = NumberRange.new(0.5, 1.1),
+		Rate = 22,
+		Speed = NumberRange.new(0, 0.4),
+		RotSpeed = NumberRange.new(-180, 180),
+		Rotation = NumberRange.new(0, 360),
+	})
+	core.Size = Vector3.new(5, 3, 5)
+	-- Iskry płynące z ziemi w górę (z koła wokół grzyba)
+	local ground = anchor("Ground", Vector3.new(7, 0.2, 7), CFrame.new(center + Vector3.new(0, 0.15, 0)))
+	emitter(ground, {
+		Texture = "rbxasset://textures/particles/sparkles_main.dds",
+		Color = RAINBOW,
+		Shape = Enum.ParticleEmitterShape.Disc,
+		ShapeStyle = Enum.ParticleEmitterShapeStyle.Volume,
+		EmissionDirection = Enum.NormalId.Top,
+		Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(0.2, 0.28), NumberSequenceKeypoint.new(1, 0) }),
+		Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.1), NumberSequenceKeypoint.new(1, 1) }),
+		Lifetime = NumberRange.new(2.5, 4),
+		Rate = 26,
+		Speed = NumberRange.new(0.8, 2),
+		SpreadAngle = Vector2.new(8, 8),
+		Acceleration = Vector3.new(0, 0.5, 0),
+		RotSpeed = NumberRange.new(-90, 90),
+	})
+	-- Mgiełka przy ziemi: ledwo widoczny kolorowy opar
+	emitter(ground, {
+		Texture = "rbxasset://textures/particles/smoke_main.dds",
+		Color = ColorSequence.new(Color3.fromRGB(200, 160, 255), Color3.fromRGB(140, 230, 255)),
+		Shape = Enum.ParticleEmitterShape.Disc,
+		EmissionDirection = Enum.NormalId.Top,
+		Size = NumberSequence.new(3, 5),
+		Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.4, 0.88), NumberSequenceKeypoint.new(1, 1) }),
+		Lifetime = NumberRange.new(3, 4),
+		Rate = 3,
+		Speed = NumberRange.new(0.1, 0.3),
+		RotSpeed = NumberRange.new(-10, 10),
+	})
+	-- Światło: tęczowe i pulsujące jak bicie serca
+	local light = Instance.new("PointLight")
+	light.Range = 20
+	light.Brightness = 2.5
+	light.Shadows = false
+	light.Parent = core
+
+	-- Świetliki z warkoczami po spiralach
+	type Wisp = { part: Part, trail: Trail, radius: number, height: number, speed: number, phase: number, bob: number }
+	local wisps: { Wisp } = {}
+	for i = 1, 6 do
+		local p = anchor("Wisp", Vector3.new(0.22, 0.22, 0.22), CFrame.new(center))
+		p.Shape = Enum.PartType.Ball
+		p.Material = Enum.Material.Neon
+		p.Transparency = 0.05
+		local a0 = Instance.new("Attachment")
+		a0.Position = Vector3.new(0, 0.11, 0)
+		a0.Parent = p
+		local a1 = Instance.new("Attachment")
+		a1.Position = Vector3.new(0, -0.11, 0)
+		a1.Parent = p
+		local trail = Instance.new("Trail")
+		trail.Attachment0 = a0
+		trail.Attachment1 = a1
+		trail.Lifetime = 0.9
+		trail.FaceCamera = true
+		trail.LightEmission = 1
+		trail.LightInfluence = 0
+		trail.MinLength = 0.02
+		trail.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.1), NumberSequenceKeypoint.new(1, 1) })
+		trail.WidthScale = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(1, 0) })
+		trail.Parent = p
+		table.insert(wisps, {
+			part = p,
+			trail = trail,
+			radius = 1.6 + (i % 3) * 0.7,
+			height = 0.8 + (i % 4) * 0.55,
+			speed = (if i % 2 == 0 then 1 else -1) * (1.1 + i * 0.12),
+			phase = i * math.pi * 2 / 6,
+			bob = 0.4 + (i % 2) * 0.3,
+		})
+	end
+	local t0 = os.clock()
+	table.insert(s.connections, RunService.RenderStepped:Connect(function()
+		local t = os.clock() - t0
+		local k = intensity.Value
+		for i, w in wisps do
+			local a = t * w.speed + w.phase
+			local r = w.radius * (0.8 + 0.2 * math.sin(t * 0.9 + i))
+			local y = w.height + math.sin(t * 1.7 + i) * w.bob
+			w.part.CFrame = CFrame.new(center + Vector3.new(math.cos(a) * r, y, math.sin(a) * r))
+			local c = Color3.fromHSV((t * 0.18 + i / #wisps) % 1, 0.55, 1)
+			w.part.Color = c
+			w.trail.Color = ColorSequence.new(c)
+			w.part.Transparency = 1 - k * 0.95
+			w.trail.Enabled = k > 0.05
+		end
+		-- Bicie serca: dwa szybkie uderzenia, przerwa
+		local beat = t % 1.6
+		local pulse = math.exp(-((beat - 0.1) ^ 2) * 160) + 0.6 * math.exp(-((beat - 0.38) ^ 2) * 160)
+		light.Color = Color3.fromHSV((t * 0.12) % 1, 0.5, 1)
+		light.Brightness = (2 + pulse * 3.5) * k
+		light.Range = 16 + pulse * 6
+		for _, e in emitters do
+			e.Rate = ((e:GetAttribute("BaseRate") :: number?) or 0) * k
+		end
+	end))
+	local function burst(count: number)
+		local e = Instance.new("ParticleEmitter")
+		e.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+		e.Color = RAINBOW
+		e.LightEmission = 1
+		e.LightInfluence = 0
+		e.Shape = Enum.ParticleEmitterShape.Sphere
+		e.ShapeInOut = Enum.ParticleEmitterShapeInOut.Outward
+		e.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.6), NumberSequenceKeypoint.new(1, 0) })
+		e.Transparency = NumberSequence.new(0, 1)
+		e.Lifetime = NumberRange.new(0.8, 1.6)
+		e.Speed = NumberRange.new(6, 14)
+		e.Drag = 3
+		e.Acceleration = Vector3.new(0, 2, 0)
+		e.RotSpeed = NumberRange.new(-200, 200)
+		e.Rate = 0
+		e.Parent = core
+		e:Emit(count)
+		local glow = Instance.new("ParticleEmitter")
+		glow.Texture = "rbxasset://textures/particles/smoke_main.dds"
+		glow.Color = RAINBOW
+		glow.LightEmission = 1
+		glow.Size = NumberSequence.new(2, 14)
+		glow.Transparency = NumberSequence.new(0.5, 1)
+		glow.Lifetime = NumberRange.new(0.7, 0.9)
+		glow.Speed = NumberRange.new(0, 0)
+		glow.Rate = 0
+		glow.Parent = core
+		glow:Emit(3)
+	end
+	return { folder = folder, intensity = intensity, emitters = emitters, burst = burst }
+end
+
 -- ===== Leszy =====
 
 type LeszyState = { model: Model?, rig: LeszyRig.Rig?, cf: CFrameValue, anim: string, at: number, phase: number, lastSin: number, rise: number }
@@ -447,6 +657,7 @@ local function dream(s: Kit.Scene)
 		MushroomView.remove("cut_mythic")
 		MushroomView.setViewer(nil)
 	end)
+	local glade = gladeMagic(s, MYTHIC)
 	setLight("night", 0)
 	Kit.place(hero, at(2, 0.3), Vector3.new(0, 0, 1))
 	Kit.letterbox(s, true, 0.01)
@@ -597,7 +808,10 @@ local function dream(s: Kit.Scene)
 				Audio.play("pick")
 				Audio.play("shimmer", { volume = 0.9 })
 				Kit.flash(s, Color3.new(1, 1, 1), 0.75, 0.6)
-				burstAt(MYTHIC + Vector3.new(0, 0.8, 0), Color3.fromRGB(255, 200, 255), 50)
+				burstAt(MYTHIC + Vector3.new(0, 0.8, 0), Color3.fromRGB(255, 200, 255), 30)
+				glade.burst(90)
+				-- Magia polany gaśnie razem z wyrwaniem grzyba (zostaje tylko lekki ślad)
+				tween(glade.intensity, 2.5, { Value = 0.12 }, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 				s.shake = 0.4
 				-- Po wyrwaniu kamera robi najazd na gracza z grzybem w górze
 				Kit.shot(s, look(MYTHIC_STAND + Vector3.new(-3.6, 1.6, 4.2), MYTHIC_STAND + Vector3.new(0, 1.8, 0)), look(MYTHIC_STAND + Vector3.new(-2.6, 1.4, 3.2), MYTHIC_STAND + Vector3.new(0, 2.6, 0)), 2.0, 50)
@@ -799,6 +1013,11 @@ local function dream(s: Kit.Scene)
 		return
 	end
 	forest:Destroy()
+	-- Leszy znika razem ze snem (inaczej jego kroki dalej trzęsą kamerą już na ganku)
+	if leszy.model then
+		leszy.model.Parent = nil
+	end
+	leszyDo(leszy, "crouch")
 	MushroomView.remove("cut_small")
 	MushroomView.remove("cut_mythic")
 	for _, actor in s.actors do
@@ -810,6 +1029,7 @@ end
 local function wake(s: Kit.Scene)
 	-- 10. Poranek: gracz budzi się na bujanym fotelu na ganku
 	Kit.phase(s, "wake")
+	s.shake = 0
 	setLight("morning", 0)
 	local hero = Kit.actor(s, { name = "WakePlayer", keepLantern = true })
 	if not hero then

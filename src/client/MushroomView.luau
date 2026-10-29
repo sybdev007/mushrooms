@@ -392,21 +392,87 @@ end
 
 -- ===== Aury rzadszych grzybów =====
 -- Rzadki: światło w kolorze klasy. Epicki: w górę lecą voxelowe zarodniki.
--- Legendarny: złote kostki krążą wokół, z nieba świeci słup światła. Złoty: krążące złote kostki.
--- Tęczowy (mityczny): tęczowy kapelusz, tęczowe krążące kostki, słup światła i kolorowe zarodniki.
+-- Legendarny: złote świetliki z warkoczami krążą wokół, z nieba pada miękki snop światła.
+-- Złoty: krążące złote świetliki. Tęczowy (mityczny): tęczowy kapelusz, tęczowe świetliki, snop i zarodniki.
 
 type Aura = {
 	orbit: { BasePart },
 	orbitRadius: number,
 	orbitHeight: number,
 	orbitRainbow: boolean,
-	pillar: BasePart?,
+	pillar: BasePart?, -- niewidzialna kotwica snopu światła (promienie Beam + unoszące się iskry)
+	beams: { Beam }?,
+	motes: ParticleEmitter?,
 	spores: { Color3 }?,
 	nextSpore: number,
 	capTop: number,
 }
 
 local CLASS_RANK: { [string]: number } = { common = 0, uncommon = 1, rare = 2, epic = 3, legendary = 4 }
+
+-- Przezroczystość wzdłuż promienia: miękko od ziemi, najjaśniej nisko, zanika wysoko w górze
+local function shaftFade(base: number): NumberSequence
+	return NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 1),
+		NumberSequenceKeypoint.new(0.08, base),
+		NumberSequenceKeypoint.new(0.45, base + (1 - base) * 0.45),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+end
+
+-- Snop światła: kilka nałożonych promieni (zawsze zwróconych do kamery) o różnej szerokości daje miękkie
+-- brzegi bez kanciastego słupa. Do tego iskierki płynące w górę.
+local SHAFT_LAYERS = { { width = 1, base = 0.86 }, { width = 0.6, base = 0.78 }, { width = 0.28, base = 0.62 } }
+local function buildShaft(model: Model, origin: CFrame, width: number, height: number, color: Color3): (BasePart, { Beam }, ParticleEmitter)
+	local anchor = makePart("Pillar", Vector3.new(0.2, 0.2, 0.2), origin, color)
+	anchor.Transparency = 1
+	anchor:SetAttribute("BaseT", 1)
+	local bottom = Instance.new("Attachment")
+	bottom.Position = Vector3.new(0, 0.2, 0)
+	bottom.Parent = anchor
+	local top = Instance.new("Attachment")
+	top.Position = Vector3.new(0, height, 0)
+	top.Parent = anchor
+	local beams: { Beam } = {}
+	for _, layer in SHAFT_LAYERS do
+		local beam = Instance.new("Beam")
+		beam.Attachment0 = bottom
+		beam.Attachment1 = top
+		beam.FaceCamera = true
+		beam.Width0 = width * layer.width
+		beam.Width1 = width * layer.width * 1.6
+		beam.LightEmission = 1
+		beam.LightInfluence = 0
+		beam.Color = ColorSequence.new(color)
+		beam.Transparency = shaftFade(layer.base)
+		beam.Segments = 1
+		beam:SetAttribute("Base", layer.base)
+		beam.Parent = anchor
+		table.insert(beams, beam)
+	end
+	local motes = Instance.new("ParticleEmitter")
+	motes.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+	motes.LightEmission = 1
+	motes.LightInfluence = 0
+	motes.Color = ColorSequence.new(color)
+	motes.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(0.25, 0.32), NumberSequenceKeypoint.new(1, 0) })
+	motes.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.2), NumberSequenceKeypoint.new(1, 1) })
+	motes.Lifetime = NumberRange.new(2.2, 3.4)
+	motes.Rate = 10
+	motes.Speed = NumberRange.new(1.4, 2.6)
+	motes.SpreadAngle = Vector2.new(12, 12)
+	motes.Acceleration = Vector3.new(0, 0.6, 0)
+	motes.RotSpeed = NumberRange.new(-60, 60)
+	motes.Rotation = NumberRange.new(0, 360)
+	motes.EmissionDirection = Enum.NormalId.Top
+	motes.Shape = Enum.ParticleEmitterShape.Disc
+	motes.ShapeStyle = Enum.ParticleEmitterShapeStyle.Volume
+	motes.Parent = anchor
+	-- Kształt Disc w poziomie: iskry startują z koła wokół grzyba
+	anchor.Size = Vector3.new(width * 1.4, 0.2, width * 1.4)
+	anchor.Parent = model
+	return anchor, beams, motes
+end
 local TAG_SPORES: { [string]: { Color3 } } = {
 	glowing = { rgb(110, 255, 214), rgb(220, 255, 245) },
 	crystal = { rgb(120, 200, 255), rgb(230, 245, 255) },
@@ -436,8 +502,27 @@ local function buildAura(model: Model, info: MushroomInfo, origin: CFrame, shape
 	if orbitColor then
 		local cube = math.clamp(shape.capW / 7, 0.16, 0.36)
 		for k = 1, if variant == "rainbow" then 6 else 4 do
-			local p = makePart("Orbit", Vector3.new(cube, cube, cube), origin, orbitColor)
+			local p = makePart("Orbit", Vector3.new(cube, cube, cube) * 1.3, origin, orbitColor)
+			p.Shape = Enum.PartType.Ball
 			p.Material = Enum.Material.Neon
+			-- Warkocz za świetlikiem: smuga światła, która zanika
+			local a0 = Instance.new("Attachment")
+			a0.Position = Vector3.new(0, cube * 0.5, 0)
+			a0.Parent = p
+			local a1 = Instance.new("Attachment")
+			a1.Position = Vector3.new(0, -cube * 0.5, 0)
+			a1.Parent = p
+			local trail = Instance.new("Trail")
+			trail.Attachment0 = a0
+			trail.Attachment1 = a1
+			trail.Lifetime = 0.55
+			trail.LightEmission = 1
+			trail.LightInfluence = 0
+			trail.FaceCamera = true
+			trail.Color = ColorSequence.new(orbitColor)
+			trail.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.25), NumberSequenceKeypoint.new(1, 1) })
+			trail.WidthScale = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(1, 0) })
+			trail.Parent = p
 			p.Parent = model
 			p:SetAttribute("Index", k)
 			table.insert(aura.orbit, p)
@@ -446,14 +531,12 @@ local function buildAura(model: Model, info: MushroomInfo, origin: CFrame, shape
 		any = true
 	end
 	if rank >= 4 or variant == "rainbow" then
-		-- Słup światła widoczny z daleka
-		local pillar = makePart("Pillar", Vector3.new(shape.capW * SIZE * 0.7, 16, shape.capW * SIZE * 0.7), origin * CFrame.new(0, 8, 0), if variant == "rainbow" then rgb(255, 160, 230) else rgb(255, 214, 90))
-		pillar.Material = Enum.Material.Neon
-		pillar.Transparency = 0.86
-		pillar:SetAttribute("BaseT", 0.86)
-		pillar.Parent = model
+		-- Snop światła widoczny z daleka (miękkie promienie i iskry zamiast kanciastego słupa)
+		local shaftColor = if variant == "rainbow" then rgb(255, 170, 235) else rgb(255, 214, 90)
+		local pillar, beams, motes = buildShaft(model, origin, shape.capW * SIZE * 1.1 + 0.6, 18, shaftColor)
 		aura.pillar = pillar
-		table.insert(fxParts, pillar)
+		aura.beams = beams
+		aura.motes = motes
 		any = true
 	end
 	local spores: { Color3 }? = nil
@@ -793,16 +876,31 @@ function MushroomView.updateVisibility(position: Vector3, lanternRange: number, 
 				for i, p in aura.orbit do
 					local a = t * 1.4 + i * math.pi * 2 / n + entry.phase
 					local at = entry.info.position + Vector3.new(math.cos(a) * aura.orbitRadius, aura.orbitHeight + math.sin(t * 2 + i) * 0.3, math.sin(a) * aura.orbitRadius)
-					p.CFrame = CFrame.new(at) * CFrame.Angles(t * 2 + i, t * 1.5, 0)
+					p.CFrame = CFrame.new(at)
 					if aura.orbitRainbow then
 						p.Color = Color3.fromHSV((t * 0.35 + i / n) % 1, 0.7, 1)
+						local trail = p:FindFirstChildOfClass("Trail")
+						if trail then
+							trail.Color = ColorSequence.new(p.Color)
+						end
 					end
 				end
-				local pillar = aura.pillar
-				if pillar then
-					pillar.Transparency = 0.84 + 0.06 * math.sin(t * 2.2 + entry.phase)
-					if aura.orbitRainbow then
-						pillar.Color = Color3.fromHSV((t * 0.2 + entry.phase) % 1, 0.5, 1)
+				local beams = aura.beams
+				if beams then
+					-- Snop oddycha (delikatny puls), tęczowy przechodzi przez kolory od dołu do góry
+					local pulse = 0.05 * math.sin(t * 2.2 + entry.phase)
+					for i, beam in beams do
+						local base = ((beam:GetAttribute("Base") :: number?) or 0.8) + pulse
+						beam.Transparency = shaftFade(math.clamp(base, 0, 1))
+						if aura.orbitRainbow then
+							local h = (t * 0.15 + entry.phase + i * 0.05) % 1
+							beam.Color = ColorSequence.new(Color3.fromHSV(h, 0.45, 1), Color3.fromHSV((h + 0.3) % 1, 0.45, 1))
+						end
+					end
+					local motes = aura.motes
+					if motes and aura.orbitRainbow then
+						local h = (t * 0.2 + entry.phase) % 1
+						motes.Color = ColorSequence.new(Color3.fromHSV(h, 0.5, 1), Color3.fromHSV((h + 0.5) % 1, 0.5, 1))
 					end
 				end
 				if aura.spores and distance < 50 and t >= aura.nextSpore then

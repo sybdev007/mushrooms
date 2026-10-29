@@ -667,6 +667,12 @@ Config.Audio = {
 		pat = "rbxassetid://9120863506", -- klepnięcie w ziemię
 		swell = "rbxassetid://9114353056", -- złowrogie narastanie
 		leaves = "rbxassetid://9116248055", -- szelest liści
+		slide = "rbxassetid://9119198140", -- gwizdek ślizgowy (złodziej przeskakuje płot)
+		scratch = "rbxassetid://9118086936", -- zgrzyt płyty, gdy gracz przyłapuje złodzieja
+		dig = "rbxassetid://9114105633", -- grzebanie w ziemi przy sadzeniu
+		tiptoe = "rbxassetid://9120062717", -- kroki na paluszkach po trawie
+		bodyfall = "rbxassetid://9113469292", -- upadek na ziemię
+		grow = "rbxassetid://1842312856", -- dzwoneczki, gdy grzyb wyrasta (APM, glockenspiel)
 	},
 }
 
