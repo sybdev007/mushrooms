@@ -172,8 +172,8 @@ function PanelKit.window(options: WindowOptions): Window
 	-- Pigułka z informacją w lewym górnym rogu
 	local pill = Instance.new("Frame")
 	pill.Name = "Pill"
-	pill.Size = UDim2.fromOffset(150, 40)
-	pill.Position = UDim2.fromOffset(34, -20)
+	pill.Size = UDim2.fromOffset(128, 40)
+	pill.Position = UDim2.fromOffset(26, -20)
 	pill.BackgroundColor3 = options.pillColor or Color3.fromRGB(52, 38, 30)
 	pill.ZIndex = 6
 	pill.Parent = frame

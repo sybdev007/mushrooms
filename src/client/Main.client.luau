@@ -33,6 +33,8 @@ local _TitlePanel = require(script.Parent.TitlePanel)
 local _LeaderboardView = require(script.Parent.LeaderboardView)
 local _TitleView = require(script.Parent.TitleView)
 local ExpeditionView = require(script.Parent.ExpeditionView)
+local DeathScreen = require(script.Parent.DeathScreen)
+local OilView = require(script.Parent.OilView)
 local Expedition = require(Shared:WaitForChild("Expedition"))
 local IntroCutscene = require(script.Parent.IntroCutscene)
 local Tutorial = require(script.Parent.Tutorial)
@@ -97,6 +99,7 @@ Remotes.get("StateUpdate").OnClientEvent:Connect(function(state)
 		GardenPanel.setBasket(state.basket, state.basketKey)
 	end
 	Hud.update(state)
+	OilView.update(state)
 	-- Pierwsze wejście do gry: cutscenka ze złym snem, potem samouczek
 	if state.tutorial == 0 and not IntroCutscene.isPlaying() and not introStarted then
 		introStarted = true
@@ -276,7 +279,7 @@ Remotes.get("Notify").OnClientEvent:Connect(function(payload)
 	local text = Localize.t(payload.key, args)
 	local blackoutTitle = BLACKOUT_TITLE[payload.key]
 	if blackoutTitle then
-		Hud.engulf(Localize.t(blackoutTitle), text)
+		DeathScreen.show(payload.key, Localize.t(blackoutTitle), text)
 		Effects.engulf()
 		return
 	end

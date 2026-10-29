@@ -902,6 +902,20 @@ test("każdy klucz HUD_/MSG_/ENGULF_/ZONE_ użyty w kodzie jest w CSV", function
 	end
 end)
 
+test("każdy stały klucz w Localize.t(...) jest w CSV", function()
+	for _, dir in { "src/client", "src/server", "src/server/World" } do
+		for _, name in fs.readDir(dir) do
+			local path = dir .. "/" .. name
+			if string.sub(name, -5) == ".luau" and fs.isFile(path) then
+				local source = fs.readFile(path)
+				for key in string.gmatch(source, 'Localize%.t%("([%u%d_]+)"%s*[,)]') do
+					check(csvKeys[key], path .. ": brak " .. key)
+				end
+			end
+		end
+	end
+end)
+
 -- Ładuje prawdziwy src/client/Localize.luau z podstawionymi usługami Robloxa.
 -- Wpisy mają kształt jak z LocalizationTable:GetEntries() (Key, Source, Values).
 local function loadLocalize(playerLocale: string): any

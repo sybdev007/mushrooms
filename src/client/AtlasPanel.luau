@@ -121,7 +121,7 @@ side.Position = UDim2.new(1, -SIDE_W, 0, 66)
 side.ZIndex = 4
 side.Parent = content
 local sideLayout = Instance.new("UIListLayout")
-sideLayout.Padding = UDim.new(0, 7)
+sideLayout.Padding = UDim.new(0, 6)
 sideLayout.SortOrder = Enum.SortOrder.LayoutOrder
 sideLayout.Parent = side
 
@@ -131,7 +131,7 @@ for index = 1, #Progress.TIERS do
 	local frame = Instance.new("Frame")
 	frame.Name = "Tier" .. index
 	frame.LayoutOrder = index
-	frame.Size = UDim2.new(1, 0, 0, 98)
+	frame.Size = UDim2.new(1, 0, 0, 94)
 	frame.BackgroundColor3 = TIER_COLORS[index] or PanelKit.CARD
 	frame.ZIndex = 5
 	frame.Parent = side
@@ -145,7 +145,7 @@ for index = 1, #Progress.TIERS do
 	label.ZIndex = 6
 	UiKit.outline(label, 2)
 	local _, fill, barText = PanelKit.bar(frame, UDim2.new(1, -16, 0, 22), UDim2.fromOffset(8, 42), PanelKit.GOLD)
-	local reward = PanelKit.label(frame, "Reward", UDim2.new(1, -16, 0, 22), UDim2.fromOffset(8, 70), 15, PanelKit.GOLD)
+	local reward = PanelKit.label(frame, "Reward", UDim2.new(1, -16, 0, 22), UDim2.fromOffset(8, 68), 15, PanelKit.GOLD)
 	reward.ZIndex = 6
 	UiKit.outline(reward, 2)
 	local check = UiKit.icon("check", frame, UDim2.fromOffset(32, 32), UDim2.new(1, 8, 0, -8), Vector2.new(1, 0))

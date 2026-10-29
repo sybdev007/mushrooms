@@ -18,7 +18,7 @@ local UiKit = require(script.Parent.UiKit)
 local QuestPanel = {}
 
 local OUTLINE = PanelKit.OUTLINE
-local WIDTH, HEIGHT = 640, 500
+local WIDTH, HEIGHT = 640, 552
 local CARD_H = 86
 
 local QuestReroll = Remotes.get("QuestReroll")
@@ -246,7 +246,7 @@ for index = 1, #Progress.LOGIN_REWARDS do
 	check.Visible = false
 	days[index] = { frame = frame, stroke = tileStroke, day = day, amount = amount, check = check, icon = tileIcon }
 end
-local streakHint = PanelKit.label(content, "StreakHint", UDim2.new(1, -40, 0, 18), UDim2.new(0, 20, 1, -20), 15, PanelKit.MUTED)
+local streakHint = PanelKit.label(content, "StreakHint", UDim2.new(1, -40, 0, 18), UDim2.fromOffset(20, BONUS_Y + 162), 15, PanelKit.MUTED)
 
 -- ===== Stan =====
 
