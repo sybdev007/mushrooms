@@ -905,7 +905,10 @@ local function onPlayerRemoving(player: Player)
 	GardenService.release(player)
 	ProgressService.leave(player)
 	LeaderboardService.leave(player, session.data)
-	saveSession(session)
+	-- Ostatni zapis i zwolnienie blokady sesji (ProfileStore)
+	if session.canSave then
+		DataService.release(player, session.data)
+	end
 end
 
 -- Panel DEV: wymuszona pora na chwilę (do sprawdzania świtu bez czekania 18 minut)

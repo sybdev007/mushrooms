@@ -1,9 +1,11 @@
 --!strict
--- Prosty zapis postępu na DataStore.
--- Na prototyp wystarczy. Przed publikacją podmieńcie to na ProfileStore
--- (blokada sesji chroni przed duplikowaniem danych przy szybkim przeskakiwaniu serwerów).
+-- Zapis postępu przez ProfileStore (Packages/ProfileStore, MadStudio, licencja Apache 2.0).
+-- Blokada sesji: dane gracza są otwarte tylko na jednym serwerze naraz, więc szybkie skakanie
+-- między serwerami nie zduplikuje ani nie nadpisze postępu. Zapis co kilka minut i przy wyjściu.
+-- Stare zapisy (zwykły DataStore z prototypu) przenoszą się same przy pierwszym wejściu.
 
 local DataStoreService = game:GetService("DataStoreService")
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
@@ -38,16 +40,21 @@ export type Data = {
 	tutorial: number, -- krok samouczka (0 = cutscenka na start, Config.Tutorial.done = skończony)
 }
 
-local STORE_NAME = "LanternForager_Prototype_v1"
+local LEGACY_STORE_NAME = "LanternForager_Prototype_v1" -- stary zapis bez blokady sesji (tylko do przeniesienia)
+local PROFILE_STORE_NAME = "LanternForager_Profiles_v1"
 local DATA_VERSION = 4
 local MAX_ATTEMPTS = 3
 
 local DataService = {}
 
+local ProfileStore = require(script.Parent:WaitForChild("Packages"):WaitForChild("ProfileStore")) :: any
+local profileStore = ProfileStore.New(PROFILE_STORE_NAME, {})
+local profiles: { [Player]: any } = {}
+
 local store: DataStore? = nil
 do
 	local ok, result = pcall(function()
-		return DataStoreService:GetDataStore(STORE_NAME)
+		return DataStoreService:GetDataStore(LEGACY_STORE_NAME)
 	end)
 	if ok then
 		store = result
@@ -301,50 +308,95 @@ local function reconcile(raw: any): Data
 	return data
 end
 
--- Zwraca dane i informację, czy wolno je potem zapisać.
--- Jeśli wczytanie się nie udało, NIE zapisujemy, żeby nie nadpisać prawdziwego postępu pustym.
-function DataService.load(player: Player): (Data, boolean)
+-- Stary zapis z prototypu (zwykły DataStore). nil = gracz nie miał zapisu; error = nie udało się odczytać.
+local function loadLegacy(player: Player): any
 	local activeStore = store
 	if not activeStore then
-		return DataService.defaultData(), false
+		return nil
 	end
 	for attempt = 1, MAX_ATTEMPTS do
 		local ok, result = pcall(function()
 			return activeStore:GetAsync(keyFor(player))
 		end)
 		if ok then
-			return reconcile(result), true
+			return result
 		end
-		warn(string.format("[DataService] Wczytanie %s nieudane (próba %d): %s", player.Name, attempt, tostring(result)))
-		-- Brak dostępu do API w Studio nie minie od ponawiania, a gracz czekałby kilka sekund.
-		-- Roblox zgłasza go raz jako 403, raz jako 502 z tym samym opisem.
+		warn(string.format("[DataService] Odczyt starego zapisu %s nieudany (próba %d): %s", player.Name, attempt, tostring(result)))
 		local message = tostring(result)
 		if string.find(message, "403", 1, true) or string.find(message, "Studio access to APIs is not allowed", 1, true) then
 			break
 		end
 		task.wait(attempt)
 	end
-	return DataService.defaultData(), false
+	error("legacy load failed")
 end
 
+-- Zwraca dane i informację, czy wolno je potem zapisać.
+-- Jeśli sesji nie udało się otworzyć, NIE zapisujemy, żeby nie nadpisać prawdziwego postępu pustym.
+function DataService.load(player: Player): (Data, boolean)
+	local ok, profile = pcall(function()
+		return profileStore:StartSessionAsync(keyFor(player), {
+			Cancel = function()
+				return player.Parent ~= Players -- wyszedł, zanim dane się otworzyły
+			end,
+		})
+	end)
+	if not ok or not profile then
+		if not ok then
+			warn("[DataService] Nie udało się otworzyć danych", player.Name, profile)
+		end
+		return DataService.defaultData(), false
+	end
+	profile:AddUserId(player.UserId) -- RODO / prośby o usunięcie danych
+
+	local raw: any = profile.Data
+	if typeof(raw) ~= "table" or raw.version == nil then
+		-- Nowy profil: przenosimy stary zapis z prototypu (jeśli był)
+		local legacyOk, legacy = pcall(loadLegacy, player)
+		if not legacyOk then
+			-- Nie wiemy, czy gracz miał postęp: nie zakładamy pustego profilu
+			profile:EndSession()
+			return DataService.defaultData(), false
+		end
+		raw = legacy
+	end
+	local data = reconcile(raw)
+	profile.Data = data
+
+	if player.Parent ~= Players then
+		profile:EndSession()
+		return data, false
+	end
+	-- Dane otwarte na innym serwerze (np. gracz wszedł drugi raz): ten serwer już ich nie zapisze
+	profile.OnSessionEnd:Connect(function()
+		profiles[player] = nil
+		if player.Parent == Players then
+			player:Kick("Twoje dane zostały otwarte na innym serwerze. Wejdź do gry ponownie. / Your data was opened on another server. Please rejoin.")
+		end
+	end)
+	profiles[player] = profile
+	return data, true
+end
+
+-- Zapis od razu (zakup, wyjście); poza tym ProfileStore zapisuje sam co kilka minut
 function DataService.save(player: Player, data: Data): boolean
-	local activeStore = store
-	if not activeStore then
+	local profile = profiles[player]
+	if not profile or not profile:IsActive() then
 		return false
 	end
-	for attempt = 1, MAX_ATTEMPTS do
-		local ok, err = pcall(function()
-			activeStore:UpdateAsync(keyFor(player), function()
-				return data
-			end)
-		end)
-		if ok then
-			return true
-		end
-		warn(string.format("[DataService] Zapis %s nieudany (próba %d): %s", player.Name, attempt, tostring(err)))
-		task.wait(attempt)
+	profile.Data = data
+	profile:Save()
+	return true
+end
+
+-- Gracz wyszedł: ostatni zapis i zwolnienie blokady sesji
+function DataService.release(player: Player, data: Data)
+	local profile = profiles[player]
+	profiles[player] = nil
+	if profile and profile:IsActive() then
+		profile.Data = data
+		profile:EndSession()
 	end
-	return false
 end
 
 return DataService

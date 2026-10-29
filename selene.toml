@@ -1,4 +1,6 @@
 std = "roblox"
+# Zewnętrzna biblioteka (ProfileStore): nie poprawiamy jej stylu
+exclude = ["src/server/Packages/*"]
 
 [lints]
 # Luau w Robloxie pozwala na `for _, x in tabela do` bez ipairs
