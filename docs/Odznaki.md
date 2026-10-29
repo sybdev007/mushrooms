@@ -34,6 +34,7 @@ po 5 dziennie: najpierw pierwsze pięć z tabeli (te zdobywa najwięcej graczy).
 | `lifesaver` | `lifesaver.png` | Lifesaver | Help up a friend whose lantern went out. | Ratownik – podnieś kumpla, któremu zgasła latarnia |
 | `streak7` | `streak7.png` | Regular Forager | Play 7 days in a row. | Stały bywalec – graj 7 dni z rzędu |
 | `grandmaster` | `grandmaster.png` | Grand Forager | Find every mushroom in Rainbow form. | Arcygrzybiarz – cała Grzybopedia tęczowa |
+| `halloween2026` | `halloween2026.png` | Halloween 2026 | Collect 100 candy during the 2026 Halloween event. | Halloween 2026 – zbierz 100 cukierków w czasie eventu (do 9 listopada) |
 
 ## Sprawdzenie
 

@@ -166,7 +166,8 @@ local function render()
 	local input: Economy.LuckInput = {
 		knifeLevel = if state and state.upgrades then state.upgrades.knife or 0 else 0,
 		zone = if state then state.zone else nil,
-		event = Cycle.activeEvent(Workspace:GetServerTimeNow()),
+		-- Zdarzenie od serwera (uwzględnia Noc Dziadów przywołaną z panelu DEV)
+		event = if Workspace:GetAttribute("CyclePhase") == "night" then Cycle.getEvent(Workspace:GetAttribute("CycleEvent")) else nil,
 		boom = state ~= nil and (state.boomUntil or 0) > now,
 		potion = potionActive,
 	}

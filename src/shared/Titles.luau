@@ -19,6 +19,7 @@ export type Stats = {
 	planted: number,
 	deaths: number,
 	bestStreak: number,
+	candy: number, -- cukierki z Halloween (wszystkie zdobyte; nie wydaje się ich)
 }
 
 -- Liczniki z całej gry: rodzaj zdarzenia (jak w ProgressService.event) -> pole w Stats
@@ -30,10 +31,11 @@ Titles.EVENT_STAT = {
 	revive = "revives",
 	plant = "planted",
 	death = "deaths",
+	candy = "candy",
 } :: { [string]: string }
 
 function Titles.emptyStats(): Stats
-	return { picked = 0, sold = 0, steals = 0, escapes = 0, revives = 0, planted = 0, deaths = 0, bestStreak = 0 }
+	return { picked = 0, sold = 0, steals = 0, escapes = 0, revives = 0, planted = 0, deaths = 0, bestStreak = 0, candy = 0 }
 end
 
 -- Rzadkości od najsłabszej: kolor napisu nad głową i ramki w oknie (mityczny = tęcza)
@@ -57,6 +59,7 @@ export type TitleDef = {
 	goal: number?,
 	atlas: { page: string, rank: number }?, -- próg strony Grzybopedii
 	special: string?, -- "tutorial" | "grandmaster" | "rainbow" | "guardians"
+	event: string?, -- tytuł z eventu (np. "halloween"): po evencie niezdobyty znika z okna
 }
 
 export type Context = {
@@ -98,6 +101,12 @@ for index, tier in Progress.TIERS do
 	end
 end
 table.insert(LIST, { id = Progress.GRANDMASTER, rarity = "mythic", special = "grandmaster" })
+-- Tytuły z Halloween: progi cukierków ze ścieżki nagród (Config.Halloween.track)
+for _, step in Config.Halloween.track do
+	if step.kind == "title" and step.id then
+		table.insert(LIST, { id = step.id, rarity = step.rarity or "rare", stat = "candy", goal = step.candy, event = "halloween" })
+	end
+end
 -- W oknie: najpierw według rzadkości, w niej w kolejności z listy
 local ORDER: { [string]: number } = {}
 for index, def in LIST do

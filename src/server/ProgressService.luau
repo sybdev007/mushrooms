@@ -17,6 +17,7 @@ local Progress = require(Shared.Progress)
 local Remotes = require(Shared.Remotes)
 local Achievements = require(Shared.Achievements)
 local Titles = require(Shared.Titles)
+local Halloween = require(Shared.Halloween)
 local DataService = require(script.Parent.DataService)
 
 type Data = DataService.Data
@@ -164,6 +165,7 @@ local function send(player: Player, force: boolean?)
 		stats = data.stats,
 		titleChoice = data.titleChoice,
 		tutorialDone = titleContext(data).tutorialDone,
+		eventClaimed = data.eventClaimed,
 	}
 	-- Odcisk bez resetAt (zmienia się co sekundę, klient i tak liczy sam)
 	local fingerprint = HttpService:JSONEncode({
@@ -177,12 +179,35 @@ local function send(player: Player, force: boolean?)
 		payload.stats,
 		payload.titleChoice,
 		payload.tutorialDone,
+		payload.eventClaimed,
 	})
 	if not force and lastSent[player] == fingerprint then
 		return
 	end
 	lastSent[player] = fingerprint
 	ProgressUpdate:FireClient(player, payload)
+end
+
+-- Progi ścieżki nagród osiągnięte od ostatniego razu. Tytuły liczy Titles (stats.candy),
+-- tu dajemy resztę: miksturę szczęścia i monety.
+local function grantTrack(player: Player, data: Data)
+	local steps = Halloween.newSteps(data.eventClaimed, data.stats.candy)
+	for _, index in steps do
+		local step = Halloween.TRACK[index]
+		if step.kind == "luck" and step.seconds then
+			grantLuck(data, step.seconds)
+			api.notify(player, "MSG_TRACK_LUCK", { math.floor(step.seconds / 60) })
+		elseif step.kind == "coins" and step.scale then
+			local coins = math.floor(step.scale * scaleOf(data))
+			data.coins += coins
+			api.notify(player, "MSG_TRACK_COINS", { coins })
+		end
+		data.eventClaimed = index
+	end
+	if #steps > 0 then
+		api.pushState(player)
+		send(player)
+	end
 end
 
 -- Nagroda za dzisiejsze wejście (też o północy, gdy gracz akurat gra)
@@ -230,6 +255,11 @@ function ProgressService.join(player: Player)
 	newDay(player, data)
 	refreshTitle(player, data)
 	applySettings(player, data)
+	-- Progi ścieżki z poprzedniej wizyty, których nagrody nie przyszły (np. wyjście w złym momencie)
+	grantTrack(player, data)
+	if Halloween.active(os.time()) then
+		api.notify(player, "MSG_HALLOWEEN_WELCOME")
+	end
 	send(player, true)
 end
 
@@ -259,6 +289,10 @@ function ProgressService.event(player: Player, kind: string, amount: number?)
 			api.notify(player, "MSG_QUESTS_ALL_DONE", { bonus, math.floor(Progress.DAILY_BONUS.luckSeconds / 60) })
 		end
 		api.pushState(player)
+		-- Halloween: każde zadanie dnia daje też cukierki
+		if Halloween.active(os.time()) then
+			ProgressService.addCandy(player, #completed * Config.Halloween.questCandy, "MSG_CANDY_QUEST")
+		end
 	end
 	if kind == "steal" then
 		data.weekly.steals += amount or 1
@@ -342,6 +376,22 @@ function ProgressService.found(player: Player, item: { s: string, v: string?, x:
 	send(player)
 end
 
+-- ===== Halloween =====
+
+-- Cukierki z Halloween (sprzedane dynie, zadania). key = komunikat z liczbą i sumą (nil = bez komunikatu)
+function ProgressService.addCandy(player: Player, amount: number, key: string?)
+	local data = api.getData(player)
+	if not data or amount <= 0 then
+		return
+	end
+	if key then
+		api.notify(player, key, { amount, data.stats.candy + amount })
+	end
+	-- Licznik, tytuły z cukierków i odznaka (Titles.EVENT_STAT.candy)
+	ProgressService.event(player, "candy", amount)
+	grantTrack(player, data)
+end
+
 -- Dodatek do ceny przy sprzedaży z ukończonych stron Grzybopedii (0.11 = +11%)
 function ProgressService.sellBonus(player: Player): number
 	local data = api.getData(player)
@@ -389,6 +439,12 @@ function ProgressService.dev(player: Player, action: string): boolean
 				ProgressService.event(player, def.kind, def.goal)
 			end
 		end
+	elseif action == "candy50" then
+		ProgressService.addCandy(player, 50, "MSG_CANDY_SOLD")
+	elseif action == "candyReset" then
+		data.stats.candy = 0
+		data.eventClaimed = 0
+		refreshTitle(player, data)
 	elseif action == "questsNew" then
 		-- Jakby był nowy dzień: nowe zadania i nagroda za kolejny dzień serii
 		data.daily.day = -1

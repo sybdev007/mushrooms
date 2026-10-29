@@ -29,6 +29,7 @@ Achievements.IDS = {
 	"grandmaster",
 	"lifesaver",
 	"streak7",
+	"halloween2026",
 }
 
 local function anyForm(atlas: { [string]: any }, rank: number): boolean
@@ -74,6 +75,7 @@ function Achievements.check(source: Source): { [string]: boolean }
 	done.grandmaster = allPages(source.atlas, 3)
 	done.lifesaver = (stats.revives or 0) >= 1
 	done.streak7 = (stats.bestStreak or 0) >= 7
+	done.halloween2026 = (stats.candy or 0) >= Config.Halloween.badgeCandy
 	for id, value in done do
 		if not value then
 			done[id] = nil

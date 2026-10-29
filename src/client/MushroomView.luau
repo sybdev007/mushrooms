@@ -100,6 +100,10 @@ local SHAPES: { [string]: Shape } = {
 local DEFAULT_SHAPE: Shape = { stemH = 1, stemD = 0.5, capW = 1.6, capH = 0.6, cap = rgb(160, 120, 80) }
 
 local MOSS = rgb(110, 176, 72)
+-- Halloween: dyniowy grzyb (cecha „pumpkin”)
+local PUMPKIN = rgb(240, 128, 30)
+local PUMPKIN_GLOW = rgb(255, 214, 90)
+local PUMPKIN_STEM = rgb(70, 104, 40)
 
 local function variantColor(variant: string?): Color3?
 	local def = Economy.getVariant(variant)
@@ -484,6 +488,7 @@ local TAG_SPORES: { [string]: { Color3 } } = {
 	crystal = { rgb(120, 200, 255), rgb(230, 245, 255) },
 	abyssal = { rgb(255, 90, 40), rgb(255, 190, 60) },
 	mossy = { rgb(110, 190, 72), rgb(180, 230, 120) },
+	pumpkin = { rgb(255, 140, 30), rgb(255, 214, 90), rgb(120, 50, 170) },
 }
 local activeSpores = 0
 local MAX_SPORES = 70
@@ -653,6 +658,65 @@ local function spawnSpore(origin: Vector3, aura: Aura)
 	tween:Play()
 end
 
+-- Halloween: buzia wycięta w kapeluszu (oczy-romby i zębaty uśmiech, świecą) z przodu i z tyłu
+-- oraz zielony ogonek na czubku. Kapelusz to warstwy klocków; buzia idzie na najszerszą warstwę
+-- głównego grzyba (oczy na warstwę nad nią, jeśli jest dość szeroka).
+local function pumpkinFace(model: Model, origin: CFrame, species: string, capTop: number, parts: { BasePart })
+	local function add(name: string, size: Vector3, cf: CFrame, color: Color3, neon: boolean)
+		local p = makePart(name, size, cf, color)
+		if neon then
+			p.Material = Enum.Material.Neon
+		end
+		p.Parent = model
+		table.insert(parts, p)
+	end
+	-- Warstwy kapelusza głównego grzyba (kępka: małe grzybki stoją obok środka)
+	local layers: { BasePart } = {}
+	for _, p in parts do
+		local offset = origin:PointToObjectSpace(p.Position)
+		if p.Name == "Cap" and math.abs(offset.X) < 0.05 and math.abs(offset.Z) < 0.05 then
+			table.insert(layers, p)
+		end
+	end
+	table.sort(layers, function(a, b)
+		return a.Position.Y < b.Position.Y
+	end)
+	local top = layers[#layers]
+	local u = if top then top.Size.Y else 0.3
+	add("PumpkinStem", Vector3.new(u, u * 1.6, u), origin * CFrame.new(u * 0.2, capTop + u * 0.7, 0) * CFrame.Angles(0, 0, math.rad(-14)), PUMPKIN_STEM, false)
+	if FORMS[species] == "crystal" or #layers == 0 then
+		return
+	end
+	local widest = 1
+	for i, p in layers do
+		if p.Size.X > layers[widest].Size.X + 0.01 then
+			widest = i
+		end
+	end
+	local mouthLayer = layers[widest]
+	local above = layers[widest + 1]
+	local eyeLayer = if above and above.Size.X >= mouthLayer.Size.X * 0.7 then above else mouthLayer
+	local shared = eyeLayer == mouthLayer
+	for _, side in { 0, math.pi } do
+		local turn = CFrame.Angles(0, side, 0)
+		local h = mouthLayer.Size.Y
+		local w = mouthLayer.Size.X
+		local mouthAt = mouthLayer.CFrame * turn * CFrame.new(0, if shared then -h * 0.22 else -h * 0.05, -mouthLayer.Size.Z / 2 - 0.03)
+		local mouthH = h * (if shared then 0.36 else 0.5)
+		add("PumpkinMouth", Vector3.new(w * 0.46, mouthH, 0.05), mouthAt, PUMPKIN_GLOW, true)
+		for _, x in { -0.1, 0.1 } do
+			add("PumpkinTooth", Vector3.new(w * 0.07, mouthH * 0.45, 0.06), mouthAt * CFrame.new(x * w, mouthH * 0.3, -0.01), mouthLayer.Color, false)
+		end
+		local eh = eyeLayer.Size.Y
+		local ew = eyeLayer.Size.X
+		local eye = math.min(eh * (if shared then 0.42 else 0.72), ew * 0.16)
+		for _, x in { -0.2, 0.2 } do
+			local eyeAt = eyeLayer.CFrame * turn * CFrame.new(x * ew, if shared then eh * 0.22 else 0, -eyeLayer.Size.Z / 2 - 0.03)
+			add("PumpkinEye", Vector3.new(eye, eye, 0.05), eyeAt * CFrame.Angles(0, 0, math.rad(45)), PUMPKIN_GLOW, true)
+		end
+	end
+end
+
 local function buildModel(info: MushroomInfo): (Model, { BasePart }, boolean, { BasePart }, Aura?, { BasePart })
 	local model = Instance.new("Model")
 	model.Name = info.id
@@ -665,6 +729,11 @@ local function buildModel(info: MushroomInfo): (Model, { BasePart }, boolean, { 
 	if not (rank >= 1) and glowing and not shape.glow then
 		-- Blask bez wariantu: kolor gatunku rozjaśniony w stronę seledynu
 		capColor = shape.cap:Lerp(rgb(110, 255, 214), 0.45)
+	end
+	local pumpkin = hasTag(info, "pumpkin")
+	if pumpkin and rank == 0 then
+		-- Dynia bez wariantu: pomarańczowa (złota / srebrna / tęczowa dynia zostaje w kolorze wariantu)
+		capColor = PUMPKIN
 	end
 	local parts: { BasePart } = {}
 	local yaw = math.random() * math.pi * 2
@@ -708,6 +777,10 @@ local function buildModel(info: MushroomInfo): (Model, { BasePart }, boolean, { 
 		end
 	end
 
+	if pumpkin then
+		pumpkinFace(model, origin, info.species, capTop, parts)
+	end
+
 	local fxParts: { BasePart } = {}
 	local aura, classLight = buildAura(model, info, origin, shape, capColor, capTop, fxParts)
 
@@ -717,6 +790,14 @@ local function buildModel(info: MushroomInfo): (Model, { BasePart }, boolean, { 
 		newLight.Color = if neon then (if glowing and rank < 2 then rgb(110, 255, 214) else capColor) else classLight :: Color3
 		newLight.Range = if rank >= 2 then 10 else 8
 		newLight.Brightness = if neon then 1.6 else 0.9
+		newLight.Parent = mainCap
+		light = newLight
+	elseif pumpkin then
+		-- Dynia świeci od środka jak lampion
+		local newLight = Instance.new("PointLight")
+		newLight.Color = rgb(255, 150, 50)
+		newLight.Range = 8
+		newLight.Brightness = 1.3
 		newLight.Parent = mainCap
 		light = newLight
 	end

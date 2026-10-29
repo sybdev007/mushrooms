@@ -17,6 +17,7 @@ local Economy = require(Shared.Economy)
 local Remotes = require(Shared.Remotes)
 local Cycle = require(Shared.Cycle)
 local Expedition = require(Shared.Expedition)
+local Halloween = require(Shared.Halloween)
 local DataService = require(script.Parent.DataService)
 local MapBuilder = require(script.Parent.MapBuilder)
 local ChaseService = require(script.Parent.ChaseService)
@@ -26,6 +27,7 @@ local LeszyModel = require(World:WaitForChild("Leszy"))
 local SkarbnikModel = require(World:WaitForChild("Skarbnik"))
 local UtopiecModel = require(World:WaitForChild("Utopiec"))
 local HandTools = require(World:WaitForChild("HandTools"))
+local HalloweenDecor = require(World:WaitForChild("HalloweenDecor"))
 local GardenService = require(script.Parent.GardenService)
 local ProgressService = require(script.Parent.ProgressService)
 local TutorialService = require(script.Parent.TutorialService)
@@ -220,13 +222,19 @@ local function boomActive(): boolean
 	return os.time() < boomUntil
 end
 
+-- Zdarzenie trwającej nocy (nil o świcie). Pętla dnia i nocy odświeża je co sekundę,
+-- razem z wymuszeniami z panelu DEV (świt / noc teraz, Noc Dziadów teraz).
+local liveEvent: Config.NightEventDef? = Cycle.activeEvent(os.time())
+-- Halloween, panel DEV: „Dyniowy wysyp” (las odrasta, co drugi grzyb dyniowy) na czas jednego odrostu
+local pumpkinBoom = false
+
 -- Mnożnik szans na mutacje: Wysyp dla wszystkich, mikstura szczęścia dla kupującego,
 -- nożyk gracza, zdarzenie nocy (pełnia, krwawy księżyc) i głębokość strefy
 local function luckFactor(session: Session, zone: number?): number
 	local total = Economy.luck({
 		knifeLevel = session.data.upgrades.knife or 0,
 		zone = zone,
-		event = Cycle.activeEvent(os.time()),
+		event = liveEvent,
 		boom = boomActive(),
 		potion = os.time() < session.data.luckUntil,
 	})
@@ -328,6 +336,14 @@ local function rollSpot(session: Session, spot: MapBuilder.Spot, countPity: bool
 		if session.rng:NextNumber() < Economy.tagOdds(tag, luck) then
 			tags = tags or {}
 			table.insert(tags :: { string }, tag.id)
+		end
+	end
+	-- Halloween: dyniowy grzyb (stała szansa, niezależna od szczęścia), w każdym świecie
+	if Halloween.canBePumpkin(species.id) then
+		local chance = Halloween.pumpkinChance(os.time(), if liveEvent then liveEvent.id else nil, pumpkinBoom)
+		if chance > 0 and session.rng:NextNumber() < chance then
+			tags = tags or {}
+			table.insert(tags :: { string }, Halloween.TAG)
 		end
 	end
 	return species.id, variant, tags
@@ -914,6 +930,8 @@ end
 -- Panel DEV: wymuszona pora na chwilę (do sprawdzania świtu bez czekania 18 minut)
 local debugPhase: string? = nil
 local debugUntil = 0
+-- Panel DEV (admin abuse): Noc Dziadów przywołana do tej chwili (os.time)
+local summonUntil = 0
 
 -- Komunikat na początek nocy, osobny dla każdego zdarzenia
 local NIGHT_MESSAGES: { [string]: string } = {
@@ -922,25 +940,30 @@ local NIGHT_MESSAGES: { [string]: string } = {
 	rain = "MSG_NIGHT_RAIN",
 	mist = "MSG_NIGHT_MIST",
 	blood_moon = "MSG_NIGHT_BLOOD_MOON",
+	spirit_night = "MSG_NIGHT_SPIRIT_NIGHT",
 }
 
 -- Świt: las u każdego gracza odrasta od nowa (nowe gatunki i mutacje w tych samych miejscach).
 -- Klient podmienia grzyby o tych samych id, więc nie trzeba ich osobno usuwać.
+local function regrowForest(session: Session, now: number)
+	for id, state in session.spots do
+		local spot = map.spotById[id]
+		if spot then
+			local speciesId, variant, tags = rollSpot(session, spot)
+			state.speciesId = speciesId or state.speciesId
+			state.variant = variant
+			state.tags = tags
+			state.visible = false
+			state.readyAt = now
+		end
+	end
+	syncReadySpots(session, now)
+end
+
 local function resetForest(nextEvent: Config.NightEventDef)
 	local now = os.clock()
 	for _, session in sessions do
-		for id, state in session.spots do
-			local spot = map.spotById[id]
-			if spot then
-				local speciesId, variant, tags = rollSpot(session, spot)
-				state.speciesId = speciesId or state.speciesId
-				state.variant = variant
-				state.tags = tags
-				state.visible = false
-				state.readyAt = now
-			end
-		end
-		syncReadySpots(session, now)
+		regrowForest(session, now)
 		notify(session, "MSG_DAWN", { nextEvent.icon }, nextEvent.key)
 	end
 end
@@ -981,7 +1004,7 @@ local function onPick(player: Player, spotId: unknown)
 		local speciesId, variant, tags = rollSpot(session, spot, true)
 		state.visible = false
 		local seconds = if guardian then GUARDIANS[guardian].respawn else Config.RespawnSeconds
-		local event = Cycle.activeEvent(os.time())
+		local event = liveEvent
 		state.readyAt = now
 			+ seconds * (if boomActive() then Config.Boom.regrowFactor else 1) * (if event then event.regrow else 1)
 		state.speciesId = speciesId or state.speciesId
@@ -1091,9 +1114,11 @@ local function onSell(player: Player, indices: unknown, key: unknown)
 	end
 	local value = 0
 	local count = 0
+	local candy = 0 -- Halloween: cukierki za sprzedane dyniowe grzyby
 	if indices == nil then
 		value = Economy.basketValue(basket)
 		count = #basket
+		candy = Halloween.candyForList(basket)
 		table.clear(basket)
 	else
 		local valid = Economy.validSellIndices(indices, #basket)
@@ -1102,6 +1127,7 @@ local function onSell(player: Player, indices: unknown, key: unknown)
 		end
 		for _, index in valid do
 			value += Economy.itemValue(basket[index])
+			candy += Halloween.candyFor(basket[index])
 			table.remove(basket, index)
 		end
 		count = #valid
@@ -1116,6 +1142,9 @@ local function onSell(player: Player, indices: unknown, key: unknown)
 		notify(session, "MSG_SOLD", { value })
 	end
 	ProgressService.event(player, "sell", count)
+	if candy > 0 and Halloween.active(os.time()) then
+		ProgressService.addCandy(player, candy, "MSG_CANDY_SOLD")
+	end
 	TutorialService.onSold(session :: any)
 	pushState(session)
 end
@@ -1239,6 +1268,28 @@ local function onDevAction(player: Player, action: unknown)
 	elseif action == "cycleDawn" or action == "cycleNight" then
 		debugPhase = if action == "cycleDawn" then "dawn" else "night"
 		debugUntil = os.time() + 60
+	elseif action == "spiritNight" then
+		-- Admin abuse: Noc Dziadów na tym serwerze, z ogłoszeniem dla wszystkich
+		summonUntil = os.time() + Config.Halloween.summonSeconds
+		for _, other in sessions do
+			notify(other, "MSG_SPIRIT_SUMMONED", { player.DisplayName, math.floor(Config.Halloween.summonSeconds / 60) })
+		end
+	elseif action == "pumpkinBoom" then
+		-- Admin abuse: las wszystkich odrasta od nowa, co drugi grzyb dyniowy (jednorazowo)
+		if not Halloween.active(os.time()) then
+			return
+		end
+		pumpkinBoom = true
+		local ok, err = pcall(function()
+			for _, other in sessions do
+				regrowForest(other, os.clock())
+				notify(other, "MSG_PUMPKIN_BOOM", { player.DisplayName })
+			end
+		end)
+		pumpkinBoom = false
+		if not ok then
+			warn("[GameService] Dyniowy wysyp:", err)
+		end
 	elseif action == "expeditionGroup" then
 		session.debugGroupUntil = os.clock() + 60
 	elseif action == "expeditionDown" then
@@ -1591,6 +1642,16 @@ function GameService.start(mapInfo: MapBuilder.MapInfo)
 				phase.phase = debugPhase
 				phase.endsAt = debugUntil
 			end
+			local summoned = Cycle.getEvent(Halloween.SPIRIT_NIGHT)
+			if now < summonUntil and summoned then
+				phase = table.clone(phase)
+				phase.phase = "night"
+				phase.event = summoned
+				phase.endsAt = summonUntil
+			end
+			liveEvent = if phase.phase == "night" then phase.event else nil
+			Workspace:SetAttribute("Halloween", Halloween.active(now))
+			Workspace:SetAttribute("HalloweenEndsAt", Config.Halloween.endsAt)
 			Workspace:SetAttribute("CyclePhase", phase.phase)
 			Workspace:SetAttribute("CycleEndsAt", phase.endsAt)
 			Workspace:SetAttribute("CycleEvent", phase.event.id)
@@ -1607,6 +1668,28 @@ function GameService.start(mapInfo: MapBuilder.MapInfo)
 			end
 			lastPhase = phase.phase
 			task.wait(1)
+		end
+	end)
+
+	-- Halloween: dynie i znicze przy chatce, obozowisku i przystani (tylko w czasie eventu)
+	task.spawn(function()
+		local decor: Instance? = nil
+		local failed = false
+		while true do
+			local on = Halloween.active(os.time())
+			if on and not decor and not failed then
+				local ok, result = pcall(HalloweenDecor.build, Workspace, map)
+				if ok then
+					decor = result
+				else
+					failed = true -- bez powtarzania co minutę tego samego błędu
+					warn("[GameService] Wystrój Halloween:", result)
+				end
+			elseif not on and decor then
+				decor:Destroy()
+				decor = nil
+			end
+			task.wait(60)
 		end
 	end)
 

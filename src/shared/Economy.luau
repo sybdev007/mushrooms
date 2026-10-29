@@ -104,6 +104,10 @@ local tagById: { [string]: Config.TagDef } = {}
 for _, tag in Config.Tags do
 	tagById[tag.id] = tag
 end
+-- Cechy z eventów (dyniowa z Halloween): nie losują się według strefy, ale liczą się w wartości i zapisie
+for _, tag in (Config :: any).EventTags or {} do
+	tagById[tag.id] = tag
+end
 -- Od najrzadszego: losowanie sprawdza najpierw tęczę, potem złoto, potem srebro
 local variantsRarestFirst = table.clone(Config.Variants)
 table.sort(variantsRarestFirst, function(a, b)

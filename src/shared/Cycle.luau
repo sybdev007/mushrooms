@@ -25,7 +25,30 @@ function Cycle.hash(index: number): number
 	return x / 2147483648
 end
 
+local eventById: { [string]: Config.NightEventDef } = {}
+for _, event in Config.Cycle.events do
+	eventById[event.id] = event
+end
+
+function Cycle.getEvent(id: any): Config.NightEventDef?
+	return if typeof(id) == "string" then eventById[id] else nil
+end
+
+-- Halloween: co Config.Halloween.spiritEvery noc, która zaczyna się w czasie eventu, to Noc Dziadów
+local function spiritNight(index: number): boolean
+	local h = (Config :: any).Halloween
+	if not h or index % h.spiritEvery ~= 0 then
+		return false
+	end
+	local start = index * (Config.Cycle.nightSeconds + Config.Cycle.dawnSeconds)
+	return start >= h.startsAt and start < h.endsAt
+end
+
 function Cycle.eventFor(index: number): Config.NightEventDef
+	local spirit = eventById.spirit_night
+	if spirit and spiritNight(index) then
+		return spirit
+	end
 	local events = Config.Cycle.events
 	local total = 0
 	for _, event in events do
@@ -39,7 +62,7 @@ function Cycle.eventFor(index: number): Config.NightEventDef
 			return event
 		end
 	end
-	return events[#events]
+	return events[1] -- (nie zdarza się: hash < 1; ostatnia jest Noc Dziadów z wagą 0)
 end
 
 function Cycle.at(t: number): Phase

@@ -7,6 +7,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
+local Workspace = game:GetService("Workspace")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Remotes = require(Shared.Remotes)
@@ -308,10 +309,13 @@ local function render()
 	UiKit.recolor(autoButton, if chosen == "" then AUTO_ON else AUTO_OFF)
 	UiKit.recolor(noneButton, if chosen == Titles.NONE then AUTO_ON else AUTO_OFF)
 
+	-- Tytuły z eventu: po evencie widać tylko zdobyte (niezdobytych nie da się już zdobyć)
+	local eventOn = Workspace:GetAttribute("Halloween") == true
 	for _, card in cards do
 		local def = card.def
 		local has = earned[def.id] == true
 		local equipped = has and def.id == current
+		card.frame.Visible = has or def.event == nil or eventOn
 		card.chip.Text = Localize.t("RARITY_" .. string.upper(def.rarity))
 		card.name.Text = Localize.t(def.id)
 		local n, goal = Titles.progress(def, ctx)

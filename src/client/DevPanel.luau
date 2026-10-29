@@ -52,6 +52,10 @@ local ACTIONS: { { id: string, label: string } } = {
 	{ id = "boardsRefresh", label = "Rankingi: odśwież" },
 	{ id = "expeditionGroup", label = "Wyprawa: grupa x3 (60 s)" },
 	{ id = "expeditionDown", label = "Wyprawa: zgaś mi latarnię" },
+	{ id = "spiritNight", label = "🎃 Noc Dziadów (10 min)" },
+	{ id = "pumpkinBoom", label = "🎃 Dyniowy wysyp" },
+	{ id = "candy50", label = "🎃 +50 cukierków" },
+	{ id = "candyReset", label = "🎃 Cukierki na 0" },
 }
 
 local gui = Instance.new("ScreenGui")

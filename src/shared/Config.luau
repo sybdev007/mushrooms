@@ -315,6 +315,12 @@ Config.Tags = {
 	{ id = "abyssal", key = "MUT_ABYSSAL", icon = "🔥", zone = 8, chance = 0.08, mult = 2.5, color = { 255, 90, 60 } },
 } :: { TagDef }
 
+-- Cechy z eventów: nie losują się według strefy (Economy.tagsForZone), tylko w czasie eventu
+-- (Shared/Halloween). Zostają w Economy.getTag, więc grzyby z eventu zachowują wartość w zapisie.
+Config.EventTags = {
+	{ id = "pumpkin", key = "MUT_PUMPKIN", icon = "🎃", zone = 0, chance = 0.06, mult = 2, color = { 255, 140, 30 } },
+} :: { TagDef }
+
 -- Im głębiej w świecie, tym częstsze mutacje: pierwsza niebezpieczna strefa x1, każda kolejna +DepthLuck
 Config.DepthLuck = 0.3
 
@@ -357,6 +363,8 @@ Config.Cycle = {
 		{ id = "rain", key = "EVENT_RAIN", icon = "🌧️", weight = 18, luck = 1, regrow = 0.5, lantern = 1 },
 		{ id = "mist", key = "EVENT_MIST", icon = "🌫️", weight = 14, luck = 1.3, regrow = 1, lantern = 0.7 },
 		{ id = "blood_moon", key = "EVENT_BLOOD_MOON", icon = "🩸", weight = 6, luck = 2.5, regrow = 0.8, lantern = 0.85 },
+		-- Noc Dziadów: nie losuje się (waga 0), tylko co trzecia noc w czasie Halloween (Cycle.eventFor)
+		{ id = "spirit_night", key = "EVENT_SPIRIT_NIGHT", icon = "👻", weight = 0, luck = 1.8, regrow = 0.75, lantern = 0.9 },
 	} :: { NightEventDef },
 }
 
@@ -572,7 +580,36 @@ Config.Badges = {
 	grandmaster = 0, -- Arcygrzybiarz: cała księga tęczowa
 	lifesaver = 0, -- podniesiony kumpel
 	streak7 = 0, -- 7 dni logowania z rzędu
+	halloween2026 = 0, -- Halloween 2026: 100 cukierków w czasie eventu
 } :: { [string]: number }
+-- ===== Halloween: Noc Dziadów (event) =====
+-- Włącza się sam według daty (os.time, UTC). W tym czasie:
+--   dyniowe grzyby (cecha „pumpkin” z Config.EventTags, x2 wartości) rosną w każdym świecie,
+--   a sprzedane u skupywacza dają cukierki (candyByWorld: zależnie od świata grzyba);
+--   co trzecia noc to Noc Dziadów (więcej dyń, szczęścia i szybszy odrost);
+--   cukierki (licznik stats.candy) prowadzą po ścieżce nagród (track), nagrody przychodzą same.
+-- Po evencie dynie przestają rosnąć, a zdobyte tytuły i dyniowe grzyby zostają.
+Config.Halloween = {
+	startsAt = 1793232000, -- 2026-10-29 00:00 UTC
+	endsAt = 1794268800, -- 2026-11-10 00:00 UTC (Halloween, Wszystkich Świętych, Zaduszki i weekend)
+	spiritEvery = 3, -- co która noc w czasie eventu to Noc Dziadów (cykl 20 min, więc co godzinę)
+	pumpkinChance = 0.06, -- szansa na dyniowy grzyb (stała, szczęście jej nie zmienia)
+	spiritPumpkinChance = 0.18, -- w Noc Dziadów
+	boomPumpkinChance = 0.5, -- „Dyniowy wysyp” z panelu DEV (jednorazowy odrost lasu wszystkim)
+	summonSeconds = 600, -- „Noc Dziadów teraz” z panelu DEV
+	candyByWorld = { forest = 1, cave = 2, swamp = 3 } :: { [string]: number },
+	questCandy = 2, -- za każde ukończone zadanie dnia w czasie eventu
+	badgeCandy = 100, -- odznaka Config.Badges.halloween2026
+	-- Ścieżka nagród. kind: "title" (tytuł z Titles, rarity), "luck" (mikstura na seconds), "coins" (x skala nagród)
+	track = {
+		{ candy = 10, kind = "title", id = "TITLE_PUMPKINHEAD", rarity = "rare", icon = "🎃" },
+		{ candy = 30, kind = "luck", seconds = 900, icon = "🍀" },
+		{ candy = 60, kind = "coins", scale = 5, icon = "💰" },
+		{ candy = 100, kind = "title", id = "TITLE_ANCESTRAL_SPIRIT", rarity = "epic", icon = "👻" },
+		{ candy = 200, kind = "title", id = "TITLE_PUMPKIN_KING", rarity = "legendary", icon = "👑" },
+	} :: { { candy: number, kind: string, id: string?, rarity: string?, seconds: number?, scale: number?, icon: string } },
+}
+
 -- Tekstura „kratki” na voxelowe grzyby w lesie (assets/voxel-noise.png). Pusta = gładkie klocki.
 Config.VoxelNoise = { texture = "rbxassetid://77358626050293" }
 

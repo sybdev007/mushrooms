@@ -25,6 +25,11 @@ local DARK_AMBIENT = Color3.fromRGB(8, 8, 16)
 local BRIGHT_FOG = Color3.fromRGB(150, 120, 160)
 local DARK_FOG = Color3.fromRGB(10, 12, 22)
 local DARK_TINT = Color3.fromRGB(196, 210, 255)
+-- Halloween, Noc Dziadów: fioletowa mgła i fioletowy odcień w mroku (dusze przodków)
+local SPIRIT_FOG = Color3.fromRGB(58, 20, 78)
+local SPIRIT_TINT = Color3.fromRGB(222, 190, 255)
+local currentTint = DARK_TINT
+local appliedTint = DARK_TINT
 
 local function getOrCreate(className: string, name: string): Instance
 	local existing = Lighting:FindFirstChild(name)
@@ -104,7 +109,7 @@ local function apply(d: number, lanternRange: number)
 
 	colorCorrection.Saturation = -0.04 - 0.3 * d
 	colorCorrection.Contrast = 0.06 + 0.1 * d
-	colorCorrection.TintColor = Color3.new(1, 1, 1):Lerp(DARK_TINT, d)
+	colorCorrection.TintColor = Color3.new(1, 1, 1):Lerp(currentTint, d)
 end
 
 -- Cutscenka sama ustawia światło: na ten czas Atmosphere nic nie zapisuje do Lighting,
@@ -134,11 +139,20 @@ function Atmosphere.update(zone: number, lanternRange: number, dt: number): numb
 		Lighting.ClockTime = currentClock
 	end
 	local fog = zoneDef.fog
+	local spirit = not dawn and Workspace:GetAttribute("CycleEvent") == "spirit_night"
 	local targetFog = if fog then Color3.fromRGB(fog[1], fog[2], fog[3]) else DARK_FOG
+	if spirit then
+		targetFog = targetFog:Lerp(SPIRIT_FOG, 0.75)
+	end
 	local fogAlpha = math.clamp(dt * CHANGE_SPEED, 0, 1)
 	currentFog = currentFog:Lerp(targetFog, fogAlpha)
 	if (Vector3.new(currentFog.R, currentFog.G, currentFog.B) - Vector3.new(targetFog.R, targetFog.G, targetFog.B)).Magnitude < SNAP then
 		currentFog = targetFog
+	end
+	local targetTint = if spirit then SPIRIT_TINT else DARK_TINT
+	currentTint = currentTint:Lerp(targetTint, fogAlpha)
+	if (Vector3.new(currentTint.R, currentTint.G, currentTint.B) - Vector3.new(targetTint.R, targetTint.G, targetTint.B)).Magnitude < SNAP then
+		currentTint = targetTint
 	end
 
 	if math.abs(target - currentDarkness) < SNAP then
@@ -150,11 +164,12 @@ function Atmosphere.update(zone: number, lanternRange: number, dt: number): numb
 
 	-- Zapisujemy do Lighting tylko gdy coś się zmieniło. Wartości zmieniane o ułamki w każdej
 	-- klatce zmuszały silnik do ciągłego przeliczania oświetlenia (migotanie i spadki klatek).
-	if currentDarkness ~= appliedDarkness or lanternRange ~= appliedRange or currentFog ~= appliedFog then
+	if currentDarkness ~= appliedDarkness or lanternRange ~= appliedRange or currentFog ~= appliedFog or currentTint ~= appliedTint then
 		apply(currentDarkness, lanternRange)
 		appliedDarkness = currentDarkness
 		appliedRange = lanternRange
 		appliedFog = currentFog
+		appliedTint = currentTint
 	end
 	return currentDarkness
 end

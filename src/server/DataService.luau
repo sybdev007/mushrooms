@@ -38,6 +38,7 @@ export type Data = {
 	luckUntil: number, -- os.time(), do kiedy działa mikstura szczęścia
 	receipts: { string }, -- ostatnie obsłużone zakupy (Roblox może przysłać ten sam drugi raz)
 	tutorial: number, -- krok samouczka (0 = cutscenka na start, Config.Tutorial.done = skończony)
+	eventClaimed: number, -- Halloween: ile progów ścieżki nagród gracz już dostał (cukierki są w stats.candy)
 }
 
 local LEGACY_STORE_NAME = "LanternForager_Prototype_v1" -- stary zapis bez blokady sesji (tylko do przeniesienia)
@@ -97,6 +98,7 @@ function DataService.defaultData(): Data
 		luckUntil = 0,
 		receipts = {},
 		tutorial = 0,
+		eventClaimed = 0,
 	}
 end
 
@@ -297,6 +299,9 @@ local function reconcile(raw: any): Data
 	data.swampUnlocked = raw.swampUnlocked == true
 	if typeof(raw.luckUntil) == "number" then
 		data.luckUntil = math.floor(raw.luckUntil)
+	end
+	if typeof(raw.eventClaimed) == "number" then
+		data.eventClaimed = math.clamp(math.floor(raw.eventClaimed), 0, #Config.Halloween.track)
 	end
 	if typeof(raw.receipts) == "table" then
 		for _, id in raw.receipts do

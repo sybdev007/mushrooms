@@ -26,7 +26,9 @@ local ShopPanel = require(script.Parent.ShopPanel)
 local GardenPrompts = require(script.Parent.GardenPrompts)
 local SellPanel = require(script.Parent.SellPanel)
 local MerchantView = require(script.Parent.MerchantView)
--- Kolejność = kolejność dużych przycisków pod „Ulepszeniami”: Zadania, Grzybopedia, Tytuły
+-- Kolejność = kolejność dużych przycisków pod „Ulepszeniami”: (Halloween w czasie eventu), Zadania,
+-- Grzybopedia, Tytuły
+local _HalloweenPanel = require(script.Parent.HalloweenPanel)
 local _QuestPanel = require(script.Parent.QuestPanel)
 local _AtlasPanel = require(script.Parent.AtlasPanel)
 local _TitlePanel = require(script.Parent.TitlePanel)

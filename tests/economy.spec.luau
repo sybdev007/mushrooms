@@ -1561,6 +1561,143 @@ test("odznaki: osiągnięcia z postępu gracza", function()
 	end
 end)
 
+-- ===== Halloween: Noc Dziadów =====
+print("Halloween (Halloween.luau)")
+local Halloween = loadModule("src/shared/Halloween.luau", {
+	script = { Parent = { Config = Config, Cycle = Cycle, Economy = Economy } },
+	require = function(module)
+		return module
+	end,
+})
+local H = Config.Halloween
+
+test("halloween: okno eventu", function()
+	check(not Halloween.active(H.startsAt - 1), "przed")
+	check(Halloween.active(H.startsAt), "start")
+	check(Halloween.active(H.endsAt - 1), "ostatnia sekunda")
+	check(not Halloween.active(H.endsAt), "po")
+	check(H.endsAt > H.startsAt, "koniec po starcie")
+	eq(Halloween.secondsLeft(H.endsAt + 50), 0)
+end)
+
+test("halloween: Noc Dziadów co trzecią noc tylko w czasie eventu", function()
+	local length = Cycle.length()
+	local first = math.ceil(H.startsAt / length)
+	local last = math.floor((H.endsAt - 1) / length)
+	local spirits = 0
+	for index = first, last do
+		local isSpirit = Cycle.eventFor(index).id == "spirit_night"
+		eq(isSpirit, index % H.spiritEvery == 0, "noc " .. index)
+		if isSpirit then
+			spirits += 1
+		end
+	end
+	check(spirits >= 100, "dużo Nocy Dziadów w czasie eventu: " .. spirits)
+	-- Poza eventem nigdy (waga 0)
+	for index = first - 3000, first - 1 do
+		check(Cycle.eventFor(index).id ~= "spirit_night", "przed eventem " .. index)
+	end
+	for index = last + 1, last + 3000 do
+		check(Cycle.eventFor(index).id ~= "spirit_night", "po evencie " .. index)
+	end
+	local def = Cycle.getEvent("spirit_night")
+	check(def ~= nil and def.weight == 0 and def.luck > 1 and def.regrow < 1, "zdarzenie w Config")
+	eq(Cycle.getEvent("nope"), nil)
+end)
+
+test("halloween: szansa na dynię", function()
+	local t = H.startsAt + 100
+	eq(Halloween.pumpkinChance(H.startsAt - 1, nil, false), 0, "przed eventem")
+	eq(Halloween.pumpkinChance(H.endsAt, "spirit_night", true), 0, "po evencie")
+	eq(Halloween.pumpkinChance(t, nil, false), H.pumpkinChance)
+	eq(Halloween.pumpkinChance(t, "full_moon", false), H.pumpkinChance)
+	eq(Halloween.pumpkinChance(t, "spirit_night", false), H.spiritPumpkinChance)
+	eq(Halloween.pumpkinChance(t, nil, true), H.boomPumpkinChance)
+	check(H.spiritPumpkinChance > H.pumpkinChance, "w Noc Dziadów więcej")
+	check(not Halloween.canBePumpkin("false_wisp"), "błędny ognik nie")
+	check(Halloween.canBePumpkin("honey"), "opieńka tak")
+end)
+
+test("halloween: cecha dyniowa liczy się w wartości i nie losuje się ze strefy", function()
+	local tag = Economy.getTag("pumpkin")
+	check(tag ~= nil, "getTag zna dynię (zapis)")
+	eq(Economy.mutationMultiplier(nil, { "pumpkin" }), 2)
+	eq(Economy.mutationMultiplier("gold", { "pumpkin", "mossy" }), 3 * 2.5)
+	for zone = 0, #Config.Zones do
+		for _, t in Economy.tagsForZone(zone) do
+			check(t.id ~= "pumpkin", "strefa " .. zone)
+		end
+	end
+	check(csvHas("MUT_PUMPKIN"), "tłumaczenie")
+end)
+
+test("halloween: cukierki zależnie od świata", function()
+	eq(Halloween.candyFor({ s = "honey", x = { "pumpkin" } }), H.candyByWorld.forest)
+	eq(Halloween.candyFor({ s = "cave_oyster", x = { "pumpkin" } }), H.candyByWorld.cave)
+	eq(Halloween.candyFor({ s = "bog_bell", x = { "mossy", "pumpkin" } }), H.candyByWorld.swamp)
+	eq(Halloween.candyFor({ s = "honey", x = { "mossy" } }), 0, "bez dyni")
+	eq(Halloween.candyFor({ s = "honey" }), 0, "bez cech")
+	eq(Halloween.candyFor({ s = "false_wisp", x = { "pumpkin" } }), 0, "ognik")
+	eq(Halloween.candyForList({ { s = "honey", x = { "pumpkin" } }, { s = "porcini" }, { s = "pearl", x = { "pumpkin" } } }), H.candyByWorld.forest + H.candyByWorld.cave)
+end)
+
+test("halloween: ścieżka nagród", function()
+	local track = Halloween.TRACK
+	for i = 2, #track do
+		check(track[i].candy > track[i - 1].candy, "progi rosną")
+	end
+	eq(Halloween.reached(0), 0)
+	eq(Halloween.reached(track[1].candy - 1), 0)
+	eq(Halloween.reached(track[1].candy), 1)
+	eq(Halloween.reached(track[#track].candy + 999), #track)
+	local steps = Halloween.newSteps(0, track[3].candy)
+	eq(#steps, 3)
+	eq(steps[1], 1)
+	eq(#Halloween.newSteps(3, track[3].candy), 0, "już odebrane")
+	eq(#Halloween.newSteps(1, track[2].candy + 1), 1)
+	-- Każdy tytuł ze ścieżki jest w Titles, z celem równym progowi
+	for _, step in track do
+		if step.kind == "title" then
+			local def = Titles.get(step.id)
+			check(def ~= nil and def.stat == "candy" and def.goal == step.candy and def.event == "halloween", "tytuł " .. tostring(step.id))
+		else
+			check(step.kind == "luck" or step.kind == "coins", "nieznana nagroda " .. step.kind)
+		end
+	end
+end)
+
+test("halloween: tytuły i odznaka za cukierki", function()
+	local stats = Titles.emptyStats()
+	eq(stats.candy, 0)
+	Titles.count(stats, "candy", 12)
+	eq(stats.candy, 12)
+	local ctx = { atlas = {}, bestiary = {}, stats = stats, tutorialDone = true }
+	local earned = Titles.earned(ctx)
+	check(earned.TITLE_PUMPKINHEAD == true, "Dyniogłowy")
+	check(not earned.TITLE_ANCESTRAL_SPIRIT, "Duch jeszcze nie")
+	local source = { atlas = {}, bestiary = {}, stats = stats, caveUnlocked = false, swampUnlocked = false }
+	check(not Achievements.check(source).halloween2026, "odznaka jeszcze nie")
+	stats.candy = H.badgeCandy
+	check(Achievements.check(source).halloween2026 == true, "odznaka")
+	check(Titles.earned(ctx).TITLE_ANCESTRAL_SPIRIT == true, "Duch Dziadów")
+end)
+
+test("halloween: najbliższa Noc Dziadów", function()
+	local length = Cycle.length()
+	local index = math.ceil(H.startsAt / length / H.spiritEvery) * H.spiritEvery
+	local start = index * length
+	local at, now = Halloween.nextSpiritNight(start - 30)
+	eq(at, start, "zaraz się zacznie")
+	eq(now, false)
+	at, now = Halloween.nextSpiritNight(start + 60)
+	eq(at, start, "trwa")
+	eq(now, true)
+	at, now = Halloween.nextSpiritNight(start + Config.Cycle.nightSeconds + 5)
+	eq(at, start + H.spiritEvery * length, "o świcie: następna")
+	eq(now, false)
+	eq((Halloween.nextSpiritNight(H.endsAt + 10)), nil, "po evencie żadnej")
+end)
+
 print(string.format("\n%d ok, %d błędów", passed, failed))
 if failed > 0 then
 	process.exit(1)

@@ -485,3 +485,37 @@ DEATH_TIP_GUARD_1,Grab the guarded mushroom and run straight back - guardians wa
 DEATH_TIP_GUARD_2,Faster Boots help you outrun guardians. Check their page in the Atlas.,,,Szybsze buty pomagają uciec strażnikom. Zajrzyj do ich karty w Grzybopedii.
 DEATH_TIP_GUARD_3,The guardian takes back only its own mushrooms - they wait in its lair for anyone brave enough.,,,Strażnik zabiera tylko swoje grzyby - czekają w legowisku na odważnych.
 HUD_INVITE,Invite,,,Zaproś
+MUT_PUMPKIN,Pumpkin,,,Dyniowy
+EVENT_SPIRIT_NIGHT,Spirit Night,,,Noc Dziadów
+MSG_NIGHT_SPIRIT_NIGHT,👻 Spirit Night! Ancestral spirits roam the forest - pumpkin mushrooms grow 3x as often.,,,👻 Noc Dziadów! Dusze przodków wędrują po lesie - dyniowe grzyby rosną 3x częściej.
+MSG_SPIRIT_SUMMONED,👻 {1} summoned the Spirit Night for {2} minutes!,,,👻 {1} przywołuje Noc Dziadów na {2} min!
+MSG_PUMPKIN_BOOM,🎃 {1} cast a Pumpkin Boom! The whole forest regrew - every other mushroom is a pumpkin!,,,🎃 {1} rzuca Dyniowy wysyp! Las odrósł od nowa - co drugi grzyb to dynia!
+MSG_CANDY_SOLD,+{1} 🍬 for pumpkin mushrooms! (total {2}),,,+{1} 🍬 za dyniowe grzyby! (razem {2})
+MSG_CANDY_QUEST,+{1} 🍬 for the quest! (total {2}),,,+{1} 🍬 za zadanie! (razem {2})
+MSG_TRACK_LUCK,🎃 Halloween reward: a {1}-minute Luck Potion!,,,🎃 Nagroda z Halloween: mikstura szczęścia na {1} min!
+MSG_TRACK_COINS,🎃 Halloween reward: +{1} coins!,,,🎃 Nagroda z Halloween: +{1} monet!
+MSG_HALLOWEEN_WELCOME,🎃 Halloween event! Pumpkin mushrooms give candy - open the 🎃 Halloween button.,,,🎃 Event Halloween! Dyniowe grzyby dają cukierki - zajrzyj pod przycisk 🎃 Halloween.
+TITLE_PUMPKINHEAD,Pumpkinhead,,,Dyniogłowy
+TITLE_PUMPKINHEAD_HOW,Halloween: collect {1} candy,,,Halloween: zbierz {1} cukierków
+TITLE_ANCESTRAL_SPIRIT,Ancestral Spirit,,,Duch Dziadów
+TITLE_ANCESTRAL_SPIRIT_HOW,Halloween: collect {1} candy,,,Halloween: zbierz {1} cukierków
+TITLE_PUMPKIN_KING,Pumpkin King,,,Król Dyń
+TITLE_PUMPKIN_KING_HOW,Halloween: collect {1} candy,,,Halloween: zbierz {1} cukierków
+HW_BUTTON,Halloween,,,Halloween
+HW_TITLE,Spirit Night,,,Noc Dziadów
+HW_ENDS,🎃 Halloween event - ends in {1},,,🎃 Event Halloween - koniec za {1}
+HW_ENDED,The Halloween event is over - thanks for playing!,,,Event Halloween się skończył - dzięki za grę!
+HW_TIME_DAYS,{1}d {2}h,,,{1} d {2} godz.
+HW_TIME_HOURS,{1}h {2}m,,,{1} godz. {2} min
+HW_REWARD_TITLE,Title: {1},,,Tytuł: {1}
+HW_REWARD_LUCK,Luck Potion {1} min,,,Mikstura szczęścia {1} min
+HW_REWARD_COINS,+{1} coins,,,+{1} monet
+HW_REWARD_BADGE,+ badge,,,+ odznaka
+HW_TRACK_DONE,{1} 🍬 - all rewards collected!,,,{1} 🍬 - wszystkie nagrody zdobyte!
+HW_HOW_TITLE,How to get candy 🍬,,,Jak zdobyć cukierki 🍬
+HW_HOW_PUMPKIN,🎃 Pumpkin mushrooms (x2 value) grow in every world. Sell them at the buyer: {1} 🍬 forest · {2} 🍬 caves · {3} 🍬 swamp.,,,🎃 Dyniowe grzyby (x2 wartości) rosną w każdym świecie. Sprzedaj je u skupywacza: {1} 🍬 las · {2} 🍬 jaskinie · {3} 🍬 bagna.
+HW_HOW_QUEST,📜 Every daily quest you finish: +{1} 🍬,,,📜 Każde ukończone zadanie dnia: +{1} 🍬
+HW_HOW_RISK,⚠️ If your lantern goes out the pumpkins are lost with the whole basket!,,,⚠️ Gdy zgaśnie latarnia dynie przepadają razem z całym koszykiem!
+HW_SPIRIT_NEXT,👻 Next Spirit Night in {1} - 3x more pumpkins and extra luck,,,👻 Następna Noc Dziadów za {1} - 3x więcej dyń i więcej szczęścia
+HW_SPIRIT_NOW,👻 Spirit Night is ON! 3x more pumpkins - {1} left,,,👻 Trwa Noc Dziadów! 3x więcej dyń - zostało {1}
+HW_SPIRIT_NONE,👻 No more Spirit Nights this event,,,👻 W tym evencie nie będzie już Nocy Dziadów

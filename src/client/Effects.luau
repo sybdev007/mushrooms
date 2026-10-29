@@ -171,15 +171,52 @@ mist.RotSpeed = NumberRange.new(-8, 8)
 mist.Rate = 0
 mist.Parent = mistHolder
 
+-- Halloween, Noc Dziadów: dusze przodków (blade, świecące obłoczki) unoszą się wokół gracza
+local spiritHolder = holder("SpiritArea", Vector3.new(56, 5, 56))
+local spirits = Instance.new("ParticleEmitter")
+spirits.Texture = SMOKE
+spirits.Shape = Enum.ParticleEmitterShape.Box
+spirits.ShapeStyle = Enum.ParticleEmitterShapeStyle.Volume
+spirits.Color = ColorSequence.new(Color3.fromRGB(200, 240, 255), Color3.fromRGB(190, 150, 255))
+spirits.LightEmission = 0.8
+spirits.Size = NumberSequence.new({
+	NumberSequenceKeypoint.new(0, 1.2),
+	NumberSequenceKeypoint.new(0.5, 2.4),
+	NumberSequenceKeypoint.new(1, 1.6),
+})
+spirits.Transparency = NumberSequence.new({
+	NumberSequenceKeypoint.new(0, 1),
+	NumberSequenceKeypoint.new(0.25, 0.55),
+	NumberSequenceKeypoint.new(0.75, 0.6),
+	NumberSequenceKeypoint.new(1, 1),
+})
+spirits.Lifetime = NumberRange.new(5, 8)
+spirits.Speed = NumberRange.new(0.6, 1.4)
+spirits.Acceleration = Vector3.new(0, 0.35, 0)
+spirits.SpreadAngle = Vector2.new(180, 30)
+spirits.RotSpeed = NumberRange.new(-20, 20)
+spirits.Rate = 0
+spirits.Parent = spiritHolder
+local MIST_COLOR = ColorSequence.new(Color3.fromRGB(150, 165, 190))
+local SPIRIT_MIST_COLOR = ColorSequence.new(Color3.fromRGB(150, 110, 200))
+local spiritShown = false
+
 -- Ile świetlików i mgły w której strefie
 
 function Effects.updateParticles(rootPosition: Vector3, zone: number)
 	fireflyHolder.Position = Vector3.new(rootPosition.X, 4, rootPosition.Z + 10)
 	mistHolder.Position = Vector3.new(rootPosition.X, 0.6, rootPosition.Z + 8)
+	spiritHolder.Position = Vector3.new(rootPosition.X, 3, rootPosition.Z + 6)
 	-- Ile czego w strefie: Config.Zones (w jaskini zamiast świetlików lecą pyłki w świetle latarni)
 	local zoneDef = Config.Zones[zone]
+	local spirit = Workspace:GetAttribute("CyclePhase") == "night" and Workspace:GetAttribute("CycleEvent") == "spirit_night"
 	fireflies.Rate = if zoneDef then zoneDef.fireflies or 0 else 0
-	mist.Rate = if zoneDef then zoneDef.mist or 0 else 0
+	mist.Rate = (if zoneDef then zoneDef.mist or 0 else 0) + (if spirit and zoneDef and not zoneDef.safe then 0.6 else 0)
+	if spirit ~= spiritShown then
+		spiritShown = spirit
+		mist.Color = if spirit then SPIRIT_MIST_COLOR else MIST_COLOR
+	end
+	spirits.Rate = if spirit then (if zoneDef and zoneDef.safe then 1 else 3) else 0
 end
 
 -- ===== Efekty jednorazowe =====
