@@ -25,7 +25,7 @@ type Look = { color: Color3, eyes: number, big: boolean, tips: string }
 local LOOKS: { [string]: Look } = {
 	MSG_CAUGHT = { color = Color3.fromRGB(120, 235, 90), eyes = 1, big = true, tips = "GUARD" },
 	MSG_CAUGHT_SKARBNIK = { color = Color3.fromRGB(255, 170, 60), eyes = 1, big = true, tips = "GUARD" },
-	MSG_CAUGHT_UTOPIEC = { color = Color3.fromRGB(90, 225, 235), eyes = 1, big = true, tips = "GUARD" },
+	MSG_CAUGHT_UTOPIEC = { color = Color3.fromRGB(214, 255, 80), eyes = 1, big = true, tips = "GUARD" },
 	MSG_ENGULFED = { color = Color3.fromRGB(255, 226, 90), eyes = 7, big = false, tips = "OIL" },
 	MSG_ENGULFED_CAVE = { color = Color3.fromRGB(200, 120, 255), eyes = 6, big = false, tips = "OIL" },
 	MSG_ENGULFED_SWAMP = { color = Color3.fromRGB(140, 255, 170), eyes = 6, big = false, tips = "OIL" },

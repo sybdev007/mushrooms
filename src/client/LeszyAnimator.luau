@@ -75,7 +75,9 @@ local function step(dt: number)
 			velocity = Vector3.new(position.X - last.X, 0, position.Z - last.Z).Magnitude / dt
 		end
 		entry.last = position
-		local target = math.clamp(velocity / RUN_SPEED, 0, 1)
+		-- Skarbnik i Utopiec mają własną prędkość pościgu (atrybut RunSpeed z RigBlocks)
+		local runSpeed = model:GetAttribute("RunSpeed")
+		local target = math.clamp(velocity / (if typeof(runSpeed) == "number" and runSpeed > 0 then runSpeed else RUN_SPEED), 0, 1)
 		entry.speed += (target - entry.speed) * math.min(1, dt * 6)
 		local awake = model:GetAttribute("Awake") == true or model:GetAttribute("Moving") == true
 		entry.stand += ((if awake then 1 else 0) - entry.stand) * math.min(1, dt * 2.2)
