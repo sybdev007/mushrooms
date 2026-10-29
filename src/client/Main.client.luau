@@ -31,6 +31,8 @@ local _QuestPanel = require(script.Parent.QuestPanel)
 local _AtlasPanel = require(script.Parent.AtlasPanel)
 local _TitlePanel = require(script.Parent.TitlePanel)
 local _SettingsButtons = require(script.Parent.SettingsButtons)
+local PanelKit = require(script.Parent.PanelKit)
+
 local _LeaderboardView = require(script.Parent.LeaderboardView)
 local _TitleView = require(script.Parent.TitleView)
 local ExpeditionView = require(script.Parent.ExpeditionView)
@@ -44,6 +46,17 @@ local GardenPanel = require(script.Parent.GardenPanel)
 local FontFix = require(script.Parent.FontFix)
 
 local player = Players.LocalPlayer
+
+-- Skup i ogródek też blokują chodzenie, gdy są otwarte (dotyk na oknie ruszał postacią)
+do
+	local playerGui = player:WaitForChild("PlayerGui")
+	for name, guiName in { Sell = "SellPanel", Garden = "GardenPanel" } do
+		local found = playerGui:FindFirstChild(guiName)
+		if found and found:IsA("ScreenGui") then
+			PanelKit.watchModal(name, found)
+		end
+	end
+end
 
 local PickMushroom = Remotes.get("PickMushroom")
 local lastCampShop: string? = nil

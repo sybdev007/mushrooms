@@ -431,6 +431,7 @@ upgradePanel.AnchorPoint = Vector2.new(0.5, 0.5)
 PanelKit.paint(upgradePanel)
 upgradePanel.Visible = false
 upgradePanel.ZIndex = 10
+upgradePanel.Active = true -- dotknięcie okna nie idzie dalej do gry
 upgradePanel.Parent = gui
 corner(upgradePanel, UDim.new(0, 26))
 stroke(upgradePanel, OUTLINE, 4)
@@ -893,6 +894,7 @@ setUpgradesOpen = function(open: boolean)
 	end
 	upgradePanel.Visible = open
 	upgradeDim.Visible = open
+	PanelKit.setModal("Upgrades", open) -- na telefonie postać nie chodzi, gdy wybierasz ulepszenia
 	if open then
 		PanelKit.closeAll() -- jedno okno naraz (zadania, Grzybopedia, tytuły)
 		-- Na start zakładka świata, w którym gracz jest teraz
@@ -1314,6 +1316,8 @@ end)
 
 -- ===== Układ zależny od ekranu =====
 
+local placePickByJump: () -> ()
+
 local function layoutScale(target: GuiObject, scale: number)
 	local uiScale = target:FindFirstChildOfClass("UIScale")
 	if not uiScale then
@@ -1324,6 +1328,24 @@ local function layoutScale(target: GuiObject, scale: number)
 	local s = uiScale :: UIScale
 	s:SetAttribute("Base", scale)
 	s.Scale = scale
+end
+
+-- Na telefonie: ZBIERZ dokładnie na lewo od prawdziwego przycisku skoku Robloxa (jego miejsce
+-- zależy od telefonu i wcięć ekranu), z odstępem, i z dołem równo z dołem skoku
+local function jumpButton(): GuiObject?
+	local touch = gui.Parent and gui.Parent:FindFirstChild("TouchGui")
+	local frame = touch and touch:FindFirstChild("TouchControlFrame")
+	local jump = frame and frame:FindFirstChild("JumpButton")
+	return if jump and jump:IsA("GuiObject") then jump else nil
+end
+
+placePickByJump = function()
+	local jump = jumpButton()
+	if not jump or not jump.Visible or jump.AbsoluteSize.X <= 0 then
+		return
+	end
+	local at = jump.AbsolutePosition - gui.AbsolutePosition
+	pickButton.Position = UDim2.fromOffset(math.floor(at.X - 12), math.floor(at.Y + jump.AbsoluteSize.Y))
 end
 
 local function layout()
@@ -1342,10 +1364,18 @@ local function layout()
 	local size = math.floor(112 * math.max(scale, 0.62))
 	pickButton.Size = UDim2.fromOffset(size, size)
 	pickButton.Position = if UiScale.isSmall() then UDim2.new(1, -112, 1, -14) else UDim2.new(1, -190, 1, -40)
+	placePickByJump()
 	-- „Ulepszenia” przy prawej krawędzi, nad przyciskami ZBIERZ i skoku
 	upgradeRoot.Position = UDim2.new(1, -16, 0.42, 0)
 end
 UiScale.onChanged(layout)
+-- Przycisk skoku pojawia się później i zmienia miejsce (obrót telefonu): sprawdzamy co chwilę
+task.spawn(function()
+	while true do
+		task.wait(1)
+		placePickByJump()
+	end
+end)
 
 Hud.setPick(false, false)
 render()

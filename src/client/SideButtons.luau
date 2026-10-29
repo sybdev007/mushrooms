@@ -58,12 +58,36 @@ local BADGE_COLORS: { [string]: Color3 } = {
 }
 
 local count = 0
+-- Na telefonie (mały ekran) przyciski są kwadratami z samą ikoną, w rzędzie pod „Ulepszeniami”,
+-- żeby nie wchodziły na ZBIERZ i przycisk skoku
+local SQUARE = 56
+type Laid = { root: Frame, caption: TextLabel, icon: GuiObject, index: number }
+local laid: { Laid } = {}
 
 local function layout()
 	local scale = UiScale.get()
+	local small = UiScale.isSmall()
 	columnScale.Scale = scale
-	column.Size = UDim2.fromOffset(WIDTH, count * (HEIGHT + GAP))
-	column.Position = UDim2.new(1, -16, 0.42, math.floor((UPGRADES_HALF + 18) * scale))
+	for _, entry in laid do
+		entry.caption.Visible = not small
+		if small then
+			entry.root.Size = UDim2.fromOffset(SQUARE, SQUARE)
+			entry.root.Position = UDim2.fromOffset((entry.index - 1) * (SQUARE + GAP), 0)
+			entry.icon.Size = UDim2.fromOffset(SQUARE - 8, SQUARE - 8)
+			entry.icon.AnchorPoint = Vector2.new(0.5, 0.5)
+			entry.icon.Position = UDim2.fromScale(0.5, 0.5)
+		else
+			entry.root.Size = UDim2.fromOffset(WIDTH, HEIGHT)
+			entry.root.Position = UDim2.fromOffset(0, (entry.index - 1) * (HEIGHT + GAP))
+			entry.icon.Size = UDim2.fromOffset(64, 64)
+			entry.icon.AnchorPoint = Vector2.new(0, 0.5)
+			entry.icon.Position = UDim2.new(0, -12, 0.5, -3)
+		end
+	end
+	column.Size = if small
+		then UDim2.fromOffset(count * (SQUARE + GAP) - GAP, SQUARE)
+		else UDim2.fromOffset(WIDTH, count * (HEIGHT + GAP))
+	column.Position = UDim2.new(1, -16, 0.42, math.floor((UPGRADES_HALF + 14) * scale))
 end
 
 local function corner(parent: Instance, radius: UDim)
@@ -211,6 +235,7 @@ function SideButtons.add(options: Options): Side
 	renderCaption()
 	Localize.onChanged(renderCaption)
 
+	table.insert(laid, { root = root, caption = caption, icon = icon, index = count })
 	side = {
 		root = root,
 		button = button,

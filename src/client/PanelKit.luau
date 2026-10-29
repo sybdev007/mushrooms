@@ -4,6 +4,7 @@
 -- czerwony przycisk zamykania w rogu, pigułka z informacją po lewej i zakładki-pigułki.
 -- Okno wskakuje z podskokiem, a kliknięcie obok je zamyka.
 
+local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 
 local UiKit = require(script.Parent.UiKit)
@@ -132,6 +133,7 @@ function PanelKit.window(options: WindowOptions): Window
 	frame.Position = UDim2.fromScale(0.5, 0.53)
 	frame.Visible = false
 	frame.ZIndex = 2
+	frame.Active = true -- dotknięcie okna nie idzie dalej do gry
 	frame.Parent = gui
 	PanelKit.paint(frame)
 	corner(frame, UDim.new(0, 26))
@@ -234,6 +236,7 @@ function PanelKit.window(options: WindowOptions): Window
 		end
 		frame.Visible = open
 		dim.Visible = open
+		PanelKit.setModal(options.name, open)
 		if open then
 			dim.BackgroundTransparency = 1
 			TweenService:Create(dim, TweenInfo.new(0.2), { BackgroundTransparency = 0.45 }):Play()
@@ -286,6 +289,49 @@ function PanelKit.window(options: WindowOptions): Window
 		PanelKit.fit(camera.ViewportSize)
 	end
 	return window
+end
+
+-- ===== Okna blokują chodzenie =====
+-- Na telefonie dotknięcie okna (karty, zakładki) poruszało postacią w tle. Gdy otwarte jest jakiekolwiek
+-- okno (PanelKit, ulepszenia, skup, ogródek), sterowanie postacią jest wyłączone.
+local modal: { [string]: boolean } = {}
+
+local function controls(): any
+	local scripts = Players.LocalPlayer:FindFirstChild("PlayerScripts")
+	local module = scripts and scripts:FindFirstChild("PlayerModule")
+	if not module then
+		return nil
+	end
+	local ok, result = pcall(function()
+		return (require(module :: ModuleScript) :: any):GetControls()
+	end)
+	return if ok then result else nil
+end
+
+function PanelKit.setModal(name: string, open: boolean)
+	modal[name] = if open then true else nil
+	local c = controls()
+	if not c then
+		return
+	end
+	if next(modal) ~= nil then
+		pcall(c.Disable, c)
+	else
+		-- Cutscenka zamraża postać (zakotwiczony korzeń) i sama włączy sterowanie po końcu
+		local character = Players.LocalPlayer.Character
+		local root = character and character:FindFirstChild("HumanoidRootPart")
+		if root and root:IsA("BasePart") and root.Anchored then
+			return
+		end
+		pcall(c.Enable, c)
+	end
+end
+
+-- Okno zrobione poza PanelKit, otwierane przez ScreenGui.Enabled (skup, ogródek)
+function PanelKit.watchModal(name: string, gui: ScreenGui)
+	gui:GetPropertyChangedSignal("Enabled"):Connect(function()
+		PanelKit.setModal(name, gui.Enabled)
+	end)
 end
 
 -- Zamyka wszystkie okna PanelKit (np. gdy otwiera się panel ulepszeń)
