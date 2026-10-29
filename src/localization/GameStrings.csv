@@ -350,7 +350,7 @@ TUT_GARDEN_MISSION,Pick 3 mushrooms by the path. Plant them in your garden and t
 TUT_M_GARDEN,Mushrooms for the garden {1}/{2},,,Grzyby do ogródka {1}/{2}
 TUT_M_PLANT,Plant mushrooms in your garden,,,Posadź grzyby w ogródku
 TUT_PLANT_T,Your garden,,,Twój ogródek
-TUT_PLANT,Go to the gate and press E on Plant mushrooms. Planted mushrooms drop coins into the chest every minute.,,,Podejdź do furtki i wciśnij E przy Posadź grzyby. Posadzone grzyby co minutę dają monety do skrzyni.
+TUT_PLANT,Go to your garden gate and press E. Drag a mushroom onto a bed. Planted mushrooms drop coins into the chest every minute.,,,Podejdź do furtki ogródka i wciśnij E. Przeciągnij grzyb na grządkę. Posadzone grzyby co minutę dają monety do skrzyni.
 TUT_M_STEAL,Watch out for thieves!,,,Uwaga na złodziei!
 TUT_THIEF,THIEF!,,,ZŁODZIEJ!
 TUT_THIEF_FAIL,...nice try,,,…no ładnie
@@ -370,3 +370,20 @@ CUT_SUB_LOW,The oil is running low!,,,Olej się kończy!
 CUT_SUB_OUT,The lantern went out...,,,Latarnia zgasła…
 CUT_SUB_LESZY,In the dark the Leszy wakes up!,,,W ciemności budzi się Leszy!
 CUT_DREAM2,Gotta watch my oil!,,,Muszę pilnować oleju!
+GP_EMPTY,Empty bed,,,Wolna grządka
+GP_LOCKED,Buy more beds in Upgrades,,,Więcej grządek w Ulepszeniach
+GP_BASKET,Basket ({1}),,,Koszyk ({1})
+GP_BASKET_EMPTY,Your basket is empty. Pick mushrooms in the forest!,,,Koszyk jest pusty. Nazbieraj grzybów w lesie!
+GP_TOTAL,Garden: {1},,,Ogródek: {1}
+GP_AUTO,Plant the best,,,Posadź najlepsze
+GP_HINT,Drag a mushroom onto a bed (or tap the mushroom then the bed),,,Przeciągnij grzyb na grządkę (albo kliknij grzyb a potem grządkę)
+GP_HINT_BED,Now tap a bed. On a taken bed the old mushroom gets sold,,,Teraz kliknij grządkę. Na zajętej stary grzyb zostanie sprzedany
+GP_HINT_EMPTY,Nothing to plant. Pick mushrooms in the forest first,,,Nie ma co sadzić. Najpierw nazbieraj grzybów w lesie
+GP_SWAP,Swap: +{1} coins,,,Zamiana: +{1} monet
+CUT2_DONE,Done! Now some oil and off to the forest.,,,Gotowe! Teraz po olej i w las.
+CUT2_THIEF,Hehe... nice mushrooms...,,,Hehe… ładne grzybki…
+CUT2_HEY,Hey! Leave that alone!,,,Hej! Zostaw to!
+CUT2_BYE,And don't come back!,,,I nie wracaj!
+TUT_COMPLETE,MISSION COMPLETE!,,,MISJA UKOŃCZONA!
+TUT_TITLE_GOT,New title unlocked:,,,Nowy tytuł:
+TITLE_NEW,Newbie,,,Nowy

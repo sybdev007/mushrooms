@@ -10,6 +10,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared.Config)
 local Economy = require(Shared.Economy)
 local Progress = require(Shared.Progress)
 local Remotes = require(Shared.Remotes)
@@ -42,7 +43,10 @@ end
 
 -- Tytuł nad głową: klient czyta atrybut i tłumaczy klucz (TitleView)
 local function refreshTitle(player: Player, data: Data)
-	player:SetAttribute("AtlasTitle", Progress.title(data.atlas) or "")
+	-- Tytuł z Grzybopedii wygrywa; bez niego „Nowy” dla każdego, kto skończył samouczek
+	local tutorial = data.tutorial
+	local fallback = if typeof(tutorial) == "number" and tutorial >= Config.Tutorial.done then "TITLE_NEW" else ""
+	player:SetAttribute("AtlasTitle", Progress.title(data.atlas) or fallback)
 end
 
 -- Stan dla klienta (okna Grzybopedii i zadań). Wysyłamy tylko, gdy coś się zmieniło.
@@ -284,6 +288,14 @@ function ProgressService.start(serviceApi: Api)
 			end
 		end
 	end)
+end
+
+-- Po końcu samouczka (tytuł „Nowy”)
+function ProgressService.refreshTitle(player: Player)
+	local data = api.getData(player)
+	if data then
+		refreshTitle(player, data)
+	end
 end
 
 return ProgressService

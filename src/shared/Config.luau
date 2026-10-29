@@ -593,7 +593,42 @@ Config.Audio = {
 		wake = "rbxassetid://9039609965", -- poranek przy chatce po złym śnie
 		tutorial = "rbxassetid://9041810309", -- lekka pętla do samouczka i sklepu
 		heist = "rbxassetid://9044410283", -- skradanie się złodzieja w ogródku
+		clues = "rbxassetid://9042776045", -- komiczne skradanie (Looking For Clues)
+		hall = "rbxassetid://1839900676", -- In the Hall of the Mountain King (pogoń za złodziejem)
 	},
+	-- Muzyka w grze: każdy świat ma swoją playlistę, utwory lecą w losowej kolejności (bez powtórki pod rząd),
+	-- z płynnym przejściem i chwilą samego otoczenia między nimi. Licencjonowane: APM, DistroKid, Too Lost.
+	playlists = {
+		forest = {
+			"rbxassetid://9042880599", -- Mountain Lion Lullaby (flet)
+			"rbxassetid://9039954349", -- Gentle Folk
+			"rbxassetid://9039609965", -- The Old Patchwork Quilt (harfa i gitara)
+			"rbxassetid://9041810309", -- Stomping Floors (wesoły folk)
+			"rbxassetid://1837777641", -- Lightly Magical
+			"rbxassetid://9039974099", -- Moonlight (tajemniczo)
+			"rbxassetid://81454116918887", -- Forest Night Flute
+		},
+		cave = {
+			"rbxassetid://1840777445", -- Worlds Of Darkness
+			"rbxassetid://1836590190", -- Held Under
+			"rbxassetid://1837470310", -- Negative 35
+			"rbxassetid://1843789538", -- Rhythm Drone 50
+			"rbxassetid://1843821342", -- Tension Repeat Drones 22
+			"rbxassetid://134532910241071", -- Quiet Cavern
+			"rbxassetid://71207032544256", -- Catacombs
+		},
+		swamp = {
+			"rbxassetid://120013530647101", -- Baba Yaga's Witch House Part 6
+			"rbxassetid://124064284287798", -- Hollowtide
+			"rbxassetid://9038855633", -- Deep Sea Research (bulgoczące tło)
+			"rbxassetid://1843408841", -- Tableau 7 – Ensorcellement
+			"rbxassetid://135327241053061", -- Cradle of Shadows
+			"rbxassetid://88402307111260", -- Dark Woods
+			"rbxassetid://128108081922306", -- The Cryptids are Close
+		},
+	},
+	playlistVolume = 0.45,
+	playlistGap = { 6, 16 }, -- sekundy ciszy (samo otoczenie) między utworami
 	sfx = {
 		forest = "rbxassetid://9112764040", -- szum lasu nocą (pętla)
 		birds = "rbxassetid://9112831284", -- ptaki o poranku (pętla)
@@ -620,6 +655,19 @@ Config.Audio = {
 		alarm = "rbxassetid://1842379470", -- ktoś kradnie
 		sneak = "rbxassetid://9113532211", -- złodziej się skrada
 		boom = "rbxassetid://6308606116", -- memowy akcent
+		flame = "rbxassetid://9114462806", -- płomień w latarni się krztusi (Flame Flutter 2)
+		tink = "rbxassetid://9119945318", -- stuknięcie w szkło latarni
+		surprise = "rbxassetid://9045132884", -- komiczny akcent przy „Hej!” (APM Country Romp Hit)
+		loony = "rbxassetid://1847459769", -- komiczny hit przy wywrotce złodzieja
+		whisper = "rbxassetid://9043347008", -- szepty w ciemności
+		breath = "rbxassetid://9114226397", -- ciężki oddech Leszego
+		crack = "rbxassetid://9120818969", -- trzask drewna i korzeni
+		owl = "rbxassetid://9117181540", -- sowa w oddali
+		pant = "rbxassetid://9125573009", -- zdyszany oddech w biegu
+		roarShort = "rbxassetid://9113980644", -- krótki ryk przy złapaniu
+		pat = "rbxassetid://9120863506", -- klepnięcie w ziemię
+		swell = "rbxassetid://9114353056", -- złowrogie narastanie
+		leaves = "rbxassetid://9116248055", -- szelest liści
 	},
 }
 

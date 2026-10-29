@@ -384,16 +384,13 @@ local function stopHover()
 	end
 	table.clear(hoverTweens)
 end
--- Ikona rośnie i robi pełny obrót (z lekkim przeskokiem na końcu), po zjechaniu wraca
+-- Ikona rośnie (bez obracania), po zjechaniu wraca
 local function hoverIn()
 	stopHover()
 	upgradeIcon.Rotation = 0
-	local grow = TweenService:Create(upgradeIconScale, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1.3 })
-	local spin = TweenService:Create(upgradeIcon, TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Rotation = 360 })
+	local grow = TweenService:Create(upgradeIconScale, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1.25 })
 	table.insert(hoverTweens, grow)
-	table.insert(hoverTweens, spin)
 	grow:Play()
-	spin:Play()
 	UiKit.sweep(upgradeButton)
 end
 local function hoverOut()
@@ -594,6 +591,7 @@ type Card = {
 	affordable: boolean,
 	maxed: boolean,
 	hover: boolean,
+	titleScale: UIScale,
 }
 local cards: { [string]: Card } = {}
 
@@ -603,16 +601,21 @@ local tutorialFocus: string? = nil
 local CARD_REST = UDim2.fromOffset(0, 8)
 local CARD_LIFT = UDim2.fromOffset(0, 0)
 
-local function iconTo(card: Card, scale: number, rotation: number, time: number)
+-- Ikona i napis karty rosną razem (bez obracania); drugi argument zostaje dla zgodności wywołań
+local function iconTo(card: Card, scale: number, _rotation: number, time: number)
+	card.icon.Rotation = 0
 	TweenService:Create(card.iconScale, TweenInfo.new(time, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = scale }):Play()
-	TweenService:Create(card.icon, TweenInfo.new(time, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Rotation = rotation }):Play()
+	local titleScale = 1 + (scale - 1) * 0.6
+	TweenService:Create(card.titleScale, TweenInfo.new(time, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = titleScale }):Play()
 end
 
--- Kliknięcie: ikona wyskakuje w górę dużo większa i wraca z przeskokiem
+-- Kliknięcie: ikona podskakuje i wraca, z ikony wylatują iskierki
 local function iconPop(card: Card, amount: number)
 	card.iconScale.Scale = amount
-	card.icon.Rotation = math.random(-14, 14)
-	iconTo(card, if card.hover then 1.15 else 1, if card.hover then -8 else 0, 0.45)
+	card.titleScale.Scale = 1 + (amount - 1) * 0.5
+	iconTo(card, if card.hover then 1.18 else 1, 0, 0.45)
+	local center = card.icon.AbsolutePosition + card.icon.AbsoluteSize / 2
+	UiKit.burst(gui, center, 10, { Color3.fromRGB(255, 236, 140), Color3.fromRGB(255, 255, 255), card.body.BackgroundColor3:Lerp(Color3.new(1, 1, 1), 0.4) })
 end
 
 local function centerOf(object: GuiObject): Vector2
@@ -679,6 +682,8 @@ for order, id in ALL_UPGRADES do
 	local title = label("Title", body, UDim2.new(1, -16, 0, 28), UDim2.fromOffset(8, 8), TITLE_FONT, 24)
 	title.ZIndex = 14
 	UiKit.outline(title, 2.5)
+	local titleScale = Instance.new("UIScale")
+	titleScale.Parent = title
 
 	-- Jasne koło za ikoną
 	local glow = Instance.new("Frame")
@@ -754,15 +759,16 @@ for order, id in ALL_UPGRADES do
 		affordable = false,
 		maxed = false,
 		hover = false,
+		titleScale = titleScale,
 	}
 	cards[id] = card
 
-	-- Najechanie: karta się unosi, ikona rośnie i przechyla
+	-- Najechanie: karta się unosi, ikona i napis rosną
 	body.MouseEnter:Connect(function()
 		card.hover = true
 		TweenService:Create(body, TweenInfo.new(0.18, Enum.EasingStyle.Quad), { Position = CARD_LIFT }):Play()
 		cardStroke.Thickness = 4
-		iconTo(card, 1.15, -8, 0.3)
+		iconTo(card, 1.18, 0, 0.3)
 	end)
 	body.MouseLeave:Connect(function()
 		card.hover = false
@@ -772,8 +778,7 @@ for order, id in ALL_UPGRADES do
 	end)
 	-- Kliknięcie w kartę: duża ikona i iskierki (podgląd), kupuje się przyciskiem z ceną
 	body.Activated:Connect(function()
-		iconPop(card, 1.6)
-		UiKit.burst(gui, centerOf(icon), 6)
+		iconPop(card, 1.35)
 	end)
 	-- Przyciemnienie karty w samouczku (gdy kupić można tylko inne ulepszenie)
 	local veil = Instance.new("Frame")
@@ -796,13 +801,13 @@ for order, id in ALL_UPGRADES do
 		end
 		if not card.affordable then
 			UiKit.shake(buy)
-			iconTo(card, 0.85, 12, 0.15)
+			iconTo(card, 0.85, 0, 0.15)
 			task.delay(0.18, function()
-				iconTo(card, if card.hover then 1.15 else 1, if card.hover then -8 else 0, 0.3)
+				iconTo(card, if card.hover then 1.18 else 1, 0, 0.3)
 			end)
 			return
 		end
-		iconPop(card, 1.75)
+		iconPop(card, 1.5)
 		for _, callback in callbacks.buy do
 			callback(id)
 		end
@@ -1106,13 +1111,12 @@ function Hud.update(state: State)
 		if state.basketCount > previous.basketCount then
 			pop(basketIcon, 0.35)
 		end
-		-- Kupione ulepszenie: ikona robi obrót, karta błyska złotem, sypią się iskry i wylatuje „+1”
+		-- Kupione ulepszenie: ikona podskakuje, karta błyska złotem, sypią się iskry i wylatuje „+1”
 		for id, card in cards do
 			local level = state.upgrades[id] or 0
 			if level > (previous.upgrades[id] or 0) and upgradePanel.Visible and card.holder.Visible then
-				card.iconScale.Scale = 1.7
-				card.icon.Rotation = -360
-				iconTo(card, if card.hover then 1.15 else 1, if card.hover then -8 else 0, 0.7)
+				card.iconScale.Scale = 1.6
+				iconTo(card, if card.hover then 1.18 else 1, 0, 0.6)
 				card.stroke.Color = THEME.gold
 				card.stroke.Thickness = 6
 				TweenService:Create(card.stroke, TweenInfo.new(0.9, Enum.EasingStyle.Quad), { Color = OUTLINE, Thickness = 3 }):Play()
@@ -1171,6 +1175,10 @@ function Hud.upgradeBuyButton(id: string): GuiObject?
 end
 
 function Hud.setTutorialFocus(id: string?)
+	-- Samouczek woła to co klatkę; przerysowujemy tylko przy zmianie
+	if id == tutorialFocus then
+		return
+	end
 	tutorialFocus = id
 	render()
 end

@@ -12,6 +12,7 @@ local NAMES = {
 	"MushroomRemoved", -- grzyb zebrany (zniknął)
 	"Notify", -- komunikat do pokazania na ekranie
 	"ProgressUpdate", -- Grzybopedia, zadania, seria logowań (ProgressService)
+	"GardenView", -- stan grządek dla okna sadzenia (i czy je otworzyć)
 	-- klient -> serwer
 	"PickMushroom",
 	"SellBasket",
@@ -20,6 +21,8 @@ local NAMES = {
 	"StudioPurchase", -- zakup produktu bez numeru (id = 0), działa tylko w Studio
 	"QuestReroll", -- wymiana jednego zadania dziennie
 	"TutorialStep", -- klient: skończyłem krok samouczka (serwer sprawdza, czy może przejść dalej)
+	"GardenPlant", -- posadź grzyb z koszyka na wybranej grządce (podmiana sprzedaje stary)
+	"GardenAuto", -- posadź najlepsze automatycznie
 }
 
 local folder: Folder

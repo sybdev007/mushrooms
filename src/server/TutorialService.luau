@@ -31,6 +31,7 @@ export type Api = {
 	basketMax: (Session) -> number,
 	stat: (Session, string) -> number,
 	rootOf: (Player) -> BasePart?,
+	refreshTitle: ((Session) -> ())?,
 }
 
 local api: Api
@@ -98,6 +99,10 @@ function TutorialService.setStep(session: Session, step: number)
 	elseif step == DONE then
 		data.coins += Config.Tutorial.reward
 		api.notify(session, "TUT_DONE_MSG", { Config.Tutorial.reward })
+		-- Tytuł „Nowy” nad głową (jeśli gracz nie ma lepszego z Grzybopedii)
+		if api.refreshTitle then
+			api.refreshTitle(session)
+		end
 	end
 	spawnForStep(session)
 	api.pushState(session)
@@ -225,6 +230,9 @@ function TutorialService.reset(session: Session)
 	table.clear(session.data.basket)
 	session.data.tutorial = -1
 	TutorialService.setStep(session, 0)
+	if api.refreshTitle then
+		api.refreshTitle(session)
+	end
 end
 
 function TutorialService.start(serviceApi: Api)

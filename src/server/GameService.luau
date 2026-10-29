@@ -1506,6 +1506,9 @@ function GameService.start(mapInfo: MapBuilder.MapInfo)
 		pushState = function(session: any)
 			pushState(session)
 		end,
+		refreshTitle = function(session: any)
+			ProgressService.refreshTitle(session.player)
+		end,
 		notify = function(session: any, key: string, args: { any }?)
 			notify(session, key, args)
 		end,

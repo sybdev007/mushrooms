@@ -18,6 +18,9 @@ local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Audio = require(script.Parent.Audio)
 local Hud = require(script.Parent.Hud)
 local IntroCutscene = require(script.Parent.IntroCutscene)
+local CutsceneKit = require(script.Parent.CutsceneKit)
+local GardenPanel = require(script.Parent.GardenPanel)
+local TheftCutscene = require(script.Parent.TheftCutscene)
 local Localize = require(script.Parent.Localize)
 local MushroomView = require(script.Parent.MushroomView)
 local SellPanel = require(script.Parent.SellPanel)
@@ -294,10 +297,15 @@ hintPad.Parent = hint
 
 local spotTarget: GuiObject? = nil
 local function setSpotlight(object: GuiObject?, textValue: string?)
+	-- Wołane co klatkę: dźwięk i zmiany tylko przy nowym celu (wcześniej „whoosh” grał 60 razy na sekundę i piszczał)
+	if object == spotTarget and (textValue or "") == hint.Text then
+		return
+	end
+	local changed = object ~= spotTarget
 	spotTarget = object
 	spot.Visible = object ~= nil
 	hint.Text = textValue or ""
-	if object then
+	if object and changed then
 		Audio.play("whoosh", { volume = 0.4 })
 	end
 end
@@ -374,7 +382,7 @@ local function confetti(count: number?)
 end
 Tutorial.confetti = confetti
 
--- ===== Cutscenka: kradzież w ogródku =====
+-- ===== Ogródek =====
 
 local function myGarden(): Model?
 	for _, model in CollectionService:GetTagged("GardenPlot") do
@@ -391,247 +399,149 @@ local function gardenHub(): BasePart?
 	return if hub and hub:IsA("BasePart") then hub else nil
 end
 
-local function playTheft(onDone: () -> ())
-	local garden = myGarden()
-	local character = player.Character
-	local hub = gardenHub()
-	if not garden or not character or not hub then
-		onDone()
-		return
+-- ===== Koniec samouczka: „Misja ukończona!” i nowy tytuł =====
+-- Promienie kręcą się za napisem, napis wbija się w ekran, potem wyskakuje plakietka tytułu „Nowy”
+-- (taka sama jak nad głową), sypią się monety i konfetti.
+local function missionComplete(onDone: (() -> ())?)
+	local layer = Instance.new("Frame")
+	layer.Name = "MissionComplete"
+	layer.Size = UDim2.fromScale(1, 1)
+	layer.BackgroundColor3 = Color3.new(0, 0, 0)
+	layer.BackgroundTransparency = 1
+	layer.ZIndex = 30
+	layer.Parent = gui
+	tween(layer, 0.4, { BackgroundTransparency = 0.45 })
+	-- Promienie
+	local rays = Instance.new("Frame")
+	rays.Size = UDim2.fromOffset(10, 10)
+	rays.AnchorPoint = Vector2.new(0.5, 0.5)
+	rays.Position = UDim2.fromScale(0.5, 0.4)
+	rays.BackgroundTransparency = 1
+	rays.ZIndex = 31
+	rays.Parent = layer
+	for i = 1, 12 do
+		local ray = Instance.new("Frame")
+		ray.Size = UDim2.fromOffset(46, 900)
+		ray.AnchorPoint = Vector2.new(0.5, 0.5)
+		ray.Position = UDim2.fromScale(0.5, 0.5)
+		ray.Rotation = i * 15
+		ray.BackgroundColor3 = Color3.fromRGB(255, 226, 120)
+		ray.BackgroundTransparency = 1
+		ray.BorderSizePixel = 0
+		ray.ZIndex = 31
+		ray.Parent = rays
+		local fadeEnds = Instance.new("UIGradient")
+		fadeEnds.Rotation = 90
+		fadeEnds.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.5, 0.2), NumberSequenceKeypoint.new(1, 1) })
+		fadeEnds.Parent = ray
+		tween(ray, 0.6, { BackgroundTransparency = 0.55 })
 	end
-	local camera = Workspace.CurrentCamera
-	local center = garden:GetPivot().Position
-	local gate = hub.Position
-	local inward = Vector3.new(center.X - gate.X, 0, center.Z - gate.Z)
-	inward = if inward.Magnitude > 0.1 then inward.Unit else Vector3.new(0, 0, 1)
-	local side = Vector3.new(-inward.Z, 0, inward.X)
-
-	-- Złodziej: ciemny klon gracza z czerwoną opaską na oczach
-	character.Archivable = true
-	local thief = character:Clone()
-	character.Archivable = false
-	if not thief then
-		onDone()
-		return
-	end
-	thief.Name = "Thief"
-	for _, d in thief:GetDescendants() do
-		if d:IsA("Script") or d:IsA("LocalScript") or d:IsA("Shirt") or d:IsA("Pants") or d:IsA("ShirtGraphic") or d:IsA("Accessory") or d:IsA("Decal") then
-			d:Destroy()
-		elseif d:IsA("BasePart") then
-			d.Color = Color3.fromRGB(34, 30, 40)
-			d.CanCollide = false
-			d.CanQuery = false
-		end
-	end
-	local humanoid = thief:FindFirstChildOfClass("Humanoid")
-	local root = thief:FindFirstChild("HumanoidRootPart") :: BasePart?
-	local head = thief:FindFirstChild("Head") :: BasePart?
-	if not humanoid or not root or not head then
-		thief:Destroy()
-		onDone()
-		return
-	end
-	humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
-	root.Anchored = true
-	local band = Instance.new("Part")
-	band.Size = Vector3.new(head.Size.X + 0.08, head.Size.Y * 0.22, head.Size.Z + 0.08)
-	band.Color = Color3.fromRGB(214, 40, 40)
-	band.CanCollide = false
-	band.Massless = true
-	band.CFrame = head.CFrame * CFrame.new(0, head.Size.Y * 0.1, 0)
-	band.Parent = thief
-	local weld = Instance.new("WeldConstraint")
-	weld.Part0 = head
-	weld.Part1 = band
-	weld.Parent = band
-	thief.Parent = Workspace
-	local animator = humanoid:FindFirstChildOfClass("Animator") or Instance.new("Animator")
-	animator.Parent = humanoid
-	local function track(path: { string }): AnimationTrack?
-		local node: Instance? = character:FindFirstChild("Animate")
-		for _, name in path do
-			node = node and node:FindFirstChild(name)
-		end
-		if node and node:IsA("Animation") then
-			local ok, tr = pcall(function()
-				return animator:LoadAnimation(node)
-			end)
-			return if ok then tr else nil
-		end
-		return nil
-	end
-	local walk = track({ "walk", "WalkAnim" })
-	local run = track({ "run", "RunAnim" })
-
-	local hip = humanoid.HipHeight + root.Size.Y / 2
-	local start = gate - inward * 14 + side * 6
-	local bed = gate + inward * 6
-	local escape = gate - inward * 10 - side * 8
-	local rootValue = Instance.new("CFrameValue")
-	rootValue.Value = CFrame.lookAt(start + Vector3.new(0, hip, 0), bed + Vector3.new(0, hip, 0))
-	local camValue = Instance.new("CFrameValue")
-	camValue.Value = CFrame.lookAt(gate - inward * 10 + side * 14 + Vector3.new(0, 9, 0), gate + inward * 2)
-
-	-- Łup: mały grzyb nad głową złodzieja
-	local loot = Instance.new("Part")
-	loot.Shape = Enum.PartType.Ball
-	loot.Size = Vector3.new(2, 1.2, 2)
-	loot.Color = Color3.fromRGB(255, 186, 70)
-	loot.Material = Enum.Material.Neon
-	loot.Anchored = true
-	loot.CanCollide = false
-	loot.Transparency = 1
-	loot.Parent = Workspace
-
-	-- Kinowe pasy i napis
-	local scene = Instance.new("ScreenGui")
-	scene.Name = "TheftScene"
-	scene.IgnoreGuiInset = true
-	scene.DisplayOrder = 45
-	scene.Parent = player.PlayerGui
-	local bars = {}
-	for i, anchor in { 0, 1 } do
-		local bar = Instance.new("Frame")
-		bar.BackgroundColor3 = Color3.new(0, 0, 0)
-		bar.BorderSizePixel = 0
-		bar.AnchorPoint = Vector2.new(0, anchor)
-		bar.Position = UDim2.fromScale(0, anchor)
-		bar.Size = UDim2.new(1, 0, 0, 0)
-		bar.Parent = scene
-		bars[i] = bar
-		tween(bar, 0.5, { Size = UDim2.new(1, 0, 0.11, 0) })
-	end
-	local shout = Instance.new("TextLabel")
-	shout.BackgroundTransparency = 1
-	shout.AnchorPoint = Vector2.new(0.5, 0.5)
-	shout.Position = UDim2.fromScale(0.5, 0.2)
-	shout.Size = UDim2.fromScale(0.7, 0.14)
-	shout.Font = TITLE_FONT
-	shout.TextScaled = true
-	shout.TextColor3 = Color3.fromRGB(255, 80, 70)
-	shout.Text = ""
-	shout.Parent = scene
-	UiKit.outline(shout, 4)
-	local shoutScale = Instance.new("UIScale")
-	shoutScale.Parent = shout
-
-	local hidden = {}
-	for _, g in player.PlayerGui:GetChildren() do
-		if g:IsA("ScreenGui") and g ~= scene and g.Enabled then
-			g.Enabled = false
-			table.insert(hidden, g)
-		end
-	end
-	local carrying = false
-	local shake = 0
-	local conn = RunService.RenderStepped:Connect(function(dt)
-		if camera then
-			camera.CameraType = Enum.CameraType.Scriptable
-			local offset = CFrame.new()
-			if shake > 0.01 then
-				local k = os.clock() * 30
-				offset = CFrame.Angles(math.noise(k, 1) * 0.04 * shake, math.noise(k, 2) * 0.04 * shake, 0)
-				shake = math.max(0, shake - dt * 0.8)
-			end
-			camera.CFrame = camValue.Value * offset
-		end
-		root.CFrame = rootValue.Value
-		if carrying then
-			loot.CFrame = CFrame.new(root.Position + Vector3.new(0, 3.2, 0))
-		end
+	local spin = RunService.RenderStepped:Connect(function(dt)
+		rays.Rotation += dt * 18
 	end)
-
-	local function moveTo(at: Vector3, time: number, anim: AnimationTrack?, speed: number)
-		if walk then
-			walk:Stop(0.1)
-		end
-		if run then
-			run:Stop(0.1)
-		end
-		if anim then
-			anim:Play(0.1)
-			anim:AdjustSpeed(speed)
-		end
-		local goal = at + Vector3.new(0, hip, 0)
-		local dir = Vector3.new(goal.X - rootValue.Value.Position.X, 0, goal.Z - rootValue.Value.Position.Z)
-		tween(rootValue, time, { Value = CFrame.lookAt(goal, goal + (if dir.Magnitude > 0 then dir else inward)) }, Enum.EasingStyle.Linear)
-	end
-
-	task.spawn(function()
-		Audio.music("heist", 0.8)
-		-- Złodziej skrada się do grządki
-		moveTo(bed, 3.2, walk, 0.55)
-		tween(camValue, 3.2, { Value = CFrame.lookAt(gate - inward * 3 + side * 9 + Vector3.new(0, 6, 0), bed) }, Enum.EasingStyle.Sine)
-		for _ = 1, 4 do
-			Audio.play("sneak", { volume = 0.6, jitter = 0.1 })
-			task.wait(0.8)
-		end
-		-- Chwyta grzyba: alarm, czerwona poświata, napis
-		if walk then
-			walk:Stop(0.1)
-		end
-		loot.Transparency = 0
-		carrying = true
-		Audio.play("alarm", { duration = 2.4 })
-		local glow = Instance.new("Highlight")
-		glow.FillColor = Color3.fromRGB(255, 60, 60)
-		glow.OutlineColor = Color3.fromRGB(255, 255, 255)
-		glow.FillTransparency = 0.5
-		glow.Parent = thief
-		shout.Text = t("TUT_THIEF")
-		shoutScale.Scale = 2
-		tween(shoutScale, 0.35, { Scale = 1 }, Enum.EasingStyle.Back)
-		shake = 0.6
-		task.wait(1)
-		-- Ucieka… i potyka się o własne nogi
-		Audio.music("chase", 0.3)
-		moveTo(escape, 2.2, run, 1.3)
-		tween(camValue, 2.2, { Value = CFrame.lookAt(escape + side * 7 + inward * 4 + Vector3.new(0, 5, 0), escape) }, Enum.EasingStyle.Sine)
-		task.wait(1.4)
-		if run then
-			run:Stop(0.05)
-		end
-		Audio.music(nil, 0.1)
-		Audio.play("boom")
-		shake = 1
-		local fallen = rootValue.Value * CFrame.new(0, -hip * 0.6, 0) * CFrame.Angles(math.rad(-80), 0, 0)
-		tween(rootValue, 0.35, { Value = fallen }, Enum.EasingStyle.Bounce)
-		carrying = false
-		-- Grzyb wraca łukiem na grządkę
-		local from = loot.Position
-		local arcStart = os.clock()
-		local arc = RunService.RenderStepped:Connect(function()
-			local k = math.clamp((os.clock() - arcStart) / 1, 0, 1)
-			local p = from:Lerp(bed + Vector3.new(0, 1, 0), k) + Vector3.new(0, math.sin(k * math.pi) * 6, 0)
-			loot.CFrame = CFrame.new(p) * CFrame.Angles(k * 8, k * 5, 0)
+	-- Napis
+	local banner = Instance.new("TextLabel")
+	banner.BackgroundTransparency = 1
+	banner.AnchorPoint = Vector2.new(0.5, 0.5)
+	banner.Position = UDim2.fromScale(0.5, 0.36)
+	banner.Size = UDim2.fromScale(0.8, 0.13)
+	banner.Font = TITLE_FONT
+	banner.TextScaled = true
+	banner.Text = t("TUT_COMPLETE")
+	banner.TextColor3 = GOLD
+	banner.ZIndex = 33
+	banner.Parent = layer
+	UiKit.outline(banner, 5)
+	local bannerShine = Instance.new("UIGradient")
+	bannerShine.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 200, 60)),
+		ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 220)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 200, 60)),
+	})
+	bannerShine.Offset = Vector2.new(-1, 0)
+	bannerShine.Parent = banner
+	local bannerScale = Instance.new("UIScale")
+	bannerScale.Scale = 3
+	bannerScale.Parent = banner
+	banner.TextTransparency = 1
+	tween(banner, 0.2, { TextTransparency = 0 })
+	tween(bannerScale, 0.45, { Scale = 1 }, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+	Audio.play("levelup", { volume = 0.9 })
+	task.delay(0.35, function()
+		Audio.play("boom", { volume = 0.35, pitch = 1.3 })
+		tween(bannerShine, 1.2, { Offset = Vector2.new(1, 0) })
+	end)
+	confetti(100)
+	-- Plakietka tytułu
+	task.delay(1.0, function()
+		local caption = Instance.new("TextLabel")
+		caption.BackgroundTransparency = 1
+		caption.AnchorPoint = Vector2.new(0.5, 0.5)
+		caption.Position = UDim2.fromScale(0.5, 0.5)
+		caption.Size = UDim2.fromScale(0.5, 0.05)
+		caption.Font = TITLE_FONT
+		caption.TextScaled = true
+		caption.Text = t("TUT_TITLE_GOT")
+		caption.TextColor3 = Color3.new(1, 1, 1)
+		caption.ZIndex = 33
+		caption.Parent = layer
+		UiKit.outline(caption, 3)
+		local pill = Instance.new("Frame")
+		pill.AnchorPoint = Vector2.new(0.5, 0.5)
+		pill.Position = UDim2.fromScale(0.5, 0.6)
+		pill.Size = UDim2.fromOffset(260, 64)
+		pill.BackgroundColor3 = Color3.fromRGB(120, 210, 90)
+		pill.ZIndex = 33
+		pill.Parent = layer
+		corner(pill, UDim.new(1, 0))
+		stroke(pill, OUTLINE, 4)
+		local pillShade = Instance.new("UIGradient")
+		pillShade.Rotation = 90
+		pillShade.Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.fromRGB(190, 190, 190))
+		pillShade.Parent = pill
+		local star = UiKit.icon("star", pill, UDim2.fromOffset(58, 58), UDim2.new(0, -10, 0.5, 0), Vector2.new(0, 0.5))
+		star.ZIndex = 35
+		local name = Instance.new("TextLabel")
+		name.BackgroundTransparency = 1
+		name.Size = UDim2.new(1, -70, 1, -10)
+		name.Position = UDim2.fromOffset(56, 5)
+		name.Font = TITLE_FONT
+		name.TextScaled = true
+		name.Text = t("TITLE_NEW")
+		name.TextColor3 = Color3.new(1, 1, 1)
+		name.ZIndex = 35
+		name.Parent = pill
+		UiKit.outline(name, 3)
+		local pillScale = Instance.new("UIScale")
+		pillScale.Scale = 0
+		pillScale.Parent = pill
+		tween(pillScale, 0.5, { Scale = 1 }, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+		Audio.play("ping", { volume = 0.8, pitch = 1.2 })
+		task.delay(0.3, function()
+			UiKit.burst(gui, pill.AbsolutePosition + pill.AbsoluteSize / 2, 18)
+			Hud.coinShower(Config.Tutorial.reward, pill.AbsolutePosition + pill.AbsoluteSize / 2)
 		end)
-		shout.Text = t("TUT_THIEF_FAIL")
-		shoutScale.Scale = 1.6
-		tween(shoutScale, 0.35, { Scale = 1 }, Enum.EasingStyle.Back)
-		task.wait(1.2)
-		arc:Disconnect()
-		Audio.play("pick")
-		loot.Transparency = 1
-		task.wait(0.8)
-		-- Koniec sceny
-		Audio.music("tutorial", 1.5)
-		conn:Disconnect()
-		thief:Destroy()
-		loot:Destroy()
-		for _, g in hidden do
-			g.Enabled = true
+	end)
+	task.delay(4.6, function()
+		spin:Disconnect()
+		for _, d in layer:GetDescendants() do
+			if d:IsA("TextLabel") then
+				tween(d, 0.4, { TextTransparency = 1 })
+			elseif d:IsA("Frame") then
+				tween(d, 0.4, { BackgroundTransparency = 1 })
+			elseif d:IsA("UIStroke") then
+				tween(d, 0.4, { Transparency = 1 })
+			elseif d:IsA("ImageLabel") then
+				tween(d, 0.4, { ImageTransparency = 1 })
+			end
 		end
-		if camera then
-			camera.CameraType = Enum.CameraType.Custom
-		end
-		for _, bar in bars do
-			tween(bar, 0.4, { Size = UDim2.new(1, 0, 0, 0) })
-		end
+		tween(layer, 0.4, { BackgroundTransparency = 1 })
 		task.delay(0.5, function()
-			scene:Destroy()
+			layer:Destroy()
+			if onDone then
+				onDone()
+			end
 		end)
-		onDone()
 	end)
 end
 
@@ -724,8 +634,9 @@ local function enterStep(step: number)
 	elseif step == 6 then
 		if once("s6") then
 			busy = true
-			task.delay(1.5, function()
-				playTheft(function()
+			GardenPanel.close()
+			task.delay(0.6, function()
+				TheftCutscene.play(function()
 					window({
 						{ title = t("TUT_STEAL_T"), text = t("TUT_STEAL"), icon = "lock", demo = "steal" },
 						{ title = t("TUT_STEAL2_T"), text = t("TUT_STEAL2"), icon = "chest" },
@@ -739,7 +650,12 @@ local function enterStep(step: number)
 								reward = { icon = "coins", title = t("TUT_REWARD_COINS", { Config.Tutorial.reward }), text = t("TUT_REWARD_TEXT") },
 							},
 						}, function()
+							-- Serwer daje nagrodę i tytuł, a tu animacja „Misja ukończona!”
 							Remotes.get("TutorialStep"):FireServer(DONE)
+							busy = true
+							missionComplete(function()
+								busy = false
+							end)
 						end)
 					end)
 				end)
@@ -751,7 +667,7 @@ end
 -- Co klatkę: cel na mapie, misja i podświetlenia zależnie od kroku
 local function update()
 	local step = stepNow
-	if step <= 0 or step >= DONE or IntroCutscene.isPlaying() then
+	if step <= 0 or step >= DONE or IntroCutscene.isPlaying() or CutsceneKit.isPlaying() then
 		setTarget(nil)
 		setSpotlight(nil)
 		setMission(nil)
@@ -801,7 +717,7 @@ RunService.RenderStepped:Connect(function()
 	updateSpotlight()
 	-- Karta misji chowa się, kiedy otwarty jest panel sprzedaży albo ulepszeń (nachodziła na nie)
 	if lastMission ~= "" then
-		tracker.Visible = not (SellPanel.isOpen() or Hud.upgradesOpen())
+		tracker.Visible = not (SellPanel.isOpen() or Hud.upgradesOpen() or GardenPanel.isOpen() or CutsceneKit.isPlaying())
 	end
 	-- Strzałka nad celem podskakuje i się kręci, linia biegnie od gracza
 	local at = target
@@ -875,6 +791,8 @@ function Tutorial.update(state: any)
 	-- Sprzedaż krok po kroku: tryb panelu przychodzi od serwera
 	sellRule = if step == 2 and typeof(state.tutorialSell) == "string" then state.tutorialSell else nil
 	SellPanel.setGuide(sellRule)
+	-- Okno sadzenia pokazuje strzałki w kroku „posadź grzyby”
+	GardenPanel.setGuide(step == 5)
 	if step ~= stepNow then
 		stepNow = step
 		if step >= DONE then

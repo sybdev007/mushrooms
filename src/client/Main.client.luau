@@ -14,6 +14,7 @@ local Remotes = require(Shared:WaitForChild("Remotes"))
 
 local Localize = require(script.Parent.Localize)
 local Hud = require(script.Parent.Hud)
+local Audio = require(script.Parent.Audio)
 local MushroomView = require(script.Parent.MushroomView)
 local Atmosphere = require(script.Parent.Atmosphere)
 local Effects = require(script.Parent.Effects)
@@ -34,6 +35,7 @@ local Expedition = require(Shared:WaitForChild("Expedition"))
 local IntroCutscene = require(script.Parent.IntroCutscene)
 local Tutorial = require(script.Parent.Tutorial)
 local LeszyAnimator = require(script.Parent.LeszyAnimator)
+local GardenPanel = require(script.Parent.GardenPanel)
 
 local player = Players.LocalPlayer
 
@@ -59,6 +61,7 @@ PortalView.start()
 GardenPrompts.start()
 MerchantView.start()
 LeszyAnimator.start()
+GardenPanel.start()
 
 -- Skąd wylatują monety po sprzedaży (przycisk w panelu sprzedaży)
 local sellShowerFrom: Vector2? = nil
@@ -87,6 +90,7 @@ Remotes.get("StateUpdate").OnClientEvent:Connect(function(state)
 	-- Lista grzybów przychodzi tylko po zmianie koszyka
 	if state.basket then
 		SellPanel.setBasket(state.basket, state.basketKey)
+		GardenPanel.setBasket(state.basket, state.basketKey)
 	end
 	Hud.update(state)
 	-- Pierwsze wejście do gry: cutscenka ze złym snem, potem samouczek
@@ -348,6 +352,8 @@ RunService.RenderStepped:Connect(function(dt)
 	-- Strefę liczymy lokalnie, żeby mrok i panel reagowały od razu, bez czekania na serwer
 	local zone = Economy.zoneIndexAt(position.Z)
 	local zoneDef = Config.Zones[zone]
+	-- Muzyka świata (las / jaskinia / bagna); cutscenki mają pierwszeństwo
+	Audio.playlist(Economy.zoneWorld(zone))
 	local oilFraction = if oilMax > 0 then math.clamp(oil / oilMax, 0, 1) else 1
 	local now = os.clock()
 

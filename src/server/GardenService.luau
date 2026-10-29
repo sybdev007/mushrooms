@@ -18,6 +18,7 @@ local RunService = game:GetService("RunService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Economy = require(ReplicatedStorage.Shared.Economy)
+local Remotes = require(ReplicatedStorage.Shared.Remotes)
 
 type Data = {
 	coins: number,
@@ -538,6 +539,87 @@ end
 
 -- ===== Akcje =====
 
+-- Stan grządek dla okna sadzenia u klienta (GardenPanel)
+local function sendView(garden: GardenState, player: Player, open: boolean)
+	local data = api.getData(player)
+	if not data then
+		return
+	end
+	local planted = {}
+	for _, item in data.planted do
+		table.insert(planted, { s = item.s, v = item.v, x = item.x, d = item.d })
+	end
+	Remotes.get("GardenView"):FireClient(player, {
+		planted = planted,
+		beds = bedsOf(garden, player),
+		maxBeds = Config.Garden.maxBeds,
+		fertilizer = stat(player, "fertilizer"),
+	}, open)
+end
+
+-- Gracz musi stać przy swoim ogródku (okno da się otworzyć tylko przy furtce)
+local function nearOwnGarden(player: Player): GardenState?
+	local garden = gardenOf[player]
+	if not garden or garden.owner ~= player then
+		return nil
+	end
+	local root = getRoot(player)
+	if not root then
+		return nil
+	end
+	if flatDistance(root.Position, garden.hub.Position) > Config.Garden.size then
+		return nil
+	end
+	return garden
+end
+
+-- Jeden grzyb z koszyka na wybraną grządkę. slot <= liczba posadzonych = podmiana (stary idzie do sprzedaży),
+-- slot dalej (wolna grządka) = dosadzenie.
+local function onPlantOne(player: Player, basketIndex: unknown, slot: unknown, key: unknown)
+	local garden = nearOwnGarden(player)
+	local data = api.getData(player)
+	if not garden or not data then
+		return
+	end
+	if typeof(basketIndex) ~= "number" or typeof(slot) ~= "number" then
+		return
+	end
+	local index = math.floor(basketIndex)
+	local bed = math.floor(slot)
+	local beds = bedsOf(garden, player)
+	local item = data.basket[index]
+	if not item or bed < 1 or bed > beds then
+		return
+	end
+	-- Koszyk zmienił się od czasu, gdy klient go pokazał: nic nie robimy, okno dostanie świeży stan
+	if key ~= nil and key ~= Economy.basketKey(data.basket) then
+		api.pushState(player)
+		sendView(garden, player, false)
+		return
+	end
+	local plant: Economy.PlantItem = { s = item.s, v = item.v, x = item.x, d = item.d, t = os.time() }
+	local sold = 0
+	if bed <= #data.planted then
+		sold = Economy.itemValue(data.planted[bed])
+		data.planted[bed] = plant
+	else
+		table.insert(data.planted, plant)
+	end
+	table.remove(data.basket, index)
+	data.coins += sold
+	if api.onEvent then
+		api.onEvent(player, "plant", 1)
+	end
+	if sold > 0 then
+		api.notify(player, "MSG_PLANTED_SWAP", { 1, sold })
+	else
+		api.notify(player, "MSG_PLANTED", { 1 })
+	end
+	refreshGarden(garden)
+	api.pushState(player)
+	sendView(garden, player, false)
+end
+
 local function onPlant(garden: GardenState, player: Player)
 	if garden.owner ~= player then
 		return
@@ -584,6 +666,7 @@ local function onPlant(garden: GardenState, player: Player)
 	end
 	refreshGarden(garden)
 	api.pushState(player)
+	sendView(garden, player, false)
 end
 
 local function onCollect(garden: GardenState, player: Player)
@@ -836,8 +919,11 @@ function GardenService.start(gardenInfos: { { id: number, model: Model } }, serv
 		table.insert(gardens, garden)
 		refreshGarden(garden)
 
+		-- Przycisk przy furtce otwiera okno sadzenia (tam gracz wybiera, co gdzie rośnie)
 		plant.Triggered:Connect(function(player)
-			onPlant(garden, player)
+			if garden.owner == player then
+				sendView(garden, player, true)
+			end
 		end)
 		if collect then
 			collect.Triggered:Connect(function(player)
@@ -859,6 +945,13 @@ function GardenService.start(gardenInfos: { { id: number, model: Model } }, serv
 	end
 
 	Players.PlayerRemoving:Connect(GardenService.release)
+	Remotes.get("GardenPlant").OnServerEvent:Connect(onPlantOne)
+	Remotes.get("GardenAuto").OnServerEvent:Connect(function(player)
+		local garden = nearOwnGarden(player)
+		if garden then
+			onPlant(garden, player)
+		end
+	end)
 
 	-- Złodziej zginął (np. reset postaci): łup wraca
 	Players.PlayerAdded:Connect(function(player)

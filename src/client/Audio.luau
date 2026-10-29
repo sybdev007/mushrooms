@@ -122,6 +122,113 @@ function Audio.play(name: string, options: PlayOptions?): Sound?
 	return sound
 end
 
+-- Wczytuje dźwięki z wyprzedzeniem (np. przed cutscenką), żeby grały od razu, bez opóźnienia
+function Audio.preload(names: { string })
+	local sounds = {}
+	for _, name in names do
+		local entry = def("sfx", name) or def("music", name)
+		if entry then
+			local sound = Instance.new("Sound")
+			sound.SoundId = entry.id
+			table.insert(sounds, sound)
+		end
+	end
+	task.spawn(function()
+		pcall(function()
+			game:GetService("ContentProvider"):PreloadAsync(sounds)
+		end)
+		for _, sound in sounds do
+			sound:Destroy()
+		end
+	end)
+end
+
+-- ===== Playlisty w grze =====
+-- Audio.playlist("forest" / "cave" / "swamp") wybiera muzykę świata. Gra tylko wtedy, gdy nic innego
+-- nie ustawiło muzyki przez Audio.music (cutscenki); Audio.music(nil) oddaje głos playliście.
+
+local playlistName: string? = nil
+local playlistSound: Sound? = nil
+local playlistOf: string? = nil -- do jakiej playlisty należy grający utwór
+local lastTrack: { [string]: string } = {}
+local nextAt = 0
+
+local function playlistTracks(name: string): { string }
+	local audio = (Config :: any).Audio
+	local lists = audio and audio.playlists
+	local list = lists and lists[name]
+	return if typeof(list) == "table" then list else {}
+end
+
+local function fadeOutPlaylist(time: number)
+	local sound = playlistSound
+	playlistSound = nil
+	playlistOf = nil
+	if sound then
+		local out = TweenService:Create(sound, TweenInfo.new(time), { Volume = 0 })
+		out.Completed:Connect(function()
+			sound:Destroy()
+		end)
+		out:Play()
+	end
+end
+
+local function startTrack(name: string)
+	local tracks = playlistTracks(name)
+	if #tracks == 0 then
+		return
+	end
+	-- Losowo, ale nie ten sam co ostatnio
+	local pick = tracks[math.random(1, #tracks)]
+	if #tracks > 1 then
+		while pick == lastTrack[name] do
+			pick = tracks[math.random(1, #tracks)]
+		end
+	end
+	lastTrack[name] = pick
+	local sound = Instance.new("Sound")
+	sound.Name = "Playlist_" .. name
+	sound.SoundId = pick
+	sound.Looped = false
+	sound.Volume = 0
+	sound.SoundGroup = musicGroup
+	sound.Parent = SoundService
+	sound:Play()
+	local volume = (Config :: any).Audio.playlistVolume or 0.45
+	TweenService:Create(sound, TweenInfo.new(3), { Volume = volume }):Play()
+	playlistSound = sound
+	playlistOf = name
+	sound.Ended:Connect(function()
+		if playlistSound == sound then
+			playlistSound = nil
+			playlistOf = nil
+			local gap = (Config :: any).Audio.playlistGap or { 6, 16 }
+			nextAt = os.clock() + gap[1] + math.random() * (gap[2] - gap[1])
+		end
+		sound:Destroy()
+	end)
+end
+
+function Audio.playlist(name: string?)
+	playlistName = name
+end
+
+-- Co sekundę: czy coś innego gra, czy zmienił się świat, czy czas na następny utwór
+task.spawn(function()
+	while true do
+		task.wait(1)
+		local wanted = if currentName == nil then playlistName else nil
+		if playlistSound and playlistOf ~= wanted then
+			-- Inny świat albo cutscenka: obecny utwór gaśnie, nowy wejdzie od razu
+			fadeOutPlaylist(2)
+			nextAt = os.clock() + 1.5
+		end
+		if wanted and not playlistSound and os.clock() >= nextAt then
+			startTrack(wanted)
+		end
+	end
+end)
+
 -- Pętla efektu (np. bicie serca, szum lasu); zwraca dźwięk, żeby dało się go zatrzymać
 function Audio.loop(name: string, volume: number?): Sound?
 	local entry = def("sfx", name)
