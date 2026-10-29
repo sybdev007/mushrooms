@@ -25,6 +25,7 @@ export type Data = {
 	titleChoice: string, -- wybrany tytuł ("" = najlepszy automatycznie, "none" = bez tytułu)
 	titles: { string }?, -- tytuły, o których gracz dostał już komunikat (nil = stary zapis, bez komunikatów)
 	badges: { string }, -- przyznane odznaki Robloxa (id z Config.Badges)
+	settings: { music: boolean, sfx: boolean }, -- muzyka i dźwięki włączone
 	basket: { Economy.BasketItem },
 	planted: { Economy.PlantItem }, -- grzyby na grządkach w ogródku
 	pot: number, -- monety z grządek czekające w skrzyni (z ułamkiem)
@@ -78,6 +79,7 @@ function DataService.defaultData(): Data
 		titleChoice = "",
 		titles = {},
 		badges = {},
+		settings = { music = true, sfx = true },
 		basket = {},
 		planted = {},
 		pot = 0,
@@ -232,6 +234,10 @@ local function reconcile(raw: any): Data
 				table.insert(data.badges, id)
 			end
 		end
+	end
+	if typeof(raw.settings) == "table" then
+		data.settings.music = raw.settings.music ~= false
+		data.settings.sfx = raw.settings.sfx ~= false
 	end
 	if typeof(raw.basket) == "table" then
 		for _, item in raw.basket do

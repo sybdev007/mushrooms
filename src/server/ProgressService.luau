@@ -33,6 +33,13 @@ local ProgressService = {}
 local ProgressUpdate = Remotes.get("ProgressUpdate")
 local QuestReroll = Remotes.get("QuestReroll")
 local SelectTitle = Remotes.get("SelectTitle")
+local SaveSettings = Remotes.get("SaveSettings")
+
+-- Ustawienia dźwięku jako atrybuty gracza (klient czyta je w SettingsButtons)
+local function applySettings(player: Player, data: Data)
+	player:SetAttribute("MusicOn", data.settings.music)
+	player:SetAttribute("SfxOn", data.settings.sfx)
+end
 
 local api: Api
 local lastSent: { [Player]: string } = {}
@@ -222,6 +229,7 @@ function ProgressService.join(player: Player)
 	Progress.migrateBestiary(data.bestiary, data.atlas)
 	newDay(player, data)
 	refreshTitle(player, data)
+	applySettings(player, data)
 	send(player, true)
 end
 
@@ -421,6 +429,13 @@ function ProgressService.start(serviceApi: Api)
 	api = serviceApi
 	QuestReroll.OnServerEvent:Connect(onReroll)
 	SelectTitle.OnServerEvent:Connect(onSelectTitle)
+	SaveSettings.OnServerEvent:Connect(function(player: Player, key: unknown, on: unknown)
+		local data = api.getData(player)
+		if data and (key == "music" or key == "sfx") and typeof(on) == "boolean" then
+			data.settings[key :: string] = on
+			applySettings(player, data)
+		end
+	end)
 	-- Północ (UTC): nowe zadania i nagroda za kolejny dzień serii dla tych, którzy akurat grają
 	task.spawn(function()
 		while true do

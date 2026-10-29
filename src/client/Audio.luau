@@ -27,14 +27,46 @@ local function def(group: string, name: string): Def?
 	return nil
 end
 
-local musicGroup = Instance.new("SoundGroup")
-musicGroup.Name = "Music"
-musicGroup.Volume = 0.5
-musicGroup.Parent = SoundService
-local sfxGroup = Instance.new("SoundGroup")
-sfxGroup.Name = "Effects"
-sfxGroup.Volume = 0.8
-sfxGroup.Parent = SoundService
+local MUSIC_VOLUME = 0.5
+local SFX_VOLUME = 0.8
+local musicOn = true
+local sfxOn = true
+
+-- Grupy dźwięków (Effects.luau też wkłada swoje dźwięki do grupy „Effects”, żeby wyciszanie działało)
+local function group(name: string, volume: number): SoundGroup
+	local existing = SoundService:FindFirstChild(name)
+	if existing and existing:IsA("SoundGroup") then
+		return existing
+	end
+	local created = Instance.new("SoundGroup")
+	created.Name = name
+	created.Volume = volume
+	created.Parent = SoundService
+	return created
+end
+local musicGroup = group("Music", MUSIC_VOLUME)
+local sfxGroup = group("Effects", SFX_VOLUME)
+
+-- Wyciszanie z przycisków (SettingsButtons); zapisuje się na serwerze
+function Audio.setMusicOn(on: boolean)
+	musicOn = on
+	musicGroup.Volume = if on then MUSIC_VOLUME else 0
+end
+
+function Audio.setSfxOn(on: boolean)
+	sfxOn = on
+	sfxGroup.Volume = if on then SFX_VOLUME else 0
+	-- Dźwięki z Effects.luau (ambient, zbieranie, monety) mają swoją grupę o pełnej głośności
+	group("GameSoundsGroup", 1).Volume = if on then 1 else 0
+end
+
+function Audio.isMusicOn(): boolean
+	return musicOn
+end
+
+function Audio.isSfxOn(): boolean
+	return sfxOn
+end
 
 local current: Sound? = nil
 local currentName: string? = nil
@@ -258,9 +290,14 @@ function Audio.stop(sound: Sound?, fade: number?)
 end
 
 function Audio.duck(amount: number, time: number)
-	TweenService:Create(musicGroup, TweenInfo.new(0.15), { Volume = 0.5 * (1 - amount) }):Play()
+	if not musicOn then
+		return
+	end
+	TweenService:Create(musicGroup, TweenInfo.new(0.15), { Volume = MUSIC_VOLUME * (1 - amount) }):Play()
 	task.delay(time, function()
-		TweenService:Create(musicGroup, TweenInfo.new(0.6), { Volume = 0.5 }):Play()
+		if musicOn then
+			TweenService:Create(musicGroup, TweenInfo.new(0.6), { Volume = MUSIC_VOLUME }):Play()
+		end
 	end)
 end
 

@@ -27,6 +27,19 @@ soundFolder.Parent = SoundService
 
 local cache: { [string]: Sound } = {}
 
+-- Własna grupa (pełna głośność), żeby przycisk wyciszenia dźwięków (Audio.setSfxOn) ściszał też te
+local function effectsGroup(): SoundGroup
+	local existing = SoundService:FindFirstChild("GameSoundsGroup")
+	if existing and existing:IsA("SoundGroup") then
+		return existing
+	end
+	local created = Instance.new("SoundGroup")
+	created.Name = "GameSoundsGroup"
+	created.Volume = 1
+	created.Parent = SoundService
+	return created
+end
+
 local function getSound(name: string): Sound?
 	local cached = cache[name]
 	if cached then
@@ -42,6 +55,7 @@ local function getSound(name: string): Sound?
 	sound.Volume = def.volume
 	sound.Looped = def.looped == true
 	sound.PlaybackSpeed = def.speed or 1
+	sound.SoundGroup = effectsGroup()
 	sound.Parent = soundFolder
 	cache[name] = sound
 	return sound
