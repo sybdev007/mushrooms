@@ -221,17 +221,35 @@ local function eyePair(position: UDim2, width: number, color: Color3, delay: num
 		eye.Size = UDim2.fromOffset(width, 0)
 		eye.BackgroundColor3 = color
 		eye.BorderSizePixel = 0
-		eye.Rotation = if side == 0 then 12 else -12
+		eye.Rotation = if side == 0 then 18 else -18
 		eye.ZIndex = 5
+		eye.ClipsDescendants = true
 		eye.Parent = pair
 		local c = Instance.new("UICorner")
 		c.CornerRadius = UDim.new(0.5, 0)
 		c.Parent = eye
 		local halo = Instance.new("UIStroke")
 		halo.Color = color
-		halo.Thickness = math.max(2, width * 0.18)
-		halo.Transparency = 0.55
+		halo.Thickness = math.max(2, width * 0.12)
+		halo.Transparency = 0.6
 		halo.Parent = eye
+		-- Jaśniejszy środek i pionowa źrenica
+		local shine = Instance.new("UIGradient")
+		shine.Color = ColorSequence.new(color:Lerp(Color3.new(1, 1, 1), 0.55), color)
+		shine.Rotation = 90
+		shine.Parent = eye
+		local pupil = Instance.new("Frame")
+		pupil.Name = "Pupil"
+		pupil.AnchorPoint = Vector2.new(0.5, 0.5)
+		pupil.Position = UDim2.fromScale(if side == 0 then 0.6 else 0.4, 0.5)
+		pupil.Size = UDim2.fromScale(0.16, 1.1)
+		pupil.BackgroundColor3 = Color3.fromRGB(10, 6, 4)
+		pupil.BorderSizePixel = 0
+		pupil.ZIndex = 6
+		pupil.Parent = eye
+		local pc = Instance.new("UICorner")
+		pc.CornerRadius = UDim.new(0.5, 0)
+		pc.Parent = pupil
 		table.insert(eyes, eye)
 	end
 	task.delay(delay, function()
@@ -269,9 +287,9 @@ local function smoke(current: number)
 			local puff = Instance.new("Frame")
 			puff.AnchorPoint = Vector2.new(0.5, 0.5)
 			puff.Position = UDim2.new(0.5, math.random(-8, 8), 0.34, -30)
-			puff.Size = UDim2.fromOffset(14, 14)
-			puff.BackgroundColor3 = Color3.fromRGB(150, 150, 150)
-			puff.BackgroundTransparency = 0.35
+			puff.Size = UDim2.fromOffset(10, 10)
+			puff.BackgroundColor3 = Color3.fromRGB(120, 116, 112)
+			puff.BackgroundTransparency = 0.6
 			puff.ZIndex = 8
 			puff.Parent = content
 			local c = Instance.new("UICorner")
@@ -310,7 +328,7 @@ function DeathScreen.show(key: string, titleText: string, subtitleText: string)
 	end
 	gui.Enabled = true
 	title.Text = titleText
-	title.TextColor3 = look.color:Lerp(Color3.fromRGB(255, 80, 60), if look.big then 0.25 else 0.6)
+	title.TextColor3 = Color3.fromRGB(235, 70, 55)
 	subtitle.Text = subtitleText
 	tipText.Text = Localize.t("DEATH_TIP_" .. look.tips .. "_" .. math.random(1, TIP_COUNT))
 	setTransparency(1)
@@ -404,7 +422,7 @@ function DeathScreen.show(key: string, titleText: string, subtitleText: string)
 		for _, pair in eyesLayer:GetChildren() do
 			for _, eye in pair:GetChildren() do
 				if eye:IsA("Frame") then
-					tween(eye, 0.3, { BackgroundTransparency = 1 })
+					tween(eye, 0.3, { Size = UDim2.fromOffset(eye.Size.X.Offset, 0) })
 				end
 			end
 		end

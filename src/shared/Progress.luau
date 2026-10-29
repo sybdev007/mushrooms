@@ -302,7 +302,8 @@ end
 -- ===== Nagrody: skala według postępu gracza =====
 
 -- Monety za zadanie / logowanie rosną z najdalszym odblokowanym światem:
--- dwukrotność najcenniejszego zwykłego grzyba w tym świecie.
+-- dziesięciokrotność najcenniejszego zwykłego grzyba w tym świecie (ok. 2-4 minuty zbierania;
+-- przy dwukrotności zadanie było warte mniej niż minutę gry, tools/economy_sim.luau).
 function Progress.rewardScale(caveUnlocked: boolean, swampUnlocked: boolean): number
 	local page = if swampUnlocked then "swamp" elseif caveUnlocked then "cave" else "forest"
 	local best = 0
@@ -311,7 +312,7 @@ function Progress.rewardScale(caveUnlocked: boolean, swampUnlocked: boolean): nu
 			best = math.max(best, species.value)
 		end
 	end
-	return math.max(50, best * 2)
+	return math.max(50, best * 10)
 end
 
 -- ===== Codzienne zadania =====

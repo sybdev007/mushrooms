@@ -58,6 +58,13 @@ end
 -- Odznaki Robloxa za osiągnięcia (tylko te z numerem w Config.Badges). Przyznane zapisujemy,
 -- żeby nie pytać Robloxa co chwilę; w trakcie przyznawania drugi raz nie próbujemy.
 local awarding: { [Player]: { [string]: boolean } } = {}
+-- Nowsza nazwa metody to AwardBadgeAsync; starsze wersje Robloxa mają tylko AwardBadge
+local awardBadge: any = (function()
+	local ok, method = pcall(function()
+		return (BadgeService :: any).AwardBadgeAsync
+	end)
+	return if ok and method then method else (BadgeService :: any).AwardBadge
+end)()
 local function checkBadges(player: Player, data: Data)
 	local done = Achievements.check({
 		atlas = data.atlas,
@@ -78,7 +85,7 @@ local function checkBadges(player: Player, data: Data)
 			task.spawn(function()
 				local ok, has = pcall(BadgeService.UserHasBadgeAsync, BadgeService, player.UserId, badgeId)
 				if ok and not has then
-					ok, has = pcall(BadgeService.AwardBadge, BadgeService, player.UserId, badgeId)
+					ok, has = pcall(awardBadge, BadgeService, player.UserId, badgeId)
 				end
 				if ok and has and not table.find(data.badges, id) then
 					table.insert(data.badges, id)

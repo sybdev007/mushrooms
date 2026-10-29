@@ -243,7 +243,7 @@ Config.WorldOilUpgrade = {
 -- Jaskinia: portal za Gniazdem Leszego, otwiera się graczom z co najmniej unlockCoins monet.
 -- Raz otwarty zostaje otwarty (zapisywane), nawet gdy potem wydasz monety.
 Config.Cave = {
-	unlockCoins = 50000,
+	unlockCoins = 30000, -- ok. 40 min lasu po ulepszeniach (tools/economy_sim.luau); było 50 000
 	halfWidth = 46, -- jaskinia jest węższa niż las
 	ceiling = 34, -- wysokość stropu
 	portal = { x = 0, z = 476 }, -- portal w lesie, kawałek za Gniazdem Leszego
@@ -434,13 +434,13 @@ Config.Upgrades = {
 	-- Nożyk grzybiarza: mnożnik szans na mutacje (srebro, złoto, tęcza i cechy z miejsca)
 	knife = { key = "UPG_KNIFE", base = 1, step = 0.25, maxLevel = 6, costBase = 300, costGrowth = 2.3 },
 	-- Obozowisko w jaskini. Kryształowy wkład: mnożnik spalania oleju w jaskini (1 = bez zmian)
-	crystal = { key = "UPG_CRYSTAL", base = 1, step = -0.1, maxLevel = 5, costBase = 3000, costGrowth = 1.8, shop = "cave" },
+	crystal = { key = "UPG_CRYSTAL", base = 1, step = -0.1, maxLevel = 5, costBase = 8000, costGrowth = 1.8, shop = "cave" },
 	-- Plecak górnika: tyle dodatkowych miejsc w koszyku
-	pack = { key = "UPG_PACK", base = 0, step = 4, maxLevel = 6, costBase = 2500, costGrowth = 1.7, shop = "cave" },
+	pack = { key = "UPG_PACK", base = 0, step = 4, maxLevel = 6, costBase = 6000, costGrowth = 1.7, shop = "cave" },
 	-- Przystań na bagnach. Knot z sitowia: mnożnik spalania oleju na bagnach
-	rushwick = { key = "UPG_RUSHWICK", base = 1, step = -0.1, maxLevel = 6, costBase = 60000, costGrowth = 1.75, shop = "swamp" },
+	rushwick = { key = "UPG_RUSHWICK", base = 1, step = -0.1, maxLevel = 6, costBase = 150000, costGrowth = 1.75, shop = "swamp" },
 	-- Wiklinowy kosz: jeszcze więcej miejsca w koszyku
-	creel = { key = "UPG_CREEL", base = 0, step = 5, maxLevel = 5, costBase = 50000, costGrowth = 1.7, shop = "swamp" },
+	creel = { key = "UPG_CREEL", base = 0, step = 5, maxLevel = 5, costBase = 120000, costGrowth = 1.7, shop = "swamp" },
 } :: { [string]: UpgradeDef }
 
 -- Kolejność przycisków ulepszeń: w chatce i w obozowisku w jaskini
