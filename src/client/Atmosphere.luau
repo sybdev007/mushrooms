@@ -26,8 +26,8 @@ local BRIGHT_FOG = Color3.fromRGB(150, 120, 160)
 local DARK_FOG = Color3.fromRGB(10, 12, 22)
 local DARK_TINT = Color3.fromRGB(196, 210, 255)
 -- Halloween, Noc Dziadów: fioletowa mgła i fioletowy odcień w mroku (dusze przodków)
-local SPIRIT_FOG = Color3.fromRGB(58, 20, 78)
-local SPIRIT_TINT = Color3.fromRGB(222, 190, 255)
+local SPIRIT_FOG = Color3.fromRGB(104, 40, 150)
+local SPIRIT_TINT = Color3.fromRGB(206, 168, 255)
 local currentTint = DARK_TINT
 local appliedTint = DARK_TINT
 
@@ -142,7 +142,7 @@ function Atmosphere.update(zone: number, lanternRange: number, dt: number): numb
 	local spirit = not dawn and Workspace:GetAttribute("CycleEvent") == "spirit_night"
 	local targetFog = if fog then Color3.fromRGB(fog[1], fog[2], fog[3]) else DARK_FOG
 	if spirit then
-		targetFog = targetFog:Lerp(SPIRIT_FOG, 0.75)
+		targetFog = targetFog:Lerp(SPIRIT_FOG, 0.9)
 	end
 	local fogAlpha = math.clamp(dt * CHANGE_SPEED, 0, 1)
 	currentFog = currentFog:Lerp(targetFog, fogAlpha)

@@ -14,8 +14,8 @@ local HalloweenDecor = {}
 local TEXTURE = (Config :: any).VoxelNoise and (Config :: any).VoxelNoise.texture or ""
 local NOISE_FACES = { Enum.NormalId.Front, Enum.NormalId.Back, Enum.NormalId.Left, Enum.NormalId.Right, Enum.NormalId.Top }
 
-local ORANGE = Color3.fromRGB(240, 128, 30)
-local ORANGE_DARK = Color3.fromRGB(196, 92, 20)
+local ORANGE = Color3.fromRGB(226, 112, 24)
+local ORANGE_DARK = Color3.fromRGB(170, 74, 16)
 local STEM = Color3.fromRGB(70, 104, 40)
 local GLOW = Color3.fromRGB(255, 214, 90)
 local CANDLE_GLASS = Color3.fromRGB(200, 30, 36)
@@ -50,6 +50,7 @@ local function texturize(p: BasePart, tile: number)
 		t.Face = face
 		t.StudsPerTileU = tile
 		t.StudsPerTileV = tile
+		t.Transparency = 0.45 -- delikatna kratka (pełna przepalała się w świetle chatki)
 		t.Parent = p
 	end
 end
@@ -82,11 +83,14 @@ local function pumpkin(parent: Instance, at: CFrame, s: number)
 	for _, x in { -0.12, 0.12 } do
 		part(m, "Tooth", Vector3.new(s * 0.09, s * 0.06, 0.07), at * CFrame.new(x * s, y - s * 0.13, front - 0.01), ORANGE)
 	end
+	-- Światło przed buzią (w środku dyni przepalało ją na żółto): oświetla ziemię wokół, nie samą dynię
+	local glow = part(m, "Glow", Vector3.new(0.2, 0.2, 0.2), at * CFrame.new(0, y, -s * 0.9), GLOW)
+	glow.Transparency = 1
 	local light = Instance.new("PointLight")
-	light.Color = Color3.fromRGB(255, 150, 50)
-	light.Range = 6 + s * 2
-	light.Brightness = 1.4
-	light.Parent = body
+	light.Color = Color3.fromRGB(255, 140, 50)
+	light.Range = 5 + s * 2
+	light.Brightness = 0.9
+	light.Parent = glow
 	m.PrimaryPart = body
 	m.Parent = parent
 end

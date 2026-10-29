@@ -732,8 +732,10 @@ local function buildModel(info: MushroomInfo): (Model, { BasePart }, boolean, { 
 	end
 	local pumpkin = hasTag(info, "pumpkin")
 	if pumpkin and rank == 0 then
-		-- Dynia bez wariantu: pomarańczowa (złota / srebrna / tęczowa dynia zostaje w kolorze wariantu)
 		capColor = PUMPKIN
+	elseif pumpkin and rank < 3 then
+		-- Srebrna / złota dynia: wciąż pomarańczowa, z odcieniem wariantu (tęczowa mieni się jak zawsze)
+		capColor = PUMPKIN:Lerp(capColor, 0.4)
 	end
 	local parts: { BasePart } = {}
 	local yaw = math.random() * math.pi * 2

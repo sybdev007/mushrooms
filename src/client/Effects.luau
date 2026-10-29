@@ -172,22 +172,22 @@ mist.Rate = 0
 mist.Parent = mistHolder
 
 -- Halloween, Noc Dziadów: dusze przodków (blade, świecące obłoczki) unoszą się wokół gracza
-local spiritHolder = holder("SpiritArea", Vector3.new(56, 5, 56))
+local spiritHolder = holder("SpiritArea", Vector3.new(40, 6, 40))
 local spirits = Instance.new("ParticleEmitter")
 spirits.Texture = SMOKE
 spirits.Shape = Enum.ParticleEmitterShape.Box
 spirits.ShapeStyle = Enum.ParticleEmitterShapeStyle.Volume
 spirits.Color = ColorSequence.new(Color3.fromRGB(200, 240, 255), Color3.fromRGB(190, 150, 255))
-spirits.LightEmission = 0.8
+spirits.LightEmission = 1
 spirits.Size = NumberSequence.new({
-	NumberSequenceKeypoint.new(0, 1.2),
-	NumberSequenceKeypoint.new(0.5, 2.4),
-	NumberSequenceKeypoint.new(1, 1.6),
+	NumberSequenceKeypoint.new(0, 1.6),
+	NumberSequenceKeypoint.new(0.5, 3.2),
+	NumberSequenceKeypoint.new(1, 2.2),
 })
 spirits.Transparency = NumberSequence.new({
 	NumberSequenceKeypoint.new(0, 1),
-	NumberSequenceKeypoint.new(0.25, 0.55),
-	NumberSequenceKeypoint.new(0.75, 0.6),
+	NumberSequenceKeypoint.new(0.25, 0.4),
+	NumberSequenceKeypoint.new(0.75, 0.5),
 	NumberSequenceKeypoint.new(1, 1),
 })
 spirits.Lifetime = NumberRange.new(5, 8)
@@ -216,7 +216,7 @@ function Effects.updateParticles(rootPosition: Vector3, zone: number)
 		spiritShown = spirit
 		mist.Color = if spirit then SPIRIT_MIST_COLOR else MIST_COLOR
 	end
-	spirits.Rate = if spirit then (if zoneDef and zoneDef.safe then 1 else 3) else 0
+	spirits.Rate = if spirit then (if zoneDef and zoneDef.safe then 2 else 7) else 0
 end
 
 -- ===== Efekty jednorazowe =====
