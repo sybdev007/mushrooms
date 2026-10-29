@@ -223,6 +223,7 @@ local TOAST_KIND: { [string]: string } = {
 	MSG_ATLAS_NEW_SPECIES = "gold",
 	MSG_ATLAS_NEW_FORM = "gold",
 	MSG_ATLAS_TIER = "gold",
+	MSG_BESTIARY_NEW = "gold",
 	MSG_QUEST_DONE = "gold",
 	MSG_QUESTS_ALL_DONE = "gold",
 	MSG_QUESTS_NEW = "info",

@@ -45,6 +45,8 @@ local ACTIONS: { { id: string, label: string } } = {
 	{ id = "atlasGold", label = "Księga: wszystko złote" },
 	{ id = "atlasRainbow", label = "Księga: wszystko" },
 	{ id = "atlasClear", label = "Księga: wyczyść" },
+	{ id = "bestiaryNext", label = "Strażnicy: odkryj następnego" },
+	{ id = "bestiaryClear", label = "Strażnicy: wyczyść" },
 	{ id = "questsDone", label = "Zadania: ukończ" },
 	{ id = "questsNew", label = "Zadania: nowy dzień" },
 	{ id = "boardsRefresh", label = "Rankingi: odśwież" },

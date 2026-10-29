@@ -1208,6 +1208,67 @@ test("pełna księga daje arcytytuł i rozsądny bonus", function()
 	check(bonus > 0.3 and bonus <= 1, "bonus " .. bonus)
 end)
 
+print("Strażnicy w Grzybopedii (Progress)")
+
+test("każdy strażnik ma grzyby, świat z bezpieczną strefą i teksty EN/PL", function()
+	for _, def in Progress.GUARDIANS do
+		check(#Economy.guardianSpecies(def.id) > 0, def.id .. " niczego nie pilnuje")
+		for _, species in Economy.guardianSpecies(def.id) do
+			eq(Economy.guardianOf(species.id), def.id, species.id)
+			eq(Economy.zoneWorld(species.zone), def.world, species.id .. " w innym świecie")
+		end
+		check(Progress.safeZone(def.world) ~= nil, def.id .. ": świat bez bezpiecznej strefy")
+		check(Progress.escapeDistance(def) > 0, def.id .. ": legowisko przed bezpieczną strefą")
+		check(csvHas("ATLAS_PAGE_" .. string.upper(def.world)), "brak strony " .. def.world)
+		for _, suffix in { "", "_TITLE", "_LORE", "_TIP" } do
+			check(csvHas(def.key .. suffix), "brak " .. def.key .. suffix)
+		end
+	end
+	for _, key in { "ATLAS_PAGE_GUARDIANS", "MSG_BESTIARY_NEW", "BESTIARY_SUMMARY", "BESTIARY_LOCKED", "BESTIARY_RECORD" } do
+		check(csvHas(key), "brak " .. key)
+	end
+end)
+
+test("strażnika odkrywa dopiero kradzież, liczniki rosną osobno", function()
+	local bestiary = {}
+	eq(Progress.guardianEvent(bestiary, "leszy", "escape"), false, "ucieczka nie odkrywa")
+	eq(Progress.guardianEvent(bestiary, "leszy", "caught"), false, "złapanie nie odkrywa")
+	eq(Progress.guardianRecord(bestiary, "leszy").found, false, "jeszcze nieznany")
+	eq(Progress.guardianEvent(bestiary, "leszy", "steal"), true, "pierwsza kradzież odkrywa")
+	eq(Progress.guardianEvent(bestiary, "leszy", "steal"), false, "druga już nie")
+	local record = Progress.guardianRecord(bestiary, "leszy")
+	eq(record.stolen, 2, "kradzieże")
+	eq(record.escaped, 1, "ucieczki")
+	eq(record.caught, 1, "złapania")
+	eq(Progress.guardianEvent(bestiary, "smok", "steal"), false, "nieznany strażnik")
+	eq(Progress.guardianEvent(bestiary, "skarbnik", "taniec"), false, "nieznane zdarzenie")
+	eq(bestiary.skarbnik, nil, "nieznane zdarzenie nie tworzy wpisu")
+	local found, total = Progress.guardiansFound(bestiary)
+	eq(found, 1, "odkryci")
+	eq(total, #Progress.GUARDIANS, "wszyscy")
+end)
+
+test("stare zapisy: grzyb strażnika w Grzybopedii = strażnik już okradziony", function()
+	local bestiary = {}
+	local atlas = { [Economy.guardianSpecies("skarbnik")[1].id] = 4 }
+	Progress.migrateBestiary(bestiary, atlas)
+	eq(Progress.guardianRecord(bestiary, "skarbnik").found, true, "Skarbnik z księgi")
+	eq(Progress.guardianRecord(bestiary, "leszy").found, false, "Leszy bez korony w księdze")
+	eq(Progress.guardianRecord(bestiary, "skarbnik").stolen, 0, "liczniki od zera")
+end)
+
+test("próg butów do ucieczki rośnie ze światem i zgadza się z testami pościgu", function()
+	local previous = -1
+	for _, def in Progress.GUARDIANS do
+		local level = Progress.bootsToEscape(def)
+		check(level ~= nil, def.id .. ": nie da się uciec na żadnych butach")
+		check((level :: number) > previous, def.id .. ": łatwiejszy niż poprzedni strażnik")
+		previous = level :: number
+	end
+	eq(Progress.bootsToEscape(Progress.getGuardian("utopiec") :: any), Config.Upgrades.boots.maxLevel, "Utopiec tylko na maks.")
+	eq(Progress.escapeDistance(Progress.getGuardian("leszy") :: any), groveDistance, "droga ucieczki przed Leszym")
+end)
+
 print("Codzienne zadania i seria logowań (Progress)")
 
 test("trzy różne zadania, ten sam dzień = ten sam zestaw, inny gracz = zwykle inny", function()

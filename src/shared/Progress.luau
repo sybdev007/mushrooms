@@ -5,6 +5,7 @@
 -- Zapis w danych gracza (DataService):
 --   atlas  = { [gatunek] = maska bitów wariantów }: bit 1 zwykły, 2 srebrny, 4 złoty, 8 tęczowy
 --   atlasDone = { "forest:2", ... } kamienie milowe, o których gracz już dostał komunikat
+--   bestiary = { [strażnik] = { found, stolen, escaped, caught } } zakładka Strażnicy w Grzybopedii
 --   daily  = { day, quests = { { id, n, done } }, rerolled, bonusDone }
 --   streak = { day, count } ostatni odebrany dzień i długość serii
 --   weekly = { week, steals, best } do rankingów (best = zakodowane najlepsze znalezisko)
@@ -175,6 +176,124 @@ function Progress.title(atlas: { [string]: any }): string?
 					return tier.title .. string.upper(page)
 				end
 			end
+		end
+	end
+	return nil
+end
+
+-- ===== Strażnicy (zakładka w Grzybopedii) =====
+-- Strażnika poznaje się, gdy ukradnie mu się grzyb, którego pilnuje (zerwany w legowisku albo
+-- zabrany ze skarbca). Do tego liczniki: ile razy ukradłeś, uciekłeś i dałeś się złapać.
+-- Kolejność = kolejność kart w zakładce. key = klucz tłumaczenia (_TITLE, _LORE, _TIP to opisy).
+
+export type GuardianDef = {
+	id: string,
+	world: string,
+	key: string,
+	chase: { speed: number, wakeDelay: number, catchRadius: number, giveUpSeconds: number },
+	lair: { centerZ: number, respawnSeconds: number },
+}
+Progress.GUARDIANS = {
+	{ id = "leszy", world = "forest", key = "BOSS_LESZY", chase = Config.Leszy, lair = Config.Grove },
+	{ id = "skarbnik", world = "cave", key = "BOSS_SKARBNIK", chase = Config.Skarbnik, lair = Config.Lair },
+	{ id = "utopiec", world = "swamp", key = "BOSS_UTOPIEC", chase = Config.Utopiec, lair = Config.UtopiecLair },
+} :: { GuardianDef }
+
+-- Zapis: bestiary[strażnik] = { found, stolen, escaped, caught }
+export type GuardianRecord = { found: boolean, stolen: number, escaped: number, caught: number }
+-- Zdarzenia z gry i licznik, który posuwają
+local GUARDIAN_COUNTERS: { [string]: string } = { steal = "stolen", escape = "escaped", caught = "caught" }
+
+local guardianById: { [string]: GuardianDef } = {}
+for _, def in Progress.GUARDIANS do
+	guardianById[def.id] = def
+end
+function Progress.getGuardian(id: string): GuardianDef?
+	return guardianById[id]
+end
+
+function Progress.newGuardianRecord(): GuardianRecord
+	return { found = false, stolen = 0, escaped = 0, caught = 0 }
+end
+
+-- Wpis strażnika (pusty, gdy gracz jeszcze go nie spotkał). Nie zmienia zapisu.
+function Progress.guardianRecord(bestiary: { [string]: GuardianRecord }, id: string): GuardianRecord
+	return bestiary[id] or Progress.newGuardianRecord()
+end
+
+-- Zdarzenie ze strażnikiem: "steal" (ukradziony grzyb, odkrywa wpis), "escape", "caught".
+-- Zwraca true, gdy strażnik został właśnie odkryty.
+function Progress.guardianEvent(bestiary: { [string]: GuardianRecord }, id: string, kind: string): boolean
+	local counter = GUARDIAN_COUNTERS[kind]
+	if not guardianById[id] or not counter then
+		return false
+	end
+	local record = bestiary[id]
+	if not record then
+		record = Progress.newGuardianRecord()
+		bestiary[id] = record
+	end
+	local counts = record :: any
+	counts[counter] += 1
+	if kind == "steal" and not record.found then
+		record.found = true
+		return true
+	end
+	return false
+end
+
+-- Odkryci / wszyscy
+function Progress.guardiansFound(bestiary: { [string]: GuardianRecord }): (number, number)
+	local found = 0
+	for _, def in Progress.GUARDIANS do
+		local record = bestiary[def.id]
+		if record and record.found then
+			found += 1
+		end
+	end
+	return found, #Progress.GUARDIANS
+end
+
+-- Zapisy sprzed zakładki: kto ma w Grzybopedii grzyb strażnika, ten już go okradł
+function Progress.migrateBestiary(bestiary: { [string]: GuardianRecord }, atlas: { [string]: any })
+	for _, def in Progress.GUARDIANS do
+		local record = bestiary[def.id]
+		if not (record and record.found) then
+			for _, species in Economy.guardianSpecies(def.id) do
+				if Progress.mask(atlas, species.id) > 0 then
+					record = record or Progress.newGuardianRecord()
+					local found = record :: GuardianRecord
+					found.found = true
+					bestiary[def.id] = found
+					break
+				end
+			end
+		end
+	end
+end
+
+-- Droga ucieczki: od środka legowiska do końca bezpiecznej strefy świata (chatka, obozowisko, przystań)
+function Progress.safeZone(world: string): number?
+	for index, zone in Config.Zones do
+		if zone.world == world and zone.safe then
+			return index
+		end
+	end
+	return nil
+end
+
+function Progress.escapeDistance(def: GuardianDef): number
+	local safe = Progress.safeZone(def.world)
+	local safeEnd = if safe then Config.Zones[safe].endZ else 0
+	return def.lair.centerZ - safeEnd
+end
+
+-- Najniższy poziom butów, na którym da się uciec z legowiska (nil = nie da się wcale)
+function Progress.bootsToEscape(def: GuardianDef): number?
+	local distance = Progress.escapeDistance(def)
+	for level = 0, Config.Upgrades.boots.maxLevel do
+		if Economy.escapes(distance, Economy.upgradeStat("boots", level), def.chase) then
+			return level
 		end
 	end
 	return nil

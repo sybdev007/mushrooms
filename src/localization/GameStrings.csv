@@ -391,3 +391,30 @@ CUT2_SAFE,Phew. My mushroom is safe.,,,Uff. Mój grzybek jest cały.
 TUT_COMPLETE,MISSION COMPLETE!,,,MISJA UKOŃCZONA!
 TUT_TITLE_GOT,New title unlocked:,,,Nowy tytuł:
 TITLE_NEW,Newbie,,,Nowy
+ATLAS_PAGE_GUARDIANS,Guardians,,,Strażnicy
+MSG_BESTIARY_NEW,New guardian in the Atlas: {1}! Meet it in the Guardians tab.,,,Nowy strażnik w Grzybopedii: {1}! Poznaj go w zakładce Strażnicy.
+BESTIARY_SUMMARY,Guardians met: <b>{1}/{2}</b>  ·  Steal a guarded mushroom to meet its keeper,,,Poznani strażnicy: <b>{1}/{2}</b>  ·  Ukradnij strzeżony grzyb – poznasz strażnika
+BESTIARY_UNKNOWN_TITLE,Unknown guardian,,,Nieznany strażnik
+BESTIARY_LOCKED,Something guards a treasure here. Steal just one of its mushrooms – and you will learn its name and how to escape it.,,,Coś pilnuje tu skarbu. Ukradnij choć jeden strzeżony grzyb – a poznasz imię strażnika i sposób na ucieczkę.
+BESTIARY_GUARDS,Guards,,,Pilnuje
+BESTIARY_LAIR,Lair,,,Kryjówka
+BESTIARY_SPEED,Speed,,,Szybkość
+BESTIARY_WAKE,Wakes after,,,Budzi się po
+BESTIARY_ESCAPE,Escape,,,Ucieczka
+BESTIARY_ESCAPE_LEVEL,Boots lvl {1}+,,,Buty poz. {1}+
+BESTIARY_ESCAPE_NONE,Impossible,,,Niemożliwa
+BESTIARY_SAFE,Safe at,,,Bezpiecznie w
+BESTIARY_SECONDS,{1} s,,,{1} s
+BESTIARY_RECORD,Stolen: <b>{1}</b>  ·  Escaped: <b>{2}</b>  ·  Caught you: <b>{3}</b>,,,Skradzione: <b>{1}</b>  ·  Ucieczki: <b>{2}</b>  ·  Złapał cię: <b>{3}</b>
+BOSS_LESZY,Leshy,,,Leszy
+BOSS_LESZY_TITLE,Lord of the Forest,,,Pan Lasu
+BOSS_LESZY_LORE,A spirit as old as the forest itself – woven from bark and moss. By day it poses as a dead tree inside the stone circle. By night it guards its Crowns and knows every single one. Pick just one – its amber heart flares red and the Leshy gives chase. Trees will not stop it: it drifts through them like mist.,,,Duch stary jak sam las – utkany z kory i mchu. Za dnia udaje martwe drzewo w kręgu kamieni. Nocą pilnuje swoich Koron i zna każdą z osobna. Zerwij choć jedną – a bursztynowe serce rozpali się czerwienią i Leszy ruszy w pogoń. Drzewa go nie zatrzymają: przenika przez nie jak mgła.
+BOSS_LESZY_TIP,Run straight down the path to the cabin – the Leshy loses your trail at the clearing. Caught? Your Crowns land in the hoard at the grove and anyone can go back for them.,,,Biegnij prosto ścieżką do chatki – na polanie Leszy traci trop. Złapał cię? Twoje Korony trafią do skarbca w gnieździe i każdy może po nie wrócić.
+BOSS_SKARBNIK,Skarbnik,,,Skarbnik
+BOSS_SKARBNIK_TITLE,Spirit of the Mine,,,Duch kopalni
+BOSS_SKARBNIK_LORE,An old miner from Silesian legends. He wears a black uniform with brass buttons and a plumed shako. In his hand he carries a lantern with a green flame. He shows honest miners the way through the dark. The greedy he cannot stand: touch his Golden Truffles – and the clatter of his pick will chase you all the way to the camp.,,,Stary górnik ze śląskich legend. Nosi czarny mundur z mosiężnymi guzikami i czako z pióropuszem. W dłoni trzyma latarnię z zielonym płomieniem. Uczciwym górnikom wskazuje drogę w ciemności. Chciwców nie znosi: tknij jego Złote Trufle – a stukot kilofa pogoni cię aż do obozowiska.
+BOSS_SKARBNIK_TIP,Faster than the Leshy and he chases for longer. Don't even try without well-upgraded boots. Go for the Truffles with an empty basket. If he catches you – he takes everything.,,,Jest szybszy od Leszego i goni dłużej. Bez porządnie ulepszonych butów nawet nie próbuj. Idź po Trufle z pustym koszykiem. Jeśli cię dopadnie – zabierze wszystko.
+BOSS_UTOPIEC,Utopiec,,,Utopiec
+BOSS_UTOPIEC_TITLE,Water-Spirit of the Bog,,,Wodnik z bagien
+BOSS_UTOPIEC_LORE,A green and slimy water-spirit in a little red cap. At the bottom of the pond he keeps the souls of the drowned under porcelain teacups. The Chalices on the island are his bait – nothing in the swamp shines brighter. The moment you touch one – he leaps out of the water.,,,Zielony i oślizgły wodnik w czerwonej czapeczce. Na dnie stawu chowa pod porcelanowymi filiżankami dusze utopionych. Kielichy na wyspie to jego przynęta – błyszczą najjaśniej na całych bagnach. Ledwie ich dotkniesz – już wyskakuje z wody.
+BOSS_UTOPIEC_TIP,He wakes almost instantly and runs nearly as fast as you do in maxed boots. Without them there is no escape. Stay on the boardwalk – and don't look back.,,,Budzi się prawie od razu i biega niemal tak szybko jak ty na maksymalnych butach. Bez nich nie ma ucieczki. Trzymaj się kładki – i nie oglądaj się za siebie.
