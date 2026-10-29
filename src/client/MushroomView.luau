@@ -576,22 +576,38 @@ local function buildAura(model: Model, info: MushroomInfo, origin: CFrame, shape
 	if ringColor then
 		local d = aura.ringSize
 		local flat = origin * CFrame.new(0, 0.06, 0) * CFrame.Angles(0, 0, math.rad(90))
+		-- Delikatna poświata pod grzybem
 		local ring = makePart("RingGlow", Vector3.new(0.05, d, d), flat, ringColor)
 		ring.Shape = Enum.PartType.Cylinder
 		ring.Material = Enum.Material.Neon
-		ring.Transparency = 0.8
-		ring:SetAttribute("BaseT", 0.8)
+		ring.Transparency = 0.92
+		ring:SetAttribute("BaseT", 0.92)
 		ring.Parent = model
-		local ripple = makePart("RingRipple", Vector3.new(0.04, d, d), flat * CFrame.new(0.02, 0, 0), ringColor)
-		ripple.Shape = Enum.PartType.Cylinder
-		ripple.Material = Enum.Material.Neon
-		ripple.Transparency = 1
-		ripple:SetAttribute("BaseT", 1)
-		ripple.Parent = model
-		aura.ring = ring
-		aura.ripple = ripple
 		table.insert(fxParts, ring)
-		table.insert(fxParts, ripple)
+		aura.ring = ring
+		-- Pikselowy krąg z 8 świecących kawałków (w stylu kostek, z jakich jest świat)
+		local radius = d / 2
+		local segment = 2 * math.pi * radius / 8 * 0.62
+		for k = 0, 7 do
+			local angle = k * math.pi / 4 + math.pi / 8
+			local piece = makePart("RingPiece", Vector3.new(segment, 0.1, 0.22), origin * CFrame.Angles(0, -angle, 0) * CFrame.new(0, 0.1, -radius), ringColor)
+			piece.Material = Enum.Material.Neon
+			piece.Transparency = 0.35
+			piece:SetAttribute("BaseT", 0.35)
+			piece.Parent = model
+			table.insert(fxParts, piece)
+		end
+		-- Fala rozchodząca się od grzyba: tylko epickie, legendarne i warianty
+		if rank >= 3 or variant ~= nil then
+			local ripple = makePart("RingRipple", Vector3.new(0.04, d, d), flat * CFrame.new(0.02, 0, 0), ringColor)
+			ripple.Shape = Enum.PartType.Cylinder
+			ripple.Material = Enum.Material.Neon
+			ripple.Transparency = 1
+			ripple:SetAttribute("BaseT", 1)
+			ripple.Parent = model
+			table.insert(fxParts, ripple)
+			aura.ripple = ripple
+		end
 		any = true
 	end
 	local spores: { Color3 }? = nil
@@ -960,17 +976,20 @@ function MushroomView.updateVisibility(position: Vector3, lanternRange: number, 
 				end
 				-- Krąg oddycha, a fala co chwilę rozchodzi się od grzyba i gaśnie
 				local ring, ripple = aura.ring, aura.ripple
-				if ring and ripple then
+				if ring then
 					local breath = 0.5 + 0.5 * math.sin(t * 2.4 + entry.phase)
-					ring.Transparency = 0.86 - 0.14 * breath
-					local k = (t * 0.6 + entry.phase) % 1
-					local size = aura.ringSize * (0.5 + k * 1.1)
-					ripple.Size = Vector3.new(0.04, size, size)
-					ripple.Transparency = 0.4 + 0.6 * k
+					ring.Transparency = 0.94 - 0.06 * breath
 					if aura.ringRainbow then
-						local color = Color3.fromHSV((t * 0.35 + entry.phase) % 1, 0.55, 1)
-						ring.Color = color
-						ripple.Color = color
+						ring.Color = Color3.fromHSV((t * 0.35 + entry.phase) % 1, 0.55, 1)
+					end
+				end
+				if ripple then
+					local k = (t * 0.5 + entry.phase) % 1
+					local size = aura.ringSize * (0.4 + k * 1.0)
+					ripple.Size = Vector3.new(0.04, size, size)
+					ripple.Transparency = 0.7 + 0.3 * k
+					if aura.ringRainbow then
+						ripple.Color = Color3.fromHSV((t * 0.35 + entry.phase) % 1, 0.55, 1)
 					end
 				end
 				if aura.spores and distance < 50 and t >= aura.nextSpore then
