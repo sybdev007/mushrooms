@@ -308,13 +308,55 @@ local function controls(): any
 	return if ok then result else nil
 end
 
+-- Bez PlayerModule (nowsze sterowanie Robloxa) zatrzymujemy postać prędkością: dopóki okno jest
+-- otwarte, WalkSpeed trzyma 0, a wartość od serwera (buty) zapamiętujemy i oddajemy po zamknięciu
+local frozenHumanoid: Humanoid? = nil
+local savedSpeed = 16
+local restore = false -- czy to my wyzerowaliśmy prędkość (gracz „powalony” ma 0 od serwera)
+local speedWatch: RBXScriptConnection? = nil
+
+local function freeze(on: boolean)
+	local character = Players.LocalPlayer.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if on then
+		if not humanoid or frozenHumanoid == humanoid then
+			return
+		end
+		frozenHumanoid = humanoid
+		restore = humanoid.WalkSpeed > 0
+		if restore then
+			savedSpeed = humanoid.WalkSpeed
+		end
+		humanoid.WalkSpeed = 0
+		speedWatch = humanoid:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
+			if humanoid.WalkSpeed > 0 then
+				savedSpeed = humanoid.WalkSpeed
+				restore = true
+				humanoid.WalkSpeed = 0
+			end
+		end)
+	else
+		if speedWatch then
+			speedWatch:Disconnect()
+			speedWatch = nil
+		end
+		local held = frozenHumanoid
+		frozenHumanoid = nil
+		if restore and held and held.Parent and held.WalkSpeed == 0 then
+			held.WalkSpeed = savedSpeed
+		end
+	end
+end
+
 function PanelKit.setModal(name: string, open: boolean)
 	modal[name] = if open then true else nil
+	local anyOpen = next(modal) ~= nil
+	freeze(anyOpen)
 	local c = controls()
 	if not c then
 		return
 	end
-	if next(modal) ~= nil then
+	if anyOpen then
 		pcall(c.Disable, c)
 	else
 		-- Cutscenka zamraża postać (zakotwiczony korzeń) i sama włączy sterowanie po końcu
