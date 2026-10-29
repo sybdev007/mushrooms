@@ -394,6 +394,8 @@ end
 -- Rzadki: światło w kolorze klasy. Epicki: w górę lecą voxelowe zarodniki.
 -- Legendarny: złote świetliki z warkoczami krążą wokół, z nieba pada miękki snop światła.
 -- Złoty: krążące złote świetliki. Tęczowy (mityczny): tęczowy kapelusz, tęczowe świetliki, snop i zarodniki.
+-- Do tego od rzadkiego wzwyż (i dla srebrnych, złotych, tęczowych) świecący krąg na ziemi w kolorze
+-- rzadkości z falą, która co chwilę rozchodzi się od grzyba, a epicki dostaje niższy fioletowy snop.
 
 type Aura = {
 	orbit: { BasePart },
@@ -406,6 +408,10 @@ type Aura = {
 	spores: { Color3 }?,
 	nextSpore: number,
 	capTop: number,
+	ring: BasePart?, -- świecący krąg na ziemi
+	ripple: BasePart?, -- fala rozchodząca się od grzyba
+	ringSize: number,
+	ringRainbow: boolean,
 }
 
 local CLASS_RANK: { [string]: number } = { common = 0, uncommon = 1, rare = 2, epic = 3, legendary = 4 }
@@ -487,7 +493,16 @@ local function buildAura(model: Model, info: MushroomInfo, origin: CFrame, shape
 	local rank = CLASS_RANK[class.id] or 0
 	local variant = info.variant
 	local classColor = rgb(class.color[1], class.color[2], class.color[3])
-	local aura: Aura = { orbit = {}, orbitRadius = shape.capW * SIZE * 0.85 + 0.4, orbitHeight = capTop * 0.6, orbitRainbow = false, nextSpore = 0, capTop = capTop }
+	local aura: Aura = {
+		orbit = {},
+		orbitRadius = shape.capW * SIZE * 0.85 + 0.4,
+		orbitHeight = capTop * 0.6,
+		orbitRainbow = false,
+		nextSpore = 0,
+		capTop = capTop,
+		ringSize = shape.capW * SIZE * 1.9 + 1,
+		ringRainbow = variant == "rainbow",
+	}
 	local any = false
 	local light: Color3? = if rank >= 2 then classColor else nil
 
@@ -537,6 +552,62 @@ local function buildAura(model: Model, info: MushroomInfo, origin: CFrame, shape
 		aura.pillar = pillar
 		aura.beams = beams
 		aura.motes = motes
+		any = true
+	end
+	-- Epicki: niższy snop w kolorze klasy, żeby było go widać z daleka w ciemnym lesie
+	if rank == 3 and not aura.pillar then
+		local pillar, beams, motes = buildShaft(model, origin, shape.capW * SIZE * 0.8 + 0.4, 9, lighten(classColor, 0.25))
+		aura.pillar = pillar
+		aura.beams = beams
+		aura.motes = motes
+		any = true
+	end
+	-- Krąg na ziemi w kolorze rzadkości (wariant wygrywa z klasą)
+	local ringColor: Color3? = nil
+	if variant == "rainbow" then
+		ringColor = rgb(255, 170, 235)
+	elseif variant == "gold" then
+		ringColor = rgb(255, 205, 60)
+	elseif variant == "silver" then
+		ringColor = rgb(220, 232, 248)
+	elseif rank >= 2 then
+		ringColor = classColor
+	end
+	if ringColor then
+		local d = aura.ringSize
+		local flat = origin * CFrame.new(0, 0.06, 0) * CFrame.Angles(0, 0, math.rad(90))
+		-- Delikatna poświata pod grzybem
+		local ring = makePart("RingGlow", Vector3.new(0.05, d, d), flat, ringColor)
+		ring.Shape = Enum.PartType.Cylinder
+		ring.Material = Enum.Material.Neon
+		ring.Transparency = 0.92
+		ring:SetAttribute("BaseT", 0.92)
+		ring.Parent = model
+		table.insert(fxParts, ring)
+		aura.ring = ring
+		-- Pikselowy krąg z 8 świecących kawałków (w stylu kostek, z jakich jest świat)
+		local radius = d / 2
+		local segment = 2 * math.pi * radius / 8 * 0.62
+		for k = 0, 7 do
+			local angle = k * math.pi / 4 + math.pi / 8
+			local piece = makePart("RingPiece", Vector3.new(segment, 0.1, 0.22), origin * CFrame.Angles(0, -angle, 0) * CFrame.new(0, 0.1, -radius), ringColor)
+			piece.Material = Enum.Material.Neon
+			piece.Transparency = 0.35
+			piece:SetAttribute("BaseT", 0.35)
+			piece.Parent = model
+			table.insert(fxParts, piece)
+		end
+		-- Fala rozchodząca się od grzyba: tylko epickie, legendarne i warianty
+		if rank >= 3 or variant ~= nil then
+			local ripple = makePart("RingRipple", Vector3.new(0.04, d, d), flat * CFrame.new(0.02, 0, 0), ringColor)
+			ripple.Shape = Enum.PartType.Cylinder
+			ripple.Material = Enum.Material.Neon
+			ripple.Transparency = 1
+			ripple:SetAttribute("BaseT", 1)
+			ripple.Parent = model
+			table.insert(fxParts, ripple)
+			aura.ripple = ripple
+		end
 		any = true
 	end
 	local spores: { Color3 }? = nil
@@ -901,6 +972,24 @@ function MushroomView.updateVisibility(position: Vector3, lanternRange: number, 
 					if motes and aura.orbitRainbow then
 						local h = (t * 0.2 + entry.phase) % 1
 						motes.Color = ColorSequence.new(Color3.fromHSV(h, 0.5, 1), Color3.fromHSV((h + 0.5) % 1, 0.5, 1))
+					end
+				end
+				-- Krąg oddycha, a fala co chwilę rozchodzi się od grzyba i gaśnie
+				local ring, ripple = aura.ring, aura.ripple
+				if ring then
+					local breath = 0.5 + 0.5 * math.sin(t * 2.4 + entry.phase)
+					ring.Transparency = 0.94 - 0.06 * breath
+					if aura.ringRainbow then
+						ring.Color = Color3.fromHSV((t * 0.35 + entry.phase) % 1, 0.55, 1)
+					end
+				end
+				if ripple then
+					local k = (t * 0.5 + entry.phase) % 1
+					local size = aura.ringSize * (0.4 + k * 1.0)
+					ripple.Size = Vector3.new(0.04, size, size)
+					ripple.Transparency = 0.7 + 0.3 * k
+					if aura.ringRainbow then
+						ripple.Color = Color3.fromHSV((t * 0.35 + entry.phase) % 1, 0.55, 1)
 					end
 				end
 				if aura.spores and distance < 50 and t >= aura.nextSpore then
