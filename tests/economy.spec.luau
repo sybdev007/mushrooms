@@ -26,6 +26,20 @@ local Progress = loadModule("src/shared/Progress.luau", {
 	end,
 })
 
+local Titles = loadModule("src/shared/Titles.luau", {
+	script = { Parent = { Config = Config, Progress = Progress } },
+	require = function(module)
+		return module
+	end,
+})
+
+local Achievements = loadModule("src/shared/Achievements.luau", {
+	script = { Parent = { Config = Config, Progress = Progress } },
+	require = function(module)
+		return module
+	end,
+})
+
 local roblox = require("@lune/roblox")
 local Expedition = loadModule("src/shared/Expedition.luau", { Vector3 = roblox.Vector3 })
 
@@ -1407,6 +1421,130 @@ test("ratunek: kumpel ma rozsądny czas i dostaje się olej na powrót", functio
 	check(Expedition.DOWN_SECONDS >= 8 and Expedition.DOWN_SECONDS <= 30, "czas")
 	check(Expedition.REVIVE_OIL > 0 and Expedition.REVIVE_OIL < 1, "olej")
 	check(Expedition.REVIVE_DISTANCE < Expedition.RADIUS, "trzeba podejść blisko")
+end)
+
+-- ===== Tytuły =====
+
+local function titleCtx(stats: any?, atlas: any?, bestiary: any?, tutorialDone: boolean?): any
+	local full = Titles.emptyStats()
+	for key, value in stats or {} do
+		full[key] = value
+	end
+	return { atlas = atlas or {}, bestiary = bestiary or {}, stats = full, tutorialDone = tutorialDone == true }
+end
+
+test("tytuły: każdy ma tłumaczenie, rzadkość i unikalne id", function()
+	local csv = fs.readFile("src/localization/GameStrings.csv")
+	local seen = {}
+	for _, def in Titles.LIST do
+		check(not seen[def.id], "powtórzony " .. def.id)
+		seen[def.id] = true
+		check(Titles.RARITY_COLOR[def.rarity] ~= nil, "rzadkość " .. def.id)
+		check(string.find(csv, "\n" .. def.id .. ",", 1, true) ~= nil, "brak w CSV: " .. def.id)
+		check(string.find(csv, "\n" .. def.id .. "_HOW,", 1, true) ~= nil, "brak opisu w CSV: " .. def.id .. "_HOW")
+	end
+	check(#Titles.LIST >= 25, "co najmniej 25 tytułów")
+end)
+
+test("tytuły: lista od zwykłych do mitycznych", function()
+	local last = 0
+	for _, def in Titles.LIST do
+		local rank = Titles.rarityRank(def.rarity)
+		check(rank >= last, "kolejność przy " .. def.id)
+		last = rank
+	end
+end)
+
+test("tytuły: liczniki i najlepszy tytuł", function()
+	local ctx = titleCtx({}, {}, {}, true)
+	local earned = Titles.earned(ctx)
+	check(earned.TITLE_NEW, "po samouczku Nowy")
+	eq(Titles.best(earned), "TITLE_NEW")
+	Titles.count(ctx.stats, "pick", 99)
+	check(not Titles.earned(ctx).TITLE_PICKER, "99 to za mało")
+	Titles.count(ctx.stats, "pick", 1)
+	check(Titles.earned(ctx).TITLE_PICKER, "100 zebranych")
+	Titles.count(ctx.stats, "steal")
+	earned = Titles.earned(ctx)
+	check(earned.TITLE_THIEF, "pierwsza kradzież")
+	eq(Titles.best(earned), "TITLE_THIEF", "rzadki wygrywa ze zwykłym")
+	Titles.count(ctx.stats, "nieznane", 5)
+	Titles.count(ctx.stats, "death", 3)
+	eq(ctx.stats.deaths, 3)
+end)
+
+test("tytuły: wybór gracza tylko ze zdobytych", function()
+	local earned = { TITLE_NEW = true, TITLE_THIEF = true }
+	eq(Titles.resolve("TITLE_NEW", earned), "TITLE_NEW", "wybrany zwykły zostaje")
+	eq(Titles.resolve("TITLE_MAGNATE", earned), "TITLE_THIEF", "niezdobyty = najlepszy")
+	eq(Titles.resolve("", earned), "TITLE_THIEF", "auto = najlepszy")
+	eq(Titles.resolve("", {}), "", "nic")
+	eq(Titles.resolve(Titles.NONE, earned), "", "bez tytułu")
+end)
+
+test("tytuły: Grzybopedia daje tytuły stron i Arcygrzybiarza", function()
+	local atlas = {}
+	for _, species in Progress.pageSpecies("forest") do
+		Progress.discover(atlas, species.id, nil)
+	end
+	local earned = Titles.earned(titleCtx({}, atlas))
+	check(earned.TITLE_EXPLORER_FOREST, "odkrywca lasu")
+	check(not earned.TITLE_EXPLORER_CAVE, "jaskinia jeszcze nie")
+	for _, page in Progress.PAGES do
+		for _, species in Progress.pageSpecies(page) do
+			for _, variant in { "silver", "gold", "rainbow" } do
+				Progress.discover(atlas, species.id, variant)
+			end
+		end
+	end
+	earned = Titles.earned(titleCtx({}, atlas))
+	check(earned.TITLE_GRANDMASTER and earned.TITLE_RAINBOW_HUNTER, "wszystko tęczowe")
+	eq(Titles.best(earned), "TITLE_GRANDMASTER")
+	local n, goal = Titles.progress(Titles.get("TITLE_GRANDMASTER"), titleCtx({}, atlas))
+	eq(n, goal)
+end)
+
+test("tytuły: nowe zdobyte tylko raz", function()
+	local seen = { "TITLE_NEW" }
+	local fresh = Titles.newlyEarned({ TITLE_NEW = true, TITLE_PICKER = true }, seen)
+	eq(#fresh, 1)
+	eq(fresh[1], "TITLE_PICKER")
+	eq(#Titles.newlyEarned({ TITLE_NEW = true, TITLE_PICKER = true }, seen), 0)
+end)
+
+-- ===== Odznaki =====
+
+test("odznaki: każde osiągnięcie ma wpis w Config.Badges", function()
+	for _, id in Achievements.IDS do
+		check(typeof(Config.Badges[id]) == "number", "brak " .. id)
+	end
+	for id in Config.Badges do
+		check(table.find(Achievements.IDS, id) ~= nil, "nieznane " .. id)
+	end
+end)
+
+test("odznaki: osiągnięcia z postępu gracza", function()
+	local source = { atlas = {}, bestiary = {}, stats = Titles.emptyStats(), caveUnlocked = false, swampUnlocked = true }
+	local done = Achievements.check(source)
+	check(not done.first_mushroom and not done.cave, "nic jeszcze")
+	check(done.swamp, "bagna")
+	source.stats.picked = 1
+	source.stats.bestStreak = 7
+	Progress.discover(source.atlas, Config.Species[1].id, "gold")
+	done = Achievements.check(source)
+	check(done.first_mushroom and done.gold and done.streak7, "grzyb, złoty, seria")
+	check(not done.rainbow, "tęczy brak")
+	-- Bez numerów odznak nic nie czeka na przyznanie
+	local saved = table.clone(Config.Badges)
+	eq(#Achievements.pending(done, {}), 0)
+	Config.Badges.gold = 123
+	Config.Badges.swamp = 456
+	local pending = Achievements.pending(done, { "swamp" })
+	eq(#pending, 1)
+	eq(pending[1], "gold")
+	for id, value in saved do
+		Config.Badges[id] = value
+	end
 end)
 
 print(string.format("\n%d ok, %d błędów", passed, failed))

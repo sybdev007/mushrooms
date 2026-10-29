@@ -496,6 +496,7 @@ local function engulf(session: Session, messageKey: string?, guardian: string?)
 	session.zone = Economy.zoneIndexAt(target.Position.Z)
 	local gate = WORLD_GATES[world]
 	notify(session, messageKey or (if gate then gate.engulfed else "MSG_ENGULFED"), { lost })
+	ProgressService.event(session.player, "death", 1) -- licznik do tytułu „Pechowiec”
 
 	-- Grzyby strażnika trafiają do legowiska dopiero, gdy minie czas na uratowanie koszyka
 	local function dropToHoard()

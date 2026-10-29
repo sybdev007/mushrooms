@@ -1,11 +1,14 @@
 --!strict
--- Tytuł z Grzybopedii nad głową gracza („Znawca Lasu”, „Arcygrzybiarz”), widoczny dla wszystkich.
+-- Tytuł nad głową gracza („Złodziejaszek”, „Znawca Lasu”, „Arcygrzybiarz”), widoczny dla wszystkich.
+-- Kolor według rzadkości tytułu (Shared/Titles), mityczne z tęczowym gradientem.
 -- Serwer zapisuje klucz tytułu w atrybucie gracza "AtlasTitle"; tu tłumaczymy go na język gracza.
 -- BillboardGui trzymamy w PlayerGui z Adornee na głowie postaci, bezpośrednio i z ResetOnSpawn = false
 -- (zwykły folder w PlayerGui Roblox kasuje przy odrodzeniu).
 
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Titles = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Titles"))
 local Localize = require(script.Parent.Localize)
 
 local TitleView = {}
@@ -52,16 +55,14 @@ local function update(target: Player)
 	local billboard = gui :: BillboardGui
 	billboard.Adornee = head :: BasePart
 	local text = billboard:FindFirstChild("Text") :: TextLabel
-	text.Text = "📖 " .. Localize.t(key)
-	-- Im lepszy tytuł, tym cenniejszy kolor: odkrywca zielony, tropiciel srebrny, znawca złoty,
-	-- mistrz tęczowo-różowy, Arcygrzybiarz z tęczowym gradientem
-	text.TextColor3 = if string.find(key, "EXPLORER", 1, true)
-		then Color3.fromRGB(150, 230, 120)
-		elseif string.find(key, "TRACKER", 1, true) then Color3.fromRGB(214, 228, 240)
-		elseif string.find(key, "EXPERT", 1, true) then Color3.fromRGB(255, 214, 80)
-		else Color3.fromRGB(255, 140, 230)
+	text.Text = Localize.t(key)
+	-- Im rzadszy tytuł, tym cenniejszy kolor; mityczny (Arcygrzybiarz) z tęczowym gradientem
+	local def = Titles.get(key)
+	local rarity = if def then def.rarity else "common"
+	local color = Titles.RARITY_COLOR[rarity] or { 255, 255, 255 }
+	text.TextColor3 = Color3.fromRGB(color[1], color[2], color[3])
 	local gradient = text:FindFirstChildOfClass("UIGradient")
-	if key == "TITLE_GRANDMASTER" and not gradient then
+	if rarity == "mythic" and not gradient then
 		local rainbow = Instance.new("UIGradient")
 		rainbow.Color = ColorSequence.new({
 			ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 120, 120)),
@@ -70,7 +71,7 @@ local function update(target: Player)
 			ColorSequenceKeypoint.new(1, Color3.fromRGB(230, 130, 255)),
 		})
 		rainbow.Parent = text
-	elseif key ~= "TITLE_GRANDMASTER" and gradient then
+	elseif rarity ~= "mythic" and gradient then
 		gradient:Destroy()
 	end
 end

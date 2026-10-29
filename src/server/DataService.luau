@@ -9,6 +9,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage.Shared.Config)
 local Economy = require(ReplicatedStorage.Shared.Economy)
 local Progress = require(ReplicatedStorage.Shared.Progress)
+local Titles = require(ReplicatedStorage.Shared.Titles)
 
 export type Data = {
 	version: number,
@@ -20,6 +21,10 @@ export type Data = {
 	daily: Progress.Daily, -- dzisiejsze zadania
 	streak: Progress.Streak, -- seria logowań
 	weekly: Progress.Weekly, -- wyniki tego tygodnia do rankingów
+	stats: Titles.Stats, -- liczniki z całej gry (tytuły, odznaki)
+	titleChoice: string, -- wybrany tytuł ("" = najlepszy automatycznie, "none" = bez tytułu)
+	titles: { string }?, -- tytuły, o których gracz dostał już komunikat (nil = stary zapis, bez komunikatów)
+	badges: { string }, -- przyznane odznaki Robloxa (id z Config.Badges)
 	basket: { Economy.BasketItem },
 	planted: { Economy.PlantItem }, -- grzyby na grządkach w ogródku
 	pot: number, -- monety z grządek czekające w skrzyni (z ułamkiem)
@@ -69,6 +74,10 @@ function DataService.defaultData(): Data
 		daily = { day = -1, quests = {}, rerolled = false, bonusDone = false },
 		streak = { day = -1, count = 0 },
 		weekly = { week = -1, steals = 0, best = 0 },
+		stats = Titles.emptyStats(),
+		titleChoice = "",
+		titles = {},
+		badges = {},
 		basket = {},
 		planted = {},
 		pot = 0,
@@ -185,6 +194,44 @@ local function reconcile(raw: any): Data
 			steals = if typeof(weekly.steals) == "number" then math.max(0, math.floor(weekly.steals)) else 0,
 			best = if typeof(weekly.best) == "number" then math.max(0, math.floor(weekly.best)) else 0,
 		}
+	end
+	-- Liczniki z całej gry. Zapisy sprzed tytułów: kradzieże, ucieczki i złapania z zakładki Strażnicy
+	if typeof(raw.stats) == "table" then
+		local stats = data.stats :: any
+		for key in stats do
+			local value = raw.stats[key]
+			if typeof(value) == "number" then
+				stats[key] = math.max(0, math.floor(value))
+			end
+		end
+	else
+		for _, record in data.bestiary do
+			data.stats.steals += record.stolen
+			data.stats.escapes += record.escaped
+			data.stats.deaths += record.caught
+		end
+	end
+	data.stats.bestStreak = math.max(data.stats.bestStreak, data.streak.count)
+	if typeof(raw.titleChoice) == "string" and (raw.titleChoice == "none" or Titles.get(raw.titleChoice)) then
+		data.titleChoice = raw.titleChoice
+	end
+	if typeof(raw.titles) == "table" then
+		local seen = {}
+		for _, id in raw.titles do
+			if typeof(id) == "string" and Titles.get(id) and not table.find(seen, id) then
+				table.insert(seen, id)
+			end
+		end
+		data.titles = seen
+	else
+		data.titles = nil
+	end
+	if typeof(raw.badges) == "table" then
+		for _, id in raw.badges do
+			if typeof(id) == "string" and #data.badges < 64 and not table.find(data.badges, id) then
+				table.insert(data.badges, id)
+			end
+		end
 	end
 	if typeof(raw.basket) == "table" then
 		for _, item in raw.basket do

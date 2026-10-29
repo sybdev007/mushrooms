@@ -26,8 +26,10 @@ local ShopPanel = require(script.Parent.ShopPanel)
 local GardenPrompts = require(script.Parent.GardenPrompts)
 local SellPanel = require(script.Parent.SellPanel)
 local MerchantView = require(script.Parent.MerchantView)
-local _AtlasPanel = require(script.Parent.AtlasPanel)
+-- Kolejność = kolejność dużych przycisków pod „Ulepszeniami”: Zadania, Grzybopedia, Tytuły
 local _QuestPanel = require(script.Parent.QuestPanel)
+local _AtlasPanel = require(script.Parent.AtlasPanel)
+local _TitlePanel = require(script.Parent.TitlePanel)
 local _LeaderboardView = require(script.Parent.LeaderboardView)
 local _TitleView = require(script.Parent.TitleView)
 local ExpeditionView = require(script.Parent.ExpeditionView)
@@ -235,6 +237,7 @@ local TOAST_KIND: { [string]: string } = {
 	MSG_PLAYER_DOWN = "warn",
 	MSG_REVIVED = "gold",
 	MSG_REVIVE_DONE = "gold",
+	MSG_TITLE_NEW = "gold",
 }
 
 -- Komunikaty, po których gracz ląduje w chatce z czarnym ekranem: klucz -> tytuł

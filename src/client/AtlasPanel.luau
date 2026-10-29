@@ -1,7 +1,8 @@
 --!strict
--- Grzybopedia: księga wszystkich grzybów w czterech formach (zwykła, srebrna, złota, tęczowa).
--- Odkryte formy są w kolorze, nieodkryte to czarne sylwetki, a nieznany gatunek ma nazwę „???”.
--- Strona = świat. Na dole progi strony z nagrodą (stały bonus do ceny, tytuł nad głową).
+-- Grzybopedia w stylu okna ulepszeń (PanelKit): księga wszystkich grzybów w czterech formach
+-- (zwykła, srebrna, złota, tęczowa). Odkryte formy to pikselowe grzybki z aurą (MushroomArt),
+-- nieodkryte to czarne sylwetki, a nieznany gatunek ma nazwę „???”.
+-- Strona = świat. Po prawej progi strony z nagrodą (stały bonus do ceny, tytuł nad głową).
 -- Ostatnia zakładka to Strażnicy (BestiaryPage): opis każdego strażnika, odkrywany kradzieżą jego grzyba.
 
 local Players = game:GetService("Players")
@@ -14,188 +15,147 @@ local Progress = require(Shared.Progress)
 local Remotes = require(Shared.Remotes)
 local BestiaryPage = require(script.Parent.BestiaryPage)
 local Localize = require(script.Parent.Localize)
+local MushroomArt = require(script.Parent.MushroomArt)
+local PanelKit = require(script.Parent.PanelKit)
 local SideButtons = require(script.Parent.SideButtons)
 local UiKit = require(script.Parent.UiKit)
-local UiScale = require(script.Parent.UiScale)
 
 local AtlasPanel = {}
 
-local TITLE_FONT = Enum.Font.FredokaOne
-local BODY_FONT = Enum.Font.GothamBold
-local TEXT = Color3.fromRGB(252, 238, 210)
-local MUTED = Color3.fromRGB(214, 188, 150)
-local ACCENT = Color3.fromRGB(255, 214, 120)
-local PANEL = Color3.fromRGB(40, 28, 20)
-local CARD = Color3.fromRGB(58, 42, 30)
-local WIDTH, HEIGHT = 540, 470
-local ROW = 44
+local OUTLINE = PanelKit.OUTLINE
+local WIDTH, HEIGHT = 720, 520
+local ROW = 66
+local TILE = 54
+local SIDE_W = 214 -- kolumna progów po prawej
 local GUARDIANS_TAB = "guardians"
 -- Zakładki: strony świata, a na końcu Strażnicy
 local TAB_IDS = table.clone(Progress.PAGES)
 table.insert(TAB_IDS, GUARDIANS_TAB)
 
--- Kolory form w kolejności rang (0 zwykła → kolor kapelusza gatunku)
-local FORM_COLORS: { [number]: Color3 } = {
-	[1] = Color3.fromRGB(214, 224, 238),
-	[2] = Color3.fromRGB(255, 205, 50),
-	[3] = Color3.fromRGB(255, 110, 210),
+-- Kolor tła kafelka formy (ranga 0 = zwykła)
+local FORM_TILE: { [number]: Color3 } = {
+	[0] = Color3.fromRGB(72, 50, 34),
+	[1] = Color3.fromRGB(84, 92, 108),
+	[2] = Color3.fromRGB(118, 90, 30),
+	[3] = Color3.fromRGB(104, 52, 112),
 }
 local VARIANT_BY_RANK: { [number]: Config.VariantDef } = {}
 for _, variant in Config.Variants do
 	VARIANT_BY_RANK[variant.rank] = variant
 end
+-- Kolory progów: odkrywca, tropiciel, znawca, mistrz
+local TIER_COLORS = {
+	Color3.fromRGB(84, 160, 72),
+	Color3.fromRGB(120, 140, 170),
+	Color3.fromRGB(220, 160, 40),
+	Color3.fromRGB(196, 90, 200),
+}
 
-local gui = Instance.new("ScreenGui")
-gui.Name = "Atlas"
-gui.ResetOnSpawn = false
-gui.DisplayOrder = 6
-gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
+local window = PanelKit.window({
+	name = "Atlas",
+	parent = Players.LocalPlayer:WaitForChild("PlayerGui"),
+	width = WIDTH,
+	height = HEIGHT,
+	ribbon = Color3.fromRGB(206, 120, 52),
+	icon = "book",
+	pillIcon = "coins",
+	pillColor = Color3.fromRGB(52, 38, 30),
+})
+local content = window.content
 
-local function corner(parent: Instance, radius: number)
-	local c = Instance.new("UICorner")
-	c.CornerRadius = UDim.new(0, radius)
-	c.Parent = parent
-end
+local tabs, selectTab = PanelKit.tabs(content, TAB_IDS, 156)
+local summary = PanelKit.label(content, "Summary", UDim2.new(1, -20, 0, 20), UDim2.fromOffset(10, 42), 16, PanelKit.MUTED, PanelKit.BODY_FONT)
 
-local function text(parent: Instance, name: string, size: UDim2, position: UDim2, font: Enum.Font, maxSize: number, color: Color3?): TextLabel
-	local l = Instance.new("TextLabel")
-	l.Name = name
-	l.Size = size
-	l.Position = position
-	l.BackgroundTransparency = 1
-	l.TextColor3 = color or TEXT
-	l.Font = font
-	l.TextScaled = true
-	l.RichText = true
-	l.TextXAlignment = Enum.TextXAlignment.Left
-	l.Parent = parent
-	local c = Instance.new("UITextSizeConstraint")
-	c.MaxTextSize = maxSize
-	c.Parent = l
-	return l
-end
+-- ===== Lista gatunków (lewa część) =====
 
-local panel = Instance.new("Frame")
-panel.Name = "AtlasPanel"
-panel.Size = UDim2.fromOffset(WIDTH, HEIGHT)
-panel.AnchorPoint = Vector2.new(0.5, 0.5)
-panel.Position = UDim2.fromScale(0.5, 0.5)
-panel.BackgroundColor3 = PANEL
-panel.Visible = false
-panel.Parent = gui
-corner(panel, 14)
-local panelStroke = Instance.new("UIStroke")
-panelStroke.Color = Color3.fromRGB(200, 146, 74)
-panelStroke.Thickness = 2
-panelStroke.Parent = panel
-local panelScale = Instance.new("UIScale")
-panelScale.Parent = panel
+local LIST_W = WIDTH - 28 - SIDE_W - 12
+local FORM_X = LIST_W - 4 * (TILE + 6) - 20 -- od tego piksela zaczynają się kafelki form
 
-UiKit.icon("book", panel, UDim2.fromOffset(34, 34), UDim2.fromOffset(12, 8))
-local title = text(panel, "Title", UDim2.new(1, -110, 0, 30), UDim2.fromOffset(52, 10), TITLE_FONT, 26, ACCENT)
-local close = Instance.new("TextButton")
-close.Name = "Close"
-close.Size = UDim2.fromOffset(32, 32)
-close.Position = UDim2.new(1, -42, 0, 10)
-close.Text = ""
-close.Parent = panel
-UiKit.button(close, UiKit.COLORS.wood, { gloss = true, radius = UDim.new(0, 8) })
-UiKit.icon("close", close, UDim2.fromOffset(22, 22), UDim2.fromScale(0.5, 0.5), Vector2.new(0.5, 0.5))
-
--- Zakładki stron
-local tabsFrame = Instance.new("Frame")
-tabsFrame.Name = "Tabs"
-tabsFrame.BackgroundTransparency = 1
-tabsFrame.Size = UDim2.new(1, -24, 0, 30)
-tabsFrame.Position = UDim2.fromOffset(12, 48)
-tabsFrame.Parent = panel
-local tabsGrid = Instance.new("UIGridLayout")
-tabsGrid.CellSize = UDim2.new(1 / #TAB_IDS, -6, 1, 0)
-tabsGrid.CellPadding = UDim2.fromOffset(8, 0)
-tabsGrid.SortOrder = Enum.SortOrder.LayoutOrder
-tabsGrid.Parent = tabsFrame
-local tabs: { [string]: TextButton } = {}
-for index, page in TAB_IDS do
-	local tab = Instance.new("TextButton")
-	tab.Name = "Tab_" .. page
-	tab.LayoutOrder = index
-	tab.Font = TITLE_FONT
-	tab.TextScaled = true
-	tab.Parent = tabsFrame
-	UiKit.button(tab, UiKit.COLORS.wood, { radius = UDim.new(0, 8) })
-	local pad = Instance.new("UIPadding")
-	pad.PaddingTop = UDim.new(0, 5)
-	pad.PaddingBottom = UDim.new(0, 5)
-	pad.Parent = tab
-	tabs[page] = tab
-end
-
-local summary = text(panel, "Summary", UDim2.new(1, -24, 0, 20), UDim2.fromOffset(12, 84), BODY_FONT, 14, MUTED)
-
--- Nagłówek kolumn form
-local FORM_X = 0.5 -- od tej części szerokości zaczynają się kolumny form
 local header = Instance.new("Frame")
+header.Name = "Header"
 header.BackgroundTransparency = 1
-header.Size = UDim2.new(1, -24, 0, 18)
-header.Position = UDim2.fromOffset(12, 108)
-header.Parent = panel
+header.Size = UDim2.fromOffset(LIST_W, 18)
+header.Position = UDim2.fromOffset(0, 66)
+header.ZIndex = 4
+header.Parent = content
 local headerCells: { TextLabel } = {}
 for rank = 0, 3 do
-	local cell = text(header, "Form" .. rank, UDim2.new((1 - FORM_X) / 4, 0, 1, 0), UDim2.new(FORM_X + rank * (1 - FORM_X) / 4, 0, 0, 0), BODY_FONT, 12, MUTED)
-	cell.TextXAlignment = Enum.TextXAlignment.Center
+	local cell = PanelKit.label(header, "Form" .. rank, UDim2.fromOffset(TILE + 6, 18), UDim2.fromOffset(FORM_X + rank * (TILE + 6) - 3, 0), 13, PanelKit.MUTED, PanelKit.BODY_FONT)
+	cell.ZIndex = 4
 	headerCells[rank + 1] = cell
 end
 
 local list = Instance.new("ScrollingFrame")
 list.Name = "List"
-list.Size = UDim2.new(1, -24, 0, HEIGHT - 128 - 150)
-list.Position = UDim2.fromOffset(12, 128)
-list.BackgroundTransparency = 1
+list.Size = UDim2.new(0, LIST_W, 1, -92)
+list.Position = UDim2.fromOffset(0, 88)
+list.BackgroundColor3 = PanelKit.BG_DARK
+list.BackgroundTransparency = 0.25
 list.BorderSizePixel = 0
-list.ScrollBarThickness = 6
-list.ScrollBarImageColor3 = Color3.fromRGB(200, 146, 74)
+list.ScrollBarThickness = 8
+list.ScrollBarImageColor3 = PanelKit.LINE
 list.CanvasSize = UDim2.new()
 list.AutomaticCanvasSize = Enum.AutomaticSize.Y
-list.Parent = panel
+list.ZIndex = 4
+list.Parent = content
+PanelKit.corner(list, UDim.new(0, 16))
+PanelKit.stroke(list, OUTLINE, 3)
 local listLayout = Instance.new("UIListLayout")
-listLayout.Padding = UDim.new(0, 4)
+listLayout.Padding = UDim.new(0, 6)
 listLayout.SortOrder = Enum.SortOrder.LayoutOrder
 listLayout.Parent = list
+local listPad = Instance.new("UIPadding")
+listPad.PaddingTop = UDim.new(0, 8)
+listPad.PaddingBottom = UDim.new(0, 8)
+listPad.PaddingLeft = UDim.new(0, 8)
+listPad.PaddingRight = UDim.new(0, 14)
+listPad.Parent = list
 
--- Progi strony na dole
-local tiersFrame = Instance.new("Frame")
-tiersFrame.Name = "Tiers"
-tiersFrame.BackgroundTransparency = 1
-tiersFrame.Size = UDim2.new(1, -24, 0, 140)
-tiersFrame.Position = UDim2.new(0, 12, 1, -146)
-tiersFrame.Parent = panel
-type TierRow = { label: TextLabel, reward: TextLabel, fill: Frame, check: TextLabel }
-local tierRows: { TierRow } = {}
+-- ===== Progi strony (prawa kolumna) =====
+
+local side = Instance.new("Frame")
+side.Name = "Tiers"
+side.BackgroundTransparency = 1
+side.Size = UDim2.new(0, SIDE_W, 1, -70)
+side.Position = UDim2.new(1, -SIDE_W, 0, 66)
+side.ZIndex = 4
+side.Parent = content
+local sideLayout = Instance.new("UIListLayout")
+sideLayout.Padding = UDim.new(0, 7)
+sideLayout.SortOrder = Enum.SortOrder.LayoutOrder
+sideLayout.Parent = side
+
+type TierCard = { frame: Frame, stroke: UIStroke, label: TextLabel, fill: Frame, barText: TextLabel, reward: TextLabel, check: GuiObject }
+local tierCards: { TierCard } = {}
 for index = 1, #Progress.TIERS do
-	local y = (index - 1) * 34
-	local check = text(tiersFrame, "Check", UDim2.fromOffset(22, 22), UDim2.fromOffset(0, y), TITLE_FONT, 20, ACCENT)
-	check.TextXAlignment = Enum.TextXAlignment.Center
-	local label = text(tiersFrame, "Label", UDim2.new(0.62, -28, 0, 18), UDim2.fromOffset(28, y), BODY_FONT, 14)
-	local reward = text(tiersFrame, "Reward", UDim2.new(0.38, 0, 0, 18), UDim2.new(0.62, 0, 0, y), TITLE_FONT, 15, ACCENT)
-	reward.TextXAlignment = Enum.TextXAlignment.Right
-	local back = Instance.new("Frame")
-	back.Size = UDim2.new(1, -28, 0, 6)
-	back.Position = UDim2.fromOffset(28, y + 21)
-	back.BackgroundColor3 = Color3.fromRGB(20, 14, 10)
-	back.BorderSizePixel = 0
-	back.Parent = tiersFrame
-	corner(back, 3)
-	local fill = Instance.new("Frame")
-	fill.Size = UDim2.new(0, 0, 1, 0)
-	fill.BackgroundColor3 = ACCENT
-	fill.BorderSizePixel = 0
-	fill.Parent = back
-	corner(fill, 3)
-	tierRows[index] = { label = label, reward = reward, fill = fill, check = check }
+	local frame = Instance.new("Frame")
+	frame.Name = "Tier" .. index
+	frame.LayoutOrder = index
+	frame.Size = UDim2.new(1, 0, 0, 98)
+	frame.BackgroundColor3 = TIER_COLORS[index] or PanelKit.CARD
+	frame.ZIndex = 5
+	frame.Parent = side
+	PanelKit.corner(frame, UDim.new(0, 14))
+	local tierStroke = PanelKit.stroke(frame, OUTLINE, 3)
+	local shade = Instance.new("UIGradient")
+	shade.Rotation = 90
+	shade.Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.fromRGB(180, 180, 180))
+	shade.Parent = frame
+	local label = PanelKit.label(frame, "Label", UDim2.new(1, -16, 0, 34), UDim2.fromOffset(8, 5), 16)
+	label.ZIndex = 6
+	UiKit.outline(label, 2)
+	local _, fill, barText = PanelKit.bar(frame, UDim2.new(1, -16, 0, 22), UDim2.fromOffset(8, 42), PanelKit.GOLD)
+	local reward = PanelKit.label(frame, "Reward", UDim2.new(1, -16, 0, 22), UDim2.fromOffset(8, 70), 15, PanelKit.GOLD)
+	reward.ZIndex = 6
+	UiKit.outline(reward, 2)
+	local check = UiKit.icon("check", frame, UDim2.fromOffset(32, 32), UDim2.new(1, 8, 0, -8), Vector2.new(1, 0))
+	check.ZIndex = 8
+	check.Visible = false
+	tierCards[index] = { frame = frame, stroke = tierStroke, label = label, fill = fill, barText = barText, reward = reward, check = check }
 end
 
 -- Zakładka Strażnicy zajmuje miejsce listy i progów
-local guardiansPage = BestiaryPage.new(panel, UDim2.new(1, -24, 0, HEIGHT - 108 - 12), UDim2.fromOffset(12, 108))
+local guardiansPage = BestiaryPage.new(content, UDim2.new(1, 0, 1, -70), UDim2.fromOffset(0, 66))
 
 -- ===== Stan =====
 
@@ -205,7 +165,13 @@ local current = "forest"
 local hasNew = false -- nowe wpisy od ostatniego otwarcia (kropka na przycisku)
 local newGuardian: string? = nil -- strażnik odkryty od ostatniego otwarcia: okno otworzy się na nim
 
-local button, badge = SideButtons.add("AtlasButton", "book", Color3.fromRGB(150, 90, 50))
+local sideButton = SideButtons.add({
+	name = "AtlasButton",
+	icon = "book",
+	color = Color3.fromRGB(206, 120, 52),
+	caption = "ATLAS_BUTTON",
+	key = Enum.KeyCode.B,
+})
 
 local function percent(fraction: number): string
 	return tostring(math.floor(fraction * 100 + 0.5))
@@ -221,46 +187,81 @@ local function rgb(color: { number }): Color3
 	return Color3.fromRGB(color[1], color[2], color[3])
 end
 
--- Komórka formy: ikona grzyba w kolorze formy albo czarna sylwetka
-local function formCell(parent: Instance, species: Config.SpeciesDef, rank: number, found: boolean)
-	local holder = Instance.new("Frame")
-	holder.BackgroundTransparency = 1
-	holder.Size = UDim2.new((1 - FORM_X) / 4, 0, 1, 0)
-	holder.Position = UDim2.new(FORM_X + rank * (1 - FORM_X) / 4, 0, 0, 0)
-	holder.Parent = parent
-	local icon = UiKit.icon("mushroom", holder, UDim2.fromOffset(34, 34), UDim2.fromScale(0.5, 0.5), Vector2.new(0.5, 0.5))
-	local color = if rank == 0 then rgb(species.cap) else FORM_COLORS[rank]
-	if icon:IsA("ImageLabel") then
-		icon.ImageColor3 = if found then color else Color3.new(0, 0, 0)
-		icon.ImageTransparency = if found then 0 else 0.55
-		if found and rank == 3 then
-			local rainbow = Instance.new("UIGradient")
-			rainbow.Color = ColorSequence.new({
-				ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 90, 90)),
-				ColorSequenceKeypoint.new(0.33, Color3.fromRGB(255, 230, 90)),
-				ColorSequenceKeypoint.new(0.66, Color3.fromRGB(90, 220, 255)),
-				ColorSequenceKeypoint.new(1, Color3.fromRGB(220, 110, 255)),
-			})
-			rainbow.Parent = icon
-			icon.ImageColor3 = Color3.new(1, 1, 1)
-		end
-	elseif icon:IsA("TextLabel") then
-		icon.Text = if found then "🍄" else "❔"
-		icon.TextTransparency = if found then 0 else 0.5
-	end
-	if found and rank > 0 then
-		local variant = VARIANT_BY_RANK[rank]
-		if variant then
-			-- Mała ikonka wariantu w rogu (⭐, 🌈…)
-			local mark = text(holder, "Mark", UDim2.fromOffset(16, 16), UDim2.new(0.5, 8, 0.5, -18), BODY_FONT, 14)
-			mark.Text = variant.icon
-			mark.ZIndex = 5
+local function isActive(): boolean
+	return window.isOpen()
+end
+
+-- Czarna sylwetka zamiast grzybka (forma jeszcze nieznaleziona): bez aury, przyciemniony obrazek
+local function silhouette(art: Frame)
+	for _, child in art:GetDescendants() do
+		if child:IsA("ImageLabel") then
+			if child.Name == "Cap" or child.Name == "Over" then
+				child.ImageColor3 = Color3.new(0, 0, 0)
+				child.ImageTransparency = 0.45
+			else
+				child.Visible = false
+			end
+		elseif child:IsA("UIGradient") then
+			child.Enabled = false
 		end
 	end
 end
 
+-- Kafelek formy: pikselowy grzybek w kolorze formy albo czarna sylwetka
+local function formTile(parent: Instance, species: Config.SpeciesDef, rank: number, found: boolean)
+	local tile = Instance.new("Frame")
+	tile.Name = "Form" .. rank
+	tile.Size = UDim2.fromOffset(TILE, TILE)
+	tile.AnchorPoint = Vector2.new(0, 0.5)
+	tile.Position = UDim2.new(0, FORM_X + rank * (TILE + 6) - 8, 0.5, 0)
+	tile.BackgroundColor3 = if found then FORM_TILE[rank] else Color3.fromRGB(40, 28, 20)
+	tile.ZIndex = 6
+	tile.Parent = parent
+	PanelKit.corner(tile, UDim.new(0, 12))
+	local tileStroke = PanelKit.stroke(tile, OUTLINE, 2.5)
+	if found and rank > 0 then
+		local variant = VARIANT_BY_RANK[rank]
+		if variant then
+			tileStroke.Color = rgb(variant.color)
+		end
+	end
+	local box = Instance.new("Frame")
+	box.Name = "Art"
+	box.BackgroundTransparency = 1
+	box.Size = UDim2.fromScale(0.86, 0.86)
+	box.AnchorPoint = Vector2.new(0.5, 0.5)
+	box.Position = UDim2.fromScale(0.5, 0.5)
+	box.ZIndex = 7
+	box.Parent = tile
+	local variant = VARIANT_BY_RANK[rank]
+	local item: any = { s = species.id, v = if rank > 0 and variant then variant.id else nil }
+	local art = MushroomArt.build(box, item, {
+		active = if found then isActive else function()
+			return false
+		end,
+		stroke = if found then tileStroke else nil,
+	})
+	if art then
+		if not found then
+			silhouette(art)
+		end
+		return
+	end
+	-- Bez arkusza grzybków: ikona z arkusza UI w kolorze formy
+	local icon = UiKit.icon("mushroom", box, UDim2.fromScale(1, 1), UDim2.fromScale(0.5, 0.5), Vector2.new(0.5, 0.5))
+	icon.ZIndex = 8
+	local color = if rank == 0 then rgb(species.cap) elseif variant then rgb(variant.color) else Color3.new(1, 1, 1)
+	if icon:IsA("ImageLabel") then
+		icon.ImageColor3 = if found then color else Color3.new(0, 0, 0)
+		icon.ImageTransparency = if found then 0 else 0.55
+	elseif icon:IsA("TextLabel") then
+		icon.Text = if found then "🍄" else "❔"
+		icon.TextTransparency = if found then 0 else 0.5
+	end
+end
+
 local function render()
-	title.Text = Localize.t("ATLAS_TITLE")
+	window.title.Text = Localize.t("ATLAS_TITLE")
 	for page, tab in tabs do
 		local found, total
 		if page == GUARDIANS_TAB then
@@ -268,15 +269,16 @@ local function render()
 		else
 			found, total = Progress.entries(atlas, page)
 		end
-		tab.Text = string.format("%s  %d/%d", Localize.t("ATLAS_PAGE_" .. string.upper(page)), found, total)
-		UiKit.recolor(tab, if page == current then Color3.fromRGB(196, 130, 50) else UiKit.COLORS.wood)
+		tab.Text = string.format("%s %d/%d", Localize.t("ATLAS_PAGE_" .. string.upper(page)), found, total)
 	end
+	selectTab(current)
+	window.pillText.Text = "+" .. percent(Progress.atlasBonus(atlas)) .. "%"
 
 	local onGuardians = current == GUARDIANS_TAB
 	header.Visible = not onGuardians
 	list.Visible = not onGuardians
-	tiersFrame.Visible = not onGuardians
-	guardiansPage.setActive(onGuardians and panel.Visible)
+	side.Visible = not onGuardians
+	guardiansPage.setActive(onGuardians and window.isOpen())
 	if onGuardians then
 		local found, total = Progress.guardiansFound(bestiary)
 		summary.Text = Localize.t("BESTIARY_SUMMARY", { found, total })
@@ -286,7 +288,7 @@ local function render()
 	headerCells[1].Text = Localize.t("ATLAS_FORM_NORMAL")
 	for rank = 1, 3 do
 		local variant = VARIANT_BY_RANK[rank]
-		headerCells[rank + 1].Text = if variant then variant.icon .. " " .. Localize.t(variant.key) else ""
+		headerCells[rank + 1].Text = if variant then Localize.t(variant.key) else ""
 	end
 
 	local bonus = Progress.atlasBonus(atlas)
@@ -304,50 +306,67 @@ local function render()
 	end
 	for order, species in Progress.pageSpecies(current) do
 		local mask = Progress.mask(atlas, species.id)
+		local class = Economy.speciesClass(species.id)
+		local known = mask > 0
 		local row = Instance.new("Frame")
 		row.Name = species.id
 		row.LayoutOrder = order
-		row.Size = UDim2.new(1, -8, 0, ROW)
-		row.BackgroundColor3 = CARD
-		row.BorderSizePixel = 0
+		row.Size = UDim2.new(1, 0, 0, ROW)
+		row.BackgroundColor3 = if known then PanelKit.CARD else Color3.fromRGB(70, 48, 33)
+		row.ZIndex = 5
 		row.Parent = list
-		corner(row, 8)
-		local class = Economy.speciesClass(species.id)
-		local known = mask > 0
-		local name = text(row, "Name", UDim2.new(FORM_X, -12, 0, 20), UDim2.fromOffset(10, 4), TITLE_FONT, 17)
-		local info = text(row, "Info", UDim2.new(FORM_X, -12, 0, 14), UDim2.fromOffset(10, 25), BODY_FONT, 12, MUTED)
+		PanelKit.corner(row, UDim.new(0, 14))
+		PanelKit.stroke(row, OUTLINE, 2.5)
+		-- Pasek w kolorze klasy po lewej
+		local stripe = Instance.new("Frame")
+		stripe.Name = "Stripe"
+		stripe.Size = UDim2.new(0, 8, 1, -16)
+		stripe.Position = UDim2.fromOffset(8, 8)
+		stripe.BackgroundColor3 = if known then rgb(class.color) else Color3.fromRGB(96, 74, 56)
+		stripe.ZIndex = 6
+		stripe.Parent = row
+		PanelKit.corner(stripe, UDim.new(1, 0))
+
+		local nameWidth = FORM_X - 34
+		local name = PanelKit.label(row, "Name", UDim2.fromOffset(nameWidth, 24), UDim2.fromOffset(24, 9), 20)
+		name.TextXAlignment = Enum.TextXAlignment.Left
+		name.ZIndex = 6
+		UiKit.outline(name, 2)
+		local info = PanelKit.label(row, "Info", UDim2.fromOffset(nameWidth, 18), UDim2.fromOffset(24, 37), 14, PanelKit.MUTED, PanelKit.BODY_FONT)
+		info.TextXAlignment = Enum.TextXAlignment.Left
+		info.ZIndex = 6
+		local zone = Config.Zones[species.zone]
 		if known then
 			name.Text = Localize.t(species.key)
-			name.TextColor3 = rgb(class.color)
-			local zone = Config.Zones[species.zone]
+			name.TextColor3 = rgb(class.color):Lerp(Color3.new(1, 1, 1), 0.25)
 			info.Text = string.format("%s · %s · 💰 %s", Localize.t(class.key), if zone then Localize.t(zone.key) else "", formatCoins(species.value))
 		else
 			name.Text = "???"
-			name.TextColor3 = MUTED
-			local zone = Config.Zones[species.zone]
+			name.TextColor3 = PanelKit.MUTED
 			info.Text = if zone then Localize.t(zone.key) else ""
 		end
 		for rank = 0, 3 do
-			formCell(row, species, rank, Progress.has(atlas, species.id, rank))
+			formTile(row, species, rank, Progress.has(atlas, species.id, rank))
 		end
 	end
 
 	-- Progi strony
 	for index, tier in Progress.TIERS do
-		local row = tierRows[index]
+		local card = tierCards[index]
 		local count, total = Progress.tierProgress(atlas, current, tier.rank)
 		local done = total > 0 and count >= total
-		row.check.Text = if done then "✅" else "•"
-		row.check.TextColor3 = if done then Color3.fromRGB(150, 255, 150) else MUTED
-		row.label.Text = string.format("%s  <font color=\"#D6BC96\">%d/%d</font>", Localize.t(tier.key), count, total)
+		card.label.Text = Localize.t(tier.key)
+		card.fill.Size = UDim2.fromScale(if total > 0 then math.clamp(count / total, 0, 1) else 0, 1)
+		card.fill.BackgroundColor3 = if done then PanelKit.GREEN else PanelKit.GOLD
+		card.barText.Text = string.format("%d/%d", count, total)
 		local reward = "+" .. percent(tier.bonus) .. "% " .. Localize.t("ATLAS_PRICE")
 		if tier.title then
 			reward ..= " · " .. Localize.t(tier.title .. string.upper(current))
 		end
-		row.reward.Text = reward
-		row.reward.TextColor3 = if done then Color3.fromRGB(150, 255, 150) else ACCENT
-		row.fill.Size = UDim2.new(if total > 0 then count / total else 0, 0, 1, 0)
-		row.fill.BackgroundColor3 = if done then Color3.fromRGB(150, 255, 150) else ACCENT
+		card.reward.Text = reward
+		card.reward.TextColor3 = if done then PanelKit.GREEN else PanelKit.GOLD
+		card.check.Visible = done
+		card.stroke.Color = if done then PanelKit.GREEN else OUTLINE
 	end
 end
 
@@ -358,21 +377,18 @@ local function refreshBadge()
 		found += f
 		total += t
 	end
-	badge.Text = if hasNew then "NEW" else string.format("%d%%", if total > 0 then math.floor(found / total * 100) else 0)
-	badge.TextColor3 = if hasNew then Color3.fromRGB(255, 236, 120) else Color3.fromRGB(255, 252, 240)
-end
-
-local function hide()
-	panel.Visible = false
-	guardiansPage.setActive(false)
+	if hasNew then
+		sideButton.setBadge(Localize.t("BADGE_NEW"), "alert")
+	else
+		sideButton.setBadge(string.format("%d%%", if total > 0 then math.floor(found / total * 100) else 0), "info")
+	end
 end
 
 function AtlasPanel.toggle()
-	if panel.Visible then
-		hide()
+	if window.isOpen() then
+		window.setOpen(false)
 		return
 	end
-	panel.Visible = true
 	-- Nowy strażnik od ostatniego otwarcia: od razu jego karta
 	if newGuardian then
 		current = GUARDIANS_TAB
@@ -381,17 +397,27 @@ function AtlasPanel.toggle()
 	end
 	hasNew = false
 	refreshBadge()
-	render()
+	window.setOpen(true)
 end
+
+window.onToggle(function(open: boolean)
+	if open then
+		render()
+	else
+		guardiansPage.setActive(false)
+	end
+end)
 
 for page, tab in tabs do
 	tab.Activated:Connect(function()
-		current = page
-		render()
+		if current ~= page then
+			current = page
+			list.CanvasPosition = Vector2.zero
+			render()
+		end
 	end)
 end
-button.Activated:Connect(AtlasPanel.toggle)
-close.Activated:Connect(hide)
+sideButton.onActivated(AtlasPanel.toggle)
 
 local knownEntries = -1
 local knownGuardians: { [string]: boolean }? = nil
@@ -406,7 +432,7 @@ Remotes.get("ProgressUpdate").OnClientEvent:Connect(function(payload)
 	for _, def in Progress.GUARDIANS do
 		if Progress.guardianRecord(bestiary, def.id).found then
 			foundNow[def.id] = true
-			if knownGuardians and not knownGuardians[def.id] and not panel.Visible then
+			if knownGuardians and not knownGuardians[def.id] and not window.isOpen() then
 				hasNew = true
 				newGuardian = def.id
 			end
@@ -417,24 +443,21 @@ Remotes.get("ProgressUpdate").OnClientEvent:Connect(function(payload)
 	for _, page in Progress.PAGES do
 		count += (Progress.entries(atlas, page))
 	end
-	if knownEntries >= 0 and count > knownEntries and not panel.Visible then
+	if knownEntries >= 0 and count > knownEntries and not window.isOpen() then
 		hasNew = true
 	end
 	knownEntries = count
 	refreshBadge()
-	if panel.Visible then
+	if window.isOpen() then
 		render()
 	end
 end)
 
 Localize.onChanged(function()
 	refreshBadge()
-	if panel.Visible then
+	if window.isOpen() then
 		render()
 	end
-end)
-UiScale.onChanged(function()
-	panelScale.Scale = UiScale.get()
 end)
 refreshBadge()
 

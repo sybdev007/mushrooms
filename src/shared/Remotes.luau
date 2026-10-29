@@ -20,6 +20,7 @@ local NAMES = {
 	"DevAction", -- panel DEV (serwer sprawdza, czy gracz jest deweloperem)
 	"StudioPurchase", -- zakup produktu bez numeru (id = 0), działa tylko w Studio
 	"QuestReroll", -- wymiana jednego zadania dziennie
+	"SelectTitle", -- wybór tytułu nad głową ("" = najlepszy automatycznie, "none" = bez tytułu)
 	"TutorialStep", -- klient: skończyłem krok samouczka (serwer sprawdza, czy może przejść dalej)
 	"GardenPlant", -- posadź grzyb z koszyka na wybranej grządce (podmiana sprzedaje stary)
 	"GardenAuto", -- posadź najlepsze automatycznie

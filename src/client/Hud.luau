@@ -15,6 +15,7 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local Economy = require(ReplicatedStorage.Shared.Economy)
 local Localize = require(script.Parent.Localize)
 local UiKit = require(script.Parent.UiKit)
+local PanelKit = require(script.Parent.PanelKit)
 local UiScale = require(script.Parent.UiScale)
 
 export type State = {
@@ -256,12 +257,12 @@ pickCaptionStroke.Parent = pickCaption
 -- Przycisk: fioletowa pigułka z dużą strzałką wystającą w lewo, klawiszem [R] w rogu i czerwoną
 -- kropką z liczbą ulepszeń, na które gracza stać. Po najechaniu strzałka rośnie i robi obrót,
 -- a po przycisku przelatuje błysk. W spoczynku strzałka lekko podskakuje.
--- Panel: kremowe okno z grubą obwódką, wstążka z tytułem, monety w lewym rogu, zamykanie w prawym.
+-- Panel: okno z ciemnego drewna z grubą obwódką, wstążka z tytułem, monety w lewym rogu, zamykanie w prawym.
 -- Każde ulepszenie to wysoka kolorowa karta: duża ikona, opis, kropki poziomów, wartość „x1 » x1.25”
 -- i przycisk z ceną. Najechanie unosi kartę, kliknięcie powiększa ikonę, zakup kręci nią i sypie iskry.
 
-local CREAM = Color3.fromRGB(255, 248, 234)
-local CREAM_LINE = Color3.fromRGB(232, 214, 182)
+-- Tło okna jak w innych oknach gry (PanelKit): ciemne drewno; kremowe wyglądało w grze na białe
+local CREAM_LINE = PanelKit.LINE
 local OUTLINE = UiKit.OUTLINE
 local VIOLET = Color3.fromRGB(140, 86, 236)
 local BUY_GREEN = Color3.fromRGB(54, 190, 92)
@@ -427,7 +428,7 @@ upgradePanel.Name = "UpgradePanel"
 upgradePanel.Size = UDim2.fromOffset(PANEL_W, panelHeight(TOP_TABS))
 upgradePanel.Position = UDim2.fromScale(0.5, 0.52)
 upgradePanel.AnchorPoint = Vector2.new(0.5, 0.5)
-upgradePanel.BackgroundColor3 = CREAM
+PanelKit.paint(upgradePanel)
 upgradePanel.Visible = false
 upgradePanel.ZIndex = 10
 upgradePanel.Parent = gui
@@ -893,6 +894,7 @@ setUpgradesOpen = function(open: boolean)
 	upgradePanel.Visible = open
 	upgradeDim.Visible = open
 	if open then
+		PanelKit.closeAll() -- jedno okno naraz (zadania, Grzybopedia, tytuły)
 		-- Na start zakładka świata, w którym gracz jest teraz
 		local state = lastState
 		local world = if state then Economy.zoneWorld(state.zone) else "forest"
@@ -930,6 +932,10 @@ upgradeDim.Activated:Connect(function()
 	setUpgradesOpen(false)
 end)
 
+PanelKit.onOpen(function()
+	setUpgradesOpen(false)
+end)
+
 -- Klawisz R (i Y na padzie) otwiera i zamyka panel ulepszeń
 ContextActionService:BindAction("ToggleUpgrades", function(_, inputState)
 	if inputState == Enum.UserInputState.Begin then
@@ -952,7 +958,7 @@ local function renderUpgradePanel(state: State)
 	end
 	local here = Economy.isSafeZone(state.zone) and Economy.zoneWorld(state.zone) == selectedTab
 	upgradeHint.Text = if here then Localize.t("UPG_HINT_HERE") else Localize.t(TAB_HINTS[selectedTab] or "UPG_HINT_FOREST")
-	upgradeHint.TextColor3 = if here then Color3.fromRGB(150, 96, 40) else Color3.fromRGB(214, 70, 52)
+	upgradeHint.TextColor3 = if here then PanelKit.MUTED else Color3.fromRGB(255, 130, 110)
 
 	local affordable = 0
 	for _, id in ALL_UPGRADES do

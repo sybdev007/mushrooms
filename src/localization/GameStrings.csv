@@ -418,3 +418,62 @@ BOSS_UTOPIEC,Utopiec,,,Utopiec
 BOSS_UTOPIEC_TITLE,Water-Spirit of the Bog,,,Wodnik z bagien
 BOSS_UTOPIEC_LORE,A green and slimy water-spirit in a little red cap. At the bottom of the pond he keeps the souls of the drowned under porcelain teacups. The Chalices on the island are his bait – nothing in the swamp shines brighter. The moment you touch one – he leaps out of the water.,,,Zielony i oślizgły wodnik w czerwonej czapeczce. Na dnie stawu chowa pod porcelanowymi filiżankami dusze utopionych. Kielichy na wyspie to jego przynęta – błyszczą najjaśniej na całych bagnach. Ledwie ich dotkniesz – już wyskakuje z wody.
 BOSS_UTOPIEC_TIP,He wakes almost instantly and runs nearly as fast as you do in maxed boots. Without them there is no escape. Stay on the boardwalk – and don't look back.,,,Budzi się prawie od razu i biega niemal tak szybko jak ty na maksymalnych butach. Bez nich nie ma ucieczki. Trzymaj się kładki – i nie oglądaj się za siebie.
+QUESTS_BUTTON,Quests,,,Zadania
+ATLAS_BUTTON,Atlas,,,Grzybopedia
+TITLES_BUTTON,Titles,,,Tytuły
+BADGE_NEW,NEW,,,NOWE
+TITLES_TITLE,Titles,,,Tytuły
+TITLES_HINT,Pick the title shown above your head. Locked titles show what to do.,,,Wybierz tytuł nad głową. Przy zablokowanych widać co zrobić.
+TITLES_EQUIP,Equip,,,Załóż
+TITLES_EQUIPPED,Equipped,,,Założony
+TITLES_AUTO,Auto (best),,,Auto (najlepszy)
+TITLES_NONE,No title,,,Bez tytułu
+TITLES_LOCKED,Locked,,,Zablokowany
+RARITY_COMMON,Common,,,Zwykły
+RARITY_RARE,Rare,,,Rzadki
+RARITY_EPIC,Epic,,,Epicki
+RARITY_LEGENDARY,Legendary,,,Legendarny
+RARITY_MYTHIC,Mythic,,,Mityczny
+MSG_TITLE_NEW,New title: {1}! Equip it in Titles,,,Nowy tytuł: {1}! Załóż go w oknie Tytuły
+TITLE_PICKER,Picker,,,Zbieracz
+TITLE_GARDENER,Gardener,,,Ogrodnik
+TITLE_UNLUCKY,Unlucky,,,Pechowiec
+TITLE_THIEF,Sneaky Thief,,,Złodziejaszek
+TITLE_TRADER,Trader,,,Handlarz
+TITLE_LIFESAVER,Lifesaver,,,Ratownik
+TITLE_REGULAR,Regular,,,Stały Bywalec
+TITLE_FORAGER,Mushroom Hunter,,,Grzybiarz
+TITLE_ELUSIVE,Elusive,,,Nieuchwytny
+TITLE_RAINBOW_HUNTER,Rainbow Hunter,,,Łowca Tęczy
+TITLE_GUARDIAN_BANE,Guardian Bane,,,Postrach Strażników
+TITLE_MAGNATE,Mushroom Tycoon,,,Grzybowy Magnat
+TITLE_VETERAN,Forest Veteran,,,Leśny Weteran
+TITLE_HARVESTER,Harvest Machine,,,Leśny Kombajn
+TITLE_NEW_HOW,Finish the tutorial,,,Ukończ samouczek
+TITLE_PICKER_HOW,Pick {1} mushrooms,,,Zbierz {1} grzybów
+TITLE_GARDENER_HOW,Plant {1} mushrooms in your garden,,,Posadź {1} grzybów w ogródku
+TITLE_UNLUCKY_HOW,Lose your basket in the dark {1} times,,,Strać koszyk w ciemności {1} razy
+TITLE_THIEF_HOW,Bring a stolen mushroom home,,,Donieś ukradziony grzyb do ogródka
+TITLE_TRADER_HOW,Sell {1} mushrooms,,,Sprzedaj {1} grzybów
+TITLE_LIFESAVER_HOW,Help up friends {1} times,,,Podnieś kumpli {1} razy
+TITLE_REGULAR_HOW,Reach a {1}-day login streak,,,Zdobądź serię logowań {1} dni
+TITLE_FORAGER_HOW,Pick {1} mushrooms,,,Zbierz {1} grzybów
+TITLE_ELUSIVE_HOW,Escape guardians {1} times,,,Ucieknij strażnikom {1} razy
+TITLE_RAINBOW_HUNTER_HOW,Find a Rainbow mushroom,,,Znajdź tęczowego grzyba
+TITLE_GUARDIAN_BANE_HOW,Rob every guardian,,,Okradnij każdego strażnika
+TITLE_MAGNATE_HOW,Sell {1} mushrooms,,,Sprzedaj {1} grzybów
+TITLE_VETERAN_HOW,Reach a {1}-day login streak,,,Zdobądź serię logowań {1} dni
+TITLE_HARVESTER_HOW,Pick {1} mushrooms,,,Zbierz {1} grzybów
+TITLE_EXPLORER_FOREST_HOW,Atlas · Forest: find every mushroom,,,Grzybopedia · Las: znajdź każdy grzyb
+TITLE_EXPLORER_CAVE_HOW,Atlas · Caves: find every mushroom,,,Grzybopedia · Jaskinie: znajdź każdy grzyb
+TITLE_EXPLORER_SWAMP_HOW,Atlas · Swamp: find every mushroom,,,Grzybopedia · Bagna: znajdź każdy grzyb
+TITLE_TRACKER_FOREST_HOW,Atlas · Forest: every mushroom Silver,,,Grzybopedia · Las: każdy grzyb srebrny
+TITLE_TRACKER_CAVE_HOW,Atlas · Caves: every mushroom Silver,,,Grzybopedia · Jaskinie: każdy grzyb srebrny
+TITLE_TRACKER_SWAMP_HOW,Atlas · Swamp: every mushroom Silver,,,Grzybopedia · Bagna: każdy grzyb srebrny
+TITLE_EXPERT_FOREST_HOW,Atlas · Forest: every mushroom Gold,,,Grzybopedia · Las: każdy grzyb złoty
+TITLE_EXPERT_CAVE_HOW,Atlas · Caves: every mushroom Gold,,,Grzybopedia · Jaskinie: każdy grzyb złoty
+TITLE_EXPERT_SWAMP_HOW,Atlas · Swamp: every mushroom Gold,,,Grzybopedia · Bagna: każdy grzyb złoty
+TITLE_MASTER_FOREST_HOW,Atlas · Forest: every mushroom Rainbow,,,Grzybopedia · Las: każdy grzyb tęczowy
+TITLE_MASTER_CAVE_HOW,Atlas · Caves: every mushroom Rainbow,,,Grzybopedia · Jaskinie: każdy grzyb tęczowy
+TITLE_MASTER_SWAMP_HOW,Atlas · Swamp: every mushroom Rainbow,,,Grzybopedia · Bagna: każdy grzyb tęczowy
+TITLE_GRANDMASTER_HOW,The whole Atlas Rainbow,,,Cała Grzybopedia tęczowa

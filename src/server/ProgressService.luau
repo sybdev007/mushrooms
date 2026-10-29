@@ -5,6 +5,7 @@
 --   (sprzedaż, ucieczka strażnikowi, kradzież, sadzenie, skrzynia, ulepszenie).
 -- Nagrody za zadania i logowanie przychodzą same, bez klikania „odbierz”.
 
+local BadgeService = game:GetService("BadgeService")
 local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -14,6 +15,8 @@ local Config = require(Shared.Config)
 local Economy = require(Shared.Economy)
 local Progress = require(Shared.Progress)
 local Remotes = require(Shared.Remotes)
+local Achievements = require(Shared.Achievements)
+local Titles = require(Shared.Titles)
 local DataService = require(script.Parent.DataService)
 
 type Data = DataService.Data
@@ -29,6 +32,7 @@ local ProgressService = {}
 
 local ProgressUpdate = Remotes.get("ProgressUpdate")
 local QuestReroll = Remotes.get("QuestReroll")
+local SelectTitle = Remotes.get("SelectTitle")
 
 local api: Api
 local lastSent: { [Player]: string } = {}
@@ -41,12 +45,77 @@ local function grantLuck(data: Data, seconds: number)
 	data.luckUntil = math.max(os.time(), data.luckUntil) + seconds
 end
 
--- Tytuł nad głową: klient czyta atrybut i tłumaczy klucz (TitleView)
-local function refreshTitle(player: Player, data: Data)
-	-- Tytuł z Grzybopedii wygrywa; bez niego „Nowy” dla każdego, kto skończył samouczek
+local function titleContext(data: Data): Titles.Context
 	local tutorial = data.tutorial
-	local fallback = if typeof(tutorial) == "number" and tutorial >= Config.Tutorial.done then "TITLE_NEW" else ""
-	player:SetAttribute("AtlasTitle", Progress.title(data.atlas) or fallback)
+	return {
+		atlas = data.atlas,
+		bestiary = data.bestiary,
+		stats = data.stats,
+		tutorialDone = typeof(tutorial) == "number" and tutorial >= Config.Tutorial.done,
+	}
+end
+
+-- Odznaki Robloxa za osiągnięcia (tylko te z numerem w Config.Badges). Przyznane zapisujemy,
+-- żeby nie pytać Robloxa co chwilę; w trakcie przyznawania drugi raz nie próbujemy.
+local awarding: { [Player]: { [string]: boolean } } = {}
+local function checkBadges(player: Player, data: Data)
+	local done = Achievements.check({
+		atlas = data.atlas,
+		bestiary = data.bestiary,
+		stats = data.stats :: any,
+		caveUnlocked = data.caveUnlocked,
+		swampUnlocked = data.swampUnlocked,
+	})
+	local busy = awarding[player]
+	if not busy then
+		busy = {}
+		awarding[player] = busy
+	end
+	for _, id in Achievements.pending(done, data.badges) do
+		if not busy[id] then
+			busy[id] = true
+			local badgeId = (Config :: any).Badges[id] :: number
+			task.spawn(function()
+				local ok, has = pcall(BadgeService.UserHasBadgeAsync, BadgeService, player.UserId, badgeId)
+				if ok and not has then
+					ok, has = pcall(BadgeService.AwardBadge, BadgeService, player.UserId, badgeId)
+				end
+				if ok and has and not table.find(data.badges, id) then
+					table.insert(data.badges, id)
+				elseif not ok then
+					warn("[ProgressService] odznaka", id, has)
+				end
+				-- Po nieudanej próbie spróbujemy przy następnym zdarzeniu
+				task.delay(if ok then 0 else 60, function()
+					if awarding[player] then
+						awarding[player][id] = nil
+					end
+				end)
+			end)
+		end
+	end
+end
+
+-- Tytuł nad głową: klient czyta atrybut i tłumaczy klucz (TitleView).
+-- Wybrany przez gracza z listy zdobytych, a bez wyboru najlepszy. Nowo zdobyte: komunikat.
+local function refreshTitle(player: Player, data: Data)
+	local earned = Titles.earned(titleContext(data))
+	local seen = data.titles
+	if seen then
+		for _, id in Titles.newlyEarned(earned, seen) do
+			-- „Nowy” po samouczku bez komunikatu (samouczek kończy się swoim)
+			if id ~= "TITLE_NEW" then
+				api.notify(player, "MSG_TITLE_NEW", nil, id)
+			end
+		end
+	else
+		-- Stary zapis: tytuły zdobyte wcześniej bez komunikatów
+		local fresh = {}
+		Titles.newlyEarned(earned, fresh)
+		data.titles = fresh
+	end
+	player:SetAttribute("AtlasTitle", Titles.resolve(data.titleChoice, earned))
+	checkBadges(player, data)
 end
 
 -- Stan dla klienta (okna Grzybopedii i zadań). Wysyłamy tylko, gdy coś się zmieniło.
@@ -78,9 +147,23 @@ local function send(player: Player, force: boolean?)
 		scale = scale,
 		day = data.daily.day,
 		resetAt = now + Progress.secondsToNextDay(now),
+		stats = data.stats,
+		titleChoice = data.titleChoice,
+		tutorialDone = titleContext(data).tutorialDone,
 	}
 	-- Odcisk bez resetAt (zmienia się co sekundę, klient i tak liczy sam)
-	local fingerprint = HttpService:JSONEncode({ payload.atlas, payload.bestiary, payload.quests, payload.rerolled, payload.streak, payload.day, scale })
+	local fingerprint = HttpService:JSONEncode({
+		payload.atlas,
+		payload.bestiary,
+		payload.quests,
+		payload.rerolled,
+		payload.streak,
+		payload.day,
+		scale,
+		payload.stats,
+		payload.titleChoice,
+		payload.tutorialDone,
+	})
 	if not force and lastSent[player] == fingerprint then
 		return
 	end
@@ -97,6 +180,7 @@ local function claimLogin(player: Player, data: Data)
 	end
 	local amount = math.floor(Progress.LOGIN_REWARDS[cycleDay] * scaleOf(data))
 	data.coins += amount
+	data.stats.bestStreak = math.max(data.stats.bestStreak, data.streak.count)
 	local luck = cycleDay == #Progress.LOGIN_REWARDS
 	if luck then
 		grantLuck(data, Progress.LOGIN_LUCK_SECONDS)
@@ -136,6 +220,7 @@ end
 
 function ProgressService.leave(player: Player)
 	lastSent[player] = nil
+	awarding[player] = nil
 end
 
 -- Zdarzenie z gry, które może posunąć zadania (kind jak w Progress.QUESTS)
@@ -162,6 +247,11 @@ function ProgressService.event(player: Player, kind: string, amount: number?)
 	end
 	if kind == "steal" then
 		data.weekly.steals += amount or 1
+	end
+	-- Liczniki z całej gry: tytuły i odznaki
+	if Titles.EVENT_STAT[kind] then
+		Titles.count(data.stats, kind, amount)
+		refreshTitle(player, data)
 	end
 	send(player)
 end
@@ -191,6 +281,7 @@ function ProgressService.guardianEvent(player: Player, guardian: string, kind: s
 	local def = Progress.getGuardian(guardian)
 	if def and Progress.guardianEvent(data.bestiary, guardian, kind) then
 		api.notify(player, "MSG_BESTIARY_NEW", nil, def.key)
+		refreshTitle(player, data) -- „Postrach Strażników” i odznaki za okradzionych strażników
 	end
 	send(player)
 end
@@ -305,9 +396,24 @@ local function onReroll(player: Player, index: unknown)
 	end
 end
 
+-- Wybór tytułu z okna Tytuły: tylko zdobyty, "" = najlepszy automatycznie, "none" = bez tytułu
+local function onSelectTitle(player: Player, id: unknown)
+	local data = api.getData(player)
+	if not data or typeof(id) ~= "string" then
+		return
+	end
+	if id ~= "" and id ~= Titles.NONE and not Titles.earned(titleContext(data))[id] then
+		return
+	end
+	data.titleChoice = id
+	refreshTitle(player, data)
+	send(player)
+end
+
 function ProgressService.start(serviceApi: Api)
 	api = serviceApi
 	QuestReroll.OnServerEvent:Connect(onReroll)
+	SelectTitle.OnServerEvent:Connect(onSelectTitle)
 	-- Północ (UTC): nowe zadania i nagroda za kolejny dzień serii dla tych, którzy akurat grają
 	task.spawn(function()
 		while true do

@@ -557,6 +557,22 @@ Config.UiIcons2 = { sheet = "rbxassetid://78510472231486", cell = 204, columns =
 -- Pikselowe grzybki do kart w skupie (assets/mushroom-sprites.png z tools/mushroom_sprites.py): po dwie
 -- warstwy na kształt i efekty aur. Pusty numer = stare grzybki z ramek.
 Config.MushroomSprites = { sheet = "rbxassetid://136090318037259", cell = 64, columns = 8 }
+-- Odznaki Robloxa (Creator Hub → Engagement → Badges, obrazki w assets/badges, opis w docs/Odznaki.md).
+-- Wpisz numer odznaki po jej założeniu; 0 = odznaki jeszcze nie ma i gra jej nie przyznaje.
+Config.Badges = {
+	first_mushroom = 0, -- pierwszy grzyb w koszyku
+	cave = 0, -- otwarty portal do jaskini
+	swamp = 0, -- otwarte bagna
+	gold = 0, -- pierwszy złoty grzyb
+	rainbow = 0, -- pierwszy tęczowy grzyb
+	leszy = 0, -- okradziony Leszy
+	skarbnik = 0, -- okradziony Skarbnik
+	utopiec = 0, -- okradziony Utopiec
+	atlas_page = 0, -- cała strona Grzybopedii odkryta
+	grandmaster = 0, -- Arcygrzybiarz: cała księga tęczowa
+	lifesaver = 0, -- podniesiony kumpel
+	streak7 = 0, -- 7 dni logowania z rzędu
+} :: { [string]: number }
 -- Tekstura „kratki” na voxelowe grzyby w lesie (assets/voxel-noise.png). Pusta = gładkie klocki.
 Config.VoxelNoise = { texture = "rbxassetid://77358626050293" }
 

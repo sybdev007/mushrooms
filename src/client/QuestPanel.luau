@@ -1,186 +1,279 @@
 --!strict
--- Zadania na dziś (3 karty z postępem, nagrodą i jedną wymianą dziennie), premia za wszystkie trzy
--- i seria logowań (7 dni w kółko, 7. dzień z miksturą szczęścia). Nagrody przychodzą same.
+-- Zadania na dziś w stylu okna ulepszeń (PanelKit): trzy kolorowe karty z dużą ikoną, grubym paskiem
+-- postępu i nagrodą jak przycisk; kostka do wymiany jednego zadania dziennie; premia za komplet
+-- i siedem kafelków serii logowań (7. dzień z miksturą szczęścia). Nagrody przychodzą same.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Progress = require(Shared.Progress)
 local Remotes = require(Shared.Remotes)
 local Localize = require(script.Parent.Localize)
+local PanelKit = require(script.Parent.PanelKit)
 local SideButtons = require(script.Parent.SideButtons)
 local UiKit = require(script.Parent.UiKit)
-local UiScale = require(script.Parent.UiScale)
 
 local QuestPanel = {}
 
-local TITLE_FONT = Enum.Font.FredokaOne
-local BODY_FONT = Enum.Font.GothamBold
-local TEXT = Color3.fromRGB(252, 238, 210)
-local MUTED = Color3.fromRGB(214, 188, 150)
-local ACCENT = Color3.fromRGB(255, 214, 120)
-local GREEN = Color3.fromRGB(150, 255, 150)
-local PANEL = Color3.fromRGB(40, 28, 20)
-local CARD = Color3.fromRGB(58, 42, 30)
-local WIDTH, HEIGHT = 440, 430
+local OUTLINE = PanelKit.OUTLINE
+local WIDTH, HEIGHT = 640, 500
+local CARD_H = 86
 
 local QuestReroll = Remotes.get("QuestReroll")
 
-local gui = Instance.new("ScreenGui")
-gui.Name = "Quests"
-gui.ResetOnSpawn = false
-gui.DisplayOrder = 6
-gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
+-- Kolor i ikona karty według rodzaju zadania
+local QUEST_LOOK: { [string]: { color: Color3, icon: string } } = {
+	pick = { color = Color3.fromRGB(226, 84, 64), icon = "mushroom" },
+	pickMutated = { color = Color3.fromRGB(150, 92, 230), icon = "sparkles" },
+	pickGold = { color = Color3.fromRGB(236, 168, 32), icon = "star" },
+	sell = { color = Color3.fromRGB(64, 170, 88), icon = "coins" },
+	escape = { color = Color3.fromRGB(60, 140, 232), icon = "boots" },
+	steal = { color = Color3.fromRGB(200, 70, 120), icon = "sell" },
+	plant = { color = Color3.fromRGB(84, 176, 72), icon = "beds" },
+	collect = { color = Color3.fromRGB(196, 130, 56), icon = "chest" },
+	upgrade = { color = Color3.fromRGB(120, 86, 220), icon = "upgrade" },
+	discover = { color = Color3.fromRGB(176, 104, 54), icon = "book" },
+	revive = { color = Color3.fromRGB(230, 96, 96), icon = "rescue" },
+}
+local DEFAULT_LOOK = { color = Color3.fromRGB(140, 110, 80), icon = "star" }
 
-local function corner(parent: Instance, radius: number)
-	local c = Instance.new("UICorner")
-	c.CornerRadius = UDim.new(0, radius)
-	c.Parent = parent
-end
+local window = PanelKit.window({
+	name = "Quests",
+	parent = Players.LocalPlayer:WaitForChild("PlayerGui"),
+	width = WIDTH,
+	height = HEIGHT,
+	ribbon = Color3.fromRGB(64, 140, 220),
+	icon = "scroll",
+	pillIcon = "star",
+	pillColor = Color3.fromRGB(70, 44, 92),
+})
+local content = window.content
 
-local function text(parent: Instance, name: string, size: UDim2, position: UDim2, font: Enum.Font, maxSize: number, color: Color3?): TextLabel
-	local l = Instance.new("TextLabel")
-	l.Name = name
-	l.Size = size
-	l.Position = position
-	l.BackgroundTransparency = 1
-	l.TextColor3 = color or TEXT
-	l.Font = font
-	l.TextScaled = true
-	l.RichText = true
-	l.TextXAlignment = Enum.TextXAlignment.Left
-	l.Parent = parent
-	local c = Instance.new("UITextSizeConstraint")
-	c.MaxTextSize = maxSize
-	c.Parent = l
-	return l
-end
+local timer = PanelKit.label(content, "Timer", UDim2.new(1, -40, 0, 20), UDim2.fromOffset(20, 0), 17, PanelKit.MUTED)
 
-local panel = Instance.new("Frame")
-panel.Name = "QuestPanel"
-panel.Size = UDim2.fromOffset(WIDTH, HEIGHT)
-panel.AnchorPoint = Vector2.new(0.5, 0.5)
-panel.Position = UDim2.fromScale(0.5, 0.5)
-panel.BackgroundColor3 = PANEL
-panel.Visible = false
-panel.Parent = gui
-corner(panel, 14)
-local panelStroke = Instance.new("UIStroke")
-panelStroke.Color = Color3.fromRGB(200, 146, 74)
-panelStroke.Thickness = 2
-panelStroke.Parent = panel
-local panelScale = Instance.new("UIScale")
-panelScale.Parent = panel
+-- ===== Karty zadań =====
 
-UiKit.icon("scroll", panel, UDim2.fromOffset(34, 34), UDim2.fromOffset(12, 8))
-local title = text(panel, "Title", UDim2.new(1, -110, 0, 26), UDim2.fromOffset(52, 8), TITLE_FONT, 24, ACCENT)
-local timer = text(panel, "Timer", UDim2.new(1, -110, 0, 16), UDim2.fromOffset(52, 33), BODY_FONT, 13, MUTED)
-local close = Instance.new("TextButton")
-close.Name = "Close"
-close.Size = UDim2.fromOffset(32, 32)
-close.Position = UDim2.new(1, -42, 0, 10)
-close.Text = ""
-close.Parent = panel
-UiKit.button(close, UiKit.COLORS.wood, { gloss = true, radius = UDim.new(0, 8) })
-UiKit.icon("close", close, UDim2.fromOffset(22, 22), UDim2.fromScale(0.5, 0.5), Vector2.new(0.5, 0.5))
-
--- Karty zadań
-type Card = { frame: Frame, label: TextLabel, count: TextLabel, reward: TextLabel, fill: Frame, swap: TextButton, check: TextLabel }
+type Card = {
+	holder: Frame,
+	body: Frame,
+	bodyStroke: UIStroke,
+	iconHolder: Frame,
+	icon: GuiObject,
+	label: TextLabel,
+	fill: Frame,
+	barText: TextLabel,
+	reward: TextLabel,
+	rewardPill: Frame,
+	swap: TextButton,
+	done: boolean,
+}
 local cards: { Card } = {}
+
 for index = 1, Progress.QUESTS_PER_DAY do
-	local frame = Instance.new("Frame")
-	frame.Name = "Quest" .. index
-	frame.Size = UDim2.new(1, -24, 0, 64)
-	frame.Position = UDim2.fromOffset(12, 58 + (index - 1) * 72)
-	frame.BackgroundColor3 = CARD
-	frame.Parent = panel
-	corner(frame, 10)
-	local check = text(frame, "Check", UDim2.fromOffset(30, 30), UDim2.fromOffset(8, 8), TITLE_FONT, 26, MUTED)
-	check.TextXAlignment = Enum.TextXAlignment.Center
-	local label = text(frame, "Label", UDim2.new(1, -150, 0, 20), UDim2.fromOffset(44, 8), TITLE_FONT, 17)
-	local reward = text(frame, "Reward", UDim2.new(1, -150, 0, 16), UDim2.fromOffset(44, 30), BODY_FONT, 13, ACCENT)
-	local count = text(frame, "Count", UDim2.fromOffset(60, 16), UDim2.new(1, -164, 0, 30), BODY_FONT, 13, MUTED)
-	count.TextXAlignment = Enum.TextXAlignment.Right
-	local back = Instance.new("Frame")
-	back.Size = UDim2.new(1, -144, 0, 6)
-	back.Position = UDim2.fromOffset(44, 50)
-	back.BackgroundColor3 = Color3.fromRGB(20, 14, 10)
-	back.BorderSizePixel = 0
-	back.Parent = frame
-	corner(back, 3)
-	local fill = Instance.new("Frame")
-	fill.Size = UDim2.new(0, 0, 1, 0)
-	fill.BackgroundColor3 = ACCENT
-	fill.BorderSizePixel = 0
-	fill.Parent = back
-	corner(fill, 3)
+	local holder = Instance.new("Frame")
+	holder.Name = "Quest" .. index
+	holder.BackgroundTransparency = 1
+	holder.Size = UDim2.new(1, -16, 0, CARD_H)
+	holder.Position = UDim2.fromOffset(8, 26 + (index - 1) * (CARD_H + 10))
+	holder.ZIndex = 4
+	holder.Parent = content
+
+	local body = Instance.new("Frame")
+	body.Name = "Body"
+	body.Size = UDim2.fromScale(1, 1)
+	body.BackgroundColor3 = DEFAULT_LOOK.color
+	body.ZIndex = 4
+	body.Parent = holder
+	PanelKit.corner(body, UDim.new(0, 18))
+	local bodyStroke = PanelKit.stroke(body, OUTLINE, 3.5)
+	local shade = Instance.new("UIGradient")
+	shade.Rotation = 90
+	shade.Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.fromRGB(186, 186, 186))
+	shade.Parent = body
+
+	-- Duża ikona w jaśniejszym kółku
+	local iconHolder = Instance.new("Frame")
+	iconHolder.Name = "IconHolder"
+	iconHolder.Size = UDim2.fromOffset(66, 66)
+	iconHolder.Position = UDim2.new(0, 10, 0.5, 0)
+	iconHolder.AnchorPoint = Vector2.new(0, 0.5)
+	iconHolder.BackgroundColor3 = Color3.new(1, 1, 1)
+	iconHolder.BackgroundTransparency = 0.72
+	iconHolder.ZIndex = 5
+	iconHolder.Parent = body
+	PanelKit.corner(iconHolder, UDim.new(1, 0))
+	local icon = UiKit.icon("mushroom", iconHolder, UDim2.fromScale(0.86, 0.86), UDim2.fromScale(0.5, 0.5), Vector2.new(0.5, 0.5))
+	icon.ZIndex = 6
+
+	local label = PanelKit.label(body, "Label", UDim2.new(1, -250, 0, 28), UDim2.fromOffset(88, 10), 22)
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.ZIndex = 6
+	UiKit.outline(label, 2.5)
+	local _, fill, barText = PanelKit.bar(body, UDim2.new(1, -250, 0, 26), UDim2.fromOffset(88, 46), PanelKit.GOLD)
+
+	-- Nagroda jak przycisk z ceną
+	local rewardPill = Instance.new("Frame")
+	rewardPill.Name = "Reward"
+	rewardPill.Size = UDim2.fromOffset(140, 42)
+	rewardPill.AnchorPoint = Vector2.new(1, 0.5)
+	rewardPill.Position = UDim2.new(1, -12, 0.5, 6)
+	rewardPill.BackgroundColor3 = Color3.fromRGB(246, 182, 40)
+	rewardPill.ZIndex = 6
+	rewardPill.Parent = body
+	PanelKit.corner(rewardPill, UDim.new(0, 12))
+	PanelKit.stroke(rewardPill, OUTLINE, 3)
+	local rewardShade = Instance.new("UIGradient")
+	rewardShade.Rotation = 90
+	rewardShade.Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.fromRGB(200, 200, 200))
+	rewardShade.Parent = rewardPill
+	local coin = UiKit.icon("coin", rewardPill, UDim2.fromOffset(34, 34), UDim2.new(0, -8, 0.5, 0), Vector2.new(0, 0.5))
+	coin.ZIndex = 7
+	local reward = PanelKit.label(rewardPill, "Text", UDim2.new(1, -36, 1, -10), UDim2.fromOffset(30, 5), 20)
+	reward.ZIndex = 7
+	UiKit.outline(reward, 2.5)
+
+	-- Kostka: wymiana zadania (raz dziennie)
 	local swap = Instance.new("TextButton")
 	swap.Name = "Swap"
-	swap.Size = UDim2.fromOffset(80, 34)
-	swap.Position = UDim2.new(1, -90, 0.5, 0)
-	swap.AnchorPoint = Vector2.new(0, 0.5)
-	swap.Font = TITLE_FONT
-	swap.TextScaled = true
-	swap.Parent = frame
-	UiKit.button(swap, UiKit.COLORS.wood, { radius = UDim.new(0, 8) })
-	local swapPad = Instance.new("UIPadding")
-	swapPad.PaddingTop = UDim.new(0, 7)
-	swapPad.PaddingBottom = UDim.new(0, 7)
-	swapPad.PaddingLeft = UDim.new(0, 26)
-	swapPad.PaddingRight = UDim.new(0, 6)
-	swapPad.Parent = swap
-	UiKit.icon("dice", swap, UDim2.fromOffset(22, 22), UDim2.new(0, -22, 0.5, 0), Vector2.new(0, 0.5))
+	swap.Size = UDim2.fromOffset(40, 40)
+	swap.AnchorPoint = Vector2.new(0.5, 0.5)
+	swap.Position = UDim2.new(1, -14, 0, 4)
+	swap.Text = ""
+	swap.ZIndex = 8
+	swap.Parent = holder
+	local swapStroke = UiKit.button(swap, Color3.fromRGB(250, 246, 236), { stroke = 3, radius = UDim.new(0, 12), gloss = true })
+	swapStroke.Color = OUTLINE
+	local dice = UiKit.icon("dice", swap, UDim2.fromScale(0.8, 0.8), UDim2.fromScale(0.5, 0.5), Vector2.new(0.5, 0.5))
+	dice.ZIndex = 9
+	swap.MouseEnter:Connect(function()
+		TweenService:Create(dice, TweenInfo.new(0.3, Enum.EasingStyle.Back), { Rotation = 180 }):Play()
+	end)
+	swap.MouseLeave:Connect(function()
+		TweenService:Create(dice, TweenInfo.new(0.2), { Rotation = 0 }):Play()
+	end)
 	swap.Activated:Connect(function()
 		QuestReroll:FireServer(index)
+		UiKit.shake(holder)
 	end)
-	cards[index] = { frame = frame, label = label, count = count, reward = reward, fill = fill, swap = swap, check = check }
+
+	cards[index] = {
+		holder = holder,
+		body = body,
+		bodyStroke = bodyStroke,
+		iconHolder = iconHolder,
+		icon = icon,
+		label = label,
+		fill = fill,
+		barText = barText,
+		reward = reward,
+		rewardPill = rewardPill,
+		swap = swap,
+		done = false,
+	}
 end
 
-local bonusLine = text(panel, "Bonus", UDim2.new(1, -24, 0, 20), UDim2.fromOffset(12, 58 + 3 * 72 + 2), TITLE_FONT, 16, ACCENT)
+-- ===== Premia za komplet =====
 
--- Seria logowań: 7 kółek z nagrodami
-local streakTitle = text(panel, "StreakTitle", UDim2.new(1, -24, 0, 20), UDim2.fromOffset(12, 58 + 3 * 72 + 30), TITLE_FONT, 17)
+local BONUS_Y = 26 + 3 * (CARD_H + 10)
+local bonus = Instance.new("Frame")
+bonus.Name = "Bonus"
+bonus.Size = UDim2.new(1, -16, 0, 46)
+bonus.Position = UDim2.fromOffset(8, BONUS_Y)
+bonus.BackgroundColor3 = Color3.fromRGB(70, 44, 92)
+bonus.ZIndex = 4
+bonus.Parent = content
+PanelKit.corner(bonus, UDim.new(0, 14))
+PanelKit.stroke(bonus, OUTLINE, 3)
+local bonusChest = UiKit.icon("chest", bonus, UDim2.fromOffset(54, 54), UDim2.new(0, -6, 0.5, -2), Vector2.new(0, 0.5))
+bonusChest.ZIndex = 6
+local bonusText = PanelKit.label(bonus, "Text", UDim2.new(1, -150, 1, -12), UDim2.fromOffset(56, 6), 19, PanelKit.GOLD)
+bonusText.TextXAlignment = Enum.TextXAlignment.Left
+bonusText.ZIndex = 6
+UiKit.outline(bonusText, 2)
+-- Trzy kropki: ile zadań z trzech już zrobionych
+local bonusDots: { Frame } = {}
+for i = 1, Progress.QUESTS_PER_DAY do
+	local dot = Instance.new("Frame")
+	dot.Size = UDim2.fromOffset(22, 22)
+	dot.AnchorPoint = Vector2.new(1, 0.5)
+	dot.Position = UDim2.new(1, -12 - (Progress.QUESTS_PER_DAY - i) * 28, 0.5, 0)
+	dot.BackgroundColor3 = OUTLINE
+	dot.ZIndex = 6
+	dot.Parent = bonus
+	PanelKit.corner(dot, UDim.new(1, 0))
+	PanelKit.stroke(dot, OUTLINE, 2.5)
+	bonusDots[i] = dot
+end
+
+-- ===== Seria logowań =====
+
+local streakTitle = PanelKit.label(content, "StreakTitle", UDim2.new(1, -40, 0, 22), UDim2.fromOffset(20, BONUS_Y + 54), 19)
+streakTitle.TextXAlignment = Enum.TextXAlignment.Left
+UiKit.outline(streakTitle, 2)
 local streakRow = Instance.new("Frame")
 streakRow.BackgroundTransparency = 1
-streakRow.Size = UDim2.new(1, -24, 0, 64)
-streakRow.Position = UDim2.fromOffset(12, 58 + 3 * 72 + 54)
-streakRow.Parent = panel
+streakRow.Size = UDim2.new(1, -16, 0, 74)
+streakRow.Position = UDim2.fromOffset(8, BONUS_Y + 80)
+streakRow.ZIndex = 4
+streakRow.Parent = content
 local streakGrid = Instance.new("UIGridLayout")
-streakGrid.CellSize = UDim2.new(1 / #Progress.LOGIN_REWARDS, -6, 1, 0)
-streakGrid.CellPadding = UDim2.fromOffset(6, 0)
+streakGrid.CellSize = UDim2.new(1 / #Progress.LOGIN_REWARDS, -8, 1, 0)
+streakGrid.CellPadding = UDim2.fromOffset(8, 0)
 streakGrid.SortOrder = Enum.SortOrder.LayoutOrder
 streakGrid.Parent = streakRow
-type Day = { frame: Frame, day: TextLabel, amount: TextLabel, stroke: UIStroke }
+
+type Day = { frame: Frame, stroke: UIStroke, day: TextLabel, amount: TextLabel, check: GuiObject, icon: GuiObject }
 local days: { Day } = {}
 for index = 1, #Progress.LOGIN_REWARDS do
 	local frame = Instance.new("Frame")
 	frame.LayoutOrder = index
-	frame.BackgroundColor3 = CARD
+	frame.BackgroundColor3 = PanelKit.TAB
+	frame.ZIndex = 5
 	frame.Parent = streakRow
-	corner(frame, 10)
-	local stroke = Instance.new("UIStroke")
-	stroke.Color = Color3.fromRGB(110, 80, 52)
-	stroke.Thickness = 1.5
-	stroke.Parent = frame
-	local day = text(frame, "Day", UDim2.new(1, -4, 0, 16), UDim2.fromOffset(2, 4), BODY_FONT, 12, MUTED)
-	day.TextXAlignment = Enum.TextXAlignment.Center
-	UiKit.icon(if index == #Progress.LOGIN_REWARDS then "luck" else "gift", frame, UDim2.fromOffset(22, 22), UDim2.new(0.5, 0, 0, 20), Vector2.new(0.5, 0))
-	local amount = text(frame, "Amount", UDim2.new(1, -4, 0, 14), UDim2.new(0, 2, 1, -17), BODY_FONT, 11, ACCENT)
-	amount.TextXAlignment = Enum.TextXAlignment.Center
-	days[index] = { frame = frame, day = day, amount = amount, stroke = stroke }
+	PanelKit.corner(frame, UDim.new(0, 12))
+	local tileStroke = PanelKit.stroke(frame, OUTLINE, 3)
+	local day = PanelKit.label(frame, "Day", UDim2.new(1, -6, 0, 16), UDim2.fromOffset(3, 3), 14, PanelKit.MUTED)
+	day.ZIndex = 6
+	local tileIcon = UiKit.icon(if index == #Progress.LOGIN_REWARDS then "luck" else "chest", frame, UDim2.fromOffset(32, 32), UDim2.new(0.5, 0, 0, 18), Vector2.new(0.5, 0))
+	tileIcon.ZIndex = 6
+	local amount = PanelKit.label(frame, "Amount", UDim2.new(1, -6, 0, 15), UDim2.new(0, 3, 1, -18), 13, PanelKit.GOLD)
+	amount.ZIndex = 6
+	UiKit.outline(amount, 1.5)
+	local check = UiKit.icon("check", frame, UDim2.fromOffset(28, 28), UDim2.new(1, 4, 0, -4), Vector2.new(1, 0))
+	check.ZIndex = 8
+	check.Visible = false
+	days[index] = { frame = frame, stroke = tileStroke, day = day, amount = amount, check = check, icon = tileIcon }
 end
-local streakHint = text(panel, "StreakHint", UDim2.new(1, -24, 0, 16), UDim2.new(0, 12, 1, -24), BODY_FONT, 13, MUTED)
+local streakHint = PanelKit.label(content, "StreakHint", UDim2.new(1, -40, 0, 18), UDim2.new(0, 20, 1, -20), 15, PanelKit.MUTED)
 
 -- ===== Stan =====
 
 local state: any = nil
-local button, badge = SideButtons.add("QuestButton", "scroll", Color3.fromRGB(70, 120, 170))
+local side = SideButtons.add({
+	name = "QuestButton",
+	icon = "scroll",
+	color = Color3.fromRGB(64, 140, 220),
+	caption = "QUESTS_BUTTON",
+	key = Enum.KeyCode.Q,
+})
+local todayPulse: Tween? = nil
 
 local function formatCoins(value: number): string
 	local s = tostring(math.floor(value + 0.5))
 	local formatted = s:reverse():gsub("(%d%d%d)", "%1 "):reverse()
 	return (formatted:gsub("^ ", ""))
+end
+
+-- Krótko na kartach: 128 000 → 128K, 1 250 000 → 1.25M
+local function shortCoins(value: number): string
+	if value >= 1e6 then
+		return (string.format("%.2fM", value / 1e6):gsub("%.?0+M$", "M"))
+	elseif value >= 1e4 then
+		return string.format("%dK", math.floor(value / 1000))
+	end
+	return formatCoins(value)
 end
 
 local function formatTime(seconds: number): string
@@ -190,7 +283,7 @@ end
 
 local function refreshBadge()
 	if not state then
-		badge.Text = ""
+		side.setBadge("")
 		return
 	end
 	local done = 0
@@ -199,62 +292,90 @@ local function refreshBadge()
 			done += 1
 		end
 	end
-	badge.Text = string.format("%d/%d", done, #state.quests)
-	badge.TextColor3 = if done >= #state.quests then GREEN else Color3.fromRGB(255, 252, 240)
+	side.setBadge(string.format("%d/%d", done, #state.quests), if done >= #state.quests then "done" else "alert")
 end
 
 local function render()
-	title.Text = Localize.t("QUESTS_TITLE")
+	window.title.Text = Localize.t("QUESTS_TITLE")
 	if not state then
 		return
 	end
 	timer.Text = Localize.t("QUESTS_RESET", { formatTime(state.resetAt - os.time()) })
+	window.pillText.Text = Localize.t("QUESTS_DAY", { state.streak })
+	local doneCount = 0
 	for index, card in cards do
 		local quest = state.quests[index]
-		card.frame.Visible = quest ~= nil
+		card.holder.Visible = quest ~= nil
 		if quest then
+			local def = Progress.getQuest(quest.id)
+			local look = (def and QUEST_LOOK[def.kind]) or DEFAULT_LOOK
+			local wasDone = card.done
+			card.done = quest.done
+			if quest.done then
+				doneCount += 1
+			end
+			card.body.BackgroundColor3 = if quest.done then Color3.fromRGB(72, 168, 80) else look.color
+			UiKit.setIcon(card.icon, look.icon)
 			card.label.Text = Localize.t("QUEST_" .. string.upper(quest.id), { quest.goal })
-			card.reward.Text = "💰 " .. formatCoins(quest.reward)
-			card.count.Text = string.format("%d/%d", quest.n, quest.goal)
-			card.fill.Size = UDim2.new(math.clamp(quest.n / quest.goal, 0, 1), 0, 1, 0)
-			card.fill.BackgroundColor3 = if quest.done then GREEN else ACCENT
-			card.check.Text = if quest.done then "✅" else "•"
-			card.check.TextColor3 = if quest.done then GREEN else MUTED
+			card.fill.Size = UDim2.fromScale(math.clamp(quest.n / quest.goal, 0, 1), 1)
+			card.fill.BackgroundColor3 = if quest.done then PanelKit.GREEN else PanelKit.GOLD
+			card.barText.Text = string.format("%d/%d", quest.n, quest.goal)
+			card.reward.Text = if quest.done then Localize.t("QUESTS_DONE") else shortCoins(quest.reward)
+			card.rewardPill.BackgroundColor3 = if quest.done then PanelKit.GREEN else Color3.fromRGB(246, 182, 40)
 			card.swap.Visible = not quest.done and not state.rerolled
-			card.swap.Text = Localize.t("QUESTS_REROLL")
-			card.label.TextColor3 = if quest.done then GREEN else TEXT
+			-- Właśnie ukończone przy otwartym oknie: karta podskakuje i sypią się iskry
+			if quest.done and not wasDone and window.isOpen() then
+				UiKit.burst(window.gui, card.rewardPill.AbsolutePosition + card.rewardPill.AbsoluteSize / 2, 14)
+			end
 		end
 	end
-	bonusLine.Text = if state.bonusDone
+	for i, dot in bonusDots do
+		dot.BackgroundColor3 = if i <= doneCount then PanelKit.GREEN else OUTLINE
+	end
+	bonusText.Text = if state.bonusDone
 		then Localize.t("QUESTS_BONUS_DONE")
-		else Localize.t("QUESTS_BONUS", { formatCoins(state.dailyBonus), math.floor(Progress.DAILY_BONUS.luckSeconds / 60) })
-	bonusLine.TextColor3 = if state.bonusDone then GREEN else ACCENT
+		else Localize.t("QUESTS_BONUS", { shortCoins(state.dailyBonus), math.floor(Progress.DAILY_BONUS.luckSeconds / 60) })
+	bonusText.TextColor3 = if state.bonusDone then PanelKit.GREEN else PanelKit.GOLD
 
 	streakTitle.Text = Localize.t("QUESTS_STREAK", { state.streak })
 	for index, day in days do
 		local isToday = index == state.loginDay
-		local claimed = index <= state.loginDay
+		local claimed = index < state.loginDay
 		day.day.Text = Localize.t("QUESTS_DAY", { index })
-		day.amount.Text = formatCoins(Progress.LOGIN_REWARDS[index] * state.scale)
-		day.frame.BackgroundColor3 = if isToday then Color3.fromRGB(110, 76, 36) elseif claimed then Color3.fromRGB(52, 70, 40) else CARD
-		day.stroke.Color = if isToday then ACCENT else Color3.fromRGB(110, 80, 52)
-		day.stroke.Thickness = if isToday then 3 else 1.5
+		day.amount.Text = shortCoins(Progress.LOGIN_REWARDS[index] * state.scale)
+		day.frame.BackgroundColor3 = if isToday then PanelKit.VIOLET elseif claimed then Color3.fromRGB(60, 120, 64) else PanelKit.TAB
+		day.stroke.Color = if isToday then PanelKit.GOLD else OUTLINE
+		day.check.Visible = claimed or isToday
+	end
+	-- Dzisiejszy kafelek pulsuje obwódką
+	if todayPulse then
+		todayPulse:Cancel()
+		todayPulse = nil
+	end
+	local today = days[state.loginDay]
+	if today and window.isOpen() then
+		today.stroke.Thickness = 3
+		local tween = TweenService:Create(today.stroke, TweenInfo.new(0.6, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), { Thickness = 5 })
+		tween:Play()
+		todayPulse = tween
 	end
 	local nextDay = state.loginDay % #Progress.LOGIN_REWARDS + 1
 	streakHint.Text = Localize.t("QUESTS_STREAK_HINT", { nextDay, formatCoins(Progress.LOGIN_REWARDS[nextDay] * state.scale) })
 end
 
 function QuestPanel.toggle()
-	panel.Visible = not panel.Visible
-	if panel.Visible then
-		render()
-	end
+	window.setOpen(not window.isOpen())
 end
 
-button.Activated:Connect(QuestPanel.toggle)
-close.Activated:Connect(function()
-	panel.Visible = false
+window.onToggle(function(open: boolean)
+	if open then
+		render()
+	elseif todayPulse then
+		todayPulse:Cancel()
+		todayPulse = nil
+	end
 end)
+side.onActivated(QuestPanel.toggle)
 
 Remotes.get("ProgressUpdate").OnClientEvent:Connect(function(payload)
 	if typeof(payload) ~= "table" or typeof(payload.quests) ~= "table" then
@@ -262,25 +383,22 @@ Remotes.get("ProgressUpdate").OnClientEvent:Connect(function(payload)
 	end
 	state = payload
 	refreshBadge()
-	if panel.Visible then
+	if window.isOpen() then
 		render()
 	end
 end)
 
 Localize.onChanged(function()
-	if panel.Visible then
+	if window.isOpen() then
 		render()
 	end
-end)
-UiScale.onChanged(function()
-	panelScale.Scale = UiScale.get()
 end)
 
 -- Odliczanie do nowych zadań
 task.spawn(function()
 	while true do
 		task.wait(1)
-		if panel.Visible and state then
+		if window.isOpen() and state then
 			timer.Text = Localize.t("QUESTS_RESET", { formatTime(state.resetAt - os.time()) })
 		end
 	end
