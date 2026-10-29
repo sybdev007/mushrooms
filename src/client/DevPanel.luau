@@ -19,6 +19,7 @@ local ACTIONS: { { id: string, label: string } } = {
 	{ id = "coins1m", label = "+1 000 000 💰" },
 	{ id = "coinsZero", label = "Zeruj monety" },
 	{ id = "basketClear", label = "Opróżnij koszyk" },
+	{ id = "basketFill", label = "Napełnij koszyk" },
 	{ id = "tutorialReset", label = "Samouczek od nowa" },
 	{ id = "tutorialNext", label = "Samouczek: następny krok" },
 	{ id = "tutorialSkip", label = "Pomiń samouczek" },

@@ -94,6 +94,56 @@ local function scenario(s: Kit.Scene, garden: Model)
 			plant:PivotTo(plantBase)
 		end
 	end)
+	-- Na czas scenki chowamy (tylko u siebie) grzyby z pozostałych grządek i tabliczki nad ogródkiem:
+	-- duże grzyby zasłaniały kamerę, a tabliczki wisiały w kadrze
+	local hiddenParts: { [BasePart]: boolean } = {}
+	local hiddenGuis: { [BillboardGui]: boolean } = {}
+	local function hideClutter()
+		local folder = garden:FindFirstChild("Planted")
+		if folder then
+			for _, child in folder:GetChildren() do
+				if child ~= plant then
+					for _, d in child:GetDescendants() do
+						if d:IsA("BasePart") and not hiddenParts[d] then
+							hiddenParts[d] = true
+							d.LocalTransparencyModifier = 1
+						elseif d:IsA("BillboardGui") and d.Enabled and hiddenGuis[d] == nil then
+							hiddenGuis[d] = true
+							d.Enabled = false
+						end
+					end
+				end
+			end
+		end
+		for _, d in garden:GetDescendants() do
+			if d:IsA("BillboardGui") and d.Enabled and hiddenGuis[d] == nil then
+				hiddenGuis[d] = true
+				d.Enabled = false
+			end
+		end
+	end
+	hideClutter()
+	-- Ogródek co kilka sekund odświeża wygląd (nowe części), więc pilnujemy co chwilę
+	local clutterTick = 0
+	table.insert(s.connections, RunService.Heartbeat:Connect(function(dt)
+		clutterTick += dt
+		if clutterTick > 0.25 then
+			clutterTick = 0
+			hideClutter()
+		end
+	end))
+	Kit.onCleanup(s, function()
+		for part in hiddenParts do
+			if part.Parent then
+				part.LocalTransparencyModifier = 0
+			end
+		end
+		for billboard in hiddenGuis do
+			if billboard.Parent then
+				billboard.Enabled = true
+			end
+		end
+	end)
 	local standPlayer = bed - inward * 2 + side * 0.6
 	local exit = gate - inward * 14 + Vector3.new(0, 0, 8)
 
@@ -154,14 +204,14 @@ local function scenario(s: Kit.Scene, garden: Model)
 		fade = 0.2,
 		events = function(name)
 			if name == "pat" then
-				Audio.play("pat", { volume = 0.7, jitter = 0.1 })
+				Audio.play("pat", { volume = 0.7, jitter = 0.1, duration = 0.35 })
 			end
 		end,
 	})
 	if not Kit.wait(s, 2.2) then
 		return
 	end
-	Kit.shot(s, look(standPlayer + (bed - standPlayer).Unit * 5 + side * 1.5 + Vector3.new(0, 3, 0), standPlayer + Vector3.new(0, 2.6, 0)), nil, 0, 48)
+	Kit.shot(s, look(standPlayer + (bed - standPlayer).Unit * 7 + side * 2.5 + Vector3.new(0, 3.2, 0), standPlayer + Vector3.new(0, 2.6, 0)), nil, 0, 48)
 	Kit.clip(hero, Clips.wipeSweat, {
 		fade = 0.15,
 		events = function(name)
@@ -310,10 +360,10 @@ local function scenario(s: Kit.Scene, garden: Model)
 	-- 4. Gracz wraca i krzyczy
 	Kit.phase(s, "caught")
 	Audio.music(nil, 0.1)
-	Audio.play("surprise", { volume = 0.9 })
+	Audio.play("surprise", { volume = 0.9, duration = 1.6 })
 	Kit.place(hero, gate - inward * 7, inward)
 	Kit.move(hero, gate - inward * 0.5, 1.0, "run", 1.4)
-	Kit.shot(s, look(gate + inward * 2.5 + side * 2 + Vector3.new(0, 2.6, 0), gate - inward * 4 + Vector3.new(0, 2.6, 0)), nil, 0, 55)
+	Kit.shot(s, look(gate + inward * 4 + side * 3.5 + Vector3.new(0, 3, 0), gate - inward * 4 + Vector3.new(0, 2.4, 0)), nil, 0, 55)
 	task.spawn(function()
 		Kit.bubble(s, hero, Localize.t("CUT2_HEY"), 0.9, false, nil, 1.1)
 	end)
@@ -327,11 +377,19 @@ local function scenario(s: Kit.Scene, garden: Model)
 		plant:PivotTo(plantBase)
 	end
 	-- Złodziej podskakuje ze strachu
-	Kit.shot(s, look(tugAt + side * 5 - inward * 1 + Vector3.new(0, 3, 0), tugAt + Vector3.new(0, 2.6, 0)), nil, 0, 52)
+	do
+		-- Szeroki kadr z boku: gracz przy furtce i złodziej przy grządce naraz
+		local heroAt = gate - inward * 0.5
+		local mid = (heroAt + tugAt) / 2
+		local line = flat(tugAt - heroAt)
+		local perp = if line.Magnitude > 0.1 then line.Unit:Cross(Vector3.yAxis) else side
+		local reach = math.max(9, line.Magnitude * 1.1)
+		Kit.shot(s, look(mid + perp * reach + Vector3.new(0, 3.6, 0), mid + Vector3.new(0, 2.2, 0)), look(mid + perp * (reach - 0.8) + Vector3.new(0, 3.3, 0), mid + Vector3.new(0, 2.3, 0)), 0.9, 55)
+	end
 	Kit.face(thief, gate, 0.1)
 	Kit.clip(thief, Clips.jumpScare, { fade = 0.05 })
 	Kit.mark(s, thief, "!")
-	Audio.play("loony", { volume = 0.8 })
+	Audio.play("loony", { volume = 0.8, duration = 2.4 })
 	if not Kit.wait(s, 0.9) then
 		return
 	end
@@ -365,7 +423,9 @@ local function scenario(s: Kit.Scene, garden: Model)
 
 	-- 5. Gracz go przegania i otrzepuje ręce
 	Kit.phase(s, "shoo")
-	Kit.shot(s, look(gate + inward * 4 + side * 3 + Vector3.new(0, 2.8, 0), gate - inward * 0.5 + Vector3.new(0, 2.6, 0)), nil, 0, 50)
+	-- Kamera po tej stronie, gdzie nie ma grządki z grzybem (żeby nie zasłaniał)
+	local camSide = if side:Dot(bed - gate) > 0 then -side else side
+	Kit.shot(s, look(gate + inward * 7.5 + camSide * 4.5 + Vector3.new(0, 3.4, 0), gate - inward * 0.5 + Vector3.new(0, 2.3, 0)), look(gate + inward * 6.8 + camSide * 4 + Vector3.new(0, 3.2, 0), gate - inward * 0.5 + Vector3.new(0, 2.4, 0)), 3.2, 50)
 	Kit.face(hero, fleeTo, 0.2)
 	Kit.clip(hero, Clips.shoo, {
 		fade = 0.15,
@@ -385,7 +445,7 @@ local function scenario(s: Kit.Scene, garden: Model)
 		fade = 0.15,
 		events = function(name)
 			if name == "pat" then
-				Audio.play("pat", { volume = 0.5, pitch = 1.4 })
+				Audio.play("pat", { volume = 0.5, pitch = 1.4, duration = 0.3 })
 			end
 		end,
 	})

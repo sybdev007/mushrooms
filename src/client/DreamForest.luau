@@ -75,9 +75,9 @@ end
 -- Świerk z trzech coraz mniejszych, obróconych klocków (pasuje do voxelowych grzybów)
 local function spruce(parent: Instance, at: Vector3, rnd: Random)
 	local scale = rnd:NextNumber(0.9, 1.5)
-	part(parent, Vector3.new(1.2, 4 * scale, 1.2), CFrame.new(at + Vector3.new(0, 2 * scale, 0)), TRUNK_DARK)
-	local y = 3 * scale
-	local size = 9 * scale
+	part(parent, Vector3.new(1.2, 6 * scale, 1.2), CFrame.new(at + Vector3.new(0, 3 * scale, 0)), TRUNK_DARK)
+	local y = 5 * scale
+	local size = 7 * scale
 	local color = PINE[rnd:NextInteger(1, #PINE)]
 	local spin = rnd:NextNumber(0, math.pi / 2)
 	for i = 1, 4 do

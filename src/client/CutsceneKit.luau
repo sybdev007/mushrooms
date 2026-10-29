@@ -505,6 +505,18 @@ local function headPoint(actor: Actor): Vector3
 	return if head then head.Position + Vector3.new(0, 1.6, 0) else actor.root.Position + Vector3.new(0, 3.6, 0)
 end
 
+-- Pozycja nad głową, ale zawsze w kadrze: nie wchodzi na czarne pasy ani za krawędź ekranu
+-- (element ma AnchorPoint (0.5, 1), więc jego dół jest w punkcie y)
+local function inFrame(s: Scene, element: GuiObject, x: number, y: number): UDim2
+	local screen = s.gui.AbsoluteSize
+	local top = if s.bars[1] then s.bars[1].AbsoluteSize.Y else 0
+	local size = element.AbsoluteSize
+	local margin = 10
+	local minY = top + size.Y + margin
+	local half = size.X / 2 + margin
+	return UDim2.fromOffset(math.clamp(x, half, math.max(half, screen.X - half)), math.max(y, minY))
+end
+
 -- Dymek z mową albo myślą nad głową aktora; tekst pisze się literka po literce. fixed = stałe miejsce na ekranie.
 function Kit.bubble(s: Scene, actor: Actor?, text: string, hold: number, think: boolean?, fixed: UDim2?, voice: number?): boolean
 	local width = math.clamp(120 + (utf8.len(text) or 0) * 9, 200, 380)
@@ -516,7 +528,7 @@ function Kit.bubble(s: Scene, actor: Actor?, text: string, hold: number, think: 
 		elseif actor and cam then
 			local point, visible = cam:WorldToViewportPoint(headPoint(actor))
 			holder.Visible = visible
-			holder.Position = UDim2.fromOffset(point.X, point.Y)
+			holder.Position = inFrame(s, holder, point.X, point.Y)
 		end
 	end)
 	table.insert(s.connections, follow)
@@ -565,7 +577,7 @@ function Kit.mark(s: Scene, actor: Actor, symbol: string, color: Color3?)
 		if cam then
 			local point, visible = cam:WorldToViewportPoint(headPoint(actor) + Vector3.new(0, 0.6, 0))
 			label.Visible = visible
-			label.Position = UDim2.fromOffset(point.X, point.Y)
+			label.Position = inFrame(s, label, point.X, point.Y)
 		end
 	end)
 	table.insert(s.connections, follow)

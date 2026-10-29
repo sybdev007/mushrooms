@@ -1223,6 +1223,15 @@ local function onDevAction(player: Player, action: unknown)
 		TutorialService.setStep(session :: any, Config.Tutorial.done)
 	elseif action == "basketClear" then
 		table.clear(data.basket)
+	elseif action == "basketFill" then
+		for zone = 1, 3 do
+			for _ = 1, 3 do
+				local species = Economy.rollSpecies(zone, math.random())
+				if species and #data.basket < basketMax(session) then
+					table.insert(data.basket, { s = species.id })
+				end
+			end
+		end
 	elseif action == "cycleDawn" or action == "cycleNight" then
 		debugPhase = if action == "cycleDawn" then "dawn" else "night"
 		debugUntil = os.time() + 60

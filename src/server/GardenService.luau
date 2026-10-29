@@ -757,6 +757,15 @@ function GardenService.assign(player: Player)
 			gardenOf[player] = garden
 			garden.model:SetAttribute("OwnerUserId", player.UserId)
 			garden.model:SetAttribute("OwnerName", player.DisplayName)
+			-- Tylko w Studio: testy otwierają okno sadzenia atrybutem (narzędzia Studio nie klikają ProximityPrompt)
+			if RunService:IsStudio() then
+				player:GetAttributeChangedSignal("DevOpenGarden"):Connect(function()
+					local own = gardenOf[player]
+					if own then
+						sendView(own, player, true)
+					end
+				end)
+			end
 			if data then
 				-- Więcej posadzonych niż odblokowanych grządek (np. po przeniesieniu ze starej suszarni):
 				-- nadmiar trafia do skrzyni jako monety

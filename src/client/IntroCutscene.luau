@@ -37,7 +37,7 @@ local look = Kit.look
 local tween = Kit.tween
 
 local SOUNDS = {
-	"dream", "eerie", "chase", "wake", "forest", "birds", "footstep", "pick", "shimmer", "rumble", "roar", "roarShort",
+	"dream", "eerie", "chase", "wake", "forest", "birds", "footstep", "pick", "shimmer", "rumble", "roar",
 	"heartbeat", "sting", "gasp", "creak", "bubble", "whoosh", "blip", "ping", "warn", "boom", "flame", "tink",
 	"whisper", "breath", "crack", "owl", "pant", "swell", "leaves",
 }
@@ -112,8 +112,8 @@ local function heldMushroom(mythic: boolean): Model
 		return p
 	end
 	local stem = block(Vector3.new(0.34, 0.7, 0.34), 0.35, Color3.fromRGB(238, 228, 204), false)
-	local cap = block(Vector3.new(1.0, 0.3, 1.0), 0.82, if mythic then Color3.fromRGB(255, 120, 210) else Color3.fromRGB(150, 90, 50), mythic)
-	block(Vector3.new(0.7, 0.22, 0.7), 1.06, if mythic then Color3.fromRGB(255, 200, 240) else Color3.fromRGB(122, 72, 40), mythic)
+	local cap = block(Vector3.new(1.0, 0.3, 1.0), 0.82, if mythic then Color3.fromRGB(255, 120, 210) else Color3.fromRGB(240, 170, 40), mythic)
+	block(Vector3.new(0.7, 0.22, 0.7), 1.06, if mythic then Color3.fromRGB(255, 200, 240) else Color3.fromRGB(214, 140, 30), mythic)
 	if mythic then
 		for _, d in { { 0.32, 0.2 }, { -0.28, -0.22 }, { 0.05, -0.36 } } do
 			block(Vector3.new(0.16, 0.06, 0.16), 0.99, Color3.new(1, 1, 1), true, d[1], d[2])
@@ -439,7 +439,7 @@ local function dream(s: Kit.Scene)
 	end))
 	MushroomView.setViewer(at(40))
 	MushroomView.add({
-		{ id = "cut_small", position = SMALL, species = "porcini" },
+		{ id = "cut_small", position = SMALL, species = "chanterelle" },
 		{ id = "cut_mythic", position = MYTHIC, species = "glowing_agaric", variant = "rainbow" },
 	})
 	Kit.onCleanup(s, function()
@@ -502,7 +502,8 @@ local function dream(s: Kit.Scene)
 	Kit.phase(s, "pick")
 	local held: Model? = nil
 	local side = (SMALL - SMALL_STAND).Unit:Cross(Vector3.yAxis)
-	Kit.shot(s, look(SMALL + side * 5.5 + Vector3.new(0, 1.8, -1.0), SMALL + Vector3.new(0, 1.2, -1.2)), look(SMALL + side * 4.6 + Vector3.new(0, 2.1, -0.4), SMALL + Vector3.new(0, 1.6, -1.2)), 3.4, 48)
+	local mid = (SMALL + SMALL_STAND) / 2
+	Kit.shot(s, look(mid + side * 11 + Vector3.new(0, 3.4, 0), mid + Vector3.new(0, 1.3, 0)), look(mid + side * 9.6 + Vector3.new(0, 3.0, 0), mid + Vector3.new(0, 1.6, 0)), 3.4, 48)
 	Kit.clip(hero, Clips.pickKneel, {
 		fade = 0.25,
 		events = function(name)
@@ -618,7 +619,21 @@ local function dream(s: Kit.Scene)
 			end
 		end
 	end))
-	if not Kit.wait(s, 5.0) then
+	if not Kit.wait(s, 4.2) then
+		return
+	end
+	-- Chowa skarb do plecaka (w ciemności świecący grzyb w dłoni zasłaniałby kadr)
+	Kit.clip(hero, Clips.toss, {
+		fade = 0.15,
+		events = function(name)
+			if name == "toss" and heldMythic then
+				local m = heldMythic
+				heldMythic = nil
+				tossToBackpack(hero, m)
+			end
+		end,
+	})
+	if not Kit.wait(s, 1.1) then
 		return
 	end
 
@@ -627,14 +642,14 @@ local function dream(s: Kit.Scene)
 	local flame: Sound? = nil
 	Kit.follow(s, function()
 		local cf = hero.root.CFrame
-		return look((cf * CFrame.new(2.4, 1.3, -3.6)).Position, (cf * CFrame.new(0.5, 1.5, -0.5)).Position)
+		return look((cf * CFrame.new(4.2, 2.0, -7.6)).Position, (cf * CFrame.new(0.3, 1.2, -0.3)).Position)
 	end, 46)
 	tween(lantern.oil, 3.2, { Value = 0.02 }, Enum.EasingStyle.Linear)
 	Kit.clip(hero, Clips.lantern, {
 		fade = 0.3,
 		events = function(name)
 			if name == "tink" then
-				Audio.play("tink", { volume = 0.8, jitter = 0.05 })
+				Audio.play("tink", { volume = 0.8, jitter = 0.05, duration = 0.7 })
 			elseif name == "out" then
 				lantern.out = true
 				lantern.oil.Value = 0
@@ -684,7 +699,7 @@ local function dream(s: Kit.Scene)
 	if not Kit.wait(s, 1.0) then
 		return
 	end
-	Audio.play("swell", { volume = 0.9 })
+	Audio.play("swell", { volume = 0.9, duration = 4.5 })
 	leszyEyes(leszy, true, 0.5)
 	if not Kit.wait(s, 1.6) then
 		return
@@ -692,7 +707,7 @@ local function dream(s: Kit.Scene)
 	Kit.subtitle(s, Localize.t("CUT_SUB_LESZY"), Color3.fromRGB(255, 110, 90))
 	setLight("danger", 1.4)
 	leszyDo(leszy, "rise")
-	Audio.play("crack", { volume = 1 })
+	Audio.play("crack", { volume = 1, duration = 1.6 })
 	Audio.play("rumble", { duration = 3 })
 	Audio.play("breath", { volume = 0.8, duration = 3 })
 	s.shake = 0.5
@@ -746,7 +761,7 @@ local function dream(s: Kit.Scene)
 		local sideways = runDir:Cross(Vector3.yAxis)
 		return look(p + sideways * 13 + Vector3.new(0, 4, 0) + runDir * 2, p + Vector3.new(0, 7, 0))
 	end, 60)
-	Audio.play("roarShort", { volume = 0.7 })
+	Audio.play("roar", { volume = 0.7, pitch = 1.15, duration = 1.4 })
 	if not Kit.wait(s, 1.1) then
 		return
 	end
@@ -770,7 +785,7 @@ local function dream(s: Kit.Scene)
 		return
 	end
 	Audio.play("sting")
-	Audio.play("roarShort", { volume = 1 })
+	Audio.play("roar", { volume = 1, pitch = 1.15, duration = 1.6 })
 	if not Kit.wait(s, 0.12) then
 		return
 	end

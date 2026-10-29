@@ -362,7 +362,7 @@ local function buildBed(index: number): Bed
 	else
 		local lock = UiKit.icon("lock", frame, UDim2.fromOffset(46, 46), UDim2.new(0.5, 0, 0.42, 0), Vector2.new(0.5, 0.5))
 		lock.ZIndex = 2
-		local buy = label(frame, UDim2.new(1, -10, 0, 30), UDim2.new(0, 5, 1, -34), TITLE_FONT, 14, Color3.fromRGB(220, 210, 200))
+		local buy = label(frame, UDim2.new(1, -10, 0, 30), UDim2.new(0, 5, 1, -34), BODY_FONT, 12, Color3.fromRGB(220, 210, 200))
 		buy.TextWrapped = true
 		buy.Text = t("GP_LOCKED")
 		buy.ZIndex = 2

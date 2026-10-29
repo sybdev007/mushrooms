@@ -36,6 +36,7 @@ local IntroCutscene = require(script.Parent.IntroCutscene)
 local Tutorial = require(script.Parent.Tutorial)
 local LeszyAnimator = require(script.Parent.LeszyAnimator)
 local GardenPanel = require(script.Parent.GardenPanel)
+local FontFix = require(script.Parent.FontFix)
 
 local player = Players.LocalPlayer
 
@@ -62,6 +63,7 @@ GardenPrompts.start()
 MerchantView.start()
 LeszyAnimator.start()
 GardenPanel.start()
+FontFix.start()
 
 -- Skąd wylatują monety po sprzedaży (przycisk w panelu sprzedaży)
 local sellShowerFrom: Vector2? = nil

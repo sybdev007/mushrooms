@@ -185,13 +185,13 @@ Clips.lantern = {
 		{
 			t = 1.2,
 			ease = "out",
-			pose = { RightShoulder = { rx = 92, rz = -22 }, RightElbow = { rx = 78 }, RightWrist = { rx = -20 }, Neck = { rx = 6, ry = -14 }, Waist = { ry = -8, rx = -4 } },
+			pose = { RightShoulder = { rx = 56, rz = -16 }, RightElbow = { rx = 26 }, RightWrist = { rx = -20 }, Neck = { rx = 6, ry = -14 }, Waist = { ry = -8, rx = -4 } },
 		},
 		{ t = 1.7, pose = { Neck = { rx = 4, ry = -18, rz = 8 } } },
-		{ t = 1.85, ease = "snap", pose = { RightShoulder = { rx = 98, rz = -32 } } },
-		{ t = 2.0, ease = "snap", pose = { RightShoulder = { rx = 92, rz = -14 } } },
-		{ t = 2.15, ease = "snap", pose = { RightShoulder = { rx = 98, rz = -32 } } },
-		{ t = 2.3, ease = "snap", pose = { RightShoulder = { rx = 92, rz = -18 } } },
+		{ t = 1.85, ease = "snap", pose = { RightShoulder = { rx = 61, rz = -24 } } },
+		{ t = 2.0, ease = "snap", pose = { RightShoulder = { rx = 56, rz = -10 } } },
+		{ t = 2.15, ease = "snap", pose = { RightShoulder = { rx = 61, rz = -24 } } },
+		{ t = 2.3, ease = "snap", pose = { RightShoulder = { rx = 56, rz = -14 } } },
 		{ t = 3.0, pose = { Neck = { rx = 10, ry = -20, rz = -6 } } },
 		-- Gaśnie: odruchowy odskok głowy, ręka z latarnią opada
 		{ t = 3.25, ease = "snap", pose = { Waist = { rx = 6, ry = 0 }, Neck = { rx = 14, ry = 0, rz = 0 }, RightShoulder = { rx = 40, rz = 6 }, RightElbow = { rx = 30 }, Root = { z = 0.2 } } },

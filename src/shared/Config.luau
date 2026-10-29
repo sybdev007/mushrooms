@@ -664,7 +664,6 @@ Config.Audio = {
 		crack = "rbxassetid://9120818969", -- trzask drewna i korzeni
 		owl = "rbxassetid://9117181540", -- sowa w oddali
 		pant = "rbxassetid://9125573009", -- zdyszany oddech w biegu
-		roarShort = "rbxassetid://9113980644", -- krótki ryk przy złapaniu
 		pat = "rbxassetid://9120863506", -- klepnięcie w ziemię
 		swell = "rbxassetid://9114353056", -- złowrogie narastanie
 		leaves = "rbxassetid://9116248055", -- szelest liści
