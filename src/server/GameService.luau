@@ -1411,6 +1411,7 @@ function GameService.start(mapInfo: MapBuilder.MapInfo)
 					local session = sessions[player]
 					if session then
 						engulf(session, def.caught, name)
+						ProgressService.guardianEvent(player, name, "caught")
 					end
 				end,
 				onEscaped = function(player: Player)
@@ -1418,6 +1419,7 @@ function GameService.start(mapInfo: MapBuilder.MapInfo)
 					if session then
 						notify(session, def.escaped, { Economy.basketValue(session.data.basket) })
 						ProgressService.event(player, "escape", 1)
+						ProgressService.guardianEvent(player, name, "escape")
 					end
 				end,
 				onGaveUp = function(player: Player)
@@ -1450,6 +1452,27 @@ function GameService.start(mapInfo: MapBuilder.MapInfo)
 			end,
 		})
 	end
+
+	-- Portrety do zakładki Strażnicy w Grzybopedii: przebudzone modele do klonowania w ViewportFrame
+	-- (klient nie ma dostępu do budowniczych z serwera, a posągi na mapie mogą być poza streamingiem).
+	-- W tle, bo siatki Skarbnika i Utopca wczytują się z sieci.
+	task.spawn(function()
+		if ReplicatedStorage:FindFirstChild("GuardianPortraits") then
+			return
+		end
+		local folder = Instance.new("Folder")
+		folder.Name = "GuardianPortraits"
+		for name, def in GUARDIANS do
+			local ok, err = pcall(function()
+				local model = def.model.build(folder, CFrame.new(0, -600, 0), true)
+				model.Name = name
+			end)
+			if not ok then
+				warn("[GameService] Portret strażnika " .. name .. " się nie zbudował:", err)
+			end
+		end
+		folder.Parent = ReplicatedStorage
+	end)
 
 	ProgressService.start({
 		getData = function(player: Player)

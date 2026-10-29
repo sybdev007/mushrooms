@@ -66,6 +66,7 @@ local function send(player: Player, force: boolean?)
 	end
 	local payload = {
 		atlas = data.atlas,
+		bestiary = data.bestiary,
 		bonus = Progress.atlasBonus(data.atlas),
 		title = Progress.title(data.atlas),
 		quests = quests,
@@ -79,7 +80,7 @@ local function send(player: Player, force: boolean?)
 		resetAt = now + Progress.secondsToNextDay(now),
 	}
 	-- Odcisk bez resetAt (zmienia się co sekundę, klient i tak liczy sam)
-	local fingerprint = HttpService:JSONEncode({ payload.atlas, payload.quests, payload.rerolled, payload.streak, payload.day, scale })
+	local fingerprint = HttpService:JSONEncode({ payload.atlas, payload.bestiary, payload.quests, payload.rerolled, payload.streak, payload.day, scale })
 	if not force and lastSent[player] == fingerprint then
 		return
 	end
@@ -126,6 +127,8 @@ function ProgressService.join(player: Player)
 	if #data.atlasDone == 0 then
 		data.atlasDone = Progress.milestones(data.atlas)
 	end
+	-- Strażnicy okradzeni przed zakładką Strażnicy (bez komunikatu)
+	Progress.migrateBestiary(data.bestiary, data.atlas)
 	newDay(player, data)
 	refreshTitle(player, data)
 	send(player, true)
@@ -178,6 +181,20 @@ local function checkMilestones(player: Player, data: Data)
 	refreshTitle(player, data)
 end
 
+-- Zdarzenie ze strażnikiem (kind jak w Progress.guardianEvent: "steal", "escape", "caught").
+-- GameService woła je z pościgu (ucieczka, złapanie); kradzież liczy się sama w ProgressService.found.
+function ProgressService.guardianEvent(player: Player, guardian: string, kind: string)
+	local data = api.getData(player)
+	if not data then
+		return
+	end
+	local def = Progress.getGuardian(guardian)
+	if def and Progress.guardianEvent(data.bestiary, guardian, kind) then
+		api.notify(player, "MSG_BESTIARY_NEW", nil, def.key)
+	end
+	send(player)
+end
+
 -- Grzyb trafił do koszyka. source: "pick" (zerwany w lesie) albo "hoard" (z legowiska strażnika)
 function ProgressService.found(player: Player, item: { s: string, v: string?, x: { string }? }, source: string)
 	local data = api.getData(player)
@@ -193,6 +210,11 @@ function ProgressService.found(player: Player, item: { s: string, v: string?, x:
 		})
 		ProgressService.event(player, "discover", 1)
 		checkMilestones(player, data)
+	end
+	-- Grzyb strażnika (z legowiska albo ze skarbca) = kradzież, pierwsza odkrywa go w zakładce Strażnicy
+	local guardian = Economy.guardianOf(item.s)
+	if guardian then
+		ProgressService.guardianEvent(player, guardian, "steal")
 	end
 	-- Najlepsze znalezisko tygodnia (ranking)
 	local now = os.time()
@@ -242,7 +264,18 @@ function ProgressService.dev(player: Player, action: string): boolean
 	elseif action == "atlasClear" then
 		table.clear(data.atlas)
 		table.clear(data.atlasDone)
+		table.clear(data.bestiary)
 		refreshTitle(player, data)
+	elseif action == "bestiaryNext" then
+		-- Odkrywa kolejnego strażnika z komunikatem, jakby gracz go właśnie okradł
+		for _, def in Progress.GUARDIANS do
+			if not Progress.guardianRecord(data.bestiary, def.id).found then
+				ProgressService.guardianEvent(player, def.id, "steal")
+				break
+			end
+		end
+	elseif action == "bestiaryClear" then
+		table.clear(data.bestiary)
 	elseif action == "questsDone" then
 		for _, state in data.daily.quests do
 			local def = Progress.getQuest(state.id)

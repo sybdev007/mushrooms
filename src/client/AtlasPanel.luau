@@ -2,6 +2,7 @@
 -- Grzybopedia: księga wszystkich grzybów w czterech formach (zwykła, srebrna, złota, tęczowa).
 -- Odkryte formy są w kolorze, nieodkryte to czarne sylwetki, a nieznany gatunek ma nazwę „???”.
 -- Strona = świat. Na dole progi strony z nagrodą (stały bonus do ceny, tytuł nad głową).
+-- Ostatnia zakładka to Strażnicy (BestiaryPage): opis każdego strażnika, odkrywany kradzieżą jego grzyba.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -11,6 +12,7 @@ local Config = require(Shared.Config)
 local Economy = require(Shared.Economy)
 local Progress = require(Shared.Progress)
 local Remotes = require(Shared.Remotes)
+local BestiaryPage = require(script.Parent.BestiaryPage)
 local Localize = require(script.Parent.Localize)
 local SideButtons = require(script.Parent.SideButtons)
 local UiKit = require(script.Parent.UiKit)
@@ -27,6 +29,10 @@ local PANEL = Color3.fromRGB(40, 28, 20)
 local CARD = Color3.fromRGB(58, 42, 30)
 local WIDTH, HEIGHT = 540, 470
 local ROW = 44
+local GUARDIANS_TAB = "guardians"
+-- Zakładki: strony świata, a na końcu Strażnicy
+local TAB_IDS = table.clone(Progress.PAGES)
+table.insert(TAB_IDS, GUARDIANS_TAB)
 
 -- Kolory form w kolejności rang (0 zwykła → kolor kapelusza gatunku)
 local FORM_COLORS: { [number]: Color3 } = {
@@ -104,12 +110,12 @@ tabsFrame.Size = UDim2.new(1, -24, 0, 30)
 tabsFrame.Position = UDim2.fromOffset(12, 48)
 tabsFrame.Parent = panel
 local tabsGrid = Instance.new("UIGridLayout")
-tabsGrid.CellSize = UDim2.new(1 / #Progress.PAGES, -6, 1, 0)
+tabsGrid.CellSize = UDim2.new(1 / #TAB_IDS, -6, 1, 0)
 tabsGrid.CellPadding = UDim2.fromOffset(8, 0)
 tabsGrid.SortOrder = Enum.SortOrder.LayoutOrder
 tabsGrid.Parent = tabsFrame
 local tabs: { [string]: TextButton } = {}
-for index, page in Progress.PAGES do
+for index, page in TAB_IDS do
 	local tab = Instance.new("TextButton")
 	tab.Name = "Tab_" .. page
 	tab.LayoutOrder = index
@@ -188,11 +194,16 @@ for index = 1, #Progress.TIERS do
 	tierRows[index] = { label = label, reward = reward, fill = fill, check = check }
 end
 
+-- Zakładka Strażnicy zajmuje miejsce listy i progów
+local guardiansPage = BestiaryPage.new(panel, UDim2.new(1, -24, 0, HEIGHT - 108 - 12), UDim2.fromOffset(12, 108))
+
 -- ===== Stan =====
 
 local atlas: { [string]: any } = {}
+local bestiary: { [string]: Progress.GuardianRecord } = {}
 local current = "forest"
 local hasNew = false -- nowe wpisy od ostatniego otwarcia (kropka na przycisku)
+local newGuardian: string? = nil -- strażnik odkryty od ostatniego otwarcia: okno otworzy się na nim
 
 local button, badge = SideButtons.add("AtlasButton", "book", Color3.fromRGB(150, 90, 50))
 
@@ -251,9 +262,26 @@ end
 local function render()
 	title.Text = Localize.t("ATLAS_TITLE")
 	for page, tab in tabs do
-		local found, total = Progress.entries(atlas, page)
+		local found, total
+		if page == GUARDIANS_TAB then
+			found, total = Progress.guardiansFound(bestiary)
+		else
+			found, total = Progress.entries(atlas, page)
+		end
 		tab.Text = string.format("%s  %d/%d", Localize.t("ATLAS_PAGE_" .. string.upper(page)), found, total)
 		UiKit.recolor(tab, if page == current then Color3.fromRGB(196, 130, 50) else UiKit.COLORS.wood)
+	end
+
+	local onGuardians = current == GUARDIANS_TAB
+	header.Visible = not onGuardians
+	list.Visible = not onGuardians
+	tiersFrame.Visible = not onGuardians
+	guardiansPage.setActive(onGuardians and panel.Visible)
+	if onGuardians then
+		local found, total = Progress.guardiansFound(bestiary)
+		summary.Text = Localize.t("BESTIARY_SUMMARY", { found, total })
+		guardiansPage.render(bestiary)
+		return
 	end
 	headerCells[1].Text = Localize.t("ATLAS_FORM_NORMAL")
 	for rank = 1, 3 do
@@ -334,13 +362,26 @@ local function refreshBadge()
 	badge.TextColor3 = if hasNew then Color3.fromRGB(255, 236, 120) else Color3.fromRGB(255, 252, 240)
 end
 
+local function hide()
+	panel.Visible = false
+	guardiansPage.setActive(false)
+end
+
 function AtlasPanel.toggle()
-	panel.Visible = not panel.Visible
 	if panel.Visible then
-		hasNew = false
-		refreshBadge()
-		render()
+		hide()
+		return
 	end
+	panel.Visible = true
+	-- Nowy strażnik od ostatniego otwarcia: od razu jego karta
+	if newGuardian then
+		current = GUARDIANS_TAB
+		guardiansPage.select(newGuardian)
+		newGuardian = nil
+	end
+	hasNew = false
+	refreshBadge()
+	render()
 end
 
 for page, tab in tabs do
@@ -350,16 +391,28 @@ for page, tab in tabs do
 	end)
 end
 button.Activated:Connect(AtlasPanel.toggle)
-close.Activated:Connect(function()
-	panel.Visible = false
-end)
+close.Activated:Connect(hide)
 
 local knownEntries = -1
+local knownGuardians: { [string]: boolean }? = nil
 Remotes.get("ProgressUpdate").OnClientEvent:Connect(function(payload)
 	if typeof(payload) ~= "table" or typeof(payload.atlas) ~= "table" then
 		return
 	end
 	atlas = payload.atlas
+	bestiary = if typeof(payload.bestiary) == "table" then payload.bestiary else {}
+	-- Strażnicy odkryci od poprzedniej paczki (pierwsza paczka po wejściu to tylko stan)
+	local foundNow: { [string]: boolean } = {}
+	for _, def in Progress.GUARDIANS do
+		if Progress.guardianRecord(bestiary, def.id).found then
+			foundNow[def.id] = true
+			if knownGuardians and not knownGuardians[def.id] and not panel.Visible then
+				hasNew = true
+				newGuardian = def.id
+			end
+		end
+	end
+	knownGuardians = foundNow
 	local count = 0
 	for _, page in Progress.PAGES do
 		count += (Progress.entries(atlas, page))

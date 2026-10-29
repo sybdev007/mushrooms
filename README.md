@@ -73,6 +73,7 @@ rojo build -o lantern-forager.rbxlx
 | `src/client/ShopPanel.luau` | StarterPlayerScripts.Client | Sklep za Robuxy, ratunek koszyka, szybki olej, liczniki Wysypu i mikstury |
 | `src/client/Purchases.luau` | StarterPlayerScripts.Client | Okno płatności Robloxa i ceny produktów |
 | `src/client/GardenPrompts.luau` | StarterPlayerScripts.Client | Pokazuje graczowi właściwe przyciski w ogródkach |
+| `src/client/BestiaryPage.luau` | StarterPlayerScripts.Client | Zakładka Strażnicy w Grzybopedii: portrety, opisy, liczby i liczniki |
 | `src/client/Localize.luau` | StarterPlayerScripts.Client | Tłumaczenia EN/PL |
 | `src/localization/GameStrings.csv` | LocalizationService | Wszystkie teksty po angielsku i polsku |
 | `tests/economy.spec.luau` | — | Testy logiki i balansu (Lune) |
@@ -153,6 +154,16 @@ rojo build -o lantern-forager.rbxlx
   co najmniej srebrny / złoty / tęczowy) dają na zawsze +3/+3/+5/+10% do ceny przy sprzedaży, a złota i tęczowa
   strona dają tytuł nad głową (`TitleView`: Znawca Lasu, Mistrz Bagien… i Arcygrzybiarz za wszystko na tęczę).
   Zapis: `atlas[gatunek]` = maska bitów form (stare `true` = zwykła).
+- **Strażnicy w Grzybopedii** (`Progress.GUARDIANS`, strona `BestiaryPage`, ostatnia zakładka księgi): karta każdego
+  strażnika z portretem 3D (ViewportFrame z modelem z `ReplicatedStorage.GuardianPortraits`, budowanym w tle przez
+  `GameService`). Strażnika poznaje się dopiero, gdy ukradnie mu się strzeżony grzyb (z legowiska albo ze skarbca);
+  wcześniej to czarna sylwetka z kłódką, „???” i tylko nazwą kryjówki. Odkryty ma legendę, przydomek, liczby z Config
+  (szybkość, budzenie, próg butów do ucieczki liczony przez `Progress.bootsToEscape`, bezpieczna strefa), własne
+  liczniki gracza (skradzione / ucieczki / złapał cię) i radę. Pierwsze odkrycie daje komunikat, a Grzybopedia
+  otwiera się wtedy od razu na jego karcie. Zapis: `bestiary[strażnik] = { found, stolen, escaped, caught }`;
+  stare zapisy z grzybem strażnika w księdze dostają go od razu (`Progress.migrateBestiary`).
+  Nowy strażnik = wpis w `Progress.GUARDIANS` i teksty `BOSS_<ID>`, `_TITLE`, `_LORE`, `_TIP` w CSV.
+  Panel DEV: „Strażnicy: odkryj następnego”, „Strażnicy: wyczyść”.
 - **Codzienne zadania i seria logowań** (`Progress.QUESTS`, okno `QuestPanel`, przycisk 📜): 3 zadania dziennie
   (każdy gracz ma swój zestaw, raz dziennie można jedno wymienić), np. zbierz 30 grzybów, znajdź złotego,
   ucieknij strażnikowi, donieś łup. Nagrody przychodzą same; za wszystkie trzy premia i 5 min mikstury szczęścia.

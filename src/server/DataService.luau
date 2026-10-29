@@ -16,6 +16,7 @@ export type Data = {
 	upgrades: { [string]: number },
 	atlas: { [string]: number }, -- Grzybopedia: gatunek -> maska odkrytych wariantów (Progress)
 	atlasDone: { string }, -- progi księgi, o których gracz już dostał komunikat ("forest:2")
+	bestiary: { [string]: Progress.GuardianRecord }, -- zakładka Strażnicy: odkryci strażnicy i liczniki
 	daily: Progress.Daily, -- dzisiejsze zadania
 	streak: Progress.Streak, -- seria logowań
 	weekly: Progress.Weekly, -- wyniki tego tygodnia do rankingów
@@ -64,6 +65,7 @@ function DataService.defaultData(): Data
 		upgrades = upgrades,
 		atlas = {},
 		atlasDone = {},
+		bestiary = {},
 		daily = { day = -1, quests = {}, rerolled = false, bonusDone = false },
 		streak = { day = -1, count = 0 },
 		weekly = { week = -1, steals = 0, best = 0 },
@@ -141,6 +143,22 @@ local function reconcile(raw: any): Data
 		for _, id in raw.atlasDone do
 			if typeof(id) == "string" and #data.atlasDone < 64 then
 				table.insert(data.atlasDone, id)
+			end
+		end
+	end
+	if typeof(raw.bestiary) == "table" then
+		local function count(value: any): number
+			return if typeof(value) == "number" then math.max(0, math.floor(value)) else 0
+		end
+		for _, def in Progress.GUARDIANS do
+			local entry = raw.bestiary[def.id]
+			if typeof(entry) == "table" then
+				data.bestiary[def.id] = {
+					found = entry.found == true,
+					stolen = count(entry.stolen),
+					escaped = count(entry.escaped),
+					caught = count(entry.caught),
+				}
 			end
 		end
 	end
