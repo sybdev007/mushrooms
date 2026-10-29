@@ -98,8 +98,27 @@ content.Size = UDim2.fromScale(1, 1)
 content.BackgroundTransparency = 1
 content.ZIndex = 4
 content.Parent = gui
-local contentScale = Instance.new("UIScale")
-contentScale.Parent = content
+
+-- Wszystko liczone od środka ekranu (w pikselach projektu razy skala ekranu), a każdy element ma
+-- własną UIScale z kotwicą w środku. Wcześniej skalowała się cała ramka na pełny ekran, więc na
+-- telefonie wszystko zjeżdżało w lewy górny róg.
+local fits: { UIScale } = {}
+local function fit(target: GuiObject): UIScale
+	local scale = Instance.new("UIScale")
+	scale.Name = "Fit"
+	scale.Parent = target
+	table.insert(fits, scale)
+	return scale
+end
+local function place(target: GuiObject, offsetY: number, scale: number)
+	target.Position = UDim2.new(0.5, 0, 0.5, math.floor(offsetY * scale))
+end
+-- Odległości od środka ekranu (piksele projektu). Przycisk „Zachowaj grzyby” (ShopPanel) jest
+-- na 58% wysokości, więc podtytuł kończy się nad nim, a rada jest przy dolnej krawędzi.
+local LANTERN_Y = -115
+local TITLE_Y = -32
+local SUBTITLE_Y = 22
+local BIG_EYES_Y = -215
 
 local function text(name: string, size: UDim2, position: UDim2, maxSize: number, font: Enum.Font?): TextLabel
 	local l = Instance.new("TextLabel")
@@ -122,20 +141,22 @@ end
 
 local title = text("Title", UDim2.new(0.9, 0, 0, 64), UDim2.fromScale(0.5, 0.45), 56)
 local titleStroke = UiKit.outline(title, 4)
-local titleScale = Instance.new("UIScale")
+local titleScale = Instance.new("UIScale") -- podskok tytułu (razy skala ekranu)
 titleScale.Parent = title
 local subtitle = text("Subtitle", UDim2.new(0.8, 0, 0, 30), UDim2.fromScale(0.5, 0.515), 26, Enum.Font.GothamBold)
+fit(subtitle)
 subtitle.TextColor3 = Color3.fromRGB(230, 206, 180)
 local subtitleStroke = UiKit.outline(subtitle, 2)
 
 local tip = Instance.new("Frame")
 tip.Name = "Tip"
-tip.AnchorPoint = Vector2.new(0.5, 0.5)
-tip.Position = UDim2.fromScale(0.5, 0.84)
+tip.AnchorPoint = Vector2.new(0.5, 1)
+tip.Position = UDim2.new(0.5, 0, 1, -24)
 tip.Size = UDim2.fromOffset(560, 54)
 tip.BackgroundColor3 = Color3.fromRGB(46, 32, 24)
 tip.ZIndex = 6
 tip.Parent = content
+fit(tip)
 local tipCorner = Instance.new("UICorner")
 tipCorner.CornerRadius = UDim.new(0, 16)
 tipCorner.Parent = tip
@@ -162,17 +183,25 @@ tipConstraint.MaxTextSize = 18
 tipConstraint.Parent = tipText
 
 -- Latarnia nad tytułem: migocze i gaśnie
-local lantern = UiKit.icon("lantern", content, UDim2.fromOffset(96, 96), UDim2.fromScale(0.5, 0.34), Vector2.new(0.5, 0.5))
+local lanternHolder = Instance.new("Frame")
+lanternHolder.Name = "Lantern"
+lanternHolder.AnchorPoint = Vector2.new(0.5, 0.5)
+lanternHolder.Size = UDim2.fromOffset(150, 150)
+lanternHolder.BackgroundTransparency = 1
+lanternHolder.ZIndex = 6
+lanternHolder.Parent = content
+fit(lanternHolder)
+local lantern = UiKit.icon("lantern", lanternHolder, UDim2.fromOffset(96, 96), UDim2.fromScale(0.5, 0.5), Vector2.new(0.5, 0.5))
 lantern.ZIndex = 7
 local glow = Instance.new("Frame")
 glow.Name = "Glow"
 glow.AnchorPoint = Vector2.new(0.5, 0.5)
-glow.Position = UDim2.fromScale(0.5, 0.34)
+glow.Position = UDim2.fromScale(0.5, 0.5)
 glow.Size = UDim2.fromOffset(150, 150)
 glow.BackgroundColor3 = Color3.fromRGB(255, 190, 80)
 glow.BackgroundTransparency = 1
 glow.ZIndex = 6
-glow.Parent = content
+glow.Parent = lanternHolder
 local glowCorner = Instance.new("UICorner")
 glowCorner.CornerRadius = UDim.new(0.5, 0)
 glowCorner.Parent = glow
@@ -286,17 +315,17 @@ local function smoke(current: number)
 			end
 			local puff = Instance.new("Frame")
 			puff.AnchorPoint = Vector2.new(0.5, 0.5)
-			puff.Position = UDim2.new(0.5, math.random(-8, 8), 0.34, -30)
+			puff.Position = UDim2.new(0.5, math.random(-8, 8), 0.5, -30)
 			puff.Size = UDim2.fromOffset(10, 10)
 			puff.BackgroundColor3 = Color3.fromRGB(120, 116, 112)
 			puff.BackgroundTransparency = 0.6
 			puff.ZIndex = 8
-			puff.Parent = content
+			puff.Parent = lanternHolder
 			local c = Instance.new("UICorner")
 			c.CornerRadius = UDim.new(0.5, 0)
 			c.Parent = puff
 			local rise = tween(puff, 1.1, {
-				Position = UDim2.new(0.5, math.random(-30, 30), 0.34, -90),
+				Position = UDim2.new(0.5, math.random(-30, 30), 0.5, -90),
 				Size = UDim2.fromOffset(34, 34),
 				BackgroundTransparency = 1,
 			}, Enum.EasingStyle.Sine)
@@ -321,7 +350,14 @@ function DeathScreen.show(key: string, titleText: string, subtitleText: string)
 	local camera = workspace.CurrentCamera
 	local viewport = if camera then camera.ViewportSize else Vector2.new(1280, 720)
 	local full = math.max(viewport.X, viewport.Y) * 1.3
-	contentScale.Scale = UiScale.get()
+	local scale = UiScale.get()
+	for _, f in fits do
+		f.Scale = scale
+	end
+	place(lanternHolder, LANTERN_Y, scale)
+	place(title, TITLE_Y, scale)
+	place(subtitle, SUBTITLE_Y, scale)
+	tip.Position = UDim2.new(0.5, 0, 1, -math.floor(24 * scale))
 
 	for _, child in eyesLayer:GetChildren() do
 		child:Destroy()
@@ -355,12 +391,12 @@ function DeathScreen.show(key: string, titleText: string, subtitleText: string)
 
 	-- 2. Oczy w ciemności
 	if look.big then
-		eyePair(UDim2.fromScale(0.5, 0.17), 46, look.color, 0.5, current)
+		eyePair(UDim2.new(0.5, 0, 0.5, math.floor(BIG_EYES_Y * scale)), math.floor(46 * scale), look.color, 0.5, current)
 	else
 		local spots = table.clone(EYE_SPOTS)
 		for i = 1, look.eyes do
 			local spot = table.remove(spots, math.random(1, #spots)) :: Vector2
-			eyePair(UDim2.fromScale(spot.X, spot.Y), math.random(14, 22), look.color, 0.5 + i * 0.18, current)
+			eyePair(UDim2.fromScale(spot.X, spot.Y), math.floor(math.random(14, 22) * scale), look.color, 0.5 + i * 0.18, current)
 		end
 	end
 
@@ -385,10 +421,10 @@ function DeathScreen.show(key: string, titleText: string, subtitleText: string)
 			lantern.ImageColor3 = Color3.fromRGB(90, 80, 80)
 		end
 		smoke(current)
-		titleScale.Scale = 1.7
+		titleScale.Scale = 1.7 * scale
 		title.TextTransparency = 0
 		titleStroke.Transparency = 0
-		tween(titleScale, 0.4, { Scale = 1 }, Enum.EasingStyle.Back)
+		tween(titleScale, 0.4, { Scale = scale }, Enum.EasingStyle.Back)
 		task.wait(0.25)
 		if token ~= current then
 			return
