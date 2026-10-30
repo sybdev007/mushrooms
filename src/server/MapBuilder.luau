@@ -772,8 +772,9 @@ function MapBuilder.build(): MapInfo
 	-- Chatka i jej otoczenie są zarezerwowane, żeby nic tam nie wyrosło
 	local spawnCFrame = Cabin.build(map)
 	table.insert(reserved, { x1 = -Cabin.HALF_W - 4, x2 = Cabin.HALF_W + 4, z1 = Cabin.BACK_Z - 5, z2 = Cabin.FRONT_Z + 10 })
-	-- Halloween: kocioł i tablica rankingu cukierków przed gankiem (nic tam nie wyrośnie)
+	-- Halloween: kocioł przed gankiem i tablica rankingu cukierków przy ścieżce do lasu (nic tam nie wyrośnie)
 	table.insert(reserved, { x1 = -25, x2 = -6, z1 = -4, z2 = 5 })
+	table.insert(reserved, { x1 = -16, x2 = -5, z1 = 24, z2 = 38 })
 
 	-- Bramy na początku każdej strefy leśnej
 	for i = 2, #FOREST_ZONES do
