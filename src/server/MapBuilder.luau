@@ -20,6 +20,7 @@ local Garden = require(World:WaitForChild("Garden"))
 local Cave = require(World:WaitForChild("Cave"))
 local Swamp = require(World:WaitForChild("Swamp"))
 local Leszy = require(World:WaitForChild("Leszy"))
+local Backdrop = require(World:WaitForChild("Backdrop"))
 
 export type Spot = {
 	id: string,
@@ -352,6 +353,55 @@ local function buildBorder(parent: Instance, rng: Random)
 		end
 	end
 	folder.Parent = parent
+end
+
+-- Tło za ścianami lasu (World/Backdrop): ciemne świerki, wzgórza po bokach i góry na końcach,
+-- żeby między drzewami na brzegu nie prześwitywała pusta płyta, a zza Gniazda nie było widać jaskini
+local FOREST_HILLS = { Color3.fromRGB(34, 56, 44), Color3.fromRGB(30, 50, 42), Color3.fromRGB(40, 60, 46) }
+local FOREST_MOUNTAINS = { Color3.fromRGB(58, 64, 76), Color3.fromRGB(50, 56, 68), Color3.fromRGB(66, 70, 80) }
+
+local function silhouettePine(parent: Instance, base: Vector3, rng: Random, s: number, dark: number, trunk: boolean)
+	local yaw = rng:NextNumber(0, math.pi * 2)
+	local color = Palette.shade(Palette.pick(Palette.pine, rng), dark)
+	if trunk then
+		Backdrop.make("Part", {
+			Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(6 * s, 1.6 * s, 1.6 * s),
+			CFrame = CFrame.new(base + Vector3.new(0, 3 * s, 0)) * CFrame.Angles(0, 0, math.rad(90)),
+			Color = Palette.shade(Palette.trunkDark, dark),
+			Parent = parent,
+		})
+	end
+	Backdrop.cone(parent, base + Vector3.new(0, 2.5 * s, 0), 12 * s, 11 * s, yaw, color)
+	Backdrop.cone(parent, base + Vector3.new(0, 9 * s, 0), 8.5 * s, 10 * s, yaw + 0.4, color:Lerp(Color3.new(0, 0, 0), 0.08))
+end
+
+local function buildForestBackdrop(parent: Instance, rng: Random)
+	local halfWidth = Config.ForestHalfWidth
+	Backdrop.build(parent, {
+		x1 = -halfWidth - 1,
+		x2 = halfWidth + 1,
+		z1 = FOREST_FIRST.startZ - 1,
+		z2 = FOREST_LAST.endZ + 1,
+	}, {
+		name = "Forest", -- ziemię za lasem daje już OuterGround
+		near = function(folder: Instance, base: Vector3, treeRng: Random)
+			silhouettePine(folder, base, treeRng, treeRng:NextNumber(1.6, 2.1), 0.55, true)
+		end,
+		nearSpacing = 13,
+		far = function(folder: Instance, base: Vector3, treeRng: Random)
+			silhouettePine(folder, base, treeRng, treeRng:NextNumber(2, 2.6), 0.75, false)
+		end,
+		farthest = function(folder: Instance, base: Vector3, treeRng: Random)
+			local s = treeRng:NextNumber(2.4, 3.2)
+			Backdrop.cone(folder, base, 11 * s, 16 * s, treeRng:NextNumber(0, math.pi * 2), Palette.shade(Palette.pick(Palette.pine, treeRng), 0.9))
+		end,
+		farSpacing = 12,
+		hill = FOREST_HILLS,
+		hillHeight = { 34, 58 },
+		mountain = FOREST_MOUNTAINS,
+		mountainHeight = { 80, 120 },
+	}, rng)
 end
 
 local function buildZoneDecor(parent: Instance, zoneIndex: number, rng: Random)
@@ -786,6 +836,7 @@ function MapBuilder.build(): MapInfo
 	end
 	-- Obrzeże przed lasem: las wewnątrz omija korony obrzeża
 	buildBorder(map, decorRng)
+	buildForestBackdrop(map, Random.new(Config.SpotSeed + 21))
 	for _, zoneIndex in FOREST_ZONES do
 		buildZoneDecor(map, zoneIndex, decorRng)
 	end

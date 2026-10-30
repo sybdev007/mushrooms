@@ -4,6 +4,8 @@
 -- Otwarte nocne niebo, zielona mgła, kładka z desek środkiem bagien, rozlewiska z liliami,
 -- wierzby płaczące, pałki wodne, martwe drzewa, unoszące się błędne ogniki i wyspa Utopca na stawie.
 -- Strefy leżą wzdłuż osi +Z (Config.Zones z world = "swamp"), daleko za jaskinią.
+-- Za ścianami stoi tło (World/Backdrop): gęsty pas wierzb i martwych drzew, wzgórza i góry,
+-- żeby przez drzewa na brzegu nie prześwitywała pustka.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
@@ -13,6 +15,7 @@ local Economy = require(ReplicatedStorage.Shared.Economy)
 local Palette = require(script.Parent.Palette)
 local Props = require(script.Parent.Props)
 local Utopiec = require(script.Parent.Utopiec)
+local Backdrop = require(script.Parent.Backdrop)
 
 local Swamp = {}
 
@@ -37,11 +40,26 @@ local WILLOW = { Color3.fromRGB(70, 96, 52), Color3.fromRGB(84, 108, 58), Color3
 local WISP_COLORS = { Color3.fromRGB(140, 255, 220), Color3.fromRGB(180, 255, 140), Color3.fromRGB(120, 200, 255) }
 
 -- Ile czego w strefie
-local RECIPES: { [string]: { willows: number, dead: number, reeds: number, pools: number, wisps: number, logs: number } } = {
-	bog = { willows = 8, dead = 10, reeds = 22, pools = 6, wisps = 4, logs = 5 },
-	wisps = { willows = 6, dead = 14, reeds = 18, pools = 6, wisps = 14, logs = 4 },
-	pond = { willows = 6, dead = 12, reeds = 16, pools = 3, wisps = 8, logs = 3 },
+type Recipe = {
+	willows: number,
+	dead: number,
+	reeds: number,
+	pools: number,
+	wisps: number,
+	logs: number,
+	glow: number, -- kępy świecących grzybków (ozdoba)
+	rocks: number, -- omszałe kamienie
+	tufts: number, -- kępki trawy
+	patches: number, -- płaty mchu i trawy na błocie
+	stumps: number,
 }
+local RECIPES: { [string]: Recipe } = {
+	bog = { willows = 8, dead = 10, reeds = 22, pools = 6, wisps = 4, logs = 5, glow = 6, rocks = 6, tufts = 26, patches = 10, stumps = 4 },
+	wisps = { willows = 6, dead = 14, reeds = 18, pools = 6, wisps = 14, logs = 4, glow = 10, rocks = 5, tufts = 22, patches = 9, stumps = 4 },
+	pond = { willows = 6, dead = 12, reeds = 16, pools = 3, wisps = 8, logs = 3, glow = 8, rocks = 6, tufts = 18, patches = 8, stumps = 3 },
+}
+local MOSS = { Color3.fromRGB(86, 112, 58), Color3.fromRGB(104, 124, 62), Color3.fromRGB(74, 98, 54) }
+local BOG_GRASS = { Color3.fromRGB(62, 84, 46), Color3.fromRGB(72, 92, 48), Color3.fromRGB(56, 76, 44) }
 
 local function make(className: string, props: { [string]: any }): BasePart
 	local p = Instance.new(className) :: BasePart
@@ -168,12 +186,13 @@ local function reeds(parent: Instance, base: Vector3, rng: Random)
 	m.Parent = parent
 end
 
--- Wierzba płacząca: krzywy pień, rozłożysta korona i zwisające pasma liści
+-- Wierzba płacząca: krzywy pień z korzeniami, korona z trzech nachodzących na siebie kul
+-- w różnych odcieniach i zwisające pasma liści (dłuższe na brzegu, jaśniejsze końcówki)
 local function willow(parent: Instance, base: Vector3, rng: Random, scale: number)
 	local m = Instance.new("Model")
 	m.Name = "Willow"
 	local height = 9 * scale
-	local lean = CFrame.Angles(math.rad(rng:NextNumber(-6, 6)), 0, math.rad(rng:NextNumber(-6, 6)))
+	local lean = CFrame.Angles(math.rad(rng:NextNumber(-7, 7)), 0, math.rad(rng:NextNumber(-7, 7)))
 	make("Part", {
 		Name = "Trunk",
 		Shape = Enum.PartType.Cylinder,
@@ -182,32 +201,122 @@ local function willow(parent: Instance, base: Vector3, rng: Random, scale: numbe
 		Color = Palette.trunkDark,
 		Parent = m,
 	})
+	-- Korzenie wychodzące z błota
+	for k = 1, 3 do
+		local angle = k / 3 * math.pi * 2 + rng:NextNumber(-0.4, 0.4)
+		decor(make("Part", {
+			Name = "Root",
+			Size = Vector3.new(0.6 * scale, 0.6 * scale, 2.6 * scale),
+			CFrame = CFrame.new(base) * CFrame.Angles(0, angle, 0) * CFrame.new(0, 0.3 * scale, -1.2 * scale) * CFrame.Angles(math.rad(18), 0, 0),
+			Color = Palette.trunkDark,
+			Parent = m,
+		}))
+	end
 	local top = (CFrame.new(base) * lean * CFrame.new(0, height, 0)).Position
 	local color = pick(WILLOW, rng)
-	local crown = decor(make("Part", {
-		Size = Vector3.new(11, 5, 11) * scale,
-		Position = top + Vector3.new(0, 0.5, 0),
-		Color = color,
-		Parent = m,
-	}))
-	crown.CastShadow = true
-	local mesh = Instance.new("SpecialMesh")
-	mesh.MeshType = Enum.MeshType.Sphere
-	mesh.Parent = crown
-	-- Zwisające pasma: cienkie, długie klocki po obwodzie korony
-	for k = 1, 14 do
-		local angle = k / 14 * math.pi * 2 + rng:NextNumber(-0.15, 0.15)
-		local r = 5 * scale * rng:NextNumber(0.75, 1)
-		local length = rng:NextNumber(4, 7.5) * scale
+	for k = 1, 3 do
+		local offset = if k == 1 then Vector3.zero else Vector3.new(rng:NextNumber(-3, 3), rng:NextNumber(-0.8, 0.6), rng:NextNumber(-3, 3)) * scale
+		local crown = decor(make("Part", {
+			Size = Vector3.new(rng:NextNumber(8, 11), rng:NextNumber(4, 5.5), rng:NextNumber(8, 11)) * scale,
+			Position = top + Vector3.new(0, 0.6 * scale, 0) + offset,
+			Color = color:Lerp(Color3.fromRGB(120, 140, 70), (k - 1) * 0.08),
+			Parent = m,
+		}))
+		crown.CastShadow = true
+		local mesh = Instance.new("SpecialMesh")
+		mesh.MeshType = Enum.MeshType.Sphere
+		mesh.Parent = crown
+	end
+	-- Zwisające pasma po obwodzie korony, z jaśniejszą końcówką
+	for k = 1, 16 do
+		local angle = k / 16 * math.pi * 2 + rng:NextNumber(-0.15, 0.15)
+		local r = 5.2 * scale * rng:NextNumber(0.7, 1)
+		local length = rng:NextNumber(4, 8) * scale
+		local x, z = math.cos(angle) * r, math.sin(angle) * r
+		local strand = color:Lerp(Color3.fromRGB(40, 60, 30), 0.2)
 		decor(make("Part", {
 			Name = "Strand",
-			Size = Vector3.new(0.5, length, 0.5),
-			Position = top + Vector3.new(math.cos(angle) * r, -length / 2 + 0.5, math.sin(angle) * r),
-			Color = color:Lerp(Color3.fromRGB(40, 60, 30), 0.2),
+			Size = Vector3.new(0.45, length, 0.45),
+			Position = top + Vector3.new(x, -length / 2 + 0.6, z),
+			Color = strand,
+			Parent = m,
+		}))
+		decor(make("Part", {
+			Name = "StrandTip",
+			Size = Vector3.new(0.55, 0.7, 0.55),
+			Position = top + Vector3.new(x, -length + 0.6, z),
+			Color = strand:Lerp(Color3.fromRGB(150, 170, 90), 0.35),
 			Parent = m,
 		}))
 	end
 	m.Parent = parent
+end
+
+-- Martwe drzewo z bagien: pochylony pień, gałęzie i zwisający z nich mech (brodaczka)
+local function bogTree(parent: Instance, base: Vector3, rng: Random, scale: number, dark: number)
+	local m = Instance.new("Model")
+	m.Name = "BogTree"
+	local wood = Palette.shade(Palette.deadWood, dark)
+	local height = rng:NextNumber(10, 14) * scale
+	local lean = CFrame.Angles(math.rad(rng:NextNumber(-8, 8)), rng:NextNumber(0, math.pi * 2), math.rad(rng:NextNumber(-8, 8)))
+	local trunkCf = CFrame.new(base) * lean
+	make("Part", {
+		Name = "Trunk",
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(height, 1.4 * scale, 1.4 * scale),
+		CFrame = trunkCf * CFrame.new(0, height / 2, 0) * VERTICAL,
+		Color = wood,
+		Parent = m,
+	})
+	for _ = 1, rng:NextInteger(3, 4) do
+		local length = rng:NextNumber(3.5, 6) * scale
+		local start = trunkCf * CFrame.new(0, rng:NextNumber(height * 0.5, height * 0.92), 0)
+		local branchCf = start * CFrame.Angles(0, rng:NextNumber(0, math.pi * 2), 0) * CFrame.Angles(0, 0, math.rad(rng:NextNumber(25, 55)))
+		decor(make("Part", {
+			Name = "Branch",
+			Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(length, 0.5 * scale, 0.5 * scale),
+			CFrame = branchCf * CFrame.new(length / 2, 0, 0),
+			Color = wood,
+			Parent = m,
+		}))
+		-- Mech zwisa z końca gałęzi
+		local tip = (branchCf * CFrame.new(length * 0.85, 0, 0)).Position
+		local mossLength = rng:NextNumber(2, 4.5) * scale
+		decor(make("Part", {
+			Name = "Moss",
+			Size = Vector3.new(0.35, mossLength, 0.35) * Vector3.new(scale, 1, scale),
+			Position = tip - Vector3.new(0, mossLength / 2, 0),
+			Color = Palette.shade(pick(MOSS, rng), dark),
+			Parent = m,
+		}))
+	end
+	m.Parent = parent
+end
+
+-- Latarnia na słupku przy kładce (ciepłe światło na trasie przez bagna)
+local function boardwalkLantern(parent: Instance, base: Vector3, side: number)
+	local m = Instance.new("Model")
+	m.Name = "BoardwalkLantern"
+	make("Part", { Name = "Post", Size = Vector3.new(0.5, 6, 0.5), Position = base + Vector3.new(0, 3, 0), Color = Palette.log, Parent = m })
+	decor(make("Part", { Name = "Arm", Size = Vector3.new(1.8, 0.3, 0.3), Position = base + Vector3.new(-side * 0.8, 5.8, 0), Color = Palette.plankDark, Parent = m }))
+	Props.hangingLantern(m, base + Vector3.new(-side * 1.5, 5.7, 0), 14)
+	m.Parent = parent
+end
+
+-- Płat mchu albo trawy na błocie (płaski, nieregularny)
+local function patch(parent: Instance, x: number, z: number, rng: Random)
+	local color = pick(BOG_GRASS, rng)
+	for _ = 1, rng:NextInteger(2, 3) do
+		decor(make("Part", {
+			Name = "MossPatch",
+			Size = Vector3.new(rng:NextNumber(3, 7), 0.12, rng:NextNumber(3, 7)),
+			CFrame = CFrame.new(x + rng:NextNumber(-2, 2), 0.04, z + rng:NextNumber(-2, 2)) * CFrame.Angles(0, rng:NextNumber(0, math.pi), 0),
+			Color = color,
+			Material = Enum.Material.Grass,
+			Parent = parent,
+		}))
+	end
 end
 
 -- Błędny ognik: świecąca kula, która powoli unosi się i opada (tween na serwerze widzą wszyscy)
@@ -494,7 +603,7 @@ local function buildShell(parent: Instance, rng: Random)
 	for _, side in { -1, 1 } do
 		local z = first.startZ
 		while z < last.endZ do
-			Props.deadTree(folder, Vector3.new(side * (hw - 2 + rng:NextNumber(-1.5, 1.5)), 0, z), rng:NextNumber(1.4, 1.9), rng, 0.6)
+			bogTree(folder, Vector3.new(side * (hw - 2 + rng:NextNumber(-1.5, 1.5)), 0, z), rng, rng:NextNumber(1.4, 1.9), 0.4)
 			reeds(folder, Vector3.new(side * (hw - 6), 0, z + 4), rng)
 			z += rng:NextNumber(8, 12)
 		end
@@ -502,7 +611,7 @@ local function buildShell(parent: Instance, rng: Random)
 	for _, edgeZ in { first.startZ - 2, last.endZ + 2 } do
 		local x = -hw
 		while x < hw do
-			Props.deadTree(folder, Vector3.new(x, 0, edgeZ), rng:NextNumber(1.4, 1.9), rng, 0.6)
+			bogTree(folder, Vector3.new(x, 0, edgeZ), rng, rng:NextNumber(1.4, 1.9), 0.4)
 			x += rng:NextNumber(8, 11)
 		end
 	end
@@ -549,8 +658,36 @@ local function buildZoneDecor(parent: Instance, zone: Config.ZoneDef, zoneIndex:
 	for _ = 1, recipe.dead do
 		local x, z = api.place(rng, -hw, hw, z1, z2, 2)
 		if x and z then
-			Props.deadTree(folder, Vector3.new(x, 0, z), rng:NextNumber(0.9, 1.4), rng, zone.darkness)
+			bogTree(folder, Vector3.new(x, 0, z), rng, rng:NextNumber(0.9, 1.4), zone.darkness * 0.5)
 		end
+	end
+	for _ = 1, recipe.rocks do
+		local x, z = api.place(rng, -hw, hw, z1, z2, 2.5)
+		if x and z then
+			Props.rock(folder, Vector3.new(x, 0, z), rng:NextNumber(0.8, 1.3), rng, zone.darkness * 0.6)
+		end
+	end
+	for _ = 1, recipe.stumps do
+		local x, z = api.place(rng, -hw, hw, z1, z2, 1.8)
+		if x and z then
+			Props.stump(folder, Vector3.new(x, 0, z), rng:NextNumber(0.8, 1.2), rng, zone.darkness * 0.6)
+		end
+	end
+	for _ = 1, recipe.glow do
+		local x, z = api.place(rng, -hw, hw, z1, z2, 1.6)
+		if x and z then
+			Props.glowCluster(folder, Vector3.new(x, 0, z), rng)
+		end
+	end
+	for _ = 1, recipe.tufts do
+		local x, z = api.place(rng, -hw, hw, z1, z2, 0.8)
+		if x and z then
+			Props.grass(folder, Vector3.new(x, 0, z), rng:NextNumber(0.9, 1.4), rng, zone.darkness * 0.5)
+		end
+	end
+	-- Płaty mchu są płaskie, więc nie zajmują miejsca (grzyby mogą na nich rosnąć)
+	for _ = 1, recipe.patches do
+		patch(folder, rng:NextNumber(-hw, hw), rng:NextNumber(z1, z2), rng)
 	end
 	for _ = 1, recipe.reeds do
 		local x, z = api.place(rng, -hw, hw, z1, z2, 1.6)
@@ -596,6 +733,71 @@ function Swamp.reservedRects(): { Rect }
 	return rects
 end
 
+-- ===== Tło za ścianami =====
+
+local SWAMP_HILLS = { Color3.fromRGB(26, 36, 30), Color3.fromRGB(30, 40, 32), Color3.fromRGB(22, 32, 28) }
+local SWAMP_MOUNTAINS = { Color3.fromRGB(34, 42, 44), Color3.fromRGB(28, 36, 40), Color3.fromRGB(40, 46, 46) }
+
+local function buildBackdrop(parent: Instance, rng: Random)
+	local hw = Config.Swamp.halfWidth
+	local zones = swampZones()
+	local first, last = zones[1].zone, zones[#zones].zone
+	Backdrop.build(parent, { x1 = -hw - 1, x2 = hw + 1, z1 = first.startZ - 3, z2 = last.endZ + 3 }, {
+		name = "Swamp",
+		ground = Color3.fromRGB(34, 42, 30),
+		near = function(folder: Instance, base: Vector3, treeRng: Random)
+			if treeRng:NextNumber() < 0.55 then
+				willow(folder, base, treeRng, treeRng:NextNumber(1.3, 1.7))
+			else
+				bogTree(folder, base, treeRng, treeRng:NextNumber(1.6, 2.1), 0.5)
+			end
+		end,
+		nearSpacing = 11,
+		far = function(folder: Instance, base: Vector3, treeRng: Random)
+			-- Sylwetka wierzby: pień i ciemna korona
+			local s = treeRng:NextNumber(1.6, 2.2)
+			local color = pick(WILLOW, treeRng):Lerp(Color3.new(0, 0, 0), 0.45)
+			Backdrop.make("Part", {
+				Shape = Enum.PartType.Cylinder,
+				Size = Vector3.new(10 * s, 1.8 * s, 1.8 * s),
+				CFrame = CFrame.new(base + Vector3.new(0, 5 * s, 0)) * VERTICAL,
+				Color = Palette.trunkDark,
+				Parent = folder,
+			})
+			Backdrop.blob(folder, base + Vector3.new(0, 10 * s, 0), Vector3.new(13, 8, 13) * s, color)
+			Backdrop.blob(folder, base + Vector3.new(0, 7 * s, 0), Vector3.new(12, 6, 12) * s, color:Lerp(Color3.new(0, 0, 0), 0.15))
+		end,
+		farthest = function(folder: Instance, base: Vector3, treeRng: Random)
+			-- Wysoki martwy pień z dwiema gałęziami
+			local s = treeRng:NextNumber(2, 2.8)
+			local height = 14 * s
+			Backdrop.make("Part", {
+				Shape = Enum.PartType.Cylinder,
+				Size = Vector3.new(height, 1.4 * s, 1.4 * s),
+				CFrame = CFrame.new(base + Vector3.new(0, height / 2, 0)) * VERTICAL,
+				Color = Palette.shade(Palette.deadWood, 0.8),
+				Parent = folder,
+			})
+			for _, side in { -1, 1 } do
+				Backdrop.make("Part", {
+					Shape = Enum.PartType.Cylinder,
+					Size = Vector3.new(5 * s, 0.6 * s, 0.6 * s),
+					CFrame = CFrame.new(base + Vector3.new(0, height * treeRng:NextNumber(0.55, 0.85), 0))
+						* CFrame.Angles(0, treeRng:NextNumber(0, math.pi * 2), math.rad(side * 40))
+						* CFrame.new(2.5 * s, 0, 0),
+					Color = Palette.shade(Palette.deadWood, 0.8),
+					Parent = folder,
+				})
+			end
+		end,
+		farSpacing = 10,
+		hill = SWAMP_HILLS,
+		hillHeight = { 26, 44 },
+		mountain = SWAMP_MOUNTAINS,
+		mountainHeight = { 70, 105 },
+	}, rng)
+end
+
 -- Buduje bagna. Zwraca CFrame przystani (tu ląduje gracz) i posąg Utopca.
 function Swamp.build(parent: Instance, rng: Random, api: Api): (CFrame, Model)
 	local folder = Instance.new("Folder")
@@ -616,6 +818,21 @@ function Swamp.build(parent: Instance, rng: Random, api: Api): (CFrame, Model)
 	-- Kładka od przystani do wyspy Utopca
 	local lair = Config.UtopiecLair
 	boardwalk(folder, zones[1].zone.endZ - 1, lair.centerZ - lair.radius + 1, rng)
+	-- Latarnie przy kładce co kilkadziesiąt studs, na zmianę po obu stronach (z dala od bram stref)
+	local lanternSide = 1
+	for z = zones[1].zone.endZ + 18, lair.centerZ - POND_RADIUS - 8, 34 do
+		local nearGate = false
+		for _, entry in zones do
+			if math.abs(entry.zone.startZ - z) < 6 then
+				nearGate = true
+			end
+		end
+		if not nearGate then
+			boardwalkLantern(folder, Vector3.new(lanternSide * (Config.Swamp.boardwalkHalf + 0.6), 0, z), lanternSide)
+			lanternSide = -lanternSide
+		end
+	end
+	buildBackdrop(folder, rng)
 	local statue = buildPond(folder, rng)
 	folder.Parent = parent
 	local camp = Config.Swamp.camp
