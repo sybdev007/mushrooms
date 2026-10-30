@@ -8,6 +8,7 @@
 local CollectionService = game:GetService("CollectionService")
 local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -31,6 +32,7 @@ local KINDS: { [string]: { title: string, icon: string, color: Color3, weekly: b
 	richest = { title = "BOARD_RICHEST", icon = "coin", color = Color3.fromRGB(255, 205, 80), weekly = false },
 	rare = { title = "BOARD_RARE", icon = "trophy", color = Color3.fromRGB(255, 130, 220), weekly = true },
 	thieves = { title = "BOARD_THIEVES", icon = "sell", color = Color3.fromRGB(255, 120, 90), weekly = true },
+	candy = { title = "BOARD_CANDY", icon = "candy", color = Color3.fromRGB(255, 150, 50), weekly = false },
 }
 
 local playerGui = player:WaitForChild("PlayerGui")
@@ -74,6 +76,8 @@ local function valueText(kind: string, value: number): string
 		return string.format("%s%s  <font color=\"#FFD678\">💰%s</font>", if variant then variant.icon .. " " else "", name, formatCoins(coins))
 	elseif kind == "thieves" then
 		return Localize.t("BOARD_STEALS", { value })
+	elseif kind == "candy" then
+		return "🍬 " .. formatCoins(value)
 	end
 	return "💰 " .. formatCoins(value)
 end
@@ -90,6 +94,8 @@ local function render(board: Board)
 	local parts = {}
 	if kind == "thieves" then
 		table.insert(parts, Localize.t("BOARD_THIEVES_HINT"))
+	elseif kind == "candy" then
+		table.insert(parts, Localize.t(if Workspace:GetAttribute("Halloween") == true then "BOARD_CANDY_HINT" else "BOARD_CANDY_FINAL"))
 	end
 	if def.weekly then
 		table.insert(parts, Localize.t("BOARD_WEEK_RESET"))

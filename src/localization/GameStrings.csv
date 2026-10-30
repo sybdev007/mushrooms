@@ -547,3 +547,14 @@ HW_SKIN_ON,Equip,,,Załóż
 HW_SKIN_OFF,Unequip,,,Zdejmij
 HW_SKIN_LOCKED,🔒 {1} 🍬,,,🔒 {1} 🍬
 HW_TRACK_PROGRESS,Collected {1} / {2} 🍬,,,Zebrane {1} / {2} 🍬
+MSG_GOAL_DONE,🎆 The server cauldron is boiling! Server goal complete - contributors got a Luck Potion.,,,🎆 Kocioł serwera się zagotował! Cel serwera zrobiony - kto dorzucił cukierki dostał miksturę szczęścia.
+MSG_GOAL_REWARD,🎃 Server goal: you added {1} 🍬 - Luck Potion +{2} min!,,,🎃 Cel serwera: dorzuciłeś {1} 🍬 - mikstura szczęścia +{2} min!
+MSG_GOAL_LIMIT,🎃 Server goal done - but you reached today's limit of goal rewards.,,,🎃 Cel serwera zrobiony - ale masz już dzisiejszy limit nagród z celów.
+HW_GOAL_TITLE,🧪 Server goal (this server),,,🧪 Cel serwera (ten serwer)
+HW_GOAL_BAR,{1} / {2} 🍬 from pumpkins,,,{1} / {2} 🍬 z dyń
+HW_GOAL_MINE,you: {1} 🍬 · potion today {2}/{3} min,,,ty: {1} 🍬 · mikstura dziś {2}/{3} min
+HW_GOAL_LIMIT,daily limit reached ({1} min),,,dzisiejszy limit osiągnięty ({1} min)
+CAULDRON_GOAL,Server: {1} / {2} 🍬,,,Serwer: {1} / {2} 🍬
+BOARD_CANDY,🎃 Most candy,,,🎃 Najwięcej cukierków
+BOARD_CANDY_HINT,Halloween event - candy collected,,,event Halloween - zebrane cukierki
+BOARD_CANDY_FINAL,final results,,,wyniki końcowe

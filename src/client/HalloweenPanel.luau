@@ -24,7 +24,7 @@ local OUTLINE = PanelKit.OUTLINE
 local ORANGE = Color3.fromRGB(240, 128, 30)
 local PURPLE = Color3.fromRGB(96, 52, 150)
 local PURPLE_DARK = Color3.fromRGB(58, 32, 92)
-local WIDTH, HEIGHT = 660, 612
+local WIDTH, HEIGHT = 660, 690
 local TILE_W, TILE_H, TILE_GAP = 94, 122, 10
 
 local function now(): number
@@ -194,10 +194,19 @@ for index, id in skinIds do
 end
 
 -- Noc Dziadów: fioletowa karta z odliczaniem
+-- ===== Wspólny cel serwera „Kocioł się gotuje” =====
+local GOAL_Y = SKINS_Y + 28 + 60 + 10
+local goalTitle = PanelKit.label(content, "GoalTitle", UDim2.new(0.5, -20, 0, 22), UDim2.fromOffset(20, GOAL_Y), 19, PanelKit.GOLD)
+goalTitle.TextXAlignment = Enum.TextXAlignment.Left
+UiKit.outline(goalTitle, 2)
+local goalMine = PanelKit.label(content, "GoalMine", UDim2.new(0.5, -20, 0, 20), UDim2.new(0.5, 0, 0, GOAL_Y + 1), 15, PanelKit.MUTED, PanelKit.BODY_FONT)
+goalMine.TextXAlignment = Enum.TextXAlignment.Right
+local _, goalFill, goalText = PanelKit.bar(content, UDim2.new(1, -40, 0, 26), UDim2.fromOffset(20, GOAL_Y + 26), Color3.fromRGB(120, 220, 100))
+
 local spiritCard = Instance.new("Frame")
 spiritCard.Name = "SpiritNight"
 spiritCard.Size = UDim2.new(1, -24, 0, 56)
-spiritCard.Position = UDim2.fromOffset(12, SKINS_Y + 28 + 60 + 10)
+spiritCard.Position = UDim2.fromOffset(12, GOAL_Y + 26 + 26 + 12)
 spiritCard.BackgroundColor3 = PURPLE_DARK
 spiritCard.ZIndex = 4
 spiritCard.Parent = content
@@ -306,6 +315,24 @@ local function renderSpirit()
 	end
 end
 
+local function renderGoal()
+	local progress = Workspace:GetAttribute("HalloweenGoal")
+	local target = Workspace:GetAttribute("HalloweenGoalTarget")
+	local p = if typeof(progress) == "number" then progress else 0
+	local t = if typeof(target) == "number" and target > 0 then target else Config.Halloween.goal.target
+	goalTitle.Text = Localize.t("HW_GOAL_TITLE")
+	goalFill.Size = UDim2.fromScale(math.clamp(p / t, 0, 1), 1)
+	goalText.Text = Localize.t("HW_GOAL_BAR", { p, t })
+	local player = Players.LocalPlayer
+	local mine = player:GetAttribute("GoalContribution")
+	local today = player:GetAttribute("GoalLuckToday")
+	local usedMinutes = math.floor((if typeof(today) == "number" then today else 0) / 60)
+	local maxMinutes = math.floor(Config.Halloween.goal.maxPerDay / 60)
+	goalMine.Text = if usedMinutes >= maxMinutes
+		then Localize.t("HW_GOAL_LIMIT", { maxMinutes })
+		else Localize.t("HW_GOAL_MINE", { if typeof(mine) == "number" then mine else 0, usedMinutes, maxMinutes })
+end
+
 local function renderTimer()
 	timer.Text = if eventOn()
 		then Localize.t("HW_ENDS", { formatLeft(Halloween.secondsLeft(now())) })
@@ -354,6 +381,7 @@ local function render()
 	howLines[3].Text = Localize.t("HW_HOW_CAULDRON", { Config.Halloween.cauldron.cost })
 	howLines[4].Text = Localize.t("HW_HOW_RISK")
 	renderSkins()
+	renderGoal()
 	renderSpirit()
 end
 
@@ -411,6 +439,7 @@ task.spawn(function()
 		task.wait(1)
 		if window.isOpen() then
 			renderTimer()
+			renderGoal()
 			renderSpirit()
 		end
 	end

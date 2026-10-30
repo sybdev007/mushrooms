@@ -9,6 +9,7 @@
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared.Config)
@@ -25,6 +26,7 @@ export type Api = {
 	pushState: (Player) -> (),
 	applyStats: (Player) -> (), -- przebudowa latarni i nożyka w dłoni
 	refresh: (Player) -> (), -- okna (kieszeń z cukierkami, skórki)
+	canSave: (Player) -> boolean, -- czy profil gracza jest otwarty i zapisywany (bez tego: bez celu i nagród)
 }
 
 local HalloweenService = {}
@@ -291,6 +293,113 @@ local function bindPrompt(prompt: Instance)
 end
 
 -- Panel DEV: kocioł bez podchodzenia (narzędzia Studio nie klikają ProximityPrompt)
+-- ===== Wspólny cel serwera „Kocioł się gotuje” =====
+-- Stan celu jest tylko w pamięci tego serwera (restart = cel od zera). Wkład po UserId zostaje do końca
+-- celu mimo wyjścia i powrotu. Liczą się tylko cukierki ze sprzedaży dyń (GameService.onSell).
+-- Nagroda (mikstura szczęścia) z limitem dziennym w profilu, więc zmiana serwera go nie obchodzi.
+
+local goal: Halloween.Goal = Halloween.newGoal(1)
+
+local function publishGoal()
+	Workspace:SetAttribute("HalloweenGoal", goal.progress)
+	Workspace:SetAttribute("HalloweenGoalTarget", Config.Halloween.goal.target)
+	Workspace:SetAttribute("HalloweenGoalId", goal.id)
+	for _, player in Players:GetPlayers() do
+		player:SetAttribute("GoalContribution", goal.contrib[player.UserId] or 0)
+	end
+end
+
+-- Sekundy mikstury z celów dziś (doba UTC jak zadania dnia); nowy dzień zeruje licznik
+local function goalsToday(data: Data): number
+	local today = Progress.dayIndex(os.time())
+	if data.eventGoals.day ~= today then
+		data.eventGoals.day = today
+		data.eventGoals.seconds = 0
+	end
+	return data.eventGoals.seconds
+end
+
+local function publishDaily(player: Player, data: Data)
+	player:SetAttribute("GoalLuckToday", goalsToday(data))
+end
+
+-- Fajerwerki z dyń nad chatką (tylko efekt, dla wszystkich na serwerze)
+local function fireworks()
+	local colors = { Color3.fromRGB(255, 140, 30), Color3.fromRGB(170, 90, 255), Color3.fromRGB(120, 255, 140), Color3.fromRGB(255, 220, 90) }
+	for i, x in { -14, -5, 5, 14 } do
+		task.delay(i * 0.35, function()
+			local holder = Instance.new("Part")
+			holder.Name = "GoalFirework"
+			holder.Anchored = true
+			holder.CanCollide = false
+			holder.CanTouch = false
+			holder.CanQuery = false
+			holder.Transparency = 1
+			holder.Size = Vector3.new(1, 1, 1)
+			holder.Position = Vector3.new(x, 34 + (i % 2) * 5, -24)
+			holder.Parent = Workspace
+			local burst = Instance.new("ParticleEmitter")
+			burst.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+			burst.Color = ColorSequence.new(colors[i], Color3.new(1, 1, 1))
+			burst.LightEmission = 1
+			burst.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1.4), NumberSequenceKeypoint.new(1, 0) })
+			burst.Lifetime = NumberRange.new(1.2, 2)
+			burst.Speed = NumberRange.new(14, 22)
+			burst.SpreadAngle = Vector2.new(180, 180)
+			burst.Acceleration = Vector3.new(0, -12, 0)
+			burst.Rate = 0
+			burst.Parent = holder
+			local light = Instance.new("PointLight")
+			light.Color = colors[i]
+			light.Range = 40
+			light.Brightness = 3
+			light.Parent = holder
+			burst:Emit(90)
+			task.delay(2.5, function()
+				holder:Destroy()
+			end)
+		end)
+	end
+end
+
+-- Wypłata za ukończony cel: gracze obecni teraz, z zapisywanym profilem i wkładem w ten cel
+local function payGoal(completed: Halloween.Completed)
+	for _, player in Players:GetPlayers() do
+		local data = api.getData(player)
+		local contribution = completed.contrib[player.UserId] or 0
+		if data and api.canSave(player) and contribution > 0 then
+			local seconds = Halloween.goalReward(contribution, goalsToday(data))
+			if seconds > 0 then
+				data.eventGoals.seconds += seconds
+				data.luckUntil = math.max(os.time(), data.luckUntil) + seconds
+				api.notify(player, "MSG_GOAL_REWARD", { contribution, math.max(1, math.floor(seconds / 60 + 0.5)) })
+				api.pushState(player)
+			else
+				api.notify(player, "MSG_GOAL_LIMIT")
+			end
+			publishDaily(player, data)
+		end
+	end
+	for _, player in Players:GetPlayers() do
+		api.notify(player, "MSG_GOAL_DONE")
+	end
+	fireworks()
+end
+
+-- Cukierki ze sprzedaży dyń na tym serwerze. Stan celu zmienia się w całości (Halloween.contribute)
+-- przed wypłatami i komunikatami; nic tu nie oddaje sterowania (bez task.wait i wywołań sieciowych).
+function HalloweenService.contribute(player: Player, amount: number)
+	if amount <= 0 or not Halloween.active(os.time()) or not api.canSave(player) then
+		return
+	end
+	local completed
+	completed, goal = Halloween.contribute(goal, player.UserId, amount, Config.Halloween.goal.target)
+	publishGoal()
+	for _, done in completed do
+		payGoal(done)
+	end
+end
+
 function HalloweenService.dev(player: Player, action: string): boolean
 	if action == "cauldron" then
 		lastUse[player] = 0
@@ -307,6 +416,25 @@ function HalloweenService.start(serviceApi: Api)
 		bindPrompt(prompt)
 	end
 	CollectionService:GetInstanceAddedSignal("CauldronPrompt"):Connect(bindPrompt)
+	publishGoal()
+	local function joined(player: Player)
+		player:SetAttribute("GoalContribution", goal.contrib[player.UserId] or 0)
+		-- Dane gracza wczytują się chwilę (ProfileStore), więc licznik dnia pokazujemy, gdy już są
+		task.spawn(function()
+			for _ = 1, 30 do
+				local data = if player.Parent then api.getData(player) else nil
+				if data then
+					publishDaily(player, data)
+					return
+				end
+				task.wait(1)
+			end
+		end)
+	end
+	Players.PlayerAdded:Connect(joined)
+	for _, player in Players:GetPlayers() do
+		joined(player)
+	end
 	Players.PlayerRemoving:Connect(function(player)
 		lastUse[player] = nil
 		tricks[player] = nil

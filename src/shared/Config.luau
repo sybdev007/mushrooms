@@ -592,6 +592,7 @@ Config.Badges = {
 Config.Halloween = {
 	startsAt = 1793232000, -- 2026-10-29 00:00 UTC
 	endsAt = 1794268800, -- 2026-11-10 00:00 UTC (Halloween, Wszystkich Świętych, Zaduszki i weekend)
+	finalizeAt = 1794787200, -- 2026-11-16 00:00 UTC: do tej chwili tablica rankingu stoi i przyjmuje zaległe wyniki
 	spiritEvery = 3, -- co która noc w czasie eventu to Noc Dziadów (cykl 20 min, więc co godzinę)
 	pumpkinChance = 0.06, -- szansa na dyniowy grzyb (stała, szczęście jej nie zmienia)
 	spiritPumpkinChance = 0.18, -- w Noc Dziadów
@@ -633,6 +634,19 @@ Config.Halloween = {
 			{ id = "trick_spirits", weight = 9, seconds = 45, trick = true }, -- dusze krążą wokół gracza
 		} :: { { id: string, weight: number, scale: number?, seconds: number?, amount: number?, skin: string?, trick: boolean? } },
 	},
+	-- Wspólny cel serwera „Kocioł się gotuje”: cukierki ze sprzedaży dyń na tym serwerze pchają pasek.
+	-- Nagroda: mikstura szczęścia proporcjonalna do wkładu (budżet celu = target × secondsPerCandy,
+	-- niezależnie od tego, na ile kont rozłożono wkład), najwyżej maxPerGoal na cel i maxPerDay na konto
+	-- dziennie (licznik w profilu, data.eventGoals). Szczęście nie zmienia szansy na dynie.
+	goal = {
+		target = 200,
+		secondsPerCandy = 3,
+		maxPerGoal = 600,
+		maxPerDay = 1800,
+	},
+	-- Konta wykluczone z rankingu cukierków (testy, oszustwa): UserId. Deweloperzy (DevUserIds, twórca)
+	-- są wykluczeni zawsze. Wykluczenie działa na każdej drodze publikacji wyniku.
+	rankingBanned = {} :: { number },
 	-- Muzyka nocą w lesie (i każdą Nocą Dziadów) w czasie eventu. Licencjonowane: APM, DistroKid.
 	playlist = {
 		"rbxassetid://1837467198", -- Night of the Ghouls

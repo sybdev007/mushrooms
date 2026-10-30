@@ -50,7 +50,12 @@ end
 local function localizeSign(sign: Instance)
 	local label = sign:FindFirstChild("Label")
 	if label and label:IsA("TextLabel") then
-		label.Text = Localize.t("CAULDRON_SIGN")
+		local progress = Workspace:GetAttribute("HalloweenGoal")
+		local target = Workspace:GetAttribute("HalloweenGoalTarget")
+		label.Text = Localize.t("CAULDRON_SIGN") .. "\n" .. Localize.t("CAULDRON_GOAL", {
+			if typeof(progress) == "number" then progress else 0,
+			if typeof(target) == "number" then target else Config.Halloween.goal.target,
+		})
 	end
 end
 
@@ -64,6 +69,12 @@ local function localizeAll()
 end
 CollectionService:GetInstanceAddedSignal("CauldronPrompt"):Connect(localizePrompt)
 CollectionService:GetInstanceAddedSignal("CauldronSign"):Connect(localizeSign)
+-- Pasek celu serwera nad kotłem odświeża się razem z postępem
+Workspace:GetAttributeChangedSignal("HalloweenGoal"):Connect(function()
+	for _, sign in CollectionService:GetTagged("CauldronSign") do
+		localizeSign(sign)
+	end
+end)
 Localize.onChanged(localizeAll)
 task.defer(localizeAll)
 

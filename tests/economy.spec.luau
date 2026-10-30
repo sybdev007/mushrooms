@@ -1735,6 +1735,67 @@ test("halloween: kocioł", function()
 	check(candy / total < cauldron.cost, "kocioł nie mnoży cukierków")
 end)
 
+test("halloween: cel serwera dzieli wkład między cele", function()
+	local target = H.goal.target
+	local goal = Halloween.newGoal(1)
+	local done
+	done, goal = Halloween.contribute(goal, 100, target - 5, target)
+	eq(#done, 0)
+	eq(goal.progress, target - 5)
+	-- 195 + 20 od nowego konta: do pierwszego celu idzie 5, do drugiego 15
+	done, goal = Halloween.contribute(goal, 200, 20, target)
+	eq(#done, 1)
+	eq(done[1].id, 1)
+	eq(done[1].contrib[200], 5, "do kończonego tylko reszta")
+	eq(done[1].contrib[100], target - 5)
+	eq(goal.id, 2)
+	eq(goal.progress, 15)
+	eq(goal.contrib[200], 15)
+	eq(goal.contrib[100], nil, "stary wkład nie przechodzi")
+	-- Jedna duża sprzedaż przez kilka progów
+	done, goal = Halloween.contribute(goal, 300, target * 2 + 7, target)
+	eq(#done, 2)
+	eq(done[1].id, 2)
+	eq(done[2].id, 3)
+	eq(done[2].contrib[300], target)
+	eq(goal.id, 4)
+	eq(goal.progress, 22)
+	-- Zero i ujemne nic nie robią
+	done, goal = Halloween.contribute(goal, 1, -5, target)
+	eq(#done, 0)
+	eq(goal.progress, 22)
+end)
+
+test("halloween: nagroda za cel proporcjonalna i z limitem dziennym", function()
+	local rules = H.goal
+	eq(Halloween.goalReward(10, 0), 10 * rules.secondsPerCandy)
+	eq(Halloween.goalReward(rules.target, 0), math.min(rules.target * rules.secondsPerCandy, rules.maxPerGoal))
+	eq(Halloween.goalReward(100000, 0), rules.maxPerGoal, "limit na cel")
+	eq(Halloween.goalReward(100000, rules.maxPerDay - 30), 30, "resztka limitu dnia")
+	eq(Halloween.goalReward(100000, rules.maxPerDay), 0, "limit dnia wyczerpany")
+	eq(Halloween.goalReward(0, 0), 0)
+	-- Budżet celu nie rośnie od rozłożenia wkładu na wiele kont
+	local solo = Halloween.goalReward(rules.target, 0)
+	local split = 0
+	for _ = 1, rules.target // 10 do
+		split += Halloween.goalReward(10, 0)
+	end
+	check(split <= rules.target * rules.secondsPerCandy, "podział nie mnoży nagrody")
+	check(solo <= split, "solo nie dostaje więcej niż grupa")
+end)
+
+test("halloween: ranking — kto i kiedy", function()
+	check(not Halloween.rankingAllowed(5, true), "deweloper nigdy")
+	check(Halloween.rankingAllowed(5, false), "zwykły gracz")
+	table.insert(H.rankingBanned, 77)
+	check(not Halloween.rankingAllowed(77, false), "wykluczony")
+	table.remove(H.rankingBanned)
+	check(H.finalizeAt > H.endsAt, "finalizacja po końcu eventu")
+	check(Halloween.rankingOpen(H.endsAt + 10), "zaległe wyniki po końcu")
+	check(not Halloween.rankingOpen(H.finalizeAt), "po finalizacji zamknięte")
+	check(not Halloween.rankingOpen(H.startsAt - 1), "przed eventem")
+end)
+
 test("halloween: najbliższa Noc Dziadów", function()
 	local length = Cycle.length()
 	local index = math.ceil(H.startsAt / length / H.spiritEvery) * H.spiritEvery
@@ -1749,6 +1810,97 @@ test("halloween: najbliższa Noc Dziadów", function()
 	eq(at, start + H.spiritEvery * length, "o świcie: następna")
 	eq(now, false)
 	eq((Halloween.nextSpiritNight(H.endsAt + 10)), nil, "po evencie żadnej")
+end)
+
+test("las: pokolenia i przywołana Noc Dziadów", function()
+	local length = Cycle.length()
+	local index = 1000
+	local nightStart = index * length
+	local dawnStart = nightStart + Config.Cycle.nightSeconds
+	local gen = Cycle.generation(nightStart + 10)
+	eq(Cycle.generation(dawnStart + 1), gen + 1, "świt to nowe pokolenie")
+	eq(Cycle.generation(dawnStart + length - 1), gen + 1, "do następnego świtu to samo")
+	-- Zwykły świt: reset raz
+	check(Cycle.shouldRegrow("dawn", gen, dawnStart + 1), "reset o świcie")
+	check(not Cycle.shouldRegrow("dawn", gen + 1, dawnStart + 2), "drugi raz nie")
+	-- Przywołana noc przykrywa świt: brak resetu, pokolenie serwera stare
+	check(not Cycle.shouldRegrow("night", gen, dawnStart + 1), "przywołana noc odkłada reset")
+	-- Przywołanie kończy się w połowie świtu: jeden reset
+	check(Cycle.shouldRegrow("dawn", gen, dawnStart + 60), "reset po końcu przywołania")
+	-- Przywołanie przykryło cały świt: reset dopiero o następnym świcie (raz)
+	check(not Cycle.shouldRegrow("night", gen, dawnStart + length - 5), "w nocy bez resetu")
+	check(Cycle.shouldRegrow("dawn", gen, dawnStart + length + 1), "następny świt")
+	-- Przywracanie: ten sam albo nowszy zapis wraca, starszy i z przyszłości nie
+	check(Cycle.canRestore(gen, gen, dawnStart - 5), "to samo pokolenie")
+	check(Cycle.canRestore(gen + 1, gen, dawnStart + 5), "z serwera po świcie na serwer z przywołaną nocą")
+	check(not Cycle.canRestore(gen, gen + 1, dawnStart + 5), "stary zapis po świcie")
+	check(not Cycle.canRestore(gen + 1, gen, dawnStart - 5), "zapis z przyszłości")
+	check(not Cycle.canRestore(gen + 50, gen, dawnStart + 5), "śmieci")
+	-- Przejście między serwerami: A miał świt (gen+1), B z przywołaną nocą (gen) przywraca zapis,
+	-- potem B dogania świt: gracz z A nie dostaje drugiego lasu, gracze B tak
+	local savedA = gen + 1
+	check(Cycle.canRestore(savedA, gen, dawnStart + 30), "B przywraca las z A")
+	check(Cycle.shouldRegrow("dawn", gen, dawnStart + 60), "B dogania świt")
+	check(not Cycle.needsRegrow(savedA, gen + 1), "gracz z A bez drugiego resetu")
+	check(Cycle.needsRegrow(gen, gen + 1), "gracz B dostaje reset")
+	check(Cycle.needsRegrow(nil, gen + 1), "brak zapisu")
+end)
+
+test("ranking: kolejka wyników z jednym workerem", function()
+	local task = require("@lune/task")
+	local ScoreQueue = loadModule("src/server/ScoreQueue.luau", { warn = print })
+	local writes, inFlight, maxInFlight = {}, 0, 0
+	local failOnce: { [number]: boolean } = { [3] = true }
+	local banned: { [number]: boolean } = {}
+	local queue = ScoreQueue.new(function(userId, score)
+		inFlight += 1
+		maxInFlight = math.max(maxInFlight, inFlight)
+		task.wait(0.02) -- wolny DataStore
+		inFlight -= 1
+		if failOnce[userId] then
+			failOnce[userId] = nil
+			return "retry"
+		end
+		table.insert(writes, { userId, score })
+		return "ok"
+	end, function(userId)
+		return not banned[userId]
+	end)
+	queue.push(1, 100)
+	queue.push(2, 50)
+	queue.push(3, 70)
+	-- Spiętrzone wywołania (wyjścia graczy, pętla, zamykanie serwera) w trakcie zapisu
+	task.spawn(queue.flush)
+	task.spawn(queue.flush)
+	queue.push(1, 150) -- nowszy wynik w trakcie
+	task.spawn(queue.flush)
+	task.wait(0.5)
+	eq(maxInFlight, 1, "najwyżej jeden zapis naraz")
+	check(not queue.busy(), "worker skończył")
+	local best: { [number]: number } = {}
+	local count1 = 0
+	for _, w in writes do
+		best[w[1]] = math.max(best[w[1]] or 0, w[2])
+		if w[1] == 1 then
+			count1 += 1
+		end
+	end
+	eq(best[1], 150, "nowszy wynik nie przepadł")
+	check(count1 <= 2, "bez powielania zapisów jednego konta")
+	eq(best[2], 50)
+	eq(queue.waiting(1), nil, "wysłane zniknęło z kolejki")
+	-- Błąd jednego wpisu nie blokuje innych i wpis czeka na kolejną próbę
+	eq(best[3], 70, "po ponowieniu w kolejnym przebiegu")
+	-- Starszy wynik niż wysłany nie wraca do kolejki; usunięte/wykluczone konto nie jest wysyłane
+	queue.push(1, 120)
+	eq(queue.waiting(1), nil, "niższy niż opublikowany")
+	queue.push(9, 10)
+	banned[9] = true
+	queue.flush()
+	eq(queue.waiting(9), nil, "wykluczony wypada z kolejki")
+	queue.push(8, 10)
+	queue.remove(8)
+	eq(queue.waiting(8), nil, "moderacja czyści kolejkę")
 end)
 
 print(string.format("\n%d ok, %d błędów", passed, failed))

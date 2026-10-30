@@ -157,6 +157,52 @@ function Halloween.treatChance(): number
 	return if total > 0 then treats / total else 0
 end
 
+-- ===== Wspólny cel serwera =====
+
+export type Goal = { id: number, progress: number, contrib: { [number]: number } }
+export type Completed = { id: number, contrib: { [number]: number } }
+
+function Halloween.newGoal(id: number): Goal
+	return { id = id, progress = 0, contrib = {} }
+end
+
+-- Dolicza wkład konta do celu. Sprzedaż przekraczająca próg dzieli się między kolejne cele
+-- (do kończonego trafia tylko brakująca reszta). Zwraca ukończone cele (ze snapshotem wkładów)
+-- i bieżący (nowy) cel. Bez yieldów: stan celu zmienia się w całości przed jakąkolwiek wypłatą.
+function Halloween.contribute(goal: Goal, userId: number, amount: number, target: number): ({ Completed }, Goal)
+	local completed: { Completed } = {}
+	local left = math.max(0, math.floor(amount))
+	local current = goal
+	while left > 0 do
+		local take = math.min(left, target - current.progress)
+		current.contrib[userId] = (current.contrib[userId] or 0) + take
+		current.progress += take
+		left -= take
+		if current.progress >= target then
+			table.insert(completed, { id = current.id, contrib = current.contrib })
+			current = Halloween.newGoal(current.id + 1)
+		end
+	end
+	return completed, current
+end
+
+-- Sekundy mikstury za ukończony cel przy danym wkładzie i tym, co konto dostało już dziś
+function Halloween.goalReward(contribution: number, usedToday: number): number
+	local rules = Config.Halloween.goal
+	local seconds = math.min(math.max(contribution, 0) * rules.secondsPerCandy, rules.maxPerGoal)
+	return math.max(0, math.min(seconds, rules.maxPerDay - math.max(usedToday, 0)))
+end
+
+-- Czy wynik tego konta może trafić do rankingu (deweloperzy i wykluczeni nigdy)
+function Halloween.rankingAllowed(userId: number, isDeveloper: boolean): boolean
+	return not isDeveloper and table.find(Config.Halloween.rankingBanned, userId) == nil
+end
+
+-- Czy tablicę rankingu jeszcze pokazywać i przyjmować zaległe (zdobyte przed końcem) wyniki
+function Halloween.rankingOpen(t: number): boolean
+	return t >= Config.Halloween.startsAt and t < Config.Halloween.finalizeAt
+end
+
 -- Najbliższa Noc Dziadów: (start w os.time, czy już trwa). nil = w czasie eventu już żadnej nie będzie.
 function Halloween.nextSpiritNight(t: number): (number?, boolean)
 	local length = Cycle.length()

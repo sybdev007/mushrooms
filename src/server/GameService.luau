@@ -350,6 +350,47 @@ local function rollSpot(session: Session, spot: MapBuilder.Spot, countPity: bool
 	return species.id, variant, tags
 end
 
+-- ===== Las z ostatniej sesji =====
+-- Wyjście i szybki powrót losowały cały las od nowa, więc zamiast czekać na odrost wystarczyło się
+-- przelogować. Teraz las gracza (gatunek, mutacje i kiedy będzie gotowy, w os.time) siedzi w profilu
+-- (data.forest) i aktualizuje się przy każdej zmianie (na dysk trafia z autozapisem profilu i przy wyjściu).
+-- Pokolenie lasu = numer ostatniego świtu: po świcie las i tak odrasta wszystkim od nowa.
+-- Pokolenie z kalendarza (wspólne dla serwerów) i pokolenie, które ten serwer naprawdę wyhodował.
+-- Różnią się, gdy przywołana Noc Dziadów przykryła świt: reset czeka do końca przywołania, a do tego
+-- czasu zapis lasu i przywracanie używają tego samego, starszego pokolenia.
+local serverGen = Cycle.generation(os.time())
+
+local function forestGen(): number
+	return serverGen
+end
+
+local function rememberSpot(session: Session, id: string, state: SpotState)
+	local forest = session.data.forest
+	if not forest then
+		forest = { g = forestGen(), s = {} }
+		session.data.forest = forest
+	end
+	;(forest :: any).s[id] = {
+		s = state.speciesId,
+		v = state.variant,
+		x = state.tags,
+		t = os.time() + math.max(0, math.ceil(state.readyAt - os.clock())),
+	}
+end
+
+-- Czy zapisany grzyb pasuje do miejsca (strefa albo legowisko strażnika); inaczej losujemy od nowa
+local function savedFits(spot: MapBuilder.Spot, speciesId: string): boolean
+	local species = Economy.getSpecies(speciesId)
+	if not species then
+		return false
+	end
+	local guardian = spotGuardian(spot)
+	if guardian then
+		return Economy.guardianOf(speciesId) == guardian
+	end
+	return species.zone == spot.zone and Economy.guardianOf(speciesId) == nil
+end
+
 -- Wysyła klientowi grzyby, które właśnie odrosły
 local function syncReadySpots(session: Session, now: number)
 	local added = {}
@@ -873,11 +914,30 @@ local function onPlayerAdded(player: Player)
 	coinsStat.Parent = leaderstats
 	leaderstats.Parent = player
 
-	-- Każdy gracz ma własne grzyby: nikt nikomu nie wyzbiera wysypu
+	-- Każdy gracz ma własne grzyby: nikt nikomu nie wyzbiera wysypu. Szybki powrót (to samo
+	-- pokolenie lasu) przywraca las z profilu razem z czasami odrostu; inaczej las losuje się od nowa.
+	-- Zapis z tego samego albo nowszego pokolenia (inny serwer już wyhodował świt) wraca 1:1; zapis
+	-- z przyszłości kalendarza to śmieci. Skakanie między serwerami nie daje więc nowego lasu.
+	local gen = forestGen()
+	local nowClock, nowTime = os.clock(), os.time()
+	local saved = data.forest
+	local fresh = saved ~= nil and Cycle.canRestore(saved.g, gen, nowTime)
+	local savedSpots = if saved and fresh then saved.s else {}
+	data.forest = { g = if saved and fresh then saved.g else gen, s = {} }
 	for _, spot in map.spots do
-		local speciesId, variant, tags = rollSpot(session, spot)
-		if speciesId then
-			session.spots[spot.id] = { speciesId = speciesId, variant = variant, tags = tags, readyAt = 0, visible = false }
+		local entry = savedSpots[spot.id]
+		local state: SpotState? = nil
+		if entry and savedFits(spot, entry.s) then
+			state = { speciesId = entry.s, variant = entry.v, tags = entry.x, readyAt = nowClock + math.max(0, entry.t - nowTime), visible = false }
+		else
+			local speciesId, variant, tags = rollSpot(session, spot)
+			if speciesId then
+				state = { speciesId = speciesId, variant = variant, tags = tags, readyAt = 0, visible = false }
+			end
+		end
+		if state then
+			session.spots[spot.id] = state
+			rememberSpot(session, spot.id, state)
 		end
 	end
 
@@ -927,7 +987,7 @@ local function onPlayerRemoving(player: Player)
 	end
 	GardenService.release(player)
 	ProgressService.leave(player)
-	LeaderboardService.leave(player, session.data)
+	LeaderboardService.leave(player, session.data, session.canSave)
 	-- Ostatni zapis i zwolnienie blokady sesji (ProfileStore)
 	if session.canSave then
 		DataService.release(player, session.data)
@@ -952,7 +1012,10 @@ local NIGHT_MESSAGES: { [string]: string } = {
 
 -- Świt: las u każdego gracza odrasta od nowa (nowe gatunki i mutacje w tych samych miejscach).
 -- Klient podmienia grzyby o tych samych id, więc nie trzeba ich osobno usuwać.
+-- Pokolenie zapisu nigdy się nie cofa (gracz z nowszego serwera zachowuje swój numer)
 local function regrowForest(session: Session, now: number)
+	local old = session.data.forest
+	session.data.forest = { g = math.max(if old then old.g else 0, forestGen()), s = {} }
 	for id, state in session.spots do
 		local spot = map.spotById[id]
 		if spot then
@@ -962,16 +1025,22 @@ local function regrowForest(session: Session, now: number)
 			state.tags = tags
 			state.visible = false
 			state.readyAt = now
+			rememberSpot(session, id, state)
 		end
 	end
 	syncReadySpots(session, now)
 end
 
-local function resetForest(nextEvent: Config.NightEventDef)
+-- Świt z kalendarza: odnawia tylko graczy, którzy tego pokolenia jeszcze nie dostali (ktoś, kto
+-- przyszedł z serwera, gdzie świt już był, zachowuje swój las i czasy odrostu)
+local function resetForest(nextEvent: Config.NightEventDef, forced: boolean?)
 	local now = os.clock()
 	for _, session in sessions do
-		regrowForest(session, now)
-		notify(session, "MSG_DAWN", { nextEvent.icon }, nextEvent.key)
+		local forest = session.data.forest
+		if forced or Cycle.needsRegrow(if forest then forest.g else nil, forestGen()) then
+			regrowForest(session, now)
+			notify(session, "MSG_DAWN", { nextEvent.icon }, nextEvent.key)
+		end
 	end
 end
 
@@ -1017,6 +1086,7 @@ local function onPick(player: Player, spotId: unknown)
 		state.speciesId = speciesId or state.speciesId
 		state.variant = variant
 		state.tags = tags
+		rememberSpot(session, spotId, state)
 		MushroomRemoved:FireClient(player, spotId)
 	end
 
@@ -1151,6 +1221,8 @@ local function onSell(player: Player, indices: unknown, key: unknown)
 	ProgressService.event(player, "sell", count)
 	if candy > 0 and Halloween.active(os.time()) then
 		ProgressService.addCandy(player, candy, "MSG_CANDY_SOLD")
+		-- Wspólny cel serwera: tylko cukierki ze sprzedaży dyń
+		HalloweenService.contribute(player, candy)
 	end
 	TutorialService.onSold(session :: any)
 	pushState(session)
@@ -1159,6 +1231,14 @@ end
 -- ===== Komendy deweloperskie =====
 
 -- /coins 1000000 dodaje monety, /coins -500 odejmuje (bez liczby: +1000)
+-- Moderacja rankingu cukierków (/rankremove i panel DEV): wynik usunięcia wraca do dewelopera
+local function removeFromRanking(session: Session, userId: number)
+	task.spawn(function()
+		local ok = LeaderboardService.remove("candy", userId)
+		notify(session, "MSG_DEV_DONE", { "rankremove " .. userId .. (if ok then " ok" else " FAILED (Studio?)") })
+	end)
+end
+
 local function setupDevCommands()
 	local folder = TextChatService:FindFirstChild("TextChatCommands") or TextChatService
 	local command = Instance.new("TextChatCommand")
@@ -1168,13 +1248,27 @@ local function setupDevCommands()
 	command.Triggered:Connect(function(source: TextSource, text: string)
 		local player = Players:GetPlayerByUserId(source.UserId)
 		local session = player and sessions[player]
-		if not (player and session and isDeveloper(player)) then
+		if not (player and session and isDeveloper(player) and RunService:IsStudio()) then
 			return
 		end
 		local amount = math.floor(tonumber(string.match(text, "^%S+%s+(%-?%d+)")) or 1000)
 		session.data.coins = math.max(0, session.data.coins + amount)
 		notify(session, "MSG_DEV_COINS", { amount })
 		pushState(session)
+	end)
+	-- /rankremove 12345 usuwa wynik konta z rankingu cukierków (działa też na opublikowanej grze).
+	-- Na stałe: dopisz UserId do Config.Halloween.rankingBanned.
+	local remove = Instance.new("TextChatCommand")
+	remove.Name = "DevRankRemove"
+	remove.PrimaryAlias = "/rankremove"
+	remove.Parent = folder
+	remove.Triggered:Connect(function(source: TextSource, text: string)
+		local player = Players:GetPlayerByUserId(source.UserId)
+		local userId = tonumber(string.match(text, "^%S+%s+(%d+)"))
+		local session = player and sessions[player]
+		if player and session and userId and isDeveloper(player) then
+			removeFromRanking(session, userId)
+		end
 	end)
 end
 
@@ -1212,9 +1306,24 @@ local DEV_TELEPORTS: { [string]: () -> CFrame? } = {
 	end,
 }
 
+-- Na opublikowanej grze (nie w Studio) deweloper może tylko się teleportować, odświeżyć rankingi,
+-- usunąć wynik z rankingu i odpalić dwa ogłaszane wydarzenia „admin abuse” (Noc Dziadów, Dyniowy wysyp).
+-- Wszystko, co zmienia monety, cukierki, ulepszenia, zadania, postęp albo porę dnia, działa tylko w Studio.
+local LIVE_DEV_ACTIONS: { [string]: boolean } = {
+	boardsRefresh = true,
+	spiritNight = true,
+	pumpkinBoom = true,
+}
+local function devActionAllowed(action: string): boolean
+	if RunService:IsStudio() then
+		return true
+	end
+	return DEV_TELEPORTS[action] ~= nil or LIVE_DEV_ACTIONS[action] == true or string.match(action, "^rankingRemove:%d+$") ~= nil
+end
+
 local function onDevAction(player: Player, action: unknown)
 	local session = sessions[player]
-	if not session or typeof(action) ~= "string" or not isDeveloper(player) then
+	if not session or typeof(action) ~= "string" or not isDeveloper(player) or not devActionAllowed(action) then
 		return
 	end
 	local data = session.data
@@ -1304,6 +1413,11 @@ local function onDevAction(player: Player, action: unknown)
 		task.defer(startDowned, session)
 	elseif action == "boardsRefresh" then
 		task.spawn(LeaderboardService.refreshNow)
+	elseif string.match(action, "^rankingRemove:%d+$") then
+		-- Usuwa wynik z rankingu cukierków (znacznik w magazynie, nie wróci); trwale na przyszłość:
+		-- Config.Halloween.rankingBanned
+		local userId = tonumber(string.match(action, "%d+")) or 0
+		removeFromRanking(session, userId)
 	elseif not (ProgressService.dev(player, action) or HalloweenService.dev(player, action)) then
 		return
 	end
@@ -1333,9 +1447,10 @@ local function grantProduct(session: Session, key: string): boolean
 		-- Grzyby, które właśnie odrastają, też przyspieszają
 		local now = os.clock()
 		for _, other in sessions do
-			for _, state in other.spots do
+			for id, state in other.spots do
 				if not state.visible and state.readyAt > now then
 					state.readyAt = now + (state.readyAt - now) * Config.Boom.regrowFactor
+					rememberSpot(other, id, state) -- profil też ma krótszy termin
 				end
 			end
 			notify(other, "MSG_BOOM", { player.DisplayName, math.floor(Config.Boom.seconds / 60) })
@@ -1586,12 +1701,21 @@ function GameService.start(mapInfo: MapBuilder.MapInfo)
 		refresh = function(player: Player)
 			ProgressService.refresh(player)
 		end,
+		canSave = function(player: Player): boolean
+			local session = sessions[player]
+			return session ~= nil and session.canSave
+		end,
 	})
 	LeaderboardService.start({
 		getData = function(player: Player)
 			local session = sessions[player]
 			return if session then session.data else nil
 		end,
+		canSave = function(player: Player): boolean
+			local session = sessions[player]
+			return session ~= nil and session.canSave
+		end,
+		isDeveloper = isDeveloper,
 	})
 
 	GardenService.start(map.gardens, {
@@ -1696,14 +1820,17 @@ function GameService.start(mapInfo: MapBuilder.MapInfo)
 			Workspace:SetAttribute("CycleEndsAt", phase.endsAt)
 			Workspace:SetAttribute("CycleEvent", phase.event.id)
 			Workspace:SetAttribute("CycleNextEvent", phase.nextEvent.id)
-			if lastPhase and lastPhase ~= phase.phase then
-				if phase.phase == "dawn" then
-					resetForest(phase.nextEvent)
-				else
-					local key = NIGHT_MESSAGES[phase.event.id] or "MSG_NIGHT_CALM"
-					for _, session in sessions do
-						notify(session, key)
-					end
+			-- Las odrasta raz na pokolenie z kalendarza, kiedy świt jest naprawdę widoczny (nie w czasie
+			-- przywołanej nocy); wymuszony świt z panelu DEV (Studio) też odnawia las
+			local forcedDawn = debugPhase == "dawn" and now < debugUntil and lastPhase ~= nil and lastPhase ~= "dawn"
+			if Cycle.shouldRegrow(phase.phase, serverGen, now) or forcedDawn then
+				serverGen = math.max(serverGen, Cycle.generation(now))
+				resetForest(phase.nextEvent, forcedDawn)
+			end
+			if lastPhase and lastPhase ~= phase.phase and phase.phase ~= "dawn" then
+				local key = NIGHT_MESSAGES[phase.event.id] or "MSG_NIGHT_CALM"
+				for _, session in sessions do
+					notify(session, key)
 				end
 			end
 			lastPhase = phase.phase

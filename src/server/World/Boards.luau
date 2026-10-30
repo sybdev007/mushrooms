@@ -10,7 +10,16 @@ local Palette = require(script.Parent.Palette)
 
 local Boards = {}
 
-export type Placement = { kind: string, position: Vector3, width: number, height: number, lift: number, rows: number }
+export type Placement = {
+	kind: string,
+	position: Vector3,
+	width: number,
+	height: number,
+	lift: number,
+	rows: number,
+	facing: Vector3?, -- w którą stronę patrzy tablica (domyślnie -Z, na Plac Portali)
+	optional: boolean?, -- stoi tylko, gdy Boards.build dostanie dla niej true (np. ranking eventu)
+}
 
 -- Na zewnątrz tylnej ściany chatki, przodem do Placu Portali (-Z): każdy, kto idzie do portali,
 -- przechodzi obok. Trzy tablice obok siebie od lewego narożnika do komina (komin stoi przy x = 14).
@@ -20,6 +29,8 @@ Boards.PLACEMENTS = {
 	{ kind = "richest", position = Vector3.new(-13.5, 0, WALL_Z), width = 8.5, height = 10, lift = 2.4, rows = 8 },
 	{ kind = "rare", position = Vector3.new(-3.5, 0, WALL_Z), width = 8.5, height = 10, lift = 2.4, rows = 8 },
 	{ kind = "thieves", position = Vector3.new(6.5, 0, WALL_Z), width = 8.5, height = 10, lift = 2.4, rows = 8 },
+	-- Halloween: ranking cukierków na trawie przed gankiem, obok kotła, przodem do ścieżki z lasu
+	{ kind = "candy", position = Vector3.new(-19.5, 0, 1.5), width = 8, height = 9, lift = 2, rows = 8, facing = Vector3.new(0.35, 0, 1), optional = true },
 } :: { Placement }
 
 local function part(parent: Instance, name: string, size: Vector3, cf: CFrame, color: Color3, material: Enum.Material?): Part
@@ -55,7 +66,8 @@ local function buildBoard(parent: Instance, placement: Placement): BasePart
 	model.Name = "Leaderboard_" .. placement.kind
 	local w, h, lift = placement.width, placement.height, placement.lift
 	-- Układ lokalny: przód tablicy patrzy na -Z świata (w stronę Placu Portali), tył przy ścianie
-	local base = CFrame.lookAt(placement.position, placement.position - Vector3.new(0, 0, 1))
+	local facing = placement.facing or Vector3.new(0, 0, -1)
+	local base = CFrame.lookAt(placement.position, placement.position + facing.Unit)
 	local centerY = lift + h / 2
 
 	-- Słupy po bokach, aż do ziemi
@@ -96,12 +108,14 @@ local function buildBoard(parent: Instance, placement: Placement): BasePart
 	return screen
 end
 
-function Boards.build(parent: Instance): { [string]: BasePart }
+function Boards.build(parent: Instance, optional: { [string]: boolean }?): { [string]: BasePart }
 	local folder = Instance.new("Folder")
 	folder.Name = "Leaderboards"
 	local screens = {}
 	for _, placement in Boards.PLACEMENTS do
-		screens[placement.kind] = buildBoard(folder, placement)
+		if not placement.optional or (optional and optional[placement.kind]) then
+			screens[placement.kind] = buildBoard(folder, placement)
+		end
 	end
 	folder.Parent = parent
 	return screens

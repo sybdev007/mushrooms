@@ -411,7 +411,8 @@ end
 -- Cukierki z Halloween (sprzedane dynie, zadania). key = komunikat z liczbą i sumą (nil = bez komunikatu)
 function ProgressService.addCandy(player: Player, amount: number, key: string?)
 	local data = api.getData(player)
-	if not data or amount <= 0 then
+	-- Cukierki tylko w czasie eventu, z każdego źródła (ranking zamyka się dokładnie przy końcu)
+	if not data or amount <= 0 or not Halloween.active(os.time()) then
 		return
 	end
 	if key then

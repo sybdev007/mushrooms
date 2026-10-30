@@ -42,7 +42,13 @@ export type Data = {
 	candyBag: number, -- Halloween: cukierki w kieszeni do wydania w kotle (stats.candy = zebrane łącznie)
 	skins: { string }, -- skórki z kotła (te ze ścieżki nagród liczą się z cukierków)
 	equipped: { lantern: string, knife: string }, -- założone skórki ("" = zwykła latarnia / nożyk)
+	eventGoals: { day: number, seconds: number }, -- Halloween: sekundy mikstury z celów serwera dziś (limit dzienny)
+	forest: Forest?, -- las gracza z ostatniej sesji (szybki powrót nie losuje lasu od nowa)
 }
+
+-- Las gracza: g = pokolenie lasu (numer świtu, Cycle), s = miejsce -> grzyb i kiedy jest gotowy (os.time)
+export type ForestSpot = { s: string, v: string?, x: { string }?, t: number }
+export type Forest = { g: number, s: { [string]: ForestSpot } }
 
 local LEGACY_STORE_NAME = "LanternForager_Prototype_v1" -- stary zapis bez blokady sesji (tylko do przeniesienia)
 local PROFILE_STORE_NAME = "LanternForager_Profiles_v1"
@@ -54,6 +60,11 @@ local DataService = {}
 local ProfileStore = require(script.Parent:WaitForChild("Packages"):WaitForChild("ProfileStore")) :: any
 local profileStore = ProfileStore.New(PROFILE_STORE_NAME, {})
 local profiles: { [Player]: any } = {}
+-- Ostatni potwierdzony zapis profilu (ProfileStore.LastSavedData) i kto chce o nim wiedzieć.
+-- Ranking cukierków publikuje tylko to, co już na pewno leży w profilu (awaria nie zostawi w rankingu
+-- wyniku, którego gracz nie ma).
+local confirmed: { [Player]: any } = {}
+local savedListeners: { (Player, any) -> () } = {}
 
 local store: DataStore? = nil
 do
@@ -105,6 +116,8 @@ function DataService.defaultData(): Data
 		candyBag = 0,
 		skins = {},
 		equipped = { lantern = "", knife = "" },
+		eventGoals = { day = -1, seconds = 0 },
+		forest = nil,
 	}
 end
 
@@ -130,6 +143,15 @@ local function readMutations(item: any): (string?, { string }?)
 	end
 	return variant, tags
 end
+
+-- Skończona liczba (odrzuca NaN i ±nieskończoność, które przechodzą typeof == "number")
+local function finite(x: any): boolean
+	return typeof(x) == "number" and x == x and x ~= math.huge and x ~= -math.huge
+end
+DataService.finite = finite
+
+-- Najdłuższy sensowny czas oczekiwania na odrost zapisanego grzyba (z zapasem na mnożniki nocy)
+local MAX_SPOT_WAIT = 3600
 
 -- Uzupełnia brakujące pola i odrzuca śmieci, żeby stary zapis nie wywalił gry
 local function reconcile(raw: any): Data
@@ -303,7 +325,7 @@ local function reconcile(raw: any): Data
 	end
 	data.caveUnlocked = raw.caveUnlocked == true
 	data.swampUnlocked = raw.swampUnlocked == true
-	if typeof(raw.luckUntil) == "number" then
+	if finite(raw.luckUntil) then
 		data.luckUntil = math.floor(raw.luckUntil)
 	end
 	if typeof(raw.eventClaimed) == "number" then
@@ -330,6 +352,32 @@ local function reconcile(raw: any): Data
 				(data.equipped :: any)[slot] = id
 			end
 		end
+	end
+	local goals = raw.eventGoals
+	-- Dzień w rozsądnym zakresie (do jutra wg UTC), zużyty czas 0..dzienny limit
+	if typeof(goals) == "table" and finite(goals.day) and finite(goals.seconds) then
+		local day = math.floor(goals.day)
+		if day >= 0 and day <= Progress.dayIndex(now) + 1 then
+			data.eventGoals = { day = day, seconds = math.clamp(math.floor(goals.seconds), 0, Config.Halloween.goal.maxPerDay) }
+		end
+	end
+	-- Las z ostatniej sesji: tylko znane gatunki, warianty i cechy (resztę las wylosuje od nowa)
+	local forest = raw.forest
+	if typeof(forest) == "table" and finite(forest.g) and forest.g >= 0 and typeof(forest.s) == "table" then
+		local spots: { [string]: ForestSpot } = {}
+		local count = 0
+		for id, entry in forest.s do
+			if count >= 600 then
+				break
+			end
+			if typeof(id) == "string" and #id <= 64 and typeof(entry) == "table" and typeof(entry.s) == "string" and Economy.getSpecies(entry.s) and finite(entry.t) then
+				local variant, tags = readMutations(entry)
+				-- Za odległy termin przycinamy do najdłuższego czekania (nie dajemy darmowego odrostu)
+				spots[id] = { s = entry.s, v = variant, x = tags, t = math.min(math.floor(entry.t), now + MAX_SPOT_WAIT) }
+				count += 1
+			end
+		end
+		data.forest = { g = math.floor(forest.g), s = spots }
 	end
 	if typeof(raw.receipts) == "table" then
 		for _, id in raw.receipts do
@@ -407,8 +455,35 @@ function DataService.load(player: Player): (Data, boolean)
 			player:Kick("Twoje dane zostały otwarte na innym serwerze. Wejdź do gry ponownie. / Your data was opened on another server. Please rejoin.")
 		end
 	end)
+	confirmed[player] = profile.LastSavedData
+	profile.OnAfterSave:Connect(function(lastSaved: any)
+		confirmed[player] = lastSaved
+		for _, listener in savedListeners do
+			task.spawn(listener, player, lastSaved)
+		end
+		if not profile:IsActive() then
+			confirmed[player] = nil -- ostatni zapis po wyjściu
+		end
+	end)
 	profiles[player] = profile
 	return data, true
+end
+
+-- Cukierki zebrane łącznie w danym zapisie profilu (0, gdy brak albo śmieci)
+function DataService.candyOf(saved: any): number
+	local stats = if typeof(saved) == "table" then saved.stats else nil
+	local candy = if typeof(stats) == "table" then stats.candy else nil
+	return if finite(candy) and candy > 0 then math.floor(candy) else 0
+end
+
+-- Cukierki według ostatniego potwierdzonego zapisu profilu
+function DataService.confirmedCandy(player: Player): number
+	return DataService.candyOf(confirmed[player])
+end
+
+-- Wywoływane po każdym udanym zapisie profilu (też ostatnim, po wyjściu gracza)
+function DataService.onSaved(listener: (Player, any) -> ())
+	table.insert(savedListeners, listener)
 end
 
 -- Zapis od razu (zakup, wyjście); poza tym ProfileStore zapisuje sam co kilka minut

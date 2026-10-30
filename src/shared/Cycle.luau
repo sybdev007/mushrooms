@@ -94,4 +94,28 @@ function Cycle.activeEvent(t: number): Config.NightEventDef?
 	return if phase.phase == "night" then phase.event else nil
 end
 
+-- Pokolenie lasu z kalendarza = numer ostatniego świtu (las odrasta wszystkim o świcie)
+function Cycle.generation(t: number): number
+	local phase = Cycle.at(t)
+	return if phase.phase == "dawn" then phase.index else phase.index - 1
+end
+
+-- Serwer odnawia las, gdy widać świt (shownPhase po nadpisaniu przywołaną nocą) i kalendarz jest
+-- już w nowszym pokoleniu niż las tego serwera. Przywołana noc przykrywająca świt odkłada reset.
+function Cycle.shouldRegrow(shownPhase: string, serverGen: number, t: number): boolean
+	return shownPhase == "dawn" and Cycle.generation(t) > serverGen
+end
+
+-- Zapisany las wraca 1:1, gdy jest z pokolenia serwera albo nowszego (inny serwer już miał świt),
+-- ale nie z przyszłości kalendarza (śmieci w zapisie)
+function Cycle.canRestore(savedGen: number, serverGen: number, t: number): boolean
+	return savedGen >= serverGen and savedGen <= Cycle.generation(t)
+end
+
+-- Czy las gracza (zapisany z pokoleniem sessionGen) odnawia się przy resecie serwera do targetGen.
+-- Gracz, który ten świt dostał już na innym serwerze, nie dostaje go drugi raz.
+function Cycle.needsRegrow(sessionGen: number?, targetGen: number): boolean
+	return sessionGen == nil or sessionGen < targetGen
+end
+
 return Cycle

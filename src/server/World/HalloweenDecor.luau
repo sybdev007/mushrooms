@@ -194,7 +194,7 @@ local function cauldron(parent: Instance, at: CFrame)
 	CollectionService:AddTag(prompt, "CauldronPrompt")
 	local sign = Instance.new("BillboardGui")
 	sign.Name = "CauldronSign"
-	sign.Size = UDim2.fromOffset(220, 44)
+	sign.Size = UDim2.fromOffset(240, 70)
 	sign.StudsOffsetWorldSpace = Vector3.new(0, 3.6, 0)
 	sign.MaxDistance = 70
 	sign.LightInfluence = 0
