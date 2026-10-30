@@ -600,14 +600,48 @@ Config.Halloween = {
 	candyByWorld = { forest = 1, cave = 2, swamp = 3 } :: { [string]: number },
 	questCandy = 2, -- za każde ukończone zadanie dnia w czasie eventu
 	badgeCandy = 100, -- odznaka Config.Badges.halloween2026
-	-- Ścieżka nagród. kind: "title" (tytuł z Titles, rarity), "luck" (mikstura na seconds), "coins" (x skala nagród)
+	-- Ścieżka nagród (cukierki zebrane łącznie, wydawanie w kotle ich nie cofa).
+	-- kind: "title" (tytuł z Titles, rarity), "luck" (mikstura na seconds), "skin" (skórka z skins)
 	track = {
 		{ candy = 10, kind = "title", id = "TITLE_PUMPKINHEAD", rarity = "rare", icon = "🎃" },
 		{ candy = 30, kind = "luck", seconds = 900, icon = "🍀" },
-		{ candy = 60, kind = "coins", scale = 5, icon = "💰" },
+		{ candy = 60, kind = "skin", id = "pumpkin_lantern", icon = "🏮" },
 		{ candy = 100, kind = "title", id = "TITLE_ANCESTRAL_SPIRIT", rarity = "epic", icon = "👻" },
+		{ candy = 150, kind = "skin", id = "sickle", icon = "🌙" },
 		{ candy = 200, kind = "title", id = "TITLE_PUMPKIN_KING", rarity = "legendary", icon = "👑" },
 	} :: { { candy: number, kind: string, id: string?, rarity: string?, seconds: number?, scale: number?, icon: string } },
+	-- Skórki narzędzi w dłoni (zostają na zawsze). slot: która rzecz w dłoni się zmienia
+	skins = {
+		pumpkin_lantern = { slot = "lantern", key = "SKIN_PUMPKIN_LANTERN", icon = "🏮" },
+		sickle = { slot = "knife", key = "SKIN_SICKLE", icon = "🌙" },
+	} :: { [string]: { slot: string, key: string, icon: string } },
+	-- Kocioł „cukierek albo psikus” przy chatce: wrzuca się cost cukierków (z kieszeni),
+	-- wypada nagroda albo nieszkodliwy psikus (tylko wygląd na chwilę, nic nie zabiera).
+	cauldron = {
+		cost = 5,
+		cooldown = 1.5,
+		duplicateScale = 4, -- skórka, którą już masz: monety (x skala nagród)
+		outcomes = {
+			{ id = "coins", weight = 28, scale = 1.5 },
+			{ id = "luck", weight = 15, seconds = 300 },
+			{ id = "candy", weight = 6, amount = 12 }, -- tylko do kieszeni, ścieżki nie przesuwa
+			{ id = "skin_lantern", weight = 4, skin = "pumpkin_lantern" },
+			{ id = "skin_knife", weight = 4, skin = "sickle" },
+			{ id = "trick_pumpkin", weight = 12, seconds = 60, trick = true }, -- dynia na głowie
+			{ id = "trick_ghostlight", weight = 12, seconds = 120, trick = true }, -- zielona latarnia duchów
+			{ id = "trick_scare", weight = 10, trick = true }, -- duch wyskakuje na ekranie
+			{ id = "trick_spirits", weight = 9, seconds = 45, trick = true }, -- dusze krążą wokół gracza
+		} :: { { id: string, weight: number, scale: number?, seconds: number?, amount: number?, skin: string?, trick: boolean? } },
+	},
+	-- Muzyka nocą w lesie (i każdą Nocą Dziadów) w czasie eventu. Licencjonowane: APM, DistroKid.
+	playlist = {
+		"rbxassetid://1837467198", -- Night of the Ghouls
+		"rbxassetid://1838592691", -- Halloween Night
+		"rbxassetid://139190190976686", -- Halloween Music Box
+		"rbxassetid://1836009626", -- Halloween Horrors Waltz
+		"rbxassetid://130935065570387", -- Ghostly Masquerade Ball
+		"rbxassetid://139960241205796", -- Sweet Scare
+	},
 }
 
 -- Tekstura „kratki” na voxelowe grzyby w lesie (assets/voxel-noise.png). Pusta = gładkie klocki.
@@ -692,6 +726,8 @@ Config.Audio = {
 		roar = "rbxassetid://9113980319", -- ryk Leszego
 		heartbeat = "rbxassetid://9043365842", -- bicie serca (pętla)
 		sting = "rbxassetid://138524319910012", -- złapany! (uderzenie)
+		cauldron = "rbxassetid://9120305560", -- bulgot kotła (Halloween)
+		witch = "rbxassetid://9065926843", -- śmiech wiedźmy: psikus z kotła
 		gasp = "rbxassetid://9125572450", -- przebudzenie
 		creak = "rbxassetid://9120829478", -- skrzypienie bujanego fotela
 		bubble = "rbxassetid://109359226723492", -- chmurka z myślą

@@ -1,6 +1,7 @@
 --!strict
--- Okno eventu Halloween „Noc Dziadów” (styl PanelKit, jak Zadania): ile cukierków, ścieżka nagród
--- (pięć kafelków z progami i pasek), jak zdobywać cukierki i kiedy następna Noc Dziadów.
+-- Okno eventu Halloween „Noc Dziadów” (styl PanelKit, jak Zadania): cukierki w kieszeni (pigułka),
+-- ścieżka nagród za cukierki zebrane łącznie (kafelki z progami i pasek), jak zdobywać cukierki,
+-- skórki do założenia (dyniowa latarnia, sierp) i kiedy następna Noc Dziadów.
 -- Przycisk 🎃 pojawia się z prawej tylko w czasie eventu. Nagrody przychodzą same (ProgressService).
 
 local Players = game:GetService("Players")
@@ -23,8 +24,8 @@ local OUTLINE = PanelKit.OUTLINE
 local ORANGE = Color3.fromRGB(240, 128, 30)
 local PURPLE = Color3.fromRGB(96, 52, 150)
 local PURPLE_DARK = Color3.fromRGB(58, 32, 92)
-local WIDTH, HEIGHT = 620, 480
-local TILE_W, TILE_H, TILE_GAP = 104, 122, 12
+local WIDTH, HEIGHT = 660, 612
+local TILE_W, TILE_H, TILE_GAP = 94, 122, 10
 
 local function now(): number
 	return Workspace:GetServerTimeNow()
@@ -114,7 +115,7 @@ local howTitle = PanelKit.label(content, "HowTitle", UDim2.new(1, -40, 0, 24), U
 howTitle.TextXAlignment = Enum.TextXAlignment.Left
 UiKit.outline(howTitle, 2)
 
-local HOW_KEYS = { "HW_HOW_PUMPKIN", "HW_HOW_QUEST", "HW_HOW_RISK" }
+local HOW_KEYS = { "HW_HOW_PUMPKIN", "HW_HOW_QUEST", "HW_HOW_CAULDRON", "HW_HOW_RISK" }
 local howLines: { TextLabel } = {}
 for index in HOW_KEYS do
 	local line = PanelKit.label(content, "How" .. index, UDim2.new(1, -40, 0, 34), UDim2.fromOffset(20, HOW_Y + 28 + (index - 1) * 38), 16, PanelKit.TEXT, PanelKit.BODY_FONT)
@@ -123,11 +124,80 @@ for index in HOW_KEYS do
 	howLines[index] = line
 end
 
+-- Ostatni stan od serwera (ProgressUpdate)
+local state: any = nil
+
+-- ===== Skórki =====
+
+local SKINS_Y = HOW_Y + 28 + #HOW_KEYS * 38 + 4
+local skinsTitle = PanelKit.label(content, "SkinsTitle", UDim2.new(1, -40, 0, 24), UDim2.fromOffset(20, SKINS_Y), 21, PanelKit.GOLD)
+skinsTitle.TextXAlignment = Enum.TextXAlignment.Left
+UiKit.outline(skinsTitle, 2)
+
+type SkinCard = { id: string, slot: string, frame: Frame, name: TextLabel, button: TextButton }
+local skinCards: { SkinCard } = {}
+local skinIds: { string } = {}
+for id in Halloween.SKINS do
+	table.insert(skinIds, id)
+end
+table.sort(skinIds, function(a, b)
+	return (Halloween.trackCandyFor(a) or 0) < (Halloween.trackCandyFor(b) or 0)
+end)
+local EquipSkin = Remotes.get("EquipSkin")
+local cardW = math.floor((WIDTH - 28 - 24 - 12) / 2)
+for index, id in skinIds do
+	local def = Halloween.SKINS[id]
+	local frame = Instance.new("Frame")
+	frame.Name = "Skin_" .. id
+	frame.Size = UDim2.fromOffset(cardW, 60)
+	frame.Position = UDim2.fromOffset(12 + (index - 1) * (cardW + 12), SKINS_Y + 28)
+	frame.BackgroundColor3 = PURPLE_DARK
+	frame.ZIndex = 4
+	frame.Parent = content
+	PanelKit.corner(frame, UDim.new(0, 16))
+	PanelKit.stroke(frame, OUTLINE, 3)
+	local skinIcon = PanelKit.label(frame, "Icon", UDim2.fromOffset(46, 46), UDim2.fromOffset(8, 7), 38)
+	skinIcon.Text = def.icon
+	skinIcon.ZIndex = 6
+	local name = PanelKit.label(frame, "Name", UDim2.new(1, -170, 1, -12), UDim2.fromOffset(58, 6), 18)
+	name.TextXAlignment = Enum.TextXAlignment.Left
+	name.TextWrapped = true
+	name.ZIndex = 6
+	UiKit.outline(name, 2)
+	local button = Instance.new("TextButton")
+	button.Name = "Equip"
+	button.Size = UDim2.fromOffset(104, 40)
+	button.AnchorPoint = Vector2.new(1, 0.5)
+	button.Position = UDim2.new(1, -10, 0.5, 0)
+	button.Font = PanelKit.TITLE_FONT
+	button.TextScaled = true
+	button.ZIndex = 6
+	button.Parent = frame
+	local buttonStroke = UiKit.button(button, UiKit.COLORS.green, { stroke = 2.5, radius = UDim.new(0, 12) })
+	buttonStroke.Color = OUTLINE
+	local constraint = Instance.new("UITextSizeConstraint")
+	constraint.MaxTextSize = 17
+	constraint.Parent = button
+	local pad = Instance.new("UIPadding")
+	pad.PaddingLeft = UDim.new(0, 6)
+	pad.PaddingRight = UDim.new(0, 6)
+	pad.Parent = button
+	local card: SkinCard = { id = id, slot = def.slot, frame = frame, name = name, button = button }
+	button.Activated:Connect(function()
+		if not state or not button.Active then
+			return
+		end
+		local equipped = state.equipped and state.equipped[card.slot]
+		EquipSkin:FireServer(card.slot, if equipped == card.id then "" else card.id)
+	end)
+	table.insert(skinCards, card)
+end
+
 -- Noc Dziadów: fioletowa karta z odliczaniem
 local spiritCard = Instance.new("Frame")
 spiritCard.Name = "SpiritNight"
 spiritCard.Size = UDim2.new(1, -24, 0, 56)
-spiritCard.Position = UDim2.fromOffset(12, HOW_Y + 28 + #HOW_KEYS * 38 + 6)
+spiritCard.Position = UDim2.fromOffset(12, SKINS_Y + 28 + 60 + 10)
 spiritCard.BackgroundColor3 = PURPLE_DARK
 spiritCard.ZIndex = 4
 spiritCard.Parent = content
@@ -140,7 +210,6 @@ UiKit.outline(spiritText, 2)
 
 -- ===== Stan =====
 
-local state: any = nil
 local side: SideButtons.Side? = nil
 local spiritPulse: Tween? = nil
 
@@ -160,9 +229,14 @@ local function formatLeft(seconds: number): string
 	return string.format("%d:%02d", seconds // 60, seconds % 60)
 end
 
+-- Cukierki zebrane łącznie (ścieżka nagród) i w kieszeni (do kotła)
 local function candyOf(): number
 	local stats = state and state.stats
 	return if stats and typeof(stats.candy) == "number" then stats.candy else 0
+end
+
+local function bagOf(): number
+	return if state and typeof(state.candyBag) == "number" then state.candyBag else candyOf()
 end
 
 local function rewardText(step: any): string
@@ -173,8 +247,34 @@ local function rewardText(step: any): string
 	elseif step.kind == "coins" and step.scale then
 		local scale = if state and typeof(state.scale) == "number" then state.scale else 50
 		return Localize.t("HW_REWARD_COINS", { formatCoins(step.scale * scale) })
+	elseif step.kind == "skin" and step.id then
+		local skin = Halloween.getSkin(step.id)
+		return Localize.t("HW_REWARD_SKIN", { if skin then Localize.t(skin.key) else "?" })
 	end
 	return ""
+end
+
+local function renderSkins()
+	skinsTitle.Text = Localize.t("HW_SKINS_TITLE")
+	local owned = if state and typeof(state.skins) == "table" then state.skins else {}
+	local equipped = if state and typeof(state.equipped) == "table" then state.equipped else {}
+	for _, card in skinCards do
+		local def = Halloween.SKINS[card.id]
+		local has = table.find(owned, card.id) ~= nil
+		local on = equipped[card.slot] == card.id
+		card.name.Text = Localize.t(def.key)
+		card.name.TextTransparency = if has then 0 else 0.35
+		card.frame.BackgroundColor3 = if on then Color3.fromRGB(72, 150, 70) elseif has then PURPLE else PURPLE_DARK
+		card.button.Active = has
+		if has then
+			card.button.Text = Localize.t(if on then "HW_SKIN_OFF" else "HW_SKIN_ON")
+			UiKit.recolor(card.button, if on then Color3.fromRGB(236, 168, 32) else UiKit.COLORS.green)
+		else
+			local need = Halloween.trackCandyFor(card.id)
+			card.button.Text = if need then Localize.t("HW_SKIN_LOCKED", { need }) else "🔒"
+			UiKit.recolor(card.button, UiKit.COLORS.locked)
+		end
+	end
 end
 
 local function renderSpirit()
@@ -216,7 +316,7 @@ local lastReached = -1
 local function render()
 	window.title.Text = Localize.t("HW_TITLE")
 	local candy = candyOf()
-	window.pillText.Text = tostring(candy)
+	window.pillText.Text = tostring(bagOf())
 	renderTimer()
 	local reached = Halloween.reached(candy)
 	for index, tile in tiles do
@@ -236,7 +336,7 @@ local function render()
 	end
 	fill.Size = UDim2.fromScale(math.clamp(trackFraction(candy), 0, 1), 1)
 	local nextStep = track[reached + 1]
-	barText.Text = if nextStep then string.format("%d / %d 🍬", candy, nextStep.candy) else Localize.t("HW_TRACK_DONE", { candy })
+	barText.Text = if nextStep then Localize.t("HW_TRACK_PROGRESS", { candy, nextStep.candy }) else Localize.t("HW_TRACK_DONE", { candy })
 	-- Właśnie osiągnięty próg przy otwartym oknie: iskry nad kafelkiem
 	if lastReached >= 0 and reached > lastReached and window.isOpen() then
 		local tile = tiles[reached]
@@ -250,13 +350,15 @@ local function render()
 	local byWorld = Config.Halloween.candyByWorld
 	howLines[1].Text = Localize.t("HW_HOW_PUMPKIN", { byWorld.forest, byWorld.cave, byWorld.swamp })
 	howLines[2].Text = Localize.t("HW_HOW_QUEST", { Config.Halloween.questCandy })
-	howLines[3].Text = Localize.t("HW_HOW_RISK")
+	howLines[3].Text = Localize.t("HW_HOW_CAULDRON", { Config.Halloween.cauldron.cost })
+	howLines[4].Text = Localize.t("HW_HOW_RISK")
+	renderSkins()
 	renderSpirit()
 end
 
 local function refreshBadge()
 	if side then
-		side.setBadge(tostring(candyOf()) .. "🍬", "info")
+		side.setBadge(tostring(bagOf()) .. "🍬", "info")
 	end
 end
 

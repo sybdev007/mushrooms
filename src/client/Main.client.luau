@@ -29,6 +29,7 @@ local MerchantView = require(script.Parent.MerchantView)
 -- Kolejność = kolejność dużych przycisków pod „Ulepszeniami”: (Halloween w czasie eventu), Zadania,
 -- Grzybopedia, Tytuły
 local _HalloweenPanel = require(script.Parent.HalloweenPanel)
+local _CauldronView = require(script.Parent.CauldronView)
 local _QuestPanel = require(script.Parent.QuestPanel)
 local _AtlasPanel = require(script.Parent.AtlasPanel)
 local _TitlePanel = require(script.Parent.TitlePanel)
@@ -67,6 +68,7 @@ local BuyUpgrade = Remotes.get("BuyUpgrade")
 
 local LANTERN_BRIGHTNESS = 2 -- w najciemniejszej strefie; przy chatce latarnia świeci słabiej, żeby nie przepalać ścian
 local LANTERN_GLASS = Color3.fromRGB(255, 206, 120)
+local GHOST_GLASS = Color3.fromRGB(120, 255, 150) -- psikus z kotła: zielona latarnia duchów
 
 local lanternRange = Economy.upgradeStat("lantern", 0)
 local oil = Economy.upgradeStat("oil", 0)
@@ -363,7 +365,9 @@ local function updateLantern(character: Model, root: BasePart, oilFraction: numb
 		light.Brightness = LANTERN_BRIGHTNESS * (0.45 + 0.55 * darkness) * strength
 	end
 	if glass and glass:IsA("BasePart") then
-		glass.Color = Color3.fromRGB(70, 40, 20):Lerp(LANTERN_GLASS, math.clamp(strength, 0, 1))
+		local ghostUntil = character:GetAttribute("GhostLantern")
+		local base = if typeof(ghostUntil) == "number" and ghostUntil > os.time() then GHOST_GLASS else LANTERN_GLASS
+		glass.Color = Color3.fromRGB(70, 40, 20):Lerp(base, math.clamp(strength, 0, 1))
 	end
 end
 
@@ -378,7 +382,12 @@ RunService.RenderStepped:Connect(function(dt)
 	local zone = Economy.zoneIndexAt(position.Z)
 	local zoneDef = Config.Zones[zone]
 	-- Muzyka świata (las / jaskinia / bagna); cutscenki mają pierwszeństwo
-	Audio.playlist(Economy.zoneWorld(zone))
+	-- Halloween: nocą w lesie (i każdą Nocą Dziadów) halloweenowa muzyka
+	local world = Economy.zoneWorld(zone)
+	local night = Workspace:GetAttribute("CyclePhase") == "night"
+	local spiritNight = night and Workspace:GetAttribute("CycleEvent") == "spirit_night"
+	local halloweenMusic = Workspace:GetAttribute("Halloween") == true and night and (world == "forest" or spiritNight)
+	Audio.playlist(if halloweenMusic then "halloween" else world)
 	local oilFraction = if oilMax > 0 then math.clamp(oil / oilMax, 0, 1) else 1
 	local now = os.clock()
 

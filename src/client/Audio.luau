@@ -186,6 +186,11 @@ local lastTrack: { [string]: string } = {}
 local nextAt = 0
 
 local function playlistTracks(name: string): { string }
+	-- Halloween: osobna lista w Config.Halloween.playlist
+	if name == "halloween" then
+		local halloween = (Config :: any).Halloween
+		return if halloween and typeof(halloween.playlist) == "table" then halloween.playlist else {}
+	end
 	local audio = (Config :: any).Audio
 	local lists = audio and audio.playlists
 	local list = lists and lists[name]

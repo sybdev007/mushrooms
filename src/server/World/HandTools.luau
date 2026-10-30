@@ -98,7 +98,10 @@ function HandTools.lanternTier(level: number): number
 end
 
 -- base: punkt chwytu (górny pałąk), latarnia wisi w dół wzdłuż -Y
-function HandTools.lantern(level: number, base: CFrame, weldTo: BasePart?, scale: number?): Model
+function HandTools.lantern(level: number, base: CFrame, weldTo: BasePart?, scale: number?, skin: string?): Model
+	if skin == "pumpkin_lantern" then
+		return HandTools.pumpkinLantern(level, base, weldTo, scale)
+	end
 	local trim = TRIMS[HandTools.lanternTier(level)]
 	local m = Instance.new("Model")
 	m.Name = "HandLantern"
@@ -154,6 +157,47 @@ function HandTools.lantern(level: number, base: CFrame, weldTo: BasePart?, scale
 	end
 
 	m:SetAttribute("Tier", HandTools.lanternTier(level))
+	attach(m, weldTo, base, scale or 1.35)
+	return m
+end
+
+-- Halloween: dyniowa latarnia (skórka). Kuty pałąk, haczyk i dynia z wyciętą, świecącą buzią
+-- z przodu i z tyłu. Usta z przodu nazywają się "LanternGlass" (klient przyciemnia je przy końcu oleju).
+local PUMPKIN = Color3.fromRGB(226, 110, 24)
+local PUMPKIN_DARK = Color3.fromRGB(168, 70, 14)
+local PUMPKIN_GLOW = Color3.fromRGB(255, 200, 80)
+function HandTools.pumpkinLantern(level: number, base: CFrame, weldTo: BasePart?, scale: number?): Model
+	local trim = TRIMS[HandTools.lanternTier(level)]
+	local m = Instance.new("Model")
+	m.Name = "HandLantern"
+	local function at(x: number, y: number, z: number): CFrame
+		return base * CFrame.new(x, y, z)
+	end
+	part(m, "Bail", Vector3.new(0.3, 0.05, 0.05), at(0, 0, 0), trim.dark, trim.material)
+	for _, side in { -1, 1 } do
+		part(m, "BailArm", Vector3.new(0.05, 0.22, 0.05), at(side * 0.13, -0.09, 0) * CFrame.Angles(0, 0, side * math.rad(-30)), trim.dark, trim.material)
+	end
+	part(m, "Hook", Vector3.new(0.12, 0.05, 0.05), at(0, -0.2, 0), trim.metal, trim.material)
+	part(m, "Stem", Vector3.new(0.09, 0.14, 0.09), at(0.02, -0.27, 0) * CFrame.Angles(0, 0, math.rad(-10)), Color3.fromRGB(70, 104, 40))
+	-- Dynia: środek i dwa „płaty” na krzyż, żeby z klocków wyszła okrągła
+	local y = -0.58
+	part(m, "Body", Vector3.new(0.6, 0.48, 0.6), at(0, y, 0), PUMPKIN)
+	part(m, "LobeX", Vector3.new(0.68, 0.4, 0.46), at(0, y, 0), PUMPKIN_DARK)
+	part(m, "LobeZ", Vector3.new(0.46, 0.4, 0.68), at(0, y, 0), PUMPKIN_DARK)
+	part(m, "Top", Vector3.new(0.42, 0.06, 0.42), at(0, y + 0.27, 0), PUMPKIN)
+	part(m, "Bottom", Vector3.new(0.42, 0.06, 0.42), at(0, y - 0.27, 0), PUMPKIN_DARK)
+	for _, turn in { 0, math.pi } do
+		local face = at(0, y, 0) * CFrame.Angles(0, turn, 0) * CFrame.new(0, 0, -0.345)
+		for _, x in { -0.12, 0.12 } do
+			part(m, "Eye", Vector3.new(0.1, 0.1, 0.03), face * CFrame.new(x, 0.08, 0) * CFrame.Angles(0, 0, math.rad(45)), PUMPKIN_GLOW, Enum.Material.Neon)
+		end
+		part(m, if turn == 0 then "LanternGlass" else "Mouth", Vector3.new(0.3, 0.08, 0.03), face * CFrame.new(0, -0.1, 0), PUMPKIN_GLOW, Enum.Material.Neon)
+		for _, x in { -0.06, 0.06 } do
+			part(m, "Tooth", Vector3.new(0.045, 0.04, 0.035), face * CFrame.new(x, -0.075, -0.003), PUMPKIN)
+		end
+	end
+	m:SetAttribute("Tier", HandTools.lanternTier(level))
+	m:SetAttribute("Skin", "pumpkin_lantern")
 	attach(m, weldTo, base, scale or 1.35)
 	return m
 end
@@ -219,7 +263,10 @@ function HandTools.knifeStyle(level: number): KnifeStyle
 end
 
 -- base: środek chwytu w dłoni; nóż leży wzdłuż -Z (ostrze do przodu), góra ostrza to +Y
-function HandTools.knife(level: number, base: CFrame, weldTo: BasePart?, scale: number?): Model
+function HandTools.knife(level: number, base: CFrame, weldTo: BasePart?, scale: number?, skin: string?): Model
+	if skin == "sickle" then
+		return HandTools.sickle(level, base, weldTo, scale)
+	end
 	local style = HandTools.knifeStyle(level)
 	local m = Instance.new("Model")
 	m.Name = "HandKnife"
@@ -317,6 +364,60 @@ function HandTools.knife(level: number, base: CFrame, weldTo: BasePart?, scale: 
 	end
 
 	m:SetAttribute("Level", level)
+	attach(m, weldTo, base, scale or 1.7)
+	return m
+end
+
+-- Halloween: sierp (skórka nożyka). Ciemna rączka z pomarańczowymi obręczami i dynią w głowicy,
+-- ostrze wygięte w półksiężyc ze świecącą pomarańczową krawędzią od środka łuku.
+function HandTools.sickle(level: number, base: CFrame, weldTo: BasePart?, scale: number?): Model
+	local m = Instance.new("Model")
+	m.Name = "HandKnife"
+	local handleColor = Color3.fromRGB(70, 46, 34)
+	part(m, "Handle", Vector3.new(0.13, 0.14, 0.42), base * CFrame.new(0, 0, 0.05), handleColor, Enum.Material.Wood)
+	for _, z in { -0.1, 0.18 } do
+		part(m, "Band", Vector3.new(0.145, 0.155, 0.03), base * CFrame.new(0, 0, z), Color3.fromRGB(240, 128, 30), Enum.Material.Metal)
+	end
+	part(m, "Pommel", Vector3.new(0.16, 0.14, 0.14), base * CFrame.new(0, 0, 0.3), PUMPKIN)
+	part(m, "PommelStem", Vector3.new(0.04, 0.06, 0.04), base * CFrame.new(0, 0.09, 0.3), Color3.fromRGB(70, 104, 40))
+	part(m, "Bolster", Vector3.new(0.15, 0.17, 0.05), base * CFrame.new(0, 0, -0.17), Color3.fromRGB(60, 56, 64), Enum.Material.Metal)
+
+	-- Łuk ostrza w płaszczyźnie YZ układu chwytu: środek łuku nad i przed rączką
+	local center = Vector3.new(0, 0.26, -0.42)
+	local radius = 0.34
+	local from, to = math.rad(-52), math.rad(-245)
+	local steps = 9
+	local blade = Color3.fromRGB(70, 68, 78)
+	local glow = Color3.fromRGB(255, 150, 50)
+	local function point(angle: number): Vector3
+		return center + Vector3.new(0, radius * math.sin(angle), radius * math.cos(angle))
+	end
+	local first: BasePart? = nil
+	for i = 0, steps - 1 do
+		local a = from + (to - from) * i / steps
+		local b = from + (to - from) * (i + 1) / steps
+		local pa, pb = point(a), point(b)
+		local mid = (pa + pb) / 2
+		local outward = (mid - center).Unit
+		local height = 0.13 - 0.09 * (i / (steps - 1)) -- ostrze zwęża się ku czubkowi
+		local length = (pb - pa).Magnitude + 0.02
+		local segment_cf = CFrame.lookAt(mid, pb, outward)
+		local segment = part(m, "Blade", Vector3.new(0.035, height, length), base * segment_cf * CFrame.new(0, height * 0.2, 0), blade, Enum.Material.Metal)
+		segment.Reflectance = 0.15
+		first = first or segment
+		-- Krawędź tnąca od środka łuku
+		part(m, "Edge", Vector3.new(0.045, 0.022, length), base * segment_cf * CFrame.new(0, -height * 0.3, 0), glow, Enum.Material.Neon)
+	end
+	if first then
+		local light = Instance.new("PointLight")
+		light.Color = glow
+		light.Range = 5
+		light.Brightness = 0.7
+		light.Shadows = false
+		light.Parent = first
+	end
+	m:SetAttribute("Level", level)
+	m:SetAttribute("Skin", "sickle")
 	attach(m, weldTo, base, scale or 1.7)
 	return m
 end

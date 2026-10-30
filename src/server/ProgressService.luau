@@ -27,6 +27,7 @@ export type Api = {
 	getData: (Player) -> Data?,
 	notify: (Player, string, { any }?, string?, MutationInfo?) -> (),
 	pushState: (Player) -> (),
+	applyStats: (Player) -> (), -- przebudowa latarni i nożyka w dłoni (skórki)
 }
 
 local ProgressService = {}
@@ -133,6 +134,18 @@ local function refreshTitle(player: Player, data: Data)
 	checkBadges(player, data)
 end
 
+-- Skórki, które gracz ma (z kotła i ze ścieżki nagród)
+local function ownedSkins(data: Data): { string }
+	local list = {}
+	for id in Halloween.SKINS do
+		if Halloween.ownsSkin(data.skins, data.stats.candy, id) then
+			table.insert(list, id)
+		end
+	end
+	table.sort(list)
+	return list
+end
+
 -- Stan dla klienta (okna Grzybopedii i zadań). Wysyłamy tylko, gdy coś się zmieniło.
 local function send(player: Player, force: boolean?)
 	local data = api.getData(player)
@@ -166,6 +179,9 @@ local function send(player: Player, force: boolean?)
 		titleChoice = data.titleChoice,
 		tutorialDone = titleContext(data).tutorialDone,
 		eventClaimed = data.eventClaimed,
+		candyBag = data.candyBag,
+		skins = ownedSkins(data),
+		equipped = data.equipped,
 	}
 	-- Odcisk bez resetAt (zmienia się co sekundę, klient i tak liczy sam)
 	local fingerprint = HttpService:JSONEncode({
@@ -180,6 +196,9 @@ local function send(player: Player, force: boolean?)
 		payload.titleChoice,
 		payload.tutorialDone,
 		payload.eventClaimed,
+		payload.candyBag,
+		payload.skins :: any,
+		payload.equipped :: any,
 	})
 	if not force and lastSent[player] == fingerprint then
 		return
@@ -201,6 +220,17 @@ local function grantTrack(player: Player, data: Data)
 			local coins = math.floor(step.scale * scaleOf(data))
 			data.coins += coins
 			api.notify(player, "MSG_TRACK_COINS", { coins })
+		elseif step.kind == "skin" and step.id then
+			-- Nowa skórka: od razu w dłoni, jeśli w tym miejscu nie ma innej
+			local skin = Halloween.getSkin(step.id)
+			if skin then
+				local equipped = data.equipped :: any
+				if equipped[skin.slot] == "" then
+					equipped[skin.slot] = step.id
+					api.applyStats(player)
+				end
+				api.notify(player, "MSG_TRACK_SKIN", nil, skin.key)
+			end
 		end
 		data.eventClaimed = index
 	end
@@ -387,6 +417,7 @@ function ProgressService.addCandy(player: Player, amount: number, key: string?)
 	if key then
 		api.notify(player, key, { amount, data.stats.candy + amount })
 	end
+	data.candyBag += amount
 	-- Licznik, tytuły z cukierków i odznaka (Titles.EVENT_STAT.candy)
 	ProgressService.event(player, "candy", amount)
 	grantTrack(player, data)
@@ -443,7 +474,12 @@ function ProgressService.dev(player: Player, action: string): boolean
 		ProgressService.addCandy(player, 50, "MSG_CANDY_SOLD")
 	elseif action == "candyReset" then
 		data.stats.candy = 0
+		data.candyBag = 0
 		data.eventClaimed = 0
+		table.clear(data.skins)
+		data.equipped.lantern = ""
+		data.equipped.knife = ""
+		api.applyStats(player)
 		refreshTitle(player, data)
 	elseif action == "questsNew" then
 		-- Jakby był nowy dzień: nowe zadania i nagroda za kolejny dzień serii
@@ -505,6 +541,11 @@ function ProgressService.start(serviceApi: Api)
 			end
 		end
 	end)
+end
+
+-- Odświeża okna (Halloween: kieszeń z cukierkami, skórki)
+function ProgressService.refresh(player: Player)
+	send(player)
 end
 
 -- Po końcu samouczka (tytuł „Nowy”)

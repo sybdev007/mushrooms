@@ -39,6 +39,9 @@ export type Data = {
 	receipts: { string }, -- ostatnie obsłużone zakupy (Roblox może przysłać ten sam drugi raz)
 	tutorial: number, -- krok samouczka (0 = cutscenka na start, Config.Tutorial.done = skończony)
 	eventClaimed: number, -- Halloween: ile progów ścieżki nagród gracz już dostał (cukierki są w stats.candy)
+	candyBag: number, -- Halloween: cukierki w kieszeni do wydania w kotle (stats.candy = zebrane łącznie)
+	skins: { string }, -- skórki z kotła (te ze ścieżki nagród liczą się z cukierków)
+	equipped: { lantern: string, knife: string }, -- założone skórki ("" = zwykła latarnia / nożyk)
 }
 
 local LEGACY_STORE_NAME = "LanternForager_Prototype_v1" -- stary zapis bez blokady sesji (tylko do przeniesienia)
@@ -99,6 +102,9 @@ function DataService.defaultData(): Data
 		receipts = {},
 		tutorial = 0,
 		eventClaimed = 0,
+		candyBag = 0,
+		skins = {},
+		equipped = { lantern = "", knife = "" },
 	}
 end
 
@@ -302,6 +308,28 @@ local function reconcile(raw: any): Data
 	end
 	if typeof(raw.eventClaimed) == "number" then
 		data.eventClaimed = math.clamp(math.floor(raw.eventClaimed), 0, #Config.Halloween.track)
+	end
+	-- Kieszeń z cukierkami: zapisy sprzed kotła mają tyle, ile zebrały
+	if typeof(raw.candyBag) == "number" then
+		data.candyBag = math.max(0, math.floor(raw.candyBag))
+	else
+		data.candyBag = data.stats.candy
+	end
+	if typeof(raw.skins) == "table" then
+		for _, id in raw.skins do
+			if typeof(id) == "string" and Config.Halloween.skins[id] and not table.find(data.skins, id) then
+				table.insert(data.skins, id)
+			end
+		end
+	end
+	if typeof(raw.equipped) == "table" then
+		for slot in data.equipped do
+			local id = raw.equipped[slot]
+			local def = if typeof(id) == "string" then Config.Halloween.skins[id] else nil
+			if def and def.slot == slot then
+				(data.equipped :: any)[slot] = id
+			end
+		end
 	end
 	if typeof(raw.receipts) == "table" then
 		for _, id in raw.receipts do

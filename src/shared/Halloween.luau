@@ -92,6 +92,71 @@ function Halloween.newSteps(claimed: number, candy: number): { number }
 	return list
 end
 
+-- ===== Skórki =====
+
+Halloween.SKINS = Config.Halloween.skins
+Halloween.SLOTS = { "lantern", "knife" }
+
+function Halloween.getSkin(id: any): { slot: string, key: string, icon: string }?
+	return if typeof(id) == "string" then Halloween.SKINS[id] else nil
+end
+
+-- Próg ścieżki, który daje skórkę (nil = tylko z kotła)
+function Halloween.trackCandyFor(skin: string): number?
+	for _, step in Halloween.TRACK do
+		if step.kind == "skin" and step.id == skin then
+			return step.candy
+		end
+	end
+	return nil
+end
+
+-- Czy gracz ma skórkę: z kotła (zapisana lista) albo z osiągniętego progu ścieżki
+function Halloween.ownsSkin(skins: { string }, candy: number, skin: string): boolean
+	if not Halloween.SKINS[skin] then
+		return false
+	end
+	if table.find(skins, skin) then
+		return true
+	end
+	local need = Halloween.trackCandyFor(skin)
+	return need ~= nil and candy >= need
+end
+
+-- ===== Kocioł „cukierek albo psikus” =====
+
+export type Outcome = { id: string, weight: number, scale: number?, seconds: number?, amount: number?, skin: string?, trick: boolean? }
+
+-- Wynik dla liczby r z [0, 1) według wag z Config.Halloween.cauldron.outcomes
+function Halloween.rollCauldron(r: number): Outcome
+	local outcomes = Config.Halloween.cauldron.outcomes
+	local total = 0
+	for _, outcome in outcomes do
+		total += outcome.weight
+	end
+	local target = math.clamp(r, 0, 0.999999) * total
+	local acc = 0
+	for _, outcome in outcomes do
+		acc += outcome.weight
+		if target < acc then
+			return outcome
+		end
+	end
+	return outcomes[1]
+end
+
+-- Szansa na nagrodę (nie psikus), do opisu w oknie
+function Halloween.treatChance(): number
+	local total, treats = 0, 0
+	for _, outcome in Config.Halloween.cauldron.outcomes do
+		total += outcome.weight
+		if not outcome.trick then
+			treats += outcome.weight
+		end
+	end
+	return if total > 0 then treats / total else 0
+end
+
 -- Najbliższa Noc Dziadów: (start w os.time, czy już trwa). nil = w czasie eventu już żadnej nie będzie.
 function Halloween.nextSpiritNight(t: number): (number?, boolean)
 	local length = Cycle.length()

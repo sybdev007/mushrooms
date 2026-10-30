@@ -56,6 +56,7 @@ local ACTIONS: { { id: string, label: string } } = {
 	{ id = "pumpkinBoom", label = "🎃 Dyniowy wysyp" },
 	{ id = "candy50", label = "🎃 +50 cukierków" },
 	{ id = "candyReset", label = "🎃 Cukierki na 0" },
+	{ id = "cauldron", label = "🎃 Kocioł (5 🍬)" },
 }
 
 local gui = Instance.new("ScreenGui")

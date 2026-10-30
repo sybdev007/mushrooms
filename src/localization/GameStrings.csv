@@ -519,3 +519,31 @@ HW_HOW_RISK,⚠️ If your lantern goes out the pumpkins are lost with the whole
 HW_SPIRIT_NEXT,👻 Next Spirit Night in {1} - 3x more pumpkins and extra luck,,,👻 Następna Noc Dziadów za {1} - 3x więcej dyń i więcej szczęścia
 HW_SPIRIT_NOW,👻 Spirit Night is ON! 3x more pumpkins - {1} left,,,👻 Trwa Noc Dziadów! 3x więcej dyń - zostało {1}
 HW_SPIRIT_NONE,👻 No more Spirit Nights this event,,,👻 W tym evencie nie będzie już Nocy Dziadów
+SKIN_PUMPKIN_LANTERN,Jack-o'-Lantern,,,Dyniowa latarnia
+SKIN_SICKLE,Spooky Sickle,,,Upiorny sierp
+MSG_TRACK_SKIN,🎃 Halloween reward: new skin {1}! Switch it in the 🎃 window.,,,🎃 Nagroda z Halloween: nowa skórka {1}! Zmienisz ją w oknie 🎃.
+MSG_CAULDRON_NEED,The cauldron wants {1} 🍬 - you have {2}. Sell pumpkin mushrooms!,,,Kocioł chce {1} 🍬 - masz {2}. Sprzedaj dyniowe grzyby!
+MSG_CAULDRON_SKIN_ALL,🎃 {2} got the {1} skin from the cauldron!,,,🎃 {2} wylosował z kotła skórkę {1}!
+CAULDRON_ACTION,Throw in {1} 🍬,,,Wrzuć {1} 🍬
+CAULDRON_NAME,Trick-or-Treat Cauldron,,,Kocioł: cukierek albo psikus
+CAULDRON_SIGN,🎃 Trick or treat? 🎃,,,🎃 Cukierek albo psikus? 🎃
+CAULDRON_TREAT,Treat! 🍬,,,Cukierek! 🍬
+CAULDRON_TRICK,Trick! 👻,,,Psikus! 👻
+CAULDRON_BAG,🍬 left: {1},,,🍬 zostało: {1}
+CAULDRON_COINS,+{1} coins!,,,+{1} monet!
+CAULDRON_LUCK,Luck Potion for {1} min!,,,Mikstura szczęścia na {1} min!
+CAULDRON_CANDY,Candy jackpot! +{1} 🍬,,,Cukierkowa wygrana! +{1} 🍬
+CAULDRON_SKIN_LANTERN,New skin: {2}!,,,Nowa skórka: {2}!
+CAULDRON_SKIN_KNIFE,New skin: {2}!,,,Nowa skórka: {2}!
+CAULDRON_SKIN_DUPE,{2} again - so +{1} coins!,,,Znowu {2} - więc +{1} monet!
+CAULDRON_TRICK_PUMPKIN,Your head turned into a pumpkin!,,,Twoja głowa zamieniła się w dynię!
+CAULDRON_TRICK_GHOSTLIGHT,Your lantern glows ghostly green!,,,Twoja latarnia świeci na zielono jak u duchów!
+CAULDRON_TRICK_SCARE,Boo! Got you!,,,Buu! Mam cię!
+CAULDRON_TRICK_SPIRITS,Spirits are following you!,,,Dusze krążą wokół ciebie!
+HW_HOW_CAULDRON,🧪 Cauldron by the cabin: throw in {1} 🍬 - trick or treat! Treats: coins · potions · skins.,,,🧪 Kocioł przy chatce: wrzuć {1} 🍬 - cukierek albo psikus! Nagrody: monety · mikstury · skórki.
+HW_REWARD_SKIN,Skin: {1},,,Skórka: {1}
+HW_SKINS_TITLE,Skins 🎃,,,Skórki 🎃
+HW_SKIN_ON,Equip,,,Załóż
+HW_SKIN_OFF,Unequip,,,Zdejmij
+HW_SKIN_LOCKED,🔒 {1} 🍬,,,🔒 {1} 🍬
+HW_TRACK_PROGRESS,Collected {1} / {2} 🍬,,,Zebrane {1} / {2} 🍬

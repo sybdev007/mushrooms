@@ -3,6 +3,7 @@
 -- na ścieżce do lasu, w obozowisku w jaskini i na przystani na bagnach. GameService buduje go
 -- w czasie eventu i usuwa po nim. Wszystko jest ozdobą: bez kolizji, bez dotyku i bez celowania.
 
+local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
@@ -110,6 +111,105 @@ local function candle(parent: Instance, at: CFrame, s: number)
 	light.Brightness = 1
 	light.Parent = flame
 	m.PrimaryPart = glass
+	m.Parent = parent
+end
+
+-- Kocioł „cukierek albo psikus”: żeliwny garnek na nóżkach nad ogniem, z bulgoczącym zielonym
+-- wywarem. Przycisk (ProximityPrompt z tagiem "CauldronPrompt") obsługuje HalloweenService,
+-- a teksty przycisku i napisu nad kotłem ustawia klient w języku gracza (CauldronView).
+local IRON = Color3.fromRGB(40, 38, 46)
+local IRON_LIGHT = Color3.fromRGB(70, 66, 80)
+local BREW = Color3.fromRGB(120, 255, 90)
+local function cauldron(parent: Instance, at: CFrame)
+	local m = Instance.new("Model")
+	m.Name = "Cauldron"
+	-- Ognisko pod kotłem
+	for k = 0, 3 do
+		local log = part(m, "Log", Vector3.new(0.5, 0.5, 3), at * CFrame.Angles(0, k * math.pi / 4, 0) * CFrame.new(0, 0.25, 0), Color3.fromRGB(96, 62, 40), Enum.Material.Wood)
+		log.CastShadow = false
+	end
+	part(m, "Embers", Vector3.new(1.4, 0.3, 1.4), at * CFrame.new(0, 0.55, 0), Color3.fromRGB(255, 120, 40), Enum.Material.Neon)
+	local fire = Instance.new("Fire")
+	fire.Size = 3
+	fire.Heat = 6
+	fire.Color = Color3.fromRGB(255, 140, 40)
+	fire.SecondaryColor = Color3.fromRGB(255, 220, 90)
+	fire.Parent = m:FindFirstChild("Embers")
+	-- Nóżki i garnek z klocków (szerszy w środku, węższy przy dnie i przy brzegu)
+	for k = 0, 2 do
+		part(m, "Leg", Vector3.new(0.4, 1.3, 0.4), at * CFrame.Angles(0, k * 2 * math.pi / 3, 0) * CFrame.new(0, 0.65, -1.4), IRON)
+	end
+	part(m, "PotBottom", Vector3.new(2.4, 0.5, 2.4), at * CFrame.new(0, 1.35, 0), IRON)
+	local belly = part(m, "PotBelly", Vector3.new(3.4, 1.4, 3.4), at * CFrame.new(0, 2.25, 0), IRON)
+	texturize(belly, 3.4)
+	part(m, "PotNeck", Vector3.new(3, 0.4, 3), at * CFrame.new(0, 3.15, 0), IRON)
+	part(m, "Rim", Vector3.new(3.5, 0.3, 3.5), at * CFrame.new(0, 3.45, 0), IRON_LIGHT, Enum.Material.Metal)
+	for _, side in { -1, 1 } do
+		part(m, "Handle", Vector3.new(0.3, 0.6, 0.3), at * CFrame.new(side * 1.95, 3.1, 0), IRON_LIGHT, Enum.Material.Metal)
+	end
+	local brew = part(m, "Brew", Vector3.new(3.1, 0.2, 3.1), at * CFrame.new(0, 3.42, 0), BREW, Enum.Material.Neon)
+	-- Bąble i zielona para
+	local bubbles = Instance.new("ParticleEmitter")
+	bubbles.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+	bubbles.Color = ColorSequence.new(BREW, Color3.fromRGB(200, 255, 170))
+	bubbles.LightEmission = 0.6
+	bubbles.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.2), NumberSequenceKeypoint.new(1, 0.5) })
+	bubbles.Transparency = NumberSequence.new(0.2, 1)
+	bubbles.Lifetime = NumberRange.new(0.8, 1.4)
+	bubbles.Speed = NumberRange.new(1, 2)
+	bubbles.SpreadAngle = Vector2.new(25, 25)
+	bubbles.Rate = 10
+	bubbles.EmissionDirection = Enum.NormalId.Top
+	bubbles.Parent = brew
+	local steam = Instance.new("ParticleEmitter")
+	steam.Texture = "rbxasset://textures/particles/smoke_main.dds"
+	steam.Color = ColorSequence.new(Color3.fromRGB(150, 230, 140))
+	steam.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.6), NumberSequenceKeypoint.new(1, 1) })
+	steam.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1.2), NumberSequenceKeypoint.new(1, 3) })
+	steam.Lifetime = NumberRange.new(1.5, 2.5)
+	steam.Speed = NumberRange.new(1.5, 2.5)
+	steam.Rate = 4
+	steam.EmissionDirection = Enum.NormalId.Top
+	steam.Parent = brew
+	local light = Instance.new("PointLight")
+	light.Color = BREW
+	light.Range = 10
+	light.Brightness = 1
+	light.Parent = brew
+	-- Przycisk i napis nad kotłem
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.Name = "CauldronPrompt"
+	prompt.ActionText = "CAULDRON_ACTION"
+	prompt.ObjectText = "CAULDRON_NAME"
+	prompt.KeyboardKeyCode = Enum.KeyCode.E
+	prompt.GamepadKeyCode = Enum.KeyCode.ButtonX
+	prompt.MaxActivationDistance = 10
+	prompt.RequiresLineOfSight = false
+	prompt.HoldDuration = 0.3
+	prompt.Parent = brew
+	CollectionService:AddTag(prompt, "CauldronPrompt")
+	local sign = Instance.new("BillboardGui")
+	sign.Name = "CauldronSign"
+	sign.Size = UDim2.fromOffset(220, 44)
+	sign.StudsOffsetWorldSpace = Vector3.new(0, 3.6, 0)
+	sign.MaxDistance = 70
+	sign.LightInfluence = 0
+	sign.Parent = brew
+	local label = Instance.new("TextLabel")
+	label.Name = "Label"
+	label.Size = UDim2.fromScale(1, 1)
+	label.BackgroundTransparency = 1
+	label.Font = Enum.Font.FredokaOne
+	label.TextScaled = true
+	label.TextColor3 = Color3.fromRGB(200, 255, 150)
+	label.Text = "🎃"
+	label.Parent = sign
+	local stroke = Instance.new("UIStroke")
+	stroke.Thickness = 2.5
+	stroke.Color = Color3.fromRGB(30, 20, 40)
+	stroke.Parent = label
+	CollectionService:AddTag(sign, "CauldronSign")
+	m.PrimaryPart = belly
 	m.Parent = parent
 end
 
@@ -230,6 +330,12 @@ function HalloweenDecor.build(parent: Instance, _map: any): Folder
 				end
 			end
 		end
+	end
+	-- Kocioł na trawie przed gankiem, po lewej od schodka (patrząc od lasu: po prawej)
+	local cx, cz = -9.5, -0.5
+	local cy = groundAt(cx, cz, 8, ignore)
+	if cy and cy < 4 then
+		cauldron(folder, CFrame.new(cx, cy, cz) * CFrame.Angles(0, math.rad(20), 0))
 	end
 	folder.Parent = parent
 	return folder

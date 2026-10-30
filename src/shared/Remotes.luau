@@ -13,6 +13,7 @@ local NAMES = {
 	"Notify", -- komunikat do pokazania na ekranie
 	"ProgressUpdate", -- Grzybopedia, zadania, seria logowań (ProgressService)
 	"GardenView", -- stan grządek dla okna sadzenia (i czy je otworzyć)
+	"CauldronResult", -- Halloween: co wypadło z kotła (okienko i dźwięk u gracza)
 	-- klient -> serwer
 	"PickMushroom",
 	"SellBasket",
@@ -25,6 +26,7 @@ local NAMES = {
 	"TutorialStep", -- klient: skończyłem krok samouczka (serwer sprawdza, czy może przejść dalej)
 	"GardenPlant", -- posadź grzyb z koszyka na wybranej grządce (podmiana sprzedaje stary)
 	"GardenAuto", -- posadź najlepsze automatycznie
+	"EquipSkin", -- Halloween: załóż / zdejmij skórkę latarni albo nożyka (slot, id; "" = zwykła)
 }
 
 local folder: Folder

@@ -32,6 +32,7 @@ local GardenService = require(script.Parent.GardenService)
 local ProgressService = require(script.Parent.ProgressService)
 local TutorialService = require(script.Parent.TutorialService)
 local LeaderboardService = require(script.Parent.LeaderboardService)
+local HalloweenService = require(script.Parent.HalloweenService)
 
 type SpotState = {
 	speciesId: string,
@@ -384,9 +385,9 @@ local function handOf(character: Model, side: string): (BasePart?, boolean)
 	return nil, false
 end
 
-local function attachHandLantern(character: Model, level: number)
+local function attachHandLantern(character: Model, level: number, skin: string)
 	local existing = character:FindFirstChild("HandLantern")
-	if existing and existing:GetAttribute("Tier") == HandTools.lanternTier(level) then
+	if existing and existing:GetAttribute("Tier") == HandTools.lanternTier(level) and (existing:GetAttribute("Skin") or "") == skin then
 		return
 	end
 	if existing then
@@ -398,12 +399,12 @@ local function attachHandLantern(character: Model, level: number)
 	end
 	-- Pałąk w dłoni, latarnia wisi pod ręką
 	local grip = hand.CFrame * CFrame.new(0, if isR6 then -1.05 else -0.12, 0)
-	HandTools.lantern(level, grip, hand).Parent = character
+	HandTools.lantern(level, grip, hand, nil, skin).Parent = character
 end
 
-local function attachHandKnife(character: Model, level: number)
+local function attachHandKnife(character: Model, level: number, skin: string)
 	local existing = character:FindFirstChild("HandKnife")
-	if existing and existing:GetAttribute("Level") == level then
+	if existing and existing:GetAttribute("Level") == level and (existing:GetAttribute("Skin") or "") == skin then
 		return
 	end
 	if existing then
@@ -422,7 +423,7 @@ local function attachHandKnife(character: Model, level: number)
 		- basis.RightVector * 0.15
 	local direction = (Vector3.new(0, -0.85, 0) - basis.RightVector * 0.45 + basis.LookVector * 0.2).Unit
 	local grip = CFrame.lookAt(pos, pos + direction, -basis.LookVector)
-	HandTools.knife(level, grip, hand).Parent = character
+	HandTools.knife(level, grip, hand, nil, skin).Parent = character
 end
 
 local function applyCharacterStats(session: Session)
@@ -468,8 +469,14 @@ local function applyCharacterStats(session: Session)
 		-- Wspólna wyprawa świeci dalej; 60 to limit Robloxa dla PointLight
 		lantern.Range = math.min(stat(session, "lantern") * Expedition.light(session.group), 60)
 	end
-	attachHandLantern(character, session.data.upgrades.lantern or 0)
-	attachHandKnife(character, session.data.upgrades.knife or 0)
+	-- Skórki z Halloween (tylko te, które gracz naprawdę ma)
+	local data = session.data
+	local function skinFor(slot: string): string
+		local id = (data.equipped :: any)[slot] or ""
+		return if id ~= "" and Halloween.ownsSkin(data.skins, data.stats.candy, id) then id else ""
+	end
+	attachHandLantern(character, data.upgrades.lantern or 0, skinFor("lantern"))
+	attachHandKnife(character, data.upgrades.knife or 0, skinFor("knife"))
 end
 
 -- Latarnia zgasła albo strażnik złapał gracza: zabiera koszyk i wyrzuca gracza do chatki / obozu.
@@ -1297,7 +1304,7 @@ local function onDevAction(player: Player, action: unknown)
 		task.defer(startDowned, session)
 	elseif action == "boardsRefresh" then
 		task.spawn(LeaderboardService.refreshNow)
-	elseif not ProgressService.dev(player, action) then
+	elseif not (ProgressService.dev(player, action) or HalloweenService.dev(player, action)) then
 		return
 	end
 	notify(session, "MSG_DEV_DONE", { action })
@@ -1545,6 +1552,39 @@ function GameService.start(mapInfo: MapBuilder.MapInfo)
 			if session then
 				pushState(session)
 			end
+		end,
+		applyStats = function(player: Player)
+			local session = sessions[player]
+			if session then
+				applyCharacterStats(session)
+			end
+		end,
+	})
+	HalloweenService.start({
+		getData = function(player: Player)
+			local session = sessions[player]
+			return if session then session.data else nil
+		end,
+		notify = function(player: Player, key: string, args: { any }?, nameKey: string?)
+			local session = sessions[player]
+			if session then
+				notify(session, key, args, nameKey)
+			end
+		end,
+		pushState = function(player: Player)
+			local session = sessions[player]
+			if session then
+				pushState(session)
+			end
+		end,
+		applyStats = function(player: Player)
+			local session = sessions[player]
+			if session then
+				applyCharacterStats(session)
+			end
+		end,
+		refresh = function(player: Player)
+			ProgressService.refresh(player)
 		end,
 	})
 	LeaderboardService.start({

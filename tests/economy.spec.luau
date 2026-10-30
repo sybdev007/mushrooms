@@ -1661,7 +1661,7 @@ test("halloween: ścieżka nagród", function()
 			local def = Titles.get(step.id)
 			check(def ~= nil and def.stat == "candy" and def.goal == step.candy and def.event == "halloween", "tytuł " .. tostring(step.id))
 		else
-			check(step.kind == "luck" or step.kind == "coins", "nieznana nagroda " .. step.kind)
+			check(step.kind == "luck" or step.kind == "coins" or (step.kind == "skin" and Halloween.getSkin(step.id) ~= nil), "nieznana nagroda " .. step.kind)
 		end
 	end
 end)
@@ -1680,6 +1680,48 @@ test("halloween: tytuły i odznaka za cukierki", function()
 	stats.candy = H.badgeCandy
 	check(Achievements.check(source).halloween2026 == true, "odznaka")
 	check(Titles.earned(ctx).TITLE_ANCESTRAL_SPIRIT == true, "Duch Dziadów")
+end)
+
+test("halloween: skórki ze ścieżki i z kotła", function()
+	local lanternAt = Halloween.trackCandyFor("pumpkin_lantern")
+	check(lanternAt ~= nil, "latarnia jest na ścieżce")
+	check(not Halloween.ownsSkin({}, (lanternAt :: number) - 1, "pumpkin_lantern"), "jeszcze nie")
+	check(Halloween.ownsSkin({}, lanternAt :: number, "pumpkin_lantern"), "z progu")
+	check(Halloween.ownsSkin({ "sickle" }, 0, "sickle"), "z kotła")
+	check(not Halloween.ownsSkin({ "nope" }, 9999, "nope"), "nieznana")
+	for id, def in Halloween.SKINS do
+		check(def.slot == "lantern" or def.slot == "knife", "slot " .. id)
+		check(csvHas(def.key), "tłumaczenie " .. def.key)
+	end
+end)
+
+test("halloween: kocioł", function()
+	local cauldron = H.cauldron
+	local seen = {}
+	for i = 0, 999 do
+		local outcome = Halloween.rollCauldron(i / 1000)
+		seen[outcome.id] = (seen[outcome.id] or 0) + 1
+		if outcome.skin then
+			check(Halloween.getSkin(outcome.skin) ~= nil, "skórka " .. outcome.id)
+		end
+	end
+	for _, outcome in cauldron.outcomes do
+		check((seen[outcome.id] or 0) > 0, "wypada " .. outcome.id)
+		check(csvHas("CAULDRON_" .. string.upper(outcome.id)), "tłumaczenie " .. outcome.id)
+	end
+	eq(Halloween.rollCauldron(0).id, cauldron.outcomes[1].id)
+	eq(Halloween.rollCauldron(1).id, cauldron.outcomes[#cauldron.outcomes].id, "r = 1 nie wychodzi poza listę")
+	local chance = Halloween.treatChance()
+	check(chance > 0.5 and chance < 0.75, "częściej nagroda niż psikus: " .. chance)
+	-- Cukierki z kotła nie mogą się opłacać (wartość oczekiwana < koszt)
+	local total, candy = 0, 0
+	for _, outcome in cauldron.outcomes do
+		total += outcome.weight
+		if outcome.id == "candy" then
+			candy += outcome.weight * (outcome.amount or 0)
+		end
+	end
+	check(candy / total < cauldron.cost, "kocioł nie mnoży cukierków")
 end)
 
 test("halloween: najbliższa Noc Dziadów", function()
