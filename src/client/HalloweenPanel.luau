@@ -249,7 +249,8 @@ local function rewardText(step: any): string
 		return Localize.t("HW_REWARD_COINS", { formatCoins(step.scale * scale) })
 	elseif step.kind == "skin" and step.id then
 		local skin = Halloween.getSkin(step.id)
-		return Localize.t("HW_REWARD_SKIN", { if skin then Localize.t(skin.key) else "?" })
+		-- Sama nazwa (z „Skórka:” długie nazwy łamały się w środku słowa); ikona mówi, że to skórka
+		return if skin then Localize.t(skin.key) else "?"
 	end
 	return ""
 end

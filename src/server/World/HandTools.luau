@@ -382,15 +382,16 @@ function HandTools.sickle(level: number, base: CFrame, weldTo: BasePart?, scale:
 	part(m, "PommelStem", Vector3.new(0.04, 0.06, 0.04), base * CFrame.new(0, 0.09, 0.3), Color3.fromRGB(70, 104, 40))
 	part(m, "Bolster", Vector3.new(0.15, 0.17, 0.05), base * CFrame.new(0, 0, -0.17), Color3.fromRGB(60, 56, 64), Enum.Material.Metal)
 
-	-- Łuk ostrza w płaszczyźnie YZ układu chwytu: środek łuku nad i przed rączką
-	local center = Vector3.new(0, 0.26, -0.42)
+	-- Łuk ostrza w płaszczyźnie XZ układu chwytu (płaszczyzną do kamery za graczem; w YZ był
+	-- widoczny tylko kantem): środek łuku z boku i przed rączką, czubek odchodzi od nogi
+	local center = Vector3.new(0.26, 0, -0.42)
 	local radius = 0.34
 	local from, to = math.rad(-52), math.rad(-245)
 	local steps = 9
 	local blade = Color3.fromRGB(70, 68, 78)
 	local glow = Color3.fromRGB(255, 150, 50)
 	local function point(angle: number): Vector3
-		return center + Vector3.new(0, radius * math.sin(angle), radius * math.cos(angle))
+		return center + Vector3.new(radius * math.sin(angle), 0, radius * math.cos(angle))
 	end
 	local first: BasePart? = nil
 	for i = 0, steps - 1 do

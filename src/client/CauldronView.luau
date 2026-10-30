@@ -105,6 +105,16 @@ local bagLine = PanelKit.label(card, "Bag", UDim2.new(1, -130, 0, 20), UDim2.fro
 bagLine.TextXAlignment = Enum.TextXAlignment.Left
 UiKit.outline(bagLine, 1.5)
 
+-- 480000 → „480 000”
+local function formatNumber(value: any): string
+	if typeof(value) ~= "number" then
+		return tostring(value)
+	end
+	local text = tostring(math.floor(value + 0.5))
+	local formatted = text:reverse():gsub("(%d%d%d)", "%1 "):reverse()
+	return (formatted:gsub("^ ", ""))
+end
+
 local shown = 0
 local function showCard(result: { [string]: any })
 	shown += 1
@@ -116,7 +126,7 @@ local function showCard(result: { [string]: any })
 	icon.Text = ICONS[id] or "🎃"
 	header.Text = Localize.t(if trick then "CAULDRON_TRICK" else "CAULDRON_TREAT")
 	local skinName = if typeof(result.skinKey) == "string" then Localize.t(result.skinKey) else ""
-	body.Text = Localize.t("CAULDRON_" .. string.upper(id), { result.amount or 0, skinName })
+	body.Text = Localize.t("CAULDRON_" .. string.upper(id), { formatNumber(result.amount or 0), skinName })
 	bagLine.Text = Localize.t("CAULDRON_BAG", { result.bag or 0 })
 	local base = UiScale.get()
 	card.Visible = true
