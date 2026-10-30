@@ -797,7 +797,7 @@ local function buildClimbGuards(m: Model)
 	-- więc nie da się na nim stanąć ani dostać na dach. W środku chatki i na ganku jest wyżej
 	-- niż głowa skaczącej postaci, więc nikomu nie przeszkadza.
 	local eaveY = WALL_TOP - 1.6 * math.tan(ROOF_ANGLE) + 0.3
-	local bottom = eaveY - 0.6
+	local bottom = eaveY - 0.1 -- skacząca postać w chatce sięga głową ok. 13,8; okap ~13,8, a stanąć pod nim się nie da
 	local blockTop = 160
 	local x1, x2 = -HALF_W - 3, HALF_W + 3
 	local z1, z2 = BACK_Z - 4.5, FRONT_Z + 9
