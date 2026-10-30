@@ -243,7 +243,7 @@ Config.WorldOilUpgrade = {
 -- Jaskinia: portal za Gniazdem Leszego, otwiera się graczom z co najmniej unlockCoins monet.
 -- Raz otwarty zostaje otwarty (zapisywane), nawet gdy potem wydasz monety.
 Config.Cave = {
-	unlockCoins = 30000, -- ok. 40 min lasu po ulepszeniach (tools/economy_sim.luau); było 50 000
+	unlockCoins = 30000, -- ok. 55 min lasu (tools/economy_sim.luau), razem z maksymalnymi ulepszeniami lasu
 	halfWidth = 46, -- jaskinia jest węższa niż las
 	ceiling = 34, -- wysokość stropu
 	portal = { x = 0, z = 476 }, -- portal w lesie, kawałek za Gniazdem Leszego
@@ -413,26 +413,26 @@ Config.Species = {
 	-- Skarbiec Skarbnika (koniec Sztolni): zerwanie budzi Skarbnika
 	{ id = "skarbnik_truffle", key = "MUSH_SKARBNIK_TRUFFLE", zone = 9, value = 6000, weight = 0, cap = { 255, 220, 90 }, lair = true },
 	-- Trzęsawisko
-	{ id = "bog_bell", key = "MUSH_BOG_BELL", zone = 11, value = 4000, weight = 50, cap = { 120, 140, 70 } },
-	{ id = "peat_cap", key = "MUSH_PEAT_CAP", zone = 11, value = 5500, weight = 35, cap = { 110, 70, 50 } },
-	{ id = "frog_stool", key = "MUSH_FROG_STOOL", zone = 11, value = 7500, weight = 15, cap = { 90, 210, 90 } },
+	{ id = "bog_bell", key = "MUSH_BOG_BELL", zone = 11, value = 2000, weight = 50, cap = { 120, 140, 70 } },
+	{ id = "peat_cap", key = "MUSH_PEAT_CAP", zone = 11, value = 2800, weight = 35, cap = { 110, 70, 50 } },
+	{ id = "frog_stool", key = "MUSH_FROG_STOOL", zone = 11, value = 3800, weight = 15, cap = { 90, 210, 90 } },
 	-- Mokradła Ogników: prawdziwe ogniki i ich podróbki (błędne ogniki)
-	{ id = "wisp_cap", key = "MUSH_WISP_CAP", zone = 12, value = 11000, weight = 45, cap = { 140, 255, 220 } },
-	{ id = "moon_lily", key = "MUSH_MOON_LILY", zone = 12, value = 16000, weight = 25, cap = { 230, 230, 255 } },
+	{ id = "wisp_cap", key = "MUSH_WISP_CAP", zone = 12, value = 5500, weight = 45, cap = { 140, 255, 220 } },
+	{ id = "moon_lily", key = "MUSH_MOON_LILY", zone = 12, value = 8000, weight = 25, cap = { 230, 230, 255 } },
 	{ id = "false_wisp", key = "MUSH_WISP_CAP", zone = 12, value = 0, weight = 30, cap = { 140, 255, 220 }, mimic = true },
 	-- Staw Utopca
-	{ id = "drowned_cap", key = "MUSH_DROWNED_CAP", zone = 13, value = 15000, weight = 50, cap = { 60, 110, 120 } },
-	{ id = "bog_pearl", key = "MUSH_BOG_PEARL", zone = 13, value = 21000, weight = 35, cap = { 250, 250, 240 } },
-	{ id = "will_o_wisp", key = "MUSH_WILL_O_WISP", zone = 13, value = 32000, weight = 15, cap = { 180, 255, 120 } },
+	{ id = "drowned_cap", key = "MUSH_DROWNED_CAP", zone = 13, value = 7500, weight = 50, cap = { 60, 110, 120 } },
+	{ id = "bog_pearl", key = "MUSH_BOG_PEARL", zone = 13, value = 10500, weight = 35, cap = { 250, 250, 240 } },
+	{ id = "will_o_wisp", key = "MUSH_WILL_O_WISP", zone = 13, value = 16000, weight = 15, cap = { 180, 255, 120 } },
 	-- Kielich Utopca (legowisko na stawie): zerwanie budzi Utopca
-	{ id = "utopiec_chalice", key = "MUSH_UTOPIEC_CHALICE", zone = 13, value = 60000, weight = 0, cap = { 255, 90, 70 }, guardian = "utopiec" },
+	{ id = "utopiec_chalice", key = "MUSH_UTOPIEC_CHALICE", zone = 13, value = 35000, weight = 0, cap = { 255, 90, 70 }, guardian = "utopiec" },
 } :: { SpeciesDef }
 
 Config.Upgrades = {
-	lantern = { key = "UPG_LANTERN", base = 14, step = 4, maxLevel = 8, costBase = 25, costGrowth = 1.6 },
-	oil = { key = "UPG_OIL", base = 30, step = 12, maxLevel = 10, costBase = 20, costGrowth = 1.55 },
-	basket = { key = "UPG_BASKET", base = 5, step = 3, maxLevel = 10, costBase = 15, costGrowth = 1.5 },
-	boots = { key = "UPG_BOOTS", base = 16, step = 1.5, maxLevel = 8, costBase = 30, costGrowth = 1.65 },
+	lantern = { key = "UPG_LANTERN", base = 14, step = 4, maxLevel = 8, costBase = 30, costGrowth = 1.9 },
+	oil = { key = "UPG_OIL", base = 30, step = 12, maxLevel = 10, costBase = 20, costGrowth = 1.8 },
+	basket = { key = "UPG_BASKET", base = 5, step = 3, maxLevel = 10, costBase = 15, costGrowth = 1.75 },
+	boots = { key = "UPG_BOOTS", base = 16, step = 1.5, maxLevel = 8, costBase = 35, costGrowth = 1.9 },
 	-- Kłódka ogródka: ile sekund złodziej musi trzymać przycisk, żeby wyrwać grzyb
 	lock = { key = "UPG_LOCK", base = 2, step = 1, maxLevel = 6, costBase = 60, costGrowth = 1.7 },
 	-- Grządki: ile grzybów można mieć posadzonych naraz (siatka 3 x 3 w ogródku)
@@ -446,9 +446,9 @@ Config.Upgrades = {
 	-- Plecak górnika: tyle dodatkowych miejsc w koszyku
 	pack = { key = "UPG_PACK", base = 0, step = 4, maxLevel = 6, costBase = 6000, costGrowth = 1.7, shop = "cave" },
 	-- Przystań na bagnach. Knot z sitowia: mnożnik spalania oleju na bagnach
-	rushwick = { key = "UPG_RUSHWICK", base = 1, step = -0.1, maxLevel = 6, costBase = 150000, costGrowth = 1.75, shop = "swamp" },
+	rushwick = { key = "UPG_RUSHWICK", base = 1, step = -0.1, maxLevel = 6, costBase = 200000, costGrowth = 1.75, shop = "swamp" },
 	-- Wiklinowy kosz: jeszcze więcej miejsca w koszyku
-	creel = { key = "UPG_CREEL", base = 0, step = 5, maxLevel = 5, costBase = 120000, costGrowth = 1.7, shop = "swamp" },
+	creel = { key = "UPG_CREEL", base = 0, step = 5, maxLevel = 5, costBase = 160000, costGrowth = 1.7, shop = "swamp" },
 } :: { [string]: UpgradeDef }
 
 -- Kolejność przycisków ulepszeń: w chatce i w obozowisku w jaskini
@@ -620,9 +620,9 @@ Config.Halloween = {
 	cauldron = {
 		cost = 5,
 		cooldown = 1.5,
-		duplicateScale = 4, -- skórka, którą już masz: monety (x skala nagród)
+		duplicateScale = 3, -- skórka, którą już masz: monety (x skala nagród)
 		outcomes = {
-			{ id = "coins", weight = 28, scale = 1.5 },
+			{ id = "coins", weight = 28, scale = 1 },
 			{ id = "luck", weight = 15, seconds = 300 },
 			{ id = "candy", weight = 6, amount = 12 }, -- tylko do kieszeni, ścieżki nie przesuwa
 			{ id = "skin_lantern", weight = 4, skin = "pumpkin_lantern" },

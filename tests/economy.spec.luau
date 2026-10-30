@@ -96,8 +96,9 @@ end)
 
 print("Ulepszenia")
 test("koszty i wartości ulepszeń", function()
-	eq(Economy.upgradeCost("lantern", 0), 25, "pierwsza latarnia")
-	eq(Economy.upgradeCost("lantern", 1), 40, "druga latarnia")
+	local lantern = Config.Upgrades.lantern
+	eq(Economy.upgradeCost("lantern", 0), lantern.costBase, "pierwsza latarnia")
+	eq(Economy.upgradeCost("lantern", 1), math.floor(lantern.costBase * lantern.costGrowth), "druga latarnia")
 	eq(Economy.upgradeCost("lantern", Config.Upgrades.lantern.maxLevel), nil, "maks. poziom")
 	eq(Economy.upgradeStat("lantern", 0), 14, "zasięg startowy")
 	eq(Economy.upgradeStat("basket", 2), 11, "koszyk poz. 2")
@@ -166,12 +167,15 @@ test("głębsza strefa jest warta więcej", function()
 		end
 		return total / weights
 	end
-	-- W każdym świecie kolejna strefa jest warta ponad dwa razy więcej; jaskinia startuje wyżej niż koniec lasu
+	-- W świecie kolejna strefa jest warta ponad 1,6 raza więcej; pierwsza strefa nowego świata
+	-- jest warta więcej niż ostatnia poprzedniego (bagna mają więcej grzybów na wyprawę, więc
+	-- dochód i tak skacze mocniej, tools/economy_sim.luau)
 	local previous: number? = nil
 	for zone, def in Config.Zones do
 		if not def.safe then
 			if previous then
-				check(average(zone) > average(previous) * 1.6, "strefa " .. def.id .. " za mało opłacalna")
+				local sameWorld = Config.Zones[previous].world == def.world
+				check(average(zone) > average(previous) * (if sameWorld then 1.6 else 1.2), "strefa " .. def.id .. " za mało opłacalna")
 			end
 			previous = zone
 		end
@@ -770,7 +774,14 @@ test("Utopiec: Kielichy tylko na wyspie, ucieczka tylko na maks. butach", functi
 	check(Economy.escapes(distance, Economy.upgradeStat("boots", Config.Upgrades.boots.maxLevel), Config.Utopiec), "brak ucieczki na maks.")
 	for _, species in Economy.guardianSpecies("utopiec") do
 		eq(Economy.guardianOf(species.id), "utopiec", species.id)
-		check(species.value > 32000, species.id .. " nieopłacalny przy takim ryzyku")
+		-- Kielich wart ponad dwa razy więcej niż najlepszy zwykły grzyb bagien (inaczej nie warto ryzykować)
+		local best = 0
+		for _, other in Config.Species do
+			if Economy.zoneWorld(other.zone) == "swamp" and not Economy.guardianOf(other.id) then
+				best = math.max(best, other.value)
+			end
+		end
+		check(species.value > best * 2, species.id .. " nieopłacalny przy takim ryzyku")
 	end
 	check(#Economy.guardianSpecies("utopiec") > 0, "brak Kielicha")
 	eq(Economy.guardianOf("leszy_crown"), "leszy", "korona")

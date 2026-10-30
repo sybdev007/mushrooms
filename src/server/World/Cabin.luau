@@ -26,6 +26,10 @@ local LOG_STEP = 1.5
 local ROWS = 9
 local WALL_TOP = FLOOR_TOP + LOG_D / 2 + (ROWS - 1) * LOG_STEP + LOG_D / 2
 local ROOF_ANGLE = math.rad(35)
+-- Bale wystają za narożnik (zakładka jak w prawdziwym zrębie): do zewnętrznej krawędzi bala
+-- z drugiej ściany i jeszcze kawałek dalej. Wcześniej kończyły się równo z nią i narożniki
+-- wyglądały na niedokończone.
+local CORNER = LOG_D / 2 + 0.7
 
 local function make(className: string, props: { [string]: any }): BasePart
 	local p = Instance.new(className) :: BasePart
@@ -144,7 +148,7 @@ local function buildWalls(m: Model)
 		local windowRow = row >= 2 and row <= 4
 
 		-- Tył
-		logX(m, -HALF_W - 1, HALF_W + 1, y, BACK_Z)
+		logX(m, -HALF_W - CORNER, HALF_W + CORNER, y, BACK_Z)
 
 		-- Przód z drzwiami i oknami
 		local holes = {}
@@ -156,7 +160,7 @@ local function buildWalls(m: Model)
 				table.insert(holes, w)
 			end
 		end
-		for _, seg in segments(-HALF_W - 1, HALF_W + 1, holes) do
+		for _, seg in segments(-HALF_W - CORNER, HALF_W + CORNER, holes) do
 			logX(m, seg[1], seg[2], y, FRONT_Z)
 		end
 
@@ -165,7 +169,7 @@ local function buildWalls(m: Model)
 		if row < ROWS - 1 then
 			for _, x in { -HALF_W, HALF_W } do
 				local sideHoles = if windowRow then sideWindows else {}
-				for _, seg in segments(BACK_Z - 1, FRONT_Z + 1, sideHoles) do
+				for _, seg in segments(BACK_Z - CORNER, FRONT_Z + CORNER, sideHoles) do
 					logZ(m, seg[1], seg[2], sideY, x)
 				end
 			end
@@ -239,6 +243,24 @@ local function buildRoof(m: Model)
 		Color = Palette.roofEdge,
 		Parent = m,
 	})
+
+	-- Deski za balami szczytu: trójkąt aż pod kalenicę, żeby między ostatnim balem a dachem
+	-- nie było dziury (bale szczytu kończą się, gdy robią się za krótkie)
+	for _, z in { FRONT_Z, BACK_Z } do
+		local inward = if z == FRONT_Z then -1 else 1
+		for _, side in { -1, 1 } do
+			-- Klin: pełna wysokość przy kalenicy (x = 0), zero przy ścianie bocznej.
+			-- WedgePart bez obrotu ma pełną wysokość z tyłu (+Z), więc obracamy go +Z do środka.
+			make("WedgePart", {
+				Name = "GableBoard",
+				Size = Vector3.new(0.4, ridgeY - WALL_TOP + 0.4, HALF_W),
+				CFrame = CFrame.new(side * HALF_W / 2, (WALL_TOP + ridgeY + 0.4) / 2 - 0.2, z + inward * 0.35)
+					* CFrame.Angles(0, if side > 0 then -math.pi / 2 else math.pi / 2, 0), -- wysoki bok klina (+Z) do kalenicy
+				Color = Palette.plankDark,
+				Parent = m,
+			})
+		end
+	end
 
 	-- Szczyty z coraz krótszych bali (z przodu i z tyłu)
 	local y = WALL_TOP + LOG_D / 2 - 0.2
@@ -768,6 +790,27 @@ local function buildClimbGuards(m: Model)
 	-- Komin z kamieni na przemian szerszych i węższych też był drabiną
 	local chimneyTop = WALL_TOP + 11
 	guard(Vector3.new(4, chimneyTop, 3.4), Vector3.new(HALF_W - 4, chimneyTop / 2, BACK_Z - 1.6))
+
+	-- Dach: złodziej z cudzym grzybem wskakiwał na dach (z płotu ogródka, daszku ganku albo
+	-- ozdób) i przechodził nim na drugą stronę chatki. Niewidzialny słup nad całą chatką z gankiem
+	-- i kominem zaczyna się tuż pod okapem i sięga wysoko w niebo: ma pionowe, gładkie boki,
+	-- więc nie da się na nim stanąć ani dostać na dach. W środku chatki i na ganku jest wyżej
+	-- niż głowa skaczącej postaci, więc nikomu nie przeszkadza.
+	local eaveY = WALL_TOP - 1.6 * math.tan(ROOF_ANGLE) + 0.3
+	local bottom = eaveY - 0.6
+	local blockTop = 160
+	local x1, x2 = -HALF_W - 3, HALF_W + 3
+	local z1, z2 = BACK_Z - 4.5, FRONT_Z + 9
+	make("Part", {
+		Name = "RoofBlocker",
+		Size = Vector3.new(x2 - x1, blockTop - bottom, z2 - z1),
+		Position = Vector3.new((x1 + x2) / 2, (bottom + blockTop) / 2, (z1 + z2) / 2),
+		Transparency = 1,
+		CanQuery = false,
+		CanTouch = false,
+		CastShadow = false,
+		Parent = m,
+	})
 end
 
 function Cabin.build(parent: Instance): CFrame
