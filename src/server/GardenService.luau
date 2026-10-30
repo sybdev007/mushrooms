@@ -397,23 +397,14 @@ local function refreshGarden(garden: GardenState)
 	local fertilizer = stat(owner, "fertilizer")
 	for index, label in garden.slotLabels do
 		local item = planted[index]
+		-- Tabliczkę (mutacje w kolorach i w języku gracza, wartość, dochód) rysuje klient (DisplayMushrooms)
+		-- z atrybutów znacznika; serwerowa zostaje schowana
 		local gui = label.Parent :: BillboardGui
-		gui.Enabled = item ~= nil
-		if item then
-			-- Obwódka tabliczki w kolorze klasy grzyba
-			local class = Economy.speciesClass(item.s)
-			local stroke = label:FindFirstChildOfClass("UIStroke")
-			if stroke then
-				stroke.Color = rgb(class.color)
-			end
-			local icons = mutationIcons(item)
-			label.Text = string.format(
-				'%s💰 %s\n<font color="%s">+%s/min</font>',
-				if icons ~= "" then icons .. " " else "",
-				formatCoins(Economy.itemValue(item)),
-				RATE_COLOR,
-				formatRate(Economy.plantIncome(item, fertilizer))
-			)
+		gui.Enabled = false
+		local marker = if item then garden.visuals:FindFirstChild("Slot" .. index) else nil
+		if item and marker then
+			marker:SetAttribute("Value", math.floor(Economy.itemValue(item) + 0.5))
+			marker:SetAttribute("Rate", Economy.plantIncome(item, fertilizer))
 		end
 		local locked = index > beds
 		garden.lockTags[index].Enabled = locked and owner ~= nil

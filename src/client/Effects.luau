@@ -244,17 +244,40 @@ local function burst(position: Vector3, color: Color3, count: number, speed: num
 	Debris:AddItem(p, 1.5)
 end
 
-local function floatingText(position: Vector3, text: string, color: Color3)
+-- subtitle: druga linijka nad napisem (RichText, np. nazwy mutacji w ich kolorach)
+local function floatingText(position: Vector3, text: string, color: Color3, subtitle: string?)
 	local anchor = holder("FloatingText", Vector3.new(0.2, 0.2, 0.2))
 	anchor.Position = position
 	local gui = Instance.new("BillboardGui")
 	gui.Size = UDim2.new(0, 120, 0, 50)
+	if subtitle and subtitle ~= "" then
+		-- Nazwy mutacji nad „+N”, większe niż zwykły napis: rzadki grzyb ma się pochwalić
+		gui.Size = UDim2.fromOffset(190, 84)
+		local top = Instance.new("TextLabel")
+		top.Size = UDim2.fromScale(1, 0.42)
+		top.BackgroundTransparency = 1
+		top.RichText = true
+		top.Text = subtitle
+		top.TextColor3 = Color3.new(1, 1, 1)
+		top.Font = Enum.Font.FredokaOne
+		top.TextScaled = true
+		top.Parent = gui
+		local topStroke = Instance.new("UIStroke")
+		topStroke.Thickness = 2.5
+		topStroke.Color = Color3.fromRGB(40, 24, 10)
+		topStroke.Parent = top
+		local fade = TweenInfo.new(1.1, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+		TweenService:Create(top, fade, { TextTransparency = 1 }):Play()
+		TweenService:Create(topStroke, fade, { Transparency = 1 }):Play()
+	end
 	gui.StudsOffset = Vector3.new(0, 1.5, 0)
 	gui.AlwaysOnTop = true
 	gui.LightInfluence = 0
 	gui.Parent = anchor
 	local label = Instance.new("TextLabel")
-	label.Size = UDim2.new(1, 0, 1, 0)
+	local hasSubtitle = subtitle ~= nil and subtitle ~= ""
+	label.Size = if hasSubtitle then UDim2.fromScale(1, 0.58) else UDim2.fromScale(1, 1)
+	label.Position = if hasSubtitle then UDim2.fromScale(0, 0.42) else UDim2.new()
 	label.BackgroundTransparency = 1
 	label.Text = text
 	label.TextColor3 = color
@@ -272,8 +295,8 @@ local function floatingText(position: Vector3, text: string, color: Color3)
 	Debris:AddItem(anchor, 1.3)
 end
 
--- rank: 0 zwykły, 1 srebro, 2 złoto, 3 tęcza; icons: ikony mutacji do napisu
-function Effects.collect(position: Vector3, color: Color3, value: number, rank: number, icons: string?)
+-- rank: 0 zwykły, 1 srebro, 2 złoto, 3 tęcza; mutations: nazwy mutacji w kolorach (MutationText.rich)
+function Effects.collect(position: Vector3, color: Color3, value: number, rank: number, mutations: string?)
 	local top = position + Vector3.new(0, 1.5, 0)
 	local particles = if rank > 0 then PARTICLES_BY_RANK[rank] or 14 else 14
 	burst(top, color, particles, 8 + rank * 2)
@@ -282,8 +305,7 @@ function Effects.collect(position: Vector3, color: Color3, value: number, rank: 
 		elseif rank == 2 then Color3.fromRGB(255, 214, 70)
 		elseif rank == 1 then Color3.fromRGB(220, 232, 250)
 		else Color3.fromRGB(255, 244, 220)
-	local prefix = if icons and icons ~= "" then icons .. " " else ""
-	floatingText(top, prefix .. "+" .. tostring(value), textColor)
+	floatingText(top, "+" .. tostring(value), textColor, mutations)
 	Effects.play("pick", if rank >= 2 then 1.25 else 0.92 + math.random() * 0.2)
 	if rank >= 2 then
 		Effects.play("upgrade", if rank >= 3 then 1.6 else 1.35)

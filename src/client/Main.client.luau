@@ -47,6 +47,7 @@ local Tutorial = require(script.Parent.Tutorial)
 local LeszyAnimator = require(script.Parent.LeszyAnimator)
 local GardenPanel = require(script.Parent.GardenPanel)
 local DisplayMushrooms = require(script.Parent.DisplayMushrooms)
+local MutationText = require(script.Parent.MutationText)
 local FontFix = require(script.Parent.FontFix)
 
 local player = Players.LocalPlayer
@@ -136,22 +137,6 @@ Remotes.get("MushroomSync").OnClientEvent:Connect(function(list)
 	MushroomView.add(list)
 end)
 
--- Ikony mutacji, np. "🌈✨" (do napisu „+N” nad zebranym grzybem)
-local function mutationIcons(variant: string?, tags: { string }?): string
-	local icons = ""
-	local def = Economy.getVariant(variant)
-	if def then
-		icons ..= def.icon
-	end
-	for _, id in tags or {} do
-		local tag = Economy.getTag(id)
-		if tag then
-			icons ..= tag.icon
-		end
-	end
-	return icons
-end
-
 -- Etykieta mutacji w języku gracza, np. " 🌈 Tęcza + ✨ Blask". Zaczyna się od spacji, a bez mutacji
 -- jest pusta, więc szablony w CSV mają ją doklejoną bez odstępu ("{1}{2}!")
 local function mutationLabel(mutation: { variant: string?, tags: { string }? }?): string
@@ -184,7 +169,7 @@ Remotes.get("MushroomRemoved").OnClientEvent:Connect(function(id)
 			MushroomView.capColor(info.species, info.variant),
 			Economy.mushroomValue(info.species, info.variant, info.tags),
 			Economy.variantRank(info.variant),
-			mutationIcons(info.variant, info.tags)
+			MutationText.rich(info.variant, info.tags)
 		)
 	end
 	MushroomView.remove(id)

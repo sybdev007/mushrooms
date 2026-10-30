@@ -12,6 +12,7 @@ local Workspace = game:GetService("Workspace")
 local Config = require(ReplicatedStorage.Shared.Config)
 local Economy = require(ReplicatedStorage.Shared.Economy)
 local Localize = require(script.Parent.Localize)
+local MutationText = require(script.Parent.MutationText)
 
 export type MushroomInfo = {
 	id: string,
@@ -144,8 +145,8 @@ highlight.Parent = folder
 -- Nazwa i klasa grzyba, na który celuje gracz (np. "Borowik · Rzadki" na niebiesko)
 local targetTag = Instance.new("BillboardGui")
 targetTag.Name = "TargetTag"
-targetTag.Size = UDim2.fromOffset(180, 26)
-targetTag.StudsOffset = Vector3.new(0, 3.2, 0)
+targetTag.Size = UDim2.fromOffset(200, 50) -- górna połowa: mutacje w kolorach, dolna: nazwa i klasa
+targetTag.StudsOffset = Vector3.new(0, 3.6, 0)
 targetTag.AlwaysOnTop = true
 targetTag.LightInfluence = 0
 targetTag.Enabled = false
@@ -153,7 +154,8 @@ targetTag.Enabled = false
 targetTag.ResetOnSpawn = false
 targetTag.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
 local targetLabel = Instance.new("TextLabel")
-targetLabel.Size = UDim2.fromScale(1, 1)
+targetLabel.Size = UDim2.fromScale(1, 0.52)
+targetLabel.Position = UDim2.fromScale(0, 0.48)
 targetLabel.BackgroundTransparency = 1
 targetLabel.Font = Enum.Font.FredokaOne
 targetLabel.TextScaled = true
@@ -162,6 +164,19 @@ local targetStroke = Instance.new("UIStroke")
 targetStroke.Thickness = 2
 targetStroke.Color = Color3.fromRGB(30, 20, 12)
 targetStroke.Parent = targetLabel
+local targetMutations = Instance.new("TextLabel")
+targetMutations.Name = "Mutations"
+targetMutations.Size = UDim2.fromScale(1, 0.48)
+targetMutations.BackgroundTransparency = 1
+targetMutations.Font = Enum.Font.FredokaOne
+targetMutations.TextScaled = true
+targetMutations.RichText = true
+targetMutations.TextColor3 = Color3.new(1, 1, 1)
+targetMutations.Parent = targetTag
+local mutationStroke = Instance.new("UIStroke")
+mutationStroke.Thickness = 2
+mutationStroke.Color = Color3.fromRGB(30, 20, 12)
+mutationStroke.Parent = targetMutations
 local targetId: string? = nil
 
 local function makePart(name: string, size: Vector3, cframe: CFrame, color: Color3): Part
@@ -1019,6 +1034,7 @@ function MushroomView.updateTarget(position: Vector3, radius: number): string?
 			highlight.OutlineColor = color
 			targetLabel.TextColor3 = color
 			targetLabel.Text = (if species then Localize.t(species.key) else "?") .. " · " .. Localize.t(class.key)
+			targetMutations.Text = MutationText.rich(target.info.variant, target.info.tags)
 			targetTag.Adornee = target.model.PrimaryPart
 			targetTag.Enabled = true
 		end
