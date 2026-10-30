@@ -20,6 +20,7 @@ export type Stats = {
 	deaths: number,
 	bestStreak: number,
 	candy: number, -- cukierki z Halloween (wszystkie zdobyte; nie wydaje się ich)
+	graveyard: number, -- Halloween 2026: zapalony znicz na sekretnym cmentarzyku grzybiarzy
 }
 
 -- Liczniki z całej gry: rodzaj zdarzenia (jak w ProgressService.event) -> pole w Stats
@@ -32,10 +33,11 @@ Titles.EVENT_STAT = {
 	plant = "planted",
 	death = "deaths",
 	candy = "candy",
+	graveyard = "graveyard",
 } :: { [string]: string }
 
 function Titles.emptyStats(): Stats
-	return { picked = 0, sold = 0, steals = 0, escapes = 0, revives = 0, planted = 0, deaths = 0, bestStreak = 0, candy = 0 }
+	return { picked = 0, sold = 0, steals = 0, escapes = 0, revives = 0, planted = 0, deaths = 0, bestStreak = 0, candy = 0, graveyard = 0 }
 end
 
 -- Rzadkości od najsłabszej: kolor napisu nad głową i ramki w oknie (mityczny = tęcza)
@@ -107,6 +109,8 @@ for _, step in Config.Halloween.track do
 		table.insert(LIST, { id = step.id, rarity = step.rarity or "rare", stat = "candy", goal = step.candy, event = "halloween" })
 	end
 end
+-- Halloween 2026: znicz zapalony na sekretnym cmentarzyku w lesie (HalloweenService)
+table.insert(LIST, { id = "TITLE_HALLOWEEN_2026", rarity = "epic", stat = "graveyard", goal = 1, event = "halloween" })
 -- W oknie: najpierw według rzadkości, w niej w kolejności z listy
 local ORDER: { [string]: number } = {}
 for index, def in LIST do

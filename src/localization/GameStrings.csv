@@ -561,3 +561,12 @@ CAULDRON_GOAL,Server: {1} / {2} 🍬,,,Serwer: {1} / {2} 🍬
 BOARD_CANDY,🎃 Most candy,,,🎃 Najwięcej cukierków
 BOARD_CANDY_HINT,Halloween event - candy collected,,,event Halloween - zebrane cukierki
 BOARD_CANDY_FINAL,final results,,,wyniki końcowe
+HW_SPIRIT_TITLE,Spirit Night,,,Noc Dziadów
+HW_SPIRIT_SUB,Ancestral spirits roam the forest - pumpkin mushrooms grow more often,,,Dusze przodków krążą po lesie - dyniowe grzyby rosną częściej
+HW_SECRET_FOUND,🕯️ Secret found: the old foragers' graveyard! Light a candle.,,,🕯️ Sekret odkryty: stary cmentarzyk grzybiarzy! Zapal znicz.
+TITLE_HALLOWEEN_2026,Halloween 2026,,,Halloween 2026
+PROMPT_LIGHT_CANDLE,Light a candle,,,Zapal znicz
+OBJ_GRAVEYARD,Foragers' graveyard,,,Cmentarzyk grzybiarzy
+MSG_GRAVEYARD_LIT,🕯️ You lit a candle for the old foragers.,,,🕯️ Zapaliłeś znicz dawnym grzybiarzom.
+MSG_GRAVEYARD_DONE,🕯️ Your candle is still burning here.,,,🕯️ Twój znicz już tu płonie.
+TITLE_HALLOWEEN_2026_HOW,Light a candle at the hidden foragers' graveyard in the forest,,,Zapal znicz na ukrytym cmentarzyku grzybiarzy w lesie
