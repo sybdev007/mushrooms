@@ -3,7 +3,7 @@
 --   Po lewej grządki (siatka 3 x 3): posadzony grzyb z dochodem na minutę, wolna grządka, zamknięta grządka.
 --   Po prawej grzyby z koszyka (z dochodem, jaki dawałyby po posadzeniu).
 --   Grzyb przeciągasz na grządkę (albo klikasz grzyb, a potem grządkę). Na zajętej grządce grzyby się
---   zamieniają: stary idzie do sprzedaży (okno pokazuje za ile, zanim puścisz).
+--   zamieniają: stary wraca do koszyka (odlatuje do niego w oknie).
 --   „Posadź najlepsze” robi to samo automatycznie. Serwer sprawdza każdy ruch (GardenService).
 
 local Players = game:GetService("Players")
@@ -90,12 +90,6 @@ local function formatRate(rate: number): string
 		return string.format("+%d/min", math.floor(rate + 0.5))
 	end
 	return string.format("+%.1f/min", rate)
-end
-
-local function formatCoins(value: number): string
-	local s = tostring(math.floor(value + 0.5))
-	local formatted = s:reverse():gsub("(%d%d%d)", "%1 "):reverse()
-	return (formatted:gsub("^ ", ""))
 end
 
 -- ===== Okno =====
@@ -467,6 +461,47 @@ local function rebuild()
 	refreshHighlights()
 end
 
+-- Zamiana: stary grzyb odlatuje łukiem z grządki do koszyka (sam koszyk odświeży serwer)
+local function flyToBasket(bed: Bed)
+	local item = planted[bed.index]
+	if not item then
+		return
+	end
+	local flyer = Instance.new("Frame")
+	flyer.Size = UDim2.fromOffset(70, 70)
+	flyer.AnchorPoint = Vector2.new(0.5, 0.5)
+	flyer.BackgroundTransparency = 1
+	flyer.ZIndex = 62
+	flyer.Parent = gui
+	MushroomArt.build(flyer, item, {
+		active = function()
+			return flyer.Parent ~= nil
+		end,
+	})
+	local from = centerOf(bed.frame)
+	local to = centerOf(basketTitle)
+	local scale = Instance.new("UIScale")
+	scale.Parent = flyer
+	local t0 = os.clock()
+	local fly: RBXScriptConnection? = nil
+	fly = RunService.RenderStepped:Connect(function()
+		local k = math.clamp((os.clock() - t0) / 0.55, 0, 1)
+		local e = k * k * (3 - 2 * k)
+		local p = from:Lerp(to, e) - Vector2.new(0, math.sin(k * math.pi) * 90)
+		flyer.Position = UDim2.fromOffset(p.X, p.Y)
+		flyer.Rotation = k * 360
+		scale.Scale = 1 - 0.45 * k
+		if k >= 1 then
+			if fly then
+				fly:Disconnect()
+			end
+			flyer:Destroy()
+			Audio.play("blip", { volume = 0.6, pitch = 1.4 })
+			UiKit.burst(gui, to, 8)
+		end
+	end)
+end
+
 -- Sadzenie: animacja od razu (grządka podskakuje, grudki ziemi), a stan i tak przyjdzie od serwera
 local function plantOn(bed: Bed, index: number)
 	if bed.state == "locked" then
@@ -484,8 +519,7 @@ local function plantOn(bed: Bed, index: number)
 	dirt(centerOf(bed.frame))
 	Audio.play("plant", { duration = 1.2, volume = 0.9 })
 	if bed.state == "planted" then
-		Audio.play("coin", { volume = 0.6 })
-		UiKit.burst(gui, centerOf(bed.frame), 10)
+		flyToBasket(bed)
 	end
 	selected = nil
 	Remotes.get("GardenPlant"):FireServer(index, slot, basketKey)
@@ -582,9 +616,8 @@ UserInputService.InputChanged:Connect(function(input)
 		local bed = bedAt(position)
 		hoverBed = bed
 		if bed and bed.state == "planted" then
-			local item = planted[bed.index]
 			swapTag.Visible = true
-			swapTag.Text = t("GP_SWAP", { formatCoins(Economy.itemValue(item)) })
+			swapTag.Text = t("GP_SWAP")
 			swapTag.Position = UDim2.fromOffset(centerOf(bed.frame).X, bed.frame.AbsolutePosition.Y - 4)
 		else
 			swapTag.Visible = false
@@ -654,8 +687,23 @@ RunService.RenderStepped:Connect(function()
 					break
 				end
 			end
-			if not target and bedFrames[1] and bedFrames[1].state ~= "locked" then
-				target = bedFrames[1].frame
+			-- Wszystkie zajęte: strzałka na najsłabszy grzyb (ten najbardziej opłaca się zamienić)
+			if not target then
+				local weakest: Bed? = nil
+				local weakestValue = math.huge
+				for _, bed in bedFrames do
+					local item = planted[bed.index]
+					if bed.state == "planted" and item then
+						local value = Economy.itemValue(item)
+						if value < weakestValue then
+							weakestValue = value
+							weakest = bed
+						end
+					end
+				end
+				if weakest then
+					target = weakest.frame
+				end
 			end
 		elseif cardFrames[1] then
 			target = cardFrames[1].frame

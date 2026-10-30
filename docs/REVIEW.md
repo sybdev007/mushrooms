@@ -58,7 +58,7 @@ Wszystko, co przychodzi z RemoteEvent albo ProximityPrompt, może być podrobion
 | `/coins` na czacie | `GameService.setupDevCommands` | Tylko `isDeveloper` |
 | `StudioPurchase` | `GameService.onStudioPurchase` | Działa tylko w Studio (`RunService:IsStudio()`) i tylko dla produktów z `id = 0` |
 | Zakupy za Robuxy | `GameService.processReceipt`, `grantProduct` | Ten sam `PurchaseId` drugi raz nie daje nagrody (`data.receipts`); `NotProcessedYet`, gdy gracza nie ma albo nie da się dać nagrody; ratunek koszyka tylko w czasie okazji |
-| `GardenPlant`, `GardenAuto` | `GardenService` | Sadzić można tylko z własnego koszyka, we własnym ogródku, na odblokowanej grządce; podmiana sprzedaje stary grzyb po cenie serwera |
+| `GardenPlant`, `GardenAuto` | `GardenService` | Sadzić można tylko z własnego koszyka, we własnym ogródku, na odblokowanej grządce; zamiana oddaje stary grzyb do koszyka (koszyk się nie przepełni) i nie liczy się jako sadzenie (zadania, tytuł Ogrodnik) |
 | Kradzież z ogródka (prompt) | `GardenService` (steal) | Dystans, cooldowny (`stealCooldown`, `thiefCooldown`), właściciel w pobliżu blokuje; łup wraca po `carry.timeout`; złodziej nie może wynieść grzyba poza zasady (np. dachem chatki: `Cabin.buildClimbGuards`) |
 | Skarbiec strażnika (prompt) | `HoardService` | Dystans `takeDistance`; jeden grzyb nie trafia do dwóch graczy naraz |
 | Podnoszenie kumpla (prompt) | `GameService` (revive) | Tylko gracz w pobliżu, tylko gdy ktoś naprawdę czeka na pomoc |

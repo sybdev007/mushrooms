@@ -208,9 +208,9 @@ function TutorialService.onBought(session: Session, upgradeId: string)
 	end
 end
 
--- Zdarzenia z ogródka ("plant", "collect", "steal")
+-- Zdarzenia z ogródka ("plant", "replant" = zamiana na zajętej grządce, "collect", "steal")
 function TutorialService.event(session: Session, kind: string)
-	if kind == "plant" and session.data.tutorial == 5 then
+	if (kind == "plant" or kind == "replant") and session.data.tutorial == 5 then
 		TutorialService.setStep(session, 6)
 	end
 end

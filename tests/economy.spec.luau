@@ -642,8 +642,23 @@ test("portal leśny stoi wyraźnie za gniazdem, skrót za chatką na polanie", f
 	local plaza = Config.PortalPlaza
 	check(plaza.center.z - plaza.radius > Config.Zones[1].startZ + 4, "plac za ścianą mapy")
 	check(plaza.center.z + plaza.radius < -35 - 5, "plac wchodzi na chatkę")
+	-- Ogródek (kwadrat) nie może nachodzić na okrągły bruk placu (z zapasem na płot i kamienie przy furtce)
+	local half = Config.Garden.size / 2
 	for _, plot in Config.Garden.plots do
-		check(plot.z - Config.Garden.size / 2 > plaza.center.z + plaza.radius, "plac wchodzi na ogródek")
+		local nearX = math.clamp(plaza.center.x, plot.x - half, plot.x + half)
+		local nearZ = math.clamp(plaza.center.z, plot.z - half, plot.z + half)
+		local distance = math.sqrt((nearX - plaza.center.x) ^ 2 + (nearZ - plaza.center.z) ^ 2)
+		check(distance > plaza.radius + 2, "plac wchodzi na ogródek")
+	end
+	-- Ogródki nie nachodzą na siebie i nie stoją na chatce
+	for i, a in Config.Garden.plots do
+		check(math.abs(a.x) - half > 18 + 6, "ogródek za blisko chatki")
+		check(math.abs(a.x) + half < Config.ForestHalfWidth - 6, "ogródek w ścianie mapy")
+		for j, b in Config.Garden.plots do
+			if i < j and math.abs(a.x - b.x) < Config.Garden.size + 4 then
+				check(math.abs(a.z - b.z) >= Config.Garden.size + 4, "ogródki nachodzą na siebie")
+			end
+		end
 	end
 	check(table.find(plaza.slots, Config.Cave.shortcut.x) ~= nil, "skrót nie stoi na miejscu na portal")
 end)

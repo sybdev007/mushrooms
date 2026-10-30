@@ -858,13 +858,16 @@ Config.Garden = {
 		tagRadius = 6, -- właściciel bliżej złodzieja = odbiera łup
 		timeout = 60, -- po tylu sekundach łup wraca do właściciela
 	},
-	-- Ogródki na mapie: po dwa z każdej strony chatki, furtką do środka polany.
-	-- Ile ogródków, tylu graczy ma grządki, więc ustaw rozmiar serwera na tyle samo (4).
+	-- Ogródki na mapie: po trzy z każdej strony chatki, furtką do środka polany (dwa ostatnie za chatką,
+	-- po bokach Placu Portali). Ile ogródków, tylu graczy ma grządki, więc rozmiar serwera w ustawieniach
+	-- gry (Max Players) musi być taki sam: 6.
 	plots = {
 		{ x = -40, z = -30 },
 		{ x = 40, z = -30 },
 		{ x = -40, z = 10 },
 		{ x = 40, z = 10 },
+		{ x = -44, z = -62 }, -- trochę dalej od środka niż reszta: róg nie może wejść na okrągły bruk placu
+		{ x = 44, z = -62 },
 	},
 }
 

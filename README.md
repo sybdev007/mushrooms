@@ -224,7 +224,7 @@ numery zakupów, więc ten sam zakup nigdy nie da rzeczy dwa razy.
 
 ## Rozmiar serwera
 
-Ogródki są 4, więc ustaw serwer na **4 graczy**: w Studio File → Game Settings → Places → (…) przy miejscu →
+Ogródków jest 6 (`Config.Garden.plots`), więc ustaw serwer na **6 graczy**: w Studio File → Game Settings → Places → (…) przy miejscu →
 Server Size / Max Players, albo w Creator Hub w ustawieniach miejsca. Gracz ponad limit suszarni dostaje komunikat,
 że nie ma wolnego ogródka. Małe serwery to też większa szansa, że okradnie cię ktoś, kogo potem rozpoznasz.
 

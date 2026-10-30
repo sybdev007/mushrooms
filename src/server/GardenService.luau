@@ -603,8 +603,15 @@ local function nearOwnGarden(player: Player): GardenState?
 	return garden
 end
 
--- Jeden grzyb z koszyka na wybraną grządkę. slot <= liczba posadzonych = podmiana (stary idzie do sprzedaży),
--- slot dalej (wolna grządka) = dosadzenie.
+-- Grzyb zdjęty z grządki przy zamianie wraca do koszyka (bez czasu posadzenia)
+local function basketCopy(item: Economy.PlantItem): Economy.PlantItem
+	return { s = item.s, v = item.v, x = item.x, d = item.d }
+end
+
+-- Jeden grzyb z koszyka na wybraną grządkę. slot <= liczba posadzonych = zamiana (stary wraca do koszyka
+-- na miejsce nowego, więc koszyk się nie przepełni), slot dalej (wolna grządka) = dosadzenie.
+-- Zamiana nie liczy się jako sadzenie (zadania, tytuł Ogrodnik): inaczej przekładanie dwóch grzybów
+-- w kółko nabijałoby licznik za darmo.
 local function onPlantOne(player: Player, basketIndex: unknown, slot: unknown, key: unknown)
 	local garden = nearOwnGarden(player)
 	local data = api.getData(player)
@@ -628,20 +635,19 @@ local function onPlantOne(player: Player, basketIndex: unknown, slot: unknown, k
 		return
 	end
 	local plant: Economy.PlantItem = { s = item.s, v = item.v, x = item.x, d = item.d, t = os.time() }
-	local sold = 0
-	if bed <= #data.planted then
-		sold = Economy.itemValue(data.planted[bed])
+	local swapped = bed <= #data.planted
+	if swapped then
+		data.basket[index] = basketCopy(data.planted[bed])
 		data.planted[bed] = plant
 	else
 		table.insert(data.planted, plant)
+		table.remove(data.basket, index)
 	end
-	table.remove(data.basket, index)
-	data.coins += sold
 	if api.onEvent then
-		api.onEvent(player, "plant", 1)
+		api.onEvent(player, if swapped then "replant" else "plant", 1)
 	end
-	if sold > 0 then
-		api.notify(player, "MSG_PLANTED_SWAP", { 1, sold })
+	if swapped then
+		api.notify(player, "MSG_PLANTED_SWAP", { 1 })
 	else
 		api.notify(player, "MSG_PLANTED", { 1 })
 	end
@@ -665,32 +671,42 @@ local function onPlant(garden: GardenState, player: Player)
 		return
 	end
 	local now = os.time()
-	local sold = 0
 	local fromBasket = {}
+	local returned: { Economy.PlantItem } = {}
+	local planted = 0
 	for _, move in moves do
 		local item = data.basket[move.basket]
 		local plant: Economy.PlantItem = { s = item.s, v = item.v, x = item.x, d = item.d, t = now }
 		if move.replace then
-			sold += Economy.itemValue(data.planted[move.replace])
+			-- Słabszy grzyb wraca do koszyka (miejsce zwalnia ten, który idzie na grządkę)
+			table.insert(returned, basketCopy(data.planted[move.replace]))
 			data.planted[move.replace] = plant
 		else
 			table.insert(data.planted, plant)
+			planted += 1
 		end
 		table.insert(fromBasket, move.basket)
 	end
-	-- Usuwamy z koszyka od końca, żeby indeksy się nie przesuwały
+	-- Usuwamy z koszyka od końca, żeby indeksy się nie przesuwały, potem dokładamy zdjęte z grządek
 	table.sort(fromBasket, function(a, b)
 		return a > b
 	end)
 	for _, index in fromBasket do
 		table.remove(data.basket, index)
 	end
-	data.coins += sold
-	if api.onEvent then
-		api.onEvent(player, "plant", #moves)
+	for _, item in returned do
+		table.insert(data.basket, item)
 	end
-	if sold > 0 then
-		api.notify(player, "MSG_PLANTED_SWAP", { #moves, sold })
+	if api.onEvent then
+		if planted > 0 then
+			api.onEvent(player, "plant", planted)
+		end
+		if #returned > 0 then
+			api.onEvent(player, "replant", #returned)
+		end
+	end
+	if #returned > 0 then
+		api.notify(player, "MSG_PLANTED_SWAP", { #moves })
 	else
 		api.notify(player, "MSG_PLANTED", { #moves })
 	end

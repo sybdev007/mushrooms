@@ -33,7 +33,7 @@ gui.DisplayOrder = 6
 gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
 
 local rowCount = #Config.Variants + #Config.Tags
-local HEIGHT = 112 + (rowCount + 1) * ROW_HEIGHT + 8 + 58
+local HEIGHT = 112 + (rowCount + 1) * ROW_HEIGHT + 8 + 76
 
 local panel = Instance.new("Frame")
 panel.Name = "OddsPanel"
@@ -128,7 +128,7 @@ for row = 1, rowCount do
 	})
 end
 
-local footer = text("Footer", UDim2.new(1, -32, 0, 52), UDim2.fromOffset(16, HEIGHT - 60), BODY_FONT, 12, MUTED)
+local footer = text("Footer", UDim2.new(1, -32, 0, 70), UDim2.fromOffset(16, HEIGHT - 78), BODY_FONT, 12, MUTED)
 footer.TextWrapped = true
 footer.TextYAlignment = Enum.TextYAlignment.Top
 

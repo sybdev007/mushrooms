@@ -47,6 +47,22 @@ local function decor(p: Part): Part
 	return p
 end
 
+-- Niewidzialna, gładka ściana kolizji. Słupki i żerdzie płotu są tylko ozdobą: na cienkich walcach
+-- fizyka Robloxa potrafiła zaklinować postać i wystrzelić ją w górę (zwłaszcza po skoku z góry na płot).
+-- Na płaskim wierzchu takiej ściany da się normalnie stanąć albo z niej zeskoczyć.
+local function collider(parent: Instance, name: string, size: Vector3, cf: CFrame)
+	make(parent, {
+		Name = name,
+		Size = size,
+		CFrame = cf,
+		Transparency = 1,
+		-- CanQuery zostaje włączone: Humanoid szuka podłoża raycastem i bez tego na wierzchu płotu
+		-- „spadałby w miejscu”. Kamery to nie zasłania (kamera Robloxa pomija przezroczyste części).
+		CanTouch = false,
+		CastShadow = false,
+	})
+end
+
 local function post(parent: Instance, at: Vector3, height: number, diameter: number)
 	make(parent, {
 		Name = "FencePost",
@@ -54,6 +70,8 @@ local function post(parent: Instance, at: Vector3, height: number, diameter: num
 		Size = Vector3.new(height, diameter, diameter),
 		CFrame = CFrame.new(at + Vector3.new(0, height / 2, 0)) * VERTICAL,
 		Color = Palette.log,
+		CanCollide = false,
+		CanTouch = false,
 	})
 end
 
@@ -76,8 +94,12 @@ local function fence(parent: Instance, a: Vector3, b: Vector3)
 			-- Walec leży wzdłuż osi X: lookAt kieruje -Z wzdłuż płotu, obrót o 90° kładzie na nim oś X
 			CFrame = CFrame.lookAt(mid + Vector3.new(0, y, 0), b + Vector3.new(0, y, 0)) * CFrame.Angles(0, math.rad(90), 0),
 			Color = Palette.logEnd,
+			CanCollide = false,
+			CanTouch = false,
 		})
 	end
+	-- Jedna gładka ściana na cały odcinek (od ziemi do wierzchu słupków, z zapasem na końcach)
+	collider(parent, "FenceCollider", Vector3.new(0.7, FENCE_H, length + 0.7), CFrame.lookAt(mid + Vector3.new(0, FENCE_H / 2, 0), b + Vector3.new(0, FENCE_H / 2, 0)))
 end
 
 local function flowerBed(parent: Instance, cf: CFrame, length: number, rng: Random)
@@ -178,13 +200,17 @@ function Garden.build(parent: Instance, cf: CFrame, size: number, beds: number, 
 	local gateH = 5.6
 	for _, side in { -1, 1 } do
 		post(m, at(side * GATE_HALF, -half), gateH, 0.75)
+		collider(m, "GateCollider", Vector3.new(0.95, gateH, 0.95), cf * CFrame.new(side * GATE_HALF, gateH / 2, -half))
 	end
 	make(m, {
 		Name = "GateBeam",
 		Size = Vector3.new(GATE_HALF * 2 + 1.2, 0.5, 0.5),
 		CFrame = cf * CFrame.new(0, gateH - 0.25, -half),
 		Color = Palette.log,
+		CanCollide = false,
+		CanTouch = false,
 	})
+	collider(m, "GateCollider", Vector3.new(GATE_HALF * 2 + 1.2, 0.6, 0.8), cf * CFrame.new(0, gateH - 0.25, -half))
 	local sign = make(m, {
 		Name = "OwnerSign",
 		Size = Vector3.new(GATE_HALF * 2 - 0.2, 1.2, 0.22),

@@ -37,14 +37,28 @@ local KINDS: { [string]: { title: string, icon: string, color: Color3, weekly: b
 
 local playerGui = player:WaitForChild("PlayerGui")
 
-type Row = { frame: Frame, rank: TextLabel, name: TextLabel, value: TextLabel }
+type Row = { frame: Frame, rank: TextLabel, name: TextLabel, value: TextLabel, price: TextLabel? }
 type Board = { screen: BasePart, gui: SurfaceGui, title: TextLabel, subtitle: TextLabel, rows: { Row }, empty: TextLabel }
 local boards: { [BasePart]: Board } = {}
 
-local function formatCoins(value: number): string
-	local s = tostring(math.floor(value + 0.5))
-	local formatted = s:reverse():gsub("(%d%d%d)", "%1 "):reverse()
-	return (formatted:gsub("^ ", ""))
+-- Krótko i bez spacji (60.5K, 1.25M): napis na tablicy jest skalowany i zawijał się na spacji
+-- w środku liczby („60” w jednej linii, „000” pod spodem)
+local function shortNumber(value: number): string
+	local v = math.floor(value + 0.5)
+	local function trim(text: string): string
+		return (text:gsub("%.0+([KMB])$", "%1"):gsub("(%.%d-)0+([KMB])$", "%1%2"))
+	end
+	if v < 10000 then
+		return tostring(v)
+	elseif v < 1e6 then
+		local k = v / 1000
+		return trim(if k < 100 then string.format("%.1fK", k) else string.format("%dK", math.floor(k)))
+	elseif v < 1e9 then
+		local m = v / 1e6
+		return trim(if m < 10 then string.format("%.2fM", m) elseif m < 100 then string.format("%.1fM", m) else string.format("%dM", math.floor(m)))
+	end
+	local b = v / 1e9
+	return trim(if b < 10 then string.format("%.2fB", b) else string.format("%.1fB", b))
 end
 
 local function label(parent: Instance, name: string, size: UDim2, position: UDim2, font: Enum.Font, color: Color3?): TextLabel
@@ -67,19 +81,20 @@ for _, variant in Config.Variants do
 	VARIANT_BY_RANK[variant.rank] = variant
 end
 
-local function valueText(kind: string, value: number): string
+-- Tekst wyniku; dla znaleziska tygodnia drugi tekst to cena (rysowana pod nazwą grzyba)
+local function valueText(kind: string, value: number): (string, string?)
 	if kind == "rare" then
 		local coins, speciesId, rank = Progress.decodeFind(value)
 		local species = if speciesId then Economy.getSpecies(speciesId) else nil
 		local variant = VARIANT_BY_RANK[rank]
 		local name = if species then Localize.t(species.key) else "?"
-		return string.format("%s%s  <font color=\"#FFD678\">💰%s</font>", if variant then variant.icon .. " " else "", name, formatCoins(coins))
+		return (if variant then variant.icon .. " " else "") .. name, "💰 " .. shortNumber(coins)
 	elseif kind == "thieves" then
 		return Localize.t("BOARD_STEALS", { value })
 	elseif kind == "candy" then
-		return "🍬 " .. formatCoins(value)
+		return "🍬 " .. shortNumber(value)
 	end
-	return "💰 " .. formatCoins(value)
+	return "💰 " .. shortNumber(value)
 end
 
 local function render(board: Board)
@@ -125,7 +140,11 @@ local function render(board: Board)
 			row.rank.Text = MEDALS[index] or tostring(index)
 			row.name.Text = tostring(entry.n)
 			row.name.TextColor3 = if mine then ACCENT else TEXT
-			row.value.Text = valueText(kind :: string, tonumber(entry.v) or 0)
+			local text, price = valueText(kind :: string, tonumber(entry.v) or 0)
+			row.value.Text = text
+			if row.price then
+				row.price.Text = price or ""
+			end
 			row.frame.BackgroundTransparency = if mine then 0.55 else (if index % 2 == 0 then 0.85 else 1)
 		end
 	end
@@ -192,9 +211,18 @@ local function build(screen: BasePart)
 		local rank = label(frame, "Rank", UDim2.fromScale(0.1, 0.86), UDim2.fromScale(0.01, 0.07), TITLE_FONT, ACCENT)
 		rank.TextXAlignment = Enum.TextXAlignment.Center
 		local name = label(frame, "Name", UDim2.fromScale(0.44, 0.8), UDim2.fromScale(0.12, 0.1), TITLE_FONT)
-		local value = label(frame, "Value", UDim2.fromScale(0.44, 0.72), UDim2.fromScale(0.56, 0.14), TITLE_FONT)
+		local value: TextLabel
+		local price: TextLabel? = nil
+		if kind == "rare" then
+			-- Znalezisko tygodnia: nazwa grzyba u góry, cena mniejszym złotym napisem pod nią
+			value = label(frame, "Value", UDim2.fromScale(0.44, 0.5), UDim2.fromScale(0.56, 0.04), TITLE_FONT)
+			price = label(frame, "Price", UDim2.fromScale(0.44, 0.4), UDim2.fromScale(0.56, 0.54), TITLE_FONT, ACCENT)
+			price.TextXAlignment = Enum.TextXAlignment.Right
+		else
+			value = label(frame, "Value", UDim2.fromScale(0.44, 0.72), UDim2.fromScale(0.56, 0.14), TITLE_FONT)
+		end
 		value.TextXAlignment = Enum.TextXAlignment.Right
-		rows[index] = { frame = frame, rank = rank, name = name, value = value }
+		rows[index] = { frame = frame, rank = rank, name = name, value = value, price = price }
 	end
 	local empty = label(root, "Empty", UDim2.fromScale(1, 0.1), UDim2.fromScale(0, 0.45), TITLE_FONT, MUTED)
 	empty.TextXAlignment = Enum.TextXAlignment.Center

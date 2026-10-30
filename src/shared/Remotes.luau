@@ -24,7 +24,7 @@ local NAMES = {
 	"SaveSettings", -- przyciski wyciszenia muzyki i dźwięków (zapisywane w danych gracza)
 	"SelectTitle", -- wybór tytułu nad głową ("" = najlepszy automatycznie, "none" = bez tytułu)
 	"TutorialStep", -- klient: skończyłem krok samouczka (serwer sprawdza, czy może przejść dalej)
-	"GardenPlant", -- posadź grzyb z koszyka na wybranej grządce (podmiana sprzedaje stary)
+	"GardenPlant", -- posadź grzyb z koszyka na wybranej grządce (przy zamianie stary wraca do koszyka)
 	"GardenAuto", -- posadź najlepsze automatycznie
 	"EquipSkin", -- Halloween: załóż / zdejmij skórkę latarni albo nożyka (slot, id; "" = zwykła)
 }

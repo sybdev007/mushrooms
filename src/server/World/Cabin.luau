@@ -176,6 +176,12 @@ local function buildWalls(m: Model)
 		end
 	end
 
+	-- Dolny bal ścian bocznych: boki są przesunięte o pół bala w górę, więc bez niego na dole boków
+	-- zostawała szpara nad podłogą (bale „nie dochodziły do ziemi”)
+	for _, x in { -HALF_W, HALF_W } do
+		logZ(m, BACK_Z - CORNER, FRONT_Z + CORNER, rowY(0) - LOG_STEP / 2, x)
+	end
+
 	-- Okna: świecące szybki w otworach
 	local windowY = rowY(3)
 	local windowH = LOG_STEP * 3 - 0.2
@@ -206,6 +212,44 @@ local function buildWalls(m: Model)
 		Color = Palette.plankDark,
 		Parent = m,
 	})
+end
+
+-- Kamienna podmurówka pod ścianami: od ziemi do poziomu podłogi, z kamieni różnej długości i odcienia.
+-- Bale stoją na niej, a nie wiszą nad gołą krawędzią podłogi.
+local function buildFoundation(m: Model)
+	local height = FLOOR_TOP
+	local thick = LOG_D + 0.5
+	local function run(a: number, b: number, place: (number, number) -> CFrame, along: string)
+		local i = 0
+		local pos = a
+		while pos < b - 0.01 do
+			local len = math.min(2.4 + (i % 3) * 0.7, b - pos)
+			local mid = pos + len / 2
+			local stoneH = height + (if i % 2 == 0 then 0.06 else -0.04)
+			make("Part", {
+				Name = "Foundation",
+				Size = if along == "x" then Vector3.new(len - 0.06, stoneH, thick) else Vector3.new(thick, stoneH, len - 0.06),
+				CFrame = place(mid, stoneH),
+				Color = Palette.stone:Lerp(Color3.fromRGB(96, 90, 84), (i % 4) * 0.12),
+				Material = Enum.Material.Slate,
+				Parent = m,
+			})
+			pos += len
+			i += 1
+		end
+	end
+	local x1, x2 = -HALF_W - CORNER, HALF_W + CORNER
+	local z1, z2 = BACK_Z - CORNER, FRONT_Z + CORNER
+	for _, z in { BACK_Z, FRONT_Z } do
+		run(x1, x2, function(mid, h)
+			return CFrame.new(mid, h / 2, z)
+		end, "x")
+	end
+	for _, x in { -HALF_W, HALF_W } do
+		run(z1 + thick / 2, z2 - thick / 2, function(mid, h)
+			return CFrame.new(x, h / 2, mid)
+		end, "z")
+	end
 end
 
 local function buildRoof(m: Model)
@@ -819,6 +863,7 @@ function Cabin.build(parent: Instance): CFrame
 	buildInterior(m)
 	buildStations(m)
 	buildDecor(m)
+	buildFoundation(m)
 	buildWalls(m)
 	buildRoof(m)
 	buildChimney(m)

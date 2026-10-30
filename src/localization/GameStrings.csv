@@ -176,7 +176,7 @@ UPG_BEDS_DESC,Plant more mushrooms,,,Więcej posadzonych grzybów
 UPG_FERTILIZER,Fertilizer,,,Nawóz
 UPG_FERTILIZER_DESC,More coins from your garden,,,Więcej monet z grządek
 MSG_PLANTED,Planted: {1}. They make coins every minute!,,,Posadzone: {1}. Co minutę sypią monety!
-MSG_PLANTED_SWAP,Planted: {1}. Weaker ones sold for {2} coins.,,,Posadzone: {1}. Słabsze sprzedane za {2} monet.
+MSG_PLANTED_SWAP,Planted: {1}. Swapped mushrooms went back to your basket.,,,Posadzone: {1}. Zamienione grzyby wróciły do koszyka.
 MSG_GARDEN_FULL,Your beds are full of better mushrooms. Buy more beds!,,,Grządki są pełne lepszych grzybów. Kup więcej grządek!
 MSG_NOTHING_TO_PLANT,Your basket is empty. Pick mushrooms in the forest!,,,Koszyk jest pusty. Nazbieraj grzybów w lesie!
 MSG_COLLECTED,Coins from your garden: +{1},,,Monety z ogródka: +{1}
@@ -242,7 +242,7 @@ ODDS_BASE,Base,,,Zwykle
 ODDS_NOW,You now,,,U ciebie
 ODDS_POTION,With potion,,,Z miksturą
 ODDS_POTION_ON,Potion ✓,,,Mikstura ✓
-ODDS_FOOTER,Luck xN works like N rolls where the best one counts. Odds are rolled when a mushroom regrows. One variant per mushroom; place traits stack with it. After {1} regrows without Gold the next one is at least Gold.,,,Szczęście xN działa jak N rzutów z najlepszym wynikiem. Mutacja losuje się w chwili odrostu grzyba. Grzyb ma najwyżej jeden wariant; cechy miejsca mogą dojść do niego. Po {1} odrostach bez Złota następny grzyb jest co najmniej złoty.
+ODDS_FOOTER,Every player has their own mushrooms: the knife and the potion boost only yours; Mushroom Boom boosts the whole server. Luck xN works like N rolls where the best one counts. Odds are rolled when a mushroom regrows. One variant per mushroom; place traits stack with it. After {1} regrows without Gold the next one is at least Gold.,,,Każdy gracz ma własne grzyby: nożyk i mikstura działają tylko na twoje; Wysyp na cały serwer. Szczęście xN działa jak N rzutów z najlepszym wynikiem. Mutacja losuje się w chwili odrostu grzyba. Grzyb ma najwyżej jeden wariant; cechy miejsca mogą dojść do niego. Po {1} odrostach bez Złota następny grzyb jest co najmniej złoty.
 ODDS_CAPPED,(raw {1} - bonuses stack with diminishing returns),,,(surowo {1} - bonusy rosną coraz wolniej)
 ATLAS_TITLE,Mushroom Atlas,,,Grzybopedia
 ATLAS_PAGE_FOREST,Forest,,,Las
@@ -377,9 +377,9 @@ GP_BASKET_EMPTY,Your basket is empty. Pick mushrooms in the forest!,,,Koszyk jes
 GP_TOTAL,Garden: {1},,,Ogródek: {1}
 GP_AUTO,Plant the best,,,Posadź najlepsze
 GP_HINT,Drag a mushroom onto a bed (or tap the mushroom then the bed),,,Przeciągnij grzyb na grządkę (albo kliknij grzyb a potem grządkę)
-GP_HINT_BED,Now tap a bed. On a taken bed the old mushroom gets sold,,,Teraz kliknij grządkę. Na zajętej stary grzyb zostanie sprzedany
+GP_HINT_BED,Now tap a bed. On a taken bed the old mushroom goes back to your basket,,,Teraz kliknij grządkę. Z zajętej stary grzyb wróci do koszyka
 GP_HINT_EMPTY,Nothing to plant. Pick mushrooms in the forest first,,,Nie ma co sadzić. Najpierw nazbieraj grzybów w lesie
-GP_SWAP,Swap: +{1} coins,,,Zamiana: +{1} monet
+GP_SWAP,Swap: old one to basket,,,Zamiana: stary do koszyka
 CUT2_DONE,Done! Now some oil and off to the forest.,,,Gotowe! Teraz po olej i w las.
 CUT2_THIEF,Hehe... nice mushrooms...,,,Hehe… ładne grzybki…
 CUT2_HEY,Hey! Leave that alone!,,,Hej! Zostaw to!
