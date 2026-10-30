@@ -58,7 +58,8 @@ local RECIPES: { [string]: Recipe } = {
 	wisps = { willows = 6, dead = 14, reeds = 18, pools = 6, wisps = 14, logs = 4, glow = 10, rocks = 5, tufts = 22, patches = 9, stumps = 4 },
 	pond = { willows = 6, dead = 12, reeds = 16, pools = 3, wisps = 8, logs = 3, glow = 8, rocks = 6, tufts = 18, patches = 8, stumps = 3 },
 }
-local MOSS = { Color3.fromRGB(86, 112, 58), Color3.fromRGB(104, 124, 62), Color3.fromRGB(74, 98, 54) }
+-- Brodaczka: szarozielony mech zwisający z gałęzi
+local MOSS = { Color3.fromRGB(112, 128, 96), Color3.fromRGB(98, 114, 84), Color3.fromRGB(86, 104, 78) }
 local BOG_GRASS = { Color3.fromRGB(62, 84, 46), Color3.fromRGB(72, 92, 48), Color3.fromRGB(56, 76, 44) }
 
 local function make(className: string, props: { [string]: any }): BasePart
@@ -188,7 +189,8 @@ end
 
 -- Wierzba płacząca: krzywy pień z korzeniami, korona z trzech nachodzących na siebie kul
 -- w różnych odcieniach i zwisające pasma liści (dłuższe na brzegu, jaśniejsze końcówki)
-local function willow(parent: Instance, base: Vector3, rng: Random, scale: number)
+-- light = uproszczona (tło za ścianą): bez korzeni i końcówek, mniej pasm
+local function willow(parent: Instance, base: Vector3, rng: Random, scale: number, light: boolean?)
 	local m = Instance.new("Model")
 	m.Name = "Willow"
 	local height = 9 * scale
@@ -202,7 +204,7 @@ local function willow(parent: Instance, base: Vector3, rng: Random, scale: numbe
 		Parent = m,
 	})
 	-- Korzenie wychodzące z błota
-	for k = 1, 3 do
+	for k = 1, if light then 0 else 3 do
 		local angle = k / 3 * math.pi * 2 + rng:NextNumber(-0.4, 0.4)
 		decor(make("Part", {
 			Name = "Root",
@@ -214,7 +216,7 @@ local function willow(parent: Instance, base: Vector3, rng: Random, scale: numbe
 	end
 	local top = (CFrame.new(base) * lean * CFrame.new(0, height, 0)).Position
 	local color = pick(WILLOW, rng)
-	for k = 1, 3 do
+	for k = 1, if light then 2 else 3 do
 		local offset = if k == 1 then Vector3.zero else Vector3.new(rng:NextNumber(-3, 3), rng:NextNumber(-0.8, 0.6), rng:NextNumber(-3, 3)) * scale
 		local crown = decor(make("Part", {
 			Size = Vector3.new(rng:NextNumber(8, 11), rng:NextNumber(4, 5.5), rng:NextNumber(8, 11)) * scale,
@@ -228,8 +230,9 @@ local function willow(parent: Instance, base: Vector3, rng: Random, scale: numbe
 		mesh.Parent = crown
 	end
 	-- Zwisające pasma po obwodzie korony, z jaśniejszą końcówką
-	for k = 1, 16 do
-		local angle = k / 16 * math.pi * 2 + rng:NextNumber(-0.15, 0.15)
+	local strands = if light then 10 else 16
+	for k = 1, strands do
+		local angle = k / strands * math.pi * 2 + rng:NextNumber(-0.15, 0.15)
 		local r = 5.2 * scale * rng:NextNumber(0.7, 1)
 		local length = rng:NextNumber(4, 8) * scale
 		local x, z = math.cos(angle) * r, math.sin(angle) * r
@@ -241,6 +244,9 @@ local function willow(parent: Instance, base: Vector3, rng: Random, scale: numbe
 			Color = strand,
 			Parent = m,
 		}))
+		if light then
+			continue
+		end
 		decor(make("Part", {
 			Name = "StrandTip",
 			Size = Vector3.new(0.55, 0.7, 0.55),
@@ -280,16 +286,22 @@ local function bogTree(parent: Instance, base: Vector3, rng: Random, scale: numb
 			Color = wood,
 			Parent = m,
 		}))
-		-- Mech zwisa z końca gałęzi
-		local tip = (branchCf * CFrame.new(length * 0.85, 0, 0)).Position
-		local mossLength = rng:NextNumber(2, 4.5) * scale
-		decor(make("Part", {
-			Name = "Moss",
-			Size = Vector3.new(0.35, mossLength, 0.35) * Vector3.new(scale, 1, scale),
-			Position = tip - Vector3.new(0, mossLength / 2, 0),
-			Color = Palette.shade(pick(MOSS, rng), dark),
-			Parent = m,
-		}))
+		-- Mech zwisa z końca części gałęzi (dwa cienkie pasma obok siebie)
+		if rng:NextNumber() < 0.65 then
+			local tip = (branchCf * CFrame.new(length * 0.85, 0, 0)).Position
+			local color = Palette.shade(pick(MOSS, rng), dark)
+			for k = 0, 1 do
+				local mossLength = rng:NextNumber(1.6, 3.6) * scale
+				decor(make("Part", {
+					Name = "Moss",
+					Size = Vector3.new(0.22 * scale, mossLength, 0.22 * scale),
+					Position = tip + Vector3.new(k * 0.35 * scale, -mossLength / 2, k * 0.2 * scale),
+					Color = color,
+					Material = Enum.Material.Fabric,
+					Parent = m,
+				}))
+			end
+		end
 	end
 	m.Parent = parent
 end
@@ -747,7 +759,7 @@ local function buildBackdrop(parent: Instance, rng: Random)
 		ground = Color3.fromRGB(34, 42, 30),
 		near = function(folder: Instance, base: Vector3, treeRng: Random)
 			if treeRng:NextNumber() < 0.55 then
-				willow(folder, base, treeRng, treeRng:NextNumber(1.3, 1.7))
+				willow(folder, base, treeRng, treeRng:NextNumber(1.3, 1.7), true)
 			else
 				bogTree(folder, base, treeRng, treeRng:NextNumber(1.6, 2.1), 0.5)
 			end
