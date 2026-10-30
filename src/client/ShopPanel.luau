@@ -313,8 +313,8 @@ local function layout()
 		s:SetAttribute("Base", scale) -- UiKit wraca do tej skali po wciśnięciu
 		s.Scale = scale
 	end
-	-- Pod przyciskiem języka (ten sam rachunek co w Hud.layout); panel DEV jest jeszcze niżej
-	local y = 8 + math.floor(80 * scale) + 8 + math.floor(30 * scale) + 6
+	-- Pod rzędem przycisku języka (UiScale.rowBottom); panel DEV jest jeszcze niżej
+	local y = UiScale.rowBottom() + 6
 	shopButton.Position = UDim2.fromOffset(12, y)
 	timers.Position = UDim2.fromOffset(12, y + math.floor(36 * scale) * 2 + 6)
 	-- Obok paska oleju (środek u góry, pasek ma 300 px szerokości)

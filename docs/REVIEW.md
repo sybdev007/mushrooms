@@ -64,7 +64,7 @@ Wszystko, co przychodzi z RemoteEvent albo ProximityPrompt, może być podrobion
 | Podnoszenie kumpla (prompt) | `GameService` (revive) | Tylko gracz w pobliżu, tylko gdy ktoś naprawdę czeka na pomoc |
 | `QuestReroll` | `ProgressService.onReroll` | Raz dziennie, tylko nieukończone zadanie, indeks w zakresie |
 | `SelectTitle` | `ProgressService.onSelectTitle` | Tylko zdobyty tytuł (`Titles.earned`) albo `""` / `"none"` |
-| `SaveSettings` | `ProgressService` | Tylko klucze `music` / `sfx` i wartości boolean |
+| `SaveSettings` | `ProgressService` | Klucze `music` / `sfx` z wartością boolean albo `musicVolume` / `sfxVolume` z liczbą (`Progress.normalizeVolume`: NaN i nieskończoność odrzucone, przycięte do 0..1, co 5%); nic innego |
 | `EquipSkin` (slot, id) | `HalloweenService.onEquip` | Slot z `Halloween.SLOTS`; skórka pasuje do slotu; gracz ją ma (`Halloween.ownsSkin`) |
 | Kocioł (prompt) | `HalloweenService.useCauldron` | Event trwa; `cauldron.cooldown`; najpierw sprawdzenie i odjęcie `cost` z `candyBag`, potem losowanie na serwerze (`math.random`); skórka, którą gracz ma, daje monety, a nie drugą skórkę |
 | `TutorialStep` | `TutorialService.clientStep` | Klient może skończyć tylko cutscenkę; reszty kroków pilnuje serwer |

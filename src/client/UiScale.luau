@@ -36,6 +36,31 @@ function UiScale.isSmall(): boolean
 	return UiScale.isSmallScreen(viewport())
 end
 
+-- Rząd przycisków pod panelem monet: język, muzyka, dźwięki, zaproś. Wyższy niż reszta HUD, a na
+-- telefonie zmniejsza się mniej, żeby dało się w niego trafić palcem. Pod nim leżą przycisk sklepu
+-- (ShopPanel) i panel DEV, więc wszyscy liczą jego dół tak samo (rowBottom).
+UiScale.ROW_HEIGHT = 40
+local ROW_MIN_SMALL = 0.8
+
+-- Czysta funkcja, testowana w Lune
+function UiScale.computeRow(size: Vector2): number
+	local scale = UiScale.compute(size)
+	return if UiScale.isSmallScreen(size) then math.max(scale, ROW_MIN_SMALL) else scale
+end
+
+function UiScale.row(): number
+	return UiScale.computeRow(viewport())
+end
+
+-- Góra rzędu: pod panelem monet (8 + 80 + 8 w skali HUD)
+function UiScale.rowTop(): number
+	return 8 + math.floor(80 * UiScale.get()) + 8
+end
+
+function UiScale.rowBottom(): number
+	return UiScale.rowTop() + math.floor(UiScale.ROW_HEIGHT * UiScale.row())
+end
+
 -- Wysokość paska Robloxa u góry ekranu (dla interfejsów z IgnoreGuiInset)
 function UiScale.topInset(): number
 	return GuiService:GetGuiInset().Y

@@ -135,8 +135,8 @@ UiScale.onChanged(function()
 	local scale = UiScale.get()
 	toggleScale.Scale = scale
 	panelScale.Scale = scale
-	-- Pod przyciskiem języka i sklepu 🛒 (ten sam rachunek co w Hud.layout i ShopPanel)
-	local y = 8 + math.floor(80 * scale) + 8 + math.floor(30 * scale) + 6 + math.floor(36 * scale)
+	-- Pod rzędem przycisku języka i pod sklepem 🛒 (ten sam rachunek co w ShopPanel)
+	local y = UiScale.rowBottom() + 6 + math.floor(36 * scale)
 	toggle.Position = UDim2.fromOffset(12, y)
 	panel.Position = UDim2.fromOffset(12, y + math.floor(36 * scale))
 end)

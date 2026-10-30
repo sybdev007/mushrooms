@@ -1101,6 +1101,10 @@ test("mały ekran = krótszy bok do 500 px (wtedy Roblox daje mały przycisk sko
 	eq(UiScale.isSmallScreen(size(338, 705)), true, "telefon pionowo")
 	eq(UiScale.isSmallScreen(size(1376, 1012)), false, "tablet")
 	eq(UiScale.isSmallScreen(size(1920, 1080)), false, "komputer")
+	-- Rząd przycisków (język, muzyka, dźwięki, zaproś): na telefonie nie mniejszy niż 0,8
+	eq(UiScale.computeRow(size(1920, 1080)), 1, "rząd: Full HD")
+	eq(UiScale.computeRow(size(705, 338)), 0.8, "rząd: telefon poziomo nie maleje do 0,6")
+	eq(UiScale.computeRow(size(1376, 1012)), UiScale.compute(size(1376, 1012)), "rząd: tablet jak reszta HUD")
 end)
 
 print("Tabelka szans (Economy.luck, variantOdds, tagOdds)")
@@ -1204,6 +1208,18 @@ test("mikstura zawsze się opłaca (co najmniej x1,5 szczęścia, chyba że traf
 end)
 
 print("Grzybopedia (Progress)")
+
+test("głośność z suwaka: 0..1 co 5%, śmieci odrzucone", function()
+	eq(Progress.normalizeVolume(0.5), 0.5, "0,5")
+	eq(Progress.normalizeVolume(0.52), 0.5, "zaokrąglenie do 5%")
+	eq(Progress.normalizeVolume(0.98), 1, "zaokrąglenie w górę")
+	eq(Progress.normalizeVolume(-3), 0, "ujemna = 0")
+	eq(Progress.normalizeVolume(7), 1, "za duża = 1")
+	eq(Progress.normalizeVolume(0 / 0), nil, "NaN")
+	eq(Progress.normalizeVolume(math.huge), nil, "nieskończoność")
+	eq(Progress.normalizeVolume("0.5"), nil, "tekst")
+	eq(Progress.normalizeVolume(nil), nil, "brak")
+end)
 
 test("każdy gatunek (poza błędnym ognikiem) jest na dokładnie jednej stronie", function()
 	local seen = {}

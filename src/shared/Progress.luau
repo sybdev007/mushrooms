@@ -512,4 +512,12 @@ function Progress.decodeFind(score: number): (number, string?, number)
 	return score // 1000, if species then species.id else nil, rest % 10
 end
 
+-- Głośność z suwaka w ustawieniach: 0..1 co 5%. Nie liczba, NaN albo nieskończoność = nil (odrzucamy).
+function Progress.normalizeVolume(value: unknown): number?
+	if typeof(value) ~= "number" or value ~= value or math.abs(value) == math.huge then
+		return nil
+	end
+	return math.floor(math.clamp(value, 0, 1) * 20 + 0.5) / 20
+end
+
 return Progress

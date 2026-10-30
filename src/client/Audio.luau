@@ -29,6 +29,9 @@ end
 
 local MUSIC_VOLUME = 0.5
 local SFX_VOLUME = 0.8
+-- Suwaki w ustawieniach (SettingsButtons, zapis na serwerze): 0..1, 0 = wyciszone
+local musicLevel = 1
+local sfxLevel = 1
 local musicOn = true
 local sfxOn = true
 
@@ -47,17 +50,36 @@ end
 local musicGroup = group("Music", MUSIC_VOLUME)
 local sfxGroup = group("Effects", SFX_VOLUME)
 
--- Wyciszanie z przycisków (SettingsButtons); zapisuje się na serwerze
+-- Głośność z suwaków (SettingsButtons); zapisuje się na serwerze
+function Audio.setMusicLevel(level: number)
+	musicLevel = math.clamp(level, 0, 1)
+	musicOn = musicLevel > 0
+	musicGroup.Volume = MUSIC_VOLUME * musicLevel
+end
+
+function Audio.setSfxLevel(level: number)
+	sfxLevel = math.clamp(level, 0, 1)
+	sfxOn = sfxLevel > 0
+	sfxGroup.Volume = SFX_VOLUME * sfxLevel
+	-- Dźwięki z Effects.luau (ambient, zbieranie, monety) mają swoją grupę o pełnej głośności
+	group("GameSoundsGroup", 1).Volume = sfxLevel
+end
+
+function Audio.getMusicLevel(): number
+	return musicLevel
+end
+
+function Audio.getSfxLevel(): number
+	return sfxLevel
+end
+
+-- Wł./wył. (dawne przełączniki): włączenie przywraca pełną głośność
 function Audio.setMusicOn(on: boolean)
-	musicOn = on
-	musicGroup.Volume = if on then MUSIC_VOLUME else 0
+	Audio.setMusicLevel(if on then 1 else 0)
 end
 
 function Audio.setSfxOn(on: boolean)
-	sfxOn = on
-	sfxGroup.Volume = if on then SFX_VOLUME else 0
-	-- Dźwięki z Effects.luau (ambient, zbieranie, monety) mają swoją grupę o pełnej głośności
-	group("GameSoundsGroup", 1).Volume = if on then 1 else 0
+	Audio.setSfxLevel(if on then 1 else 0)
 end
 
 function Audio.isMusicOn(): boolean
@@ -298,10 +320,10 @@ function Audio.duck(amount: number, time: number)
 	if not musicOn then
 		return
 	end
-	TweenService:Create(musicGroup, TweenInfo.new(0.15), { Volume = MUSIC_VOLUME * (1 - amount) }):Play()
+	TweenService:Create(musicGroup, TweenInfo.new(0.15), { Volume = MUSIC_VOLUME * musicLevel * (1 - amount) }):Play()
 	task.delay(time, function()
 		if musicOn then
-			TweenService:Create(musicGroup, TweenInfo.new(0.6), { Volume = MUSIC_VOLUME }):Play()
+			TweenService:Create(musicGroup, TweenInfo.new(0.6), { Volume = MUSIC_VOLUME * musicLevel }):Play()
 		end
 	end)
 end

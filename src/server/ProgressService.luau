@@ -41,6 +41,8 @@ local SaveSettings = Remotes.get("SaveSettings")
 local function applySettings(player: Player, data: Data)
 	player:SetAttribute("MusicOn", data.settings.music)
 	player:SetAttribute("SfxOn", data.settings.sfx)
+	player:SetAttribute("MusicVolume", data.settings.musicVolume)
+	player:SetAttribute("SfxVolume", data.settings.sfxVolume)
 end
 
 local api: Api
@@ -530,11 +532,39 @@ function ProgressService.start(serviceApi: Api)
 	api = serviceApi
 	QuestReroll.OnServerEvent:Connect(onReroll)
 	SelectTitle.OnServerEvent:Connect(onSelectTitle)
-	SaveSettings.OnServerEvent:Connect(function(player: Player, key: unknown, on: unknown)
+	SaveSettings.OnServerEvent:Connect(function(player: Player, key: unknown, value: unknown)
 		local data = api.getData(player)
-		if data and (key == "music" or key == "sfx") and typeof(on) == "boolean" then
-			data.settings[key :: string] = on
+		if not data then
+			return
+		end
+		local settings = data.settings
+		if (key == "music" or key == "sfx") and typeof(value) == "boolean" then
+			-- Dawny przełącznik wł./wył.: włączenie bez głośności przywraca pełną
+			if key == "music" then
+				settings.music = value
+				if value and settings.musicVolume <= 0 then
+					settings.musicVolume = 1
+				end
+			else
+				settings.sfx = value
+				if value and settings.sfxVolume <= 0 then
+					settings.sfxVolume = 1
+				end
+			end
 			applySettings(player, data)
+		elseif key == "musicVolume" or key == "sfxVolume" then
+			-- Suwak: 0..1 co 5%, śmieci odrzucamy; 0 = wyłączone
+			local volume = Progress.normalizeVolume(value)
+			if volume then
+				if key == "musicVolume" then
+					settings.musicVolume = volume
+					settings.music = volume > 0
+				else
+					settings.sfxVolume = volume
+					settings.sfx = volume > 0
+				end
+				applySettings(player, data)
+			end
 		end
 	end)
 	-- Północ (UTC): nowe zadania i nagroda za kolejny dzień serii dla tych, którzy akurat grają

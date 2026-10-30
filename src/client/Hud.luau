@@ -194,17 +194,18 @@ local _, basketFill = bar(stats, UDim2.new(1, -112, 0, 10), UDim2.new(0, 104, 0,
 
 local languageButton = Instance.new("TextButton")
 languageButton.Name = "Language"
-languageButton.Size = UDim2.new(0, 70, 0, 30)
+-- Rząd pod panelem monet ma własną, większą wysokość (UiScale.ROW_HEIGHT), żeby dało się trafić palcem
+languageButton.Size = UDim2.new(0, 88, 0, UiScale.ROW_HEIGHT)
 -- Pod panelem monet, bo prawy górny róg zajmuje lista graczy z monetami
 languageButton.Position = UDim2.new(0, 12, 0, 96)
 languageButton.Font = TITLE_FONT
-languageButton.TextSize = 18
+languageButton.TextSize = 22
 languageButton.TextXAlignment = Enum.TextXAlignment.Right
 languageButton.Parent = gui
 UiKit.button(languageButton, UiKit.COLORS.wood, { gloss = true })
-UiKit.icon("globe", languageButton, UDim2.new(0, 26, 0, 26), UDim2.new(0, 5, 0.5, 0), Vector2.new(0, 0.5))
+UiKit.icon("globe", languageButton, UDim2.new(0, 32, 0, 32), UDim2.new(0, 6, 0.5, 0), Vector2.new(0, 0.5))
 local languagePadding = Instance.new("UIPadding")
-languagePadding.PaddingRight = UDim.new(0, 9)
+languagePadding.PaddingRight = UDim.new(0, 11)
 languagePadding.Parent = languageButton
 
 -- Strefa i pasek oleju (środek u góry)
@@ -1350,10 +1351,12 @@ end
 
 local function layout()
 	local scale = UiScale.get()
-	for _, target in { stats, languageButton, top, upgradePanel, upgradeRoot, toast } do
+	for _, target in { stats, top, upgradePanel, upgradeRoot, toast } do
 		layoutScale(target, scale)
 	end
-	languageButton.Position = UDim2.new(0, 12, 0, 8 + math.floor(80 * scale) + 8)
+	-- Rząd przycisków ma własną skalę (na telefonie większą niż reszta HUD)
+	layoutScale(languageButton, UiScale.row())
+	languageButton.Position = UDim2.new(0, 12, 0, UiScale.rowTop())
 	-- Pasek oleju (66) + baner „Wracaj!” (64) + odstępy, potem połowa wysokości komunikatu
 	toastY = math.floor(8 + 66 * scale + 8 + 64 * scale + 12 + 23 * scale)
 	if not toast.Visible then

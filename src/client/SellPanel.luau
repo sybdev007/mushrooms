@@ -12,6 +12,7 @@ local TweenService = game:GetService("TweenService")
 
 local Economy = require(ReplicatedStorage.Shared.Economy)
 local Localize = require(script.Parent.Localize)
+local MerchantLook = require(script.Parent.MerchantLook)
 local MushroomArt = require(script.Parent.MushroomArt)
 local UiKit = require(script.Parent.UiKit)
 local UiScale = require(script.Parent.UiScale)
@@ -203,11 +204,65 @@ portrait.Parent = window
 corner(portrait, UDim.new(1, 0))
 stroke(portrait, OUTLINE, 4)
 shade(portrait, 170)
-local face = label(portrait, "Face", UDim2.fromScale(0.8, 0.8), UDim2.fromScale(0.1, 0.12), TITLE_FONT, 60)
+-- Twarz: prawdziwy Pan Borowik (kopia modelu z ReplicatedStorage.NpcPortraits w ViewportFrame),
+-- na Halloween Duch. Emoji tylko na zapas, dopóki model nie dotrze.
+local faceHolder = Instance.new("Frame")
+faceHolder.Name = "FaceHolder"
+faceHolder.BackgroundTransparency = 1
+faceHolder.Size = UDim2.fromScale(1, 1)
+faceHolder.ZIndex = 6
+faceHolder.Parent = portrait
+local faceScale = Instance.new("UIScale")
+faceScale.Parent = faceHolder
+local face = label(faceHolder, "Face", UDim2.fromScale(0.8, 0.8), UDim2.fromScale(0.1, 0.12), TITLE_FONT, 60)
 face.Text = "🧔"
 face.ZIndex = 6
-local faceScale = Instance.new("UIScale")
-faceScale.Parent = face
+local faceView = Instance.new("ViewportFrame")
+faceView.Name = "FaceView"
+faceView.Size = UDim2.fromScale(1, 1)
+faceView.BackgroundTransparency = 1
+faceView.Ambient = Color3.fromRGB(170, 160, 150)
+faceView.LightColor = Color3.fromRGB(255, 240, 220)
+faceView.LightDirection = Vector3.new(-0.35, -0.6, 1) -- światło od strony patrzącego (przód modelu to -Z)
+faceView.ZIndex = 7
+faceView.Parent = faceHolder
+corner(faceView, UDim.new(1, 0))
+local faceCamera = Instance.new("Camera")
+faceCamera.FieldOfView = 30
+faceCamera.Parent = faceView
+faceView.CurrentCamera = faceCamera
+local portraitGhost: boolean? = nil -- jaki portret teraz wisi (nil = jeszcze żaden)
+
+local function refreshPortrait()
+	local ghost = MerchantLook.isGhost()
+	if portraitGhost == ghost then
+		return
+	end
+	local folder = ReplicatedStorage:FindFirstChild("NpcPortraits")
+	local source = folder and folder:FindFirstChild("Merchant")
+	if not (source and source:IsA("Model")) then
+		return
+	end
+	faceView:ClearAllChildren()
+	faceCamera = Instance.new("Camera")
+	faceCamera.FieldOfView = 30
+	faceCamera.Parent = faceView
+	faceView.CurrentCamera = faceCamera
+	local model = source:Clone()
+	if ghost then
+		MerchantLook.setGhost(model, true, {}, true)
+	end
+	model.Parent = faceView
+	local head = model:FindFirstChild("Head")
+	local at = if head and head:IsA("BasePart") then head.Position else Vector3.new(0, 5.25, 0)
+	-- Z przodu (przód modelu to -Z), trochę z boku i z góry; w kadrze kapelusz i broda
+	local target = at + Vector3.new(0, 0.35, 0)
+	faceCamera.CFrame = CFrame.lookAt(target + Vector3.new(1.1, 0.45, -6.2), target)
+	-- Tło w kontraście do postaci: nocny granat dla niebieskiego ducha, ciepłe złoto dla zwykłego Pana Borowika
+	portrait.BackgroundColor3 = if ghost then Color3.fromRGB(44, 60, 98) else Color3.fromRGB(255, 205, 120)
+	face.Visible = false
+	portraitGhost = ghost
+end
 local npcName = label(window, "Name", UDim2.new(0, 260, 0, 28), UDim2.fromOffset(112, 38), TITLE_FONT, 26)
 npcName.TextXAlignment = Enum.TextXAlignment.Left
 npcName.TextColor3 = THEME.brown
@@ -617,7 +672,7 @@ local function speechText(): string
 end
 
 local function refreshTexts()
-	npcName.Text = Localize.t("NPC_NAME")
+	npcName.Text = Localize.t(if MerchantLook.isGhost() then "NPC_NAME_GHOST" else "NPC_NAME")
 	roleTitle.Text = Localize.t("NPC_ROLE")
 	speech.Text = speechText()
 	rebuild()
@@ -769,6 +824,7 @@ function SellPanel.open()
 	greetingKey = GREETINGS[math.random(1, #GREETINGS)]
 	table.clear(selected)
 	gui.Enabled = true
+	refreshPortrait()
 	refreshTexts()
 	local base = UiScale.get()
 	windowScale.Scale = base * 0.75
@@ -790,6 +846,13 @@ end
 
 Localize.onChanged(function()
 	if gui.Enabled then
+		refreshTexts()
+	end
+end)
+-- Początek albo koniec Halloween przy otwartym panelu: portret i imię zmieniają się od razu
+game:GetService("Workspace"):GetAttributeChangedSignal("Halloween"):Connect(function()
+	if gui.Enabled then
+		refreshPortrait()
 		refreshTexts()
 	end
 end)

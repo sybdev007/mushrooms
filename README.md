@@ -47,7 +47,7 @@ rojo build -o lantern-forager.rbxlx
 | `src/shared/Cycle.luau` | ReplicatedStorage.Shared | Dzień i noc z zegara: faza, koniec fazy, zdarzenie nocy |
 | `src/shared/Sounds.luau` | ReplicatedStorage.Shared | ID dźwięków (sprawdzone, że się ładują) |
 | `src/server/MapBuilder.luau` | ServerScriptService.Server | Rozkłada las: drzewa, krzaki, ścieżkę, bramy, miejsca na grzyby |
-| `src/server/World/Cabin.luau` | ServerScriptService.Server | Chatka z bali z gankiem, kominkiem, ladą i suszarką |
+| `src/server/World/Cabin.luau` | ServerScriptService.Server | Chatka z bali z gankiem, kamiennym kominkiem, ladą, kredensem, kącikiem z olejem i suszarnią; na Halloween pajęczyny i małe dynie w środku |
 | `src/server/World/Props.luau` | ServerScriptService.Server | Klocki świata: sosny, brzozy, dęby, kamienie, latarnie, tabliczki |
 | `src/server/World/Palette.luau` | ServerScriptService.Server | Wszystkie kolory świata w jednym miejscu |
 | `src/server/DataService.luau` | ServerScriptService.Server | Zapis postępu (DataStore) |
@@ -71,8 +71,9 @@ rojo build -o lantern-forager.rbxlx
 | `src/client/Warnings.luau` | StarterPlayerScripts.Client | Czerwona winieta, baner „Wracaj!” ze strzałką, oczy Leszego |
 | `src/client/Signs.luau` | StarterPlayerScripts.Client | Napisy na tabliczkach w języku gracza |
 | `src/client/SellPanel.luau` | StarterPlayerScripts.Client | Panel sprzedaży u skupywacza: karty grzybów, sprzedaj jeden / zaznaczone / wszystko |
-| `src/client/MerchantView.luau` | StarterPlayerScripts.Client | Skupywacz: teksty, obracanie się do gracza, otwieranie panelu sprzedaży |
-| `src/server/World/Merchant.luau` | ServerScriptService.Server | Model skupywacza (Pan Borowik) z kapeluszem-muchomorem |
+| `src/client/MerchantView.luau` | StarterPlayerScripts.Client | Skupywacz: teksty, oddech, kiwanie głową, mruganie, unoszenie się ducha, otwieranie panelu sprzedaży |
+| `src/client/MerchantLook.luau` | StarterPlayerScripts.Client | Wygląd Ducha Pana Borowika na Halloween (w świecie i w portrecie panelu sprzedaży) |
+| `src/server/World/Merchant.luau` | ServerScriptService.Server | Model skupywacza (Pan Borowik): okulary, broda, wąsy, kapelusz-muchomor, fartuch; kopia do portretu w panelu |
 | `src/client/ShopPanel.luau` | StarterPlayerScripts.Client | Sklep za Robuxy, ratunek koszyka, szybki olej, liczniki Wysypu i mikstury |
 | `src/client/Purchases.luau` | StarterPlayerScripts.Client | Okno płatności Robloxa i ceny produktów |
 | `src/client/GardenPrompts.luau` | StarterPlayerScripts.Client | Pokazuje graczowi właściwe przyciski w ogródkach |
@@ -95,8 +96,16 @@ rojo build -o lantern-forager.rbxlx
 - **Chatka** (36 x 32 studs): na środku tylnej ściany, za ladą, stoi skupywacz **Pan Borowik** (`Config.Merchant`). Przycisk „Sprzedaj grzyby” otwiera panel
   z kartami grzybów z koszyka (kapelusz w kolorze gatunku lub mutacji, nazwa w kolorze klasy, cena): można sprzedać
   jeden, zaznaczone albo wszystko. Serwer sprawdza odległość od skupywacza i odcisk koszyka. W obozowiskach panel
-  otwiera się w kręgu przy kramiku. W chatce są też półki ze świecącymi słoikami, stolik z lampką-muchomorem,
-  a na ganku ławka i doniczki.
+  otwiera się w kręgu przy kramiku. W rogu panelu jest portret Pana Borowika (jego model w ViewportFrame).
+  W czasie Halloween zamiast niego za ladą unosi się **Duch Pana Borowika** (cały w błękitach,
+  z mglistym ogonem i delikatną obwódką; tylko po stronie klienta, `MerchantLook`), także w portrecie.
+  W chatce są też: kamienny kominek z gzymsem, obrazkiem i ogniem na polanach, kredens ze świecącymi słoikami,
+  okuta skrzynia, kącik z olejem (beczka z kranikiem nad wiaderkiem, baryłka, kanistry), suszarnia z grzybami
+  na nitkach nad ławą z koszykami i stolik z lampką-muchomorem; na ganku ławka i doniczki. Na Halloween
+  w środku pojawiają się pajęczyny, pająk i trzy małe dynie (`HalloweenInterior` w modelu chatki).
+- **Ustawienia dźwięku**: przyciski muzyki i dźwięków w rzędzie pod monetami otwierają panel z dwoma suwakami
+  (0–100%, co 5%). Głośność zapisuje się na serwerze (`musicVolume` / `sfxVolume`), 0% = wyciszone
+  (czerwony przycisk). Na telefonach rząd przycisków (język, muzyka, dźwięki, zaproszenie) jest większy.
 - **Ulepszenia**: fioletowy przycisk „Ulepszenia” przy prawej krawędzi ekranu albo klawisz **R** (Y na padzie).
   Czerwona kropka pokazuje, na ile ulepszeń gracza stać. Panel ma kolorowe karty (ikona, opis, kropki poziomów,
   wartość „x1 » x1.25”, przycisk z ceną) i zakładki Las / Jaskinia / Bagna, gdy są odblokowane; kupuje się
