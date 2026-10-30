@@ -2,6 +2,10 @@
 -- Wystrój na Halloween (Noc Dziadów): voxelowe dynie ze świecącymi buziami i znicze przy chatce,
 -- na ścieżce do lasu, w obozowisku w jaskini i na przystani na bagnach. GameService buduje go
 -- w czasie eventu i usuwa po nim. Wszystko jest ozdobą: bez kolizji, bez dotyku i bez celowania.
+-- Chatka jest centrum eventu: do tego jesienne liście, pajęczyny na ganku, girlanda z dyniowych
+-- lampionów, przyziemna mgła wokół kotła, a w jaskini pajęczyny pod stropem, na bagnach znicze
+-- wzdłuż kładki i duchy (tag "HalloweenGhost": unoszą się po stronie klienta, HalloweenFx).
+-- W lesie jest też mały sekretny zakątek (stary cmentarzyk grzybiarzy, tag "HalloweenSecret").
 
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
@@ -228,6 +232,174 @@ end
 
 type Spot = { x: number, z: number, kind: string, size: number, from: number? }
 
+-- ===== Jesień, pajęczyny, girlanda, mgła, duchy =====
+
+local LEAF_COLORS = {
+	Color3.fromRGB(196, 92, 28),
+	Color3.fromRGB(222, 140, 38),
+	Color3.fromRGB(166, 52, 30),
+	Color3.fromRGB(230, 182, 64),
+	Color3.fromRGB(140, 70, 30),
+}
+local WEB = Color3.fromRGB(226, 228, 236)
+local GHOST = Color3.fromRGB(226, 240, 255)
+local GHOST_EYES = Color3.fromRGB(40, 30, 60)
+
+-- Kupka liści płasko na ziemi (kilka kwadracików pod różnymi kątami)
+local function leafPile(parent: Instance, at: Vector3, rng: Random)
+	for _ = 1, rng:NextInteger(3, 6) do
+		local size = rng:NextNumber(0.35, 0.7)
+		local offset = Vector3.new(rng:NextNumber(-0.9, 0.9), 0.04, rng:NextNumber(-0.9, 0.9))
+		part(parent, "Leaf", Vector3.new(size, 0.06, size), CFrame.new(at + offset) * CFrame.Angles(0, rng:NextNumber(0, math.pi), rng:NextNumber(-0.12, 0.12)), LEAF_COLORS[rng:NextInteger(1, #LEAF_COLORS)])
+	end
+end
+
+-- Pajęczyna w rogu: `cf` = róg (oś -Z cf to kierunek, w który rozpina się sieć), size = zasięg nici
+local function cobweb(parent: Instance, cf: CFrame, size: number)
+	local m = Instance.new("Model")
+	m.Name = "Cobweb"
+	local strands = 5
+	local points: { { Vector3 } } = {}
+	for i = 0, strands - 1 do
+		local angle = math.rad(-90 + i * 90 / (strands - 1))
+		local dir = Vector3.new(math.cos(angle), math.sin(angle), 0)
+		local from = cf.Position
+		local to = (cf * CFrame.new(dir * size)).Position
+		local strand = part(m, "Strand", Vector3.new(0.05, 0.05, (to - from).Magnitude), CFrame.lookAt((from + to) / 2, to), WEB)
+		strand.Transparency = 0.35
+		strand.CastShadow = false
+		points[i + 1] = {}
+		for k = 1, 3 do
+			points[i + 1][k] = from:Lerp(to, k / 3.4)
+		end
+	end
+	-- Poprzeczne nitki (pierścienie sieci)
+	for k = 1, 3 do
+		for i = 1, strands - 1 do
+			local a, b = points[i][k], points[i + 1][k]
+			local thread = part(m, "Ring", Vector3.new(0.04, 0.04, (b - a).Magnitude), CFrame.lookAt((a + b) / 2, b), WEB)
+			thread.Transparency = 0.45
+			thread.CastShadow = false
+		end
+	end
+	m.Parent = parent
+end
+
+-- Pająk na nitce zwisający z sufitu (top = punkt zaczepienia)
+local function spider(parent: Instance, top: Vector3, drop: number)
+	local thread = part(parent, "SpiderThread", Vector3.new(0.04, drop, 0.04), CFrame.new(top - Vector3.new(0, drop / 2, 0)), WEB)
+	thread.Transparency = 0.4
+	local body = top - Vector3.new(0, drop + 0.2, 0)
+	part(parent, "Spider", Vector3.new(0.45, 0.35, 0.55), CFrame.new(body), Color3.fromRGB(28, 22, 30))
+	for _, side in { -1, 1 } do
+		for k = -1, 1 do
+			part(parent, "SpiderLeg", Vector3.new(0.5, 0.06, 0.06), CFrame.new(body + Vector3.new(side * 0.4, -0.05, k * 0.18)) * CFrame.Angles(0, 0, side * 0.5), Color3.fromRGB(28, 22, 30))
+		end
+	end
+	part(parent, "SpiderEye", Vector3.new(0.3, 0.08, 0.06), CFrame.new(body + Vector3.new(0, 0.05, -0.29)), Color3.fromRGB(255, 60, 60), Enum.Material.Neon)
+end
+
+-- Girlanda: sznurek z małymi lampionami-dyniami między dwoma punktami, z lekkim zwisem
+local function garland(parent: Instance, a: Vector3, b: Vector3, sag: number, count: number)
+	local last = a
+	for i = 1, 12 do
+		local t = i / 12
+		local p = a:Lerp(b, t) - Vector3.new(0, math.sin(t * math.pi) * sag, 0)
+		local rope = part(parent, "GarlandRope", Vector3.new(0.06, 0.06, (p - last).Magnitude), CFrame.lookAt((p + last) / 2, p), Color3.fromRGB(50, 36, 30))
+		rope.CastShadow = false
+		last = p
+	end
+	for i = 1, count do
+		local t = i / (count + 1)
+		local p = a:Lerp(b, t) - Vector3.new(0, math.sin(t * math.pi) * sag + 0.35, 0)
+		local colors = { Color3.fromRGB(255, 140, 30), Color3.fromRGB(170, 90, 255), Color3.fromRGB(120, 255, 120) }
+		local color = colors[(i - 1) % #colors + 1]
+		local lamp = part(parent, "GarlandLamp", Vector3.new(0.5, 0.42, 0.5), CFrame.new(p), color, Enum.Material.Neon)
+		lamp.CastShadow = false
+		if i % 3 == 0 then
+			local light = Instance.new("PointLight")
+			light.Color = color
+			light.Range = 7
+			light.Brightness = 0.7
+			light.Parent = lamp
+		end
+	end
+end
+
+-- Przyziemna mgła: miękkie kłęby dymu nisko nad ziemią w prostokącie (size.X x size.Z)
+local function groundMist(parent: Instance, center: Vector3, size: Vector2, rate: number, color: Color3)
+	local holder = part(parent, "GroundMist", Vector3.new(size.X, 0.5, size.Y), CFrame.new(center + Vector3.new(0, 0.6, 0)), color)
+	holder.Transparency = 1
+	local mist = Instance.new("ParticleEmitter")
+	mist.Texture = "rbxasset://textures/particles/smoke_main.dds"
+	mist.Shape = Enum.ParticleEmitterShape.Box
+	mist.ShapeStyle = Enum.ParticleEmitterShapeStyle.Volume
+	mist.Color = ColorSequence.new(color)
+	mist.LightEmission = 0.15
+	mist.LightInfluence = 0.6
+	mist.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 4), NumberSequenceKeypoint.new(1, 8) })
+	mist.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 1),
+		NumberSequenceKeypoint.new(0.3, 0.86),
+		NumberSequenceKeypoint.new(0.7, 0.88),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	mist.Lifetime = NumberRange.new(8, 12)
+	mist.Speed = NumberRange.new(0.2, 0.6)
+	mist.SpreadAngle = Vector2.new(180, 5)
+	mist.Rotation = NumberRange.new(0, 360)
+	mist.RotSpeed = NumberRange.new(-8, 8)
+	mist.Rate = rate
+	mist.Parent = holder
+end
+
+-- Duszek z klocków: zaokrąglona góra, falisty dół, czarne oczy i „o” ust. Unosi go klient (tag).
+local function ghost(parent: Instance, at: Vector3, s: number, rng: Random)
+	local m = Instance.new("Model")
+	m.Name = "Ghost"
+	local face = CFrame.new(at) * CFrame.Angles(0, rng:NextNumber(0, math.pi * 2), 0)
+	local body = part(m, "Body", Vector3.new(1.4, 1.6, 1.2) * s, face, GHOST, Enum.Material.SmoothPlastic)
+	body.Transparency = 0.25
+	local head = part(m, "Head", Vector3.new(1.1, 0.5, 1) * s, face * CFrame.new(0, 1.05 * s, 0), GHOST)
+	head.Transparency = 0.25
+	for i = -1, 1 do
+		local tail = part(m, "Tail", Vector3.new(0.4, 0.45, 1) * s, face * CFrame.new(i * 0.48 * s, -1.0 * s - (i % 2) * 0.12 * s, 0), GHOST)
+		tail.Transparency = 0.3
+	end
+	for _, x in { -0.3, 0.3 } do
+		part(m, "Eye", Vector3.new(0.22, 0.3, 0.06) * s, face * CFrame.new(x * s, 0.35 * s, -0.62 * s), GHOST_EYES)
+	end
+	part(m, "Mouth", Vector3.new(0.24, 0.24, 0.06) * s, face * CFrame.new(0, -0.05 * s, -0.62 * s), GHOST_EYES)
+	local light = Instance.new("PointLight")
+	light.Color = Color3.fromRGB(170, 210, 255)
+	light.Range = 8
+	light.Brightness = 0.8
+	light.Parent = body
+	m.PrimaryPart = body
+	m.ModelStreamingMode = Enum.ModelStreamingMode.Atomic -- klient dostaje całego ducha naraz (unosi go HalloweenFx)
+	CollectionService:AddTag(m, "HalloweenGhost")
+	m.Parent = parent
+end
+
+-- Krzywy nagrobek z kamienia z krzyżykiem
+local function gravestone(parent: Instance, at: CFrame, s: number)
+	local stone = Color3.fromRGB(110, 108, 118)
+	local tilt = at * CFrame.Angles(0, 0, math.rad(8))
+	part(parent, "Grave", Vector3.new(1.6, 2.2, 0.4) * s, tilt * CFrame.new(0, 1.1 * s, 0), stone, Enum.Material.Slate)
+	part(parent, "GraveTop", Vector3.new(1.3, 0.3, 0.42) * s, tilt * CFrame.new(0, 2.3 * s, 0), stone, Enum.Material.Slate)
+	part(parent, "GraveCross", Vector3.new(0.14, 0.7, 0.05) * s, tilt * CFrame.new(0, 1.5 * s, -0.22 * s), Color3.fromRGB(70, 68, 76))
+	part(parent, "GraveCross", Vector3.new(0.45, 0.14, 0.05) * s, tilt * CFrame.new(0, 1.65 * s, -0.22 * s), Color3.fromRGB(70, 68, 76))
+	part(parent, "Mound", Vector3.new(1.6, 0.25, 2.6) * s, at * CFrame.new(0, 0.12 * s, -1.6 * s), Color3.fromRGB(70, 50, 36), Enum.Material.Ground)
+end
+
+local function placeOnGround(x: number, z: number, from: number, ignore: { Instance }): Vector3?
+	local y = groundAt(x, z, from, ignore)
+	return if y then Vector3.new(x, y, z) else nil
+end
+
+-- Sekretny zakątek: stary cmentarzyk grzybiarzy przy zachodniej ścianie Skraju Lasu
+HalloweenDecor.SECRET = Vector3.new(-62, 0, 110)
+
 -- Stałe miejsca. Buzie dyń patrzą na `face` (środek ścieżki albo obozu).
 local function spots(): { { list: { Spot }, face: (x: number, z: number) -> Vector3 } }
 	local caveCamp = Config.Cave.camp
@@ -340,6 +512,147 @@ function HalloweenDecor.build(parent: Instance, _map: any): Folder
 	local cy = groundAt(cx, cz, 8, ignore)
 	if cy and cy < 4 then
 		cauldron(folder, CFrame.new(cx, cy, cz) * CFrame.Angles(0, math.rad(20), 0))
+	end
+
+	-- ===== Chatka: centrum eventu =====
+	-- Dynie wokół kotła i przy płotach ogródków
+	for _, spot in {
+		{ -13.2, 1.8, 1.7 }, { -12.4, -2.8, 1.2 }, { -6.2, 2.6, 1.3 }, { -7.4, -3.2, 0.9 },
+		{ -21, 9.6, 1.4 }, { 21, 9.6, 1.4 }, { -21, -30, 1.4 }, { 21, -30, 1.4 },
+	} do
+		local at = placeOnGround(spot[1], spot[2], 8, ignore)
+		if at and at.Y < 4 then
+			pumpkin(folder, CFrame.lookAt(at, Vector3.new(cx, at.Y, cz + 6)) * CFrame.Angles(0, math.rad(rng:NextNumber(-15, 15)), 0), spot[3])
+		end
+	end
+	for _, spot in { { -11.6, 3.2 }, { -7.8, 2.4 }, { -12.6, -4.2 } } do
+		local at = placeOnGround(spot[1], spot[2], 8, ignore)
+		if at and at.Y < 4 then
+			candle(folder, CFrame.new(at), 0.9)
+		end
+	end
+	-- Jesienne liście na polanie przed chatką (poza ścieżką)
+	local leaves = Instance.new("Folder")
+	leaves.Name = "Leaves"
+	leaves.Parent = folder
+	for _ = 1, 70 do
+		local x = rng:NextNumber(-26, 26)
+		local z = rng:NextNumber(-6, 36)
+		if math.abs(x - 3 * math.sin(z / 16)) > 3 then
+			local at = placeOnGround(x, z, 6, ignore)
+			if at and at.Y < 1.5 then
+				leafPile(leaves, at, rng)
+			end
+		end
+	end
+	-- Girlanda z lampionów pod daszkiem ganku (między słupkami) i pajęczyny w rogach ganku
+	local map = Workspace:FindFirstChild("Map")
+	local posts: { BasePart } = {}
+	if map then
+		for _, d in map:GetDescendants() do
+			if d:IsA("BasePart") and d.Name == "PorchPost" then
+				table.insert(posts, d)
+			end
+		end
+	end
+	if #posts == 2 then
+		table.sort(posts, function(a, b)
+			return a.Position.X < b.Position.X
+		end)
+		local topY = posts[1].Position.Y + posts[1].Size.Y / 2 - 0.6
+		local left = Vector3.new(posts[1].Position.X + 0.5, topY, posts[1].Position.Z)
+		local right = Vector3.new(posts[2].Position.X - 0.5, topY, posts[2].Position.Z)
+		local mid = (left + right) / 2
+		-- Dwa łuki, żeby nie zasłaniały szyldu nad drzwiami
+		garland(folder, left, mid - Vector3.new(4.5, 0, 0), 1.6, 5)
+		garland(folder, mid + Vector3.new(4.5, 0, 0), right, 1.6, 5)
+		for _, post in posts do
+			local side = if post.Position.X < 0 then 1 else -1
+			local corner = CFrame.new(post.Position.X + side * 0.45, topY + 0.4, post.Position.Z) * CFrame.Angles(0, math.rad(if side > 0 then 0 else 180), 0)
+			cobweb(folder, corner * CFrame.Angles(0, 0, math.rad(180)), 2.4)
+		end
+	end
+	-- Przyziemna mgła wokół kotła i przed gankiem
+	groundMist(folder, Vector3.new(cx, 0, cz), Vector2.new(12, 10), 1.2, Color3.fromRGB(150, 120, 190))
+	groundMist(folder, Vector3.new(0, 0, 4), Vector2.new(30, 12), 1.5, Color3.fromRGB(140, 130, 180))
+
+	-- ===== Jaskinia: pajęczyny w rogach drewnianych odrzwi kopalni i pająki pod belkami =====
+	-- Strop jaskini jest wysoko (ok. 34 studów), więc sieci wiszą na odrzwiach (MineFrame: słupy na
+	-- x = ±7, belka na wysokości ok. 12) w chodnikach najbliżej obozowiska
+	local cave = if map then map:FindFirstChild("Cave") else nil
+	local frames: { Model } = {}
+	if cave then
+		for _, d in cave:GetDescendants() do
+			if d:IsA("Model") and d.Name == "MineFrame" then
+				local position = d:GetPivot().Position
+				if position.Z > Config.Cave.camp.z and position.Z < Config.Cave.camp.z + 160 then
+					table.insert(frames, d)
+				end
+			end
+		end
+	end
+	for index, frame in frames do
+		local cf, size = frame:GetBoundingBox()
+		local beamBottom = cf.Position.Y + size.Y / 2 - 1.05
+		local inner = size.X / 2 - 1.5
+		for _, side in { -1, 1 } do
+			if (index + (if side > 0 then 1 else 0)) % 2 == 0 or rng:NextNumber() < 0.4 then
+				local corner = cf * CFrame.new(side * inner, 0, 0)
+				local at = CFrame.new(corner.Position.X, beamBottom, corner.Position.Z) * CFrame.Angles(0, if side > 0 then math.pi else 0, 0)
+				cobweb(folder, at, rng:NextNumber(2.2, 3))
+			end
+		end
+		if rng:NextNumber() < 0.7 then
+			local top = (cf * CFrame.new(rng:NextNumber(-3, 1), 0, 0)).Position
+			spider(folder, Vector3.new(top.X, beamBottom, top.Z), rng:NextNumber(2, 4))
+		end
+	end
+
+	-- ===== Bagna: znicze wzdłuż kładki i duchy nad wodą =====
+	local swamp = Config.Swamp.camp
+	for i = 1, 8 do
+		local z = swamp.z + 10 + i * 9
+		local x = swamp.x + (if i % 2 == 0 then 3.4 else -3.4)
+		local at = placeOnGround(x, z, 8, ignore)
+		if at and at.Y < 6 then
+			candle(folder, CFrame.new(at), 0.8)
+		end
+	end
+	for _, spot in { { -14, 30 }, { 16, 46 }, { -20, 70 }, { 12, 88 }, { -8, 110 } } do
+		local at = placeOnGround(swamp.x + spot[1], swamp.z + spot[2], 8, ignore)
+		if at and at.Y < 6 then
+			ghost(folder, at + Vector3.new(0, 3.5, 0), rng:NextNumber(0.9, 1.3), rng)
+		end
+	end
+
+	-- ===== Sekretny zakątek w lesie =====
+	local secret = HalloweenDecor.SECRET
+	local center = placeOnGround(secret.X, secret.Z, 10, ignore)
+	if center and center.Y < 4 then
+		local corner = Instance.new("Folder")
+		corner.Name = "SecretCorner"
+		corner.Parent = folder
+		local facing = Vector3.new(secret.X + 10, center.Y, secret.Z)
+		for i, offset in { Vector3.new(-1.5, 0, -4), Vector3.new(-2.5, 0, 0), Vector3.new(-1.5, 0, 4) } do
+			local at = placeOnGround(center.X + offset.X, center.Z + offset.Z, 10, ignore)
+			if at then
+				gravestone(corner, CFrame.lookAt(at, facing + offset) * CFrame.Angles(0, math.rad(i * 7 - 14), 0), 1)
+				candle(corner, CFrame.new(at + Vector3.new(1.4, 0, -1.2)), 0.8)
+			end
+		end
+		pumpkin(corner, CFrame.lookAt(center + Vector3.new(2, 0, 0), facing), 1.6)
+		for _ = 1, 8 do
+			local at = placeOnGround(center.X + rng:NextNumber(-4, 4), center.Z + rng:NextNumber(-6, 6), 10, ignore)
+			if at then
+				leafPile(corner, at, rng)
+			end
+		end
+		ghost(corner, center + Vector3.new(-1, 4.2, 0), 1.2, rng)
+		groundMist(corner, center, Vector2.new(10, 14), 0.8, Color3.fromRGB(150, 200, 170))
+		-- Niewidzialny znacznik: klient pokazuje komunikat, kiedy gracz go znajdzie
+		local marker = part(corner, "SecretMarker", Vector3.new(1, 1, 1), CFrame.new(center + Vector3.new(0, 2, 0)), GHOST)
+		marker.Transparency = 1
+		CollectionService:AddTag(marker, "HalloweenSecret")
 	end
 	folder.Parent = parent
 	return folder

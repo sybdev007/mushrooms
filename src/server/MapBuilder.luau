@@ -775,6 +775,9 @@ function MapBuilder.build(): MapInfo
 	-- Halloween: kocioł przed gankiem i tablica rankingu cukierków przy ścieżce do lasu (nic tam nie wyrośnie)
 	table.insert(reserved, { x1 = -25, x2 = -6, z1 = -4, z2 = 5 })
 	table.insert(reserved, { x1 = -16, x2 = -5, z1 = 24, z2 = 38 })
+	-- Halloween: sekretny zakątek (cmentarzyk grzybiarzy) przy zachodniej ścianie Skraju Lasu
+	-- (HalloweenDecor.SECRET); dookoła rośnie las, więc z daleka go nie widać
+	table.insert(reserved, { x1 = -70, x2 = -54, z1 = 101, z2 = 119 })
 
 	-- Bramy na początku każdej strefy leśnej
 	for i = 2, #FOREST_ZONES do
