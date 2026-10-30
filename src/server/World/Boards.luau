@@ -30,8 +30,8 @@ Boards.PLACEMENTS = {
 	{ kind = "rare", position = Vector3.new(-3.5, 0, WALL_Z), width = 8.5, height = 10, lift = 2.4, rows = 8 },
 	{ kind = "thieves", position = Vector3.new(6.5, 0, WALL_Z), width = 8.5, height = 10, lift = 2.4, rows = 8 },
 	-- Halloween: ranking cukierków przy ścieżce do lasu, za ogródkami (nie stoi na przejściu między nimi),
-	-- bokiem do ścieżki i lekko w stronę lasu: widać go, wracając z koszykiem do chatki
-	{ kind = "candy", position = Vector3.new(-11, 0, 31), width = 8, height = 9, lift = 2, rows = 8, facing = Vector3.new(1, 0, 0.45), optional = true },
+	-- równolegle do ścieżki, przodem do niej
+	{ kind = "candy", position = Vector3.new(-11, 0, 31), width = 8, height = 9, lift = 2, rows = 8, facing = Vector3.new(1, 0, 0), optional = true },
 } :: { Placement }
 
 local function part(parent: Instance, name: string, size: Vector3, cf: CFrame, color: Color3, material: Enum.Material?): Part
