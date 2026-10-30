@@ -566,10 +566,13 @@ function HalloweenDecor.build(parent: Instance, _map: any): Folder
 		-- Dwa łuki, żeby nie zasłaniały szyldu nad drzwiami
 		garland(folder, left, mid - Vector3.new(4.5, 0, 0), 1.6, 5)
 		garland(folder, mid + Vector3.new(4.5, 0, 0), right, 1.6, 5)
+		-- Pajęczyna w kącie między słupkiem a daszkiem: zaczepiona pod daszkiem przy wewnętrznej
+		-- stronie słupka, rozpięta w dół i do środka ganku, od strony lasu
 		for _, post in posts do
-			local side = if post.Position.X < 0 then 1 else -1
-			local corner = CFrame.new(post.Position.X + side * 0.45, topY + 0.4, post.Position.Z) * CFrame.Angles(0, math.rad(if side > 0 then 0 else 180), 0)
-			cobweb(folder, corner * CFrame.Angles(0, 0, math.rad(180)), 2.4)
+			local inward = if post.Position.X < 0 then 1 else -1
+			local top = post.Position.Y + post.Size.Y / 2 - 0.05
+			local at = CFrame.new(post.Position.X + inward * (post.Size.X / 2 + 0.02), top, post.Position.Z + post.Size.Z / 2 + 0.05)
+			cobweb(folder, if inward > 0 then at else at * CFrame.Angles(0, math.pi, 0), 2.6)
 		end
 	end
 	-- Przyziemna mgła wokół kotła i przed gankiem
@@ -653,6 +656,22 @@ function HalloweenDecor.build(parent: Instance, _map: any): Folder
 		local marker = part(corner, "SecretMarker", Vector3.new(1, 1, 1), CFrame.new(center + Vector3.new(0, 2, 0)), GHOST)
 		marker.Transparency = 1
 		CollectionService:AddTag(marker, "HalloweenSecret")
+		-- Znicz do zapalenia przy środkowym nagrobku: tytuł „Halloween 2026” (HalloweenService)
+		local lightAt = placeOnGround(center.X - 0.6, center.Z, 10, ignore) or center
+		local holder = part(corner, "GraveyardCandle", Vector3.new(1.2, 1.2, 1.2), CFrame.new(lightAt + Vector3.new(0, 0.8, 0)), GHOST)
+		holder.Transparency = 1
+		local prompt = Instance.new("ProximityPrompt")
+		prompt.Name = "LightCandle"
+		prompt.ActionText = "Light a candle"
+		prompt.ObjectText = "Graveyard"
+		prompt.HoldDuration = 1.2
+		prompt.MaxActivationDistance = 9
+		prompt.RequiresLineOfSight = false
+		prompt:SetAttribute("TextKey", "PROMPT_LIGHT_CANDLE")
+		prompt:SetAttribute("ObjectKey", "OBJ_GRAVEYARD")
+		CollectionService:AddTag(prompt, "LocalizedPrompt")
+		CollectionService:AddTag(prompt, "GraveyardPrompt")
+		prompt.Parent = holder
 	end
 	folder.Parent = parent
 	return folder

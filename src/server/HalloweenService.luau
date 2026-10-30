@@ -17,6 +17,7 @@ local Halloween = require(Shared.Halloween)
 local Progress = require(Shared.Progress)
 local Remotes = require(Shared.Remotes)
 local DataService = require(script.Parent.DataService)
+local ProgressService = require(script.Parent.ProgressService)
 
 type Data = DataService.Data
 
@@ -409,8 +410,39 @@ function HalloweenService.dev(player: Player, action: string): boolean
 	return false
 end
 
+-- Sekretny cmentarzyk (HalloweenDecor): zapalenie znicza daje epicki tytuł „Halloween 2026” (raz na
+-- konto, licznik stats.graveyard). Serwer sprawdza event i odległość od znicza (klient może kłamać).
+local GRAVEYARD_DISTANCE = 14
+local function bindGraveyard(prompt: Instance)
+	if not prompt:IsA("ProximityPrompt") then
+		return
+	end
+	prompt.Triggered:Connect(function(player: Player)
+		local data = api.getData(player)
+		local holder = prompt.Parent
+		local character = player.Character
+		local root = character and character:FindFirstChild("HumanoidRootPart")
+		if not data or not Halloween.active(os.time()) or not (holder and holder:IsA("BasePart")) or not (root and root:IsA("BasePart")) then
+			return
+		end
+		if (root.Position - holder.Position).Magnitude > GRAVEYARD_DISTANCE then
+			return
+		end
+		if (data.stats.graveyard or 0) >= 1 then
+			api.notify(player, "MSG_GRAVEYARD_DONE")
+			return
+		end
+		api.notify(player, "MSG_GRAVEYARD_LIT")
+		ProgressService.event(player, "graveyard", 1) -- tytuł i komunikat „Nowy tytuł” przez ProgressService
+	end)
+end
+
 function HalloweenService.start(serviceApi: Api)
 	api = serviceApi
+	for _, prompt in CollectionService:GetTagged("GraveyardPrompt") do
+		bindGraveyard(prompt)
+	end
+	CollectionService:GetInstanceAddedSignal("GraveyardPrompt"):Connect(bindGraveyard)
 	EquipSkin.OnServerEvent:Connect(onEquip)
 	for _, prompt in CollectionService:GetTagged("CauldronPrompt") do
 		bindPrompt(prompt)
