@@ -47,6 +47,14 @@ type Entry = {
 	mimicLight: PointLight?, -- błędny ognik: światło drży nierówno (jedyna wskazówka dla uważnych)
 	aura: any?, -- krążące kostki, słup światła i zarodniki rzadszych grzybów (typ Aura niżej)
 	fxParts: { BasePart },
+	decorative: boolean, -- tylko do oglądania (ogródek): nie da się go zebrać i nie chowa się w ciemności
+}
+
+export type AddOptions = {
+	decorative: boolean?, -- grzyb do oglądania (ogródek), nie do zbierania
+	parent: Instance?, -- gdzie wstawić model (domyślnie folder z grzybami lasu)
+	grow: boolean?, -- animacja wyrastania z ziemi (domyślnie tak)
+	fit: Vector2?, -- zmniejsz grzyb, żeby zmieścił się w (szerokość, wysokość) w studach (np. na grządce)
 }
 
 local function rgb(r: number, g: number, b: number): Color3
@@ -717,7 +725,32 @@ local function pumpkinFace(model: Model, origin: CFrame, species: string, capTop
 	end
 end
 
-local function buildModel(info: MushroomInfo): (Model, { BasePart }, boolean, { BasePart }, Aura?, { BasePart })
+-- Zmniejsza zbudowany grzyb (z aurą) od podstawy, jeśli nie mieści się w `fit`
+local function fitModel(model: Model, origin: CFrame, parts: { BasePart }, mainCap: BasePart, aura: Aura?, fit: Vector2)
+	local half, top = 0, 0
+	for _, p in parts do
+		local offset = origin:PointToObjectSpace(p.Position)
+		local reach = math.max(p.Size.X, p.Size.Z) / 2
+		half = math.max(half, math.abs(offset.X) + reach, math.abs(offset.Z) + reach)
+		top = math.max(top, offset.Y + p.Size.Y / 2)
+	end
+	local k = math.min(1, fit.X / math.max(half * 2, 0.01), fit.Y / math.max(top, 0.01))
+	if k >= 0.999 then
+		return
+	end
+	model.PrimaryPart = nil
+	model.WorldPivot = origin
+	model:ScaleTo(k)
+	model.PrimaryPart = mainCap
+	if aura then
+		aura.orbitRadius *= k
+		aura.orbitHeight *= k
+		aura.capTop *= k
+		aura.ringSize *= k
+	end
+end
+
+local function buildModel(info: MushroomInfo, parent: Instance?, fit: Vector2?): (Model, { BasePart }, boolean, { BasePart }, Aura?, { BasePart })
 	local model = Instance.new("Model")
 	model.Name = info.id
 	local shape = SHAPES[info.species] or DEFAULT_SHAPE
@@ -825,7 +858,10 @@ local function buildModel(info: MushroomInfo): (Model, { BasePart }, boolean, { 
 	end
 
 	model.PrimaryPart = mainCap
-	model.Parent = folder
+	if fit then
+		fitModel(model, origin, parts, mainCap, aura, fit)
+	end
+	model.Parent = parent or folder
 	local rainbow = if rank == 3 then caps else {}
 	if light and rank == 3 then
 		light:SetAttribute("Rainbow", true)
@@ -843,7 +879,10 @@ local function growIn(parts: { BasePart })
 	end
 end
 
-function MushroomView.add(list: { MushroomInfo })
+function MushroomView.add(list: { MushroomInfo }, options: AddOptions?)
+	local decorative = options ~= nil and options.decorative == true
+	local grow = options == nil or options.grow ~= false
+	local parent = if options then options.parent else nil
 	for _, info in list do
 		local old = entries[info.id]
 		if old then
@@ -853,10 +892,12 @@ function MushroomView.add(list: { MushroomInfo })
 				targetId = nil
 			end
 		end
-		local model, parts, animated, rainbow, aura, fxParts = buildModel(info)
+		local model, parts, animated, rainbow, aura, fxParts = buildModel(info, parent, if options then options.fit else nil)
 		-- Pozycję spoczynkową bierzemy przed animacją wyrastania (potem części są pod ziemią)
 		local basePivot = model:GetPivot()
-		growIn(parts)
+		if grow then
+			growIn(parts)
+		end
 		entries[info.id] = {
 			info = info,
 			model = model,
@@ -865,14 +906,34 @@ function MushroomView.add(list: { MushroomInfo })
 			animated = animated,
 			basePivot = basePivot,
 			phase = math.random() * math.pi * 2,
-			bobFrom = os.clock() + 0.6, -- unoszenie dopiero po skończonym wyrastaniu
+			bobFrom = os.clock() + (if grow then 0.6 else 0), -- unoszenie dopiero po skończonym wyrastaniu
 			rainbowParts = if #rainbow > 0 then rainbow else nil,
 			rainbowLight = model.PrimaryPart and model.PrimaryPart:FindFirstChildOfClass("PointLight") or nil,
 			mimicLight = if Economy.isMimic(info.species) then model:FindFirstChildWhichIsA("PointLight", true) else nil,
 			aura = aura,
 			fxParts = fxParts,
+			decorative = decorative,
 		}
 	end
+end
+
+-- Zapomina grzyb bez animacji (np. jego model zniknął razem z rodzicem); niszczy model, jeśli jeszcze jest
+function MushroomView.forget(id: string)
+	local entry = entries[id]
+	if not entry then
+		return
+	end
+	entries[id] = nil
+	if targetId == id then
+		targetId = nil
+		targetTag.Enabled = false
+		targetTag.Adornee = nil
+	end
+	if highlight.Adornee == entry.model then
+		highlight.Enabled = false
+		highlight.Adornee = nil
+	end
+	entry.model:Destroy()
 end
 
 -- Kolor kapelusza (do efektów przy zbieraniu)
@@ -938,7 +999,7 @@ function MushroomView.updateTarget(position: Vector3, radius: number): string?
 	local bestId: string? = nil
 	local bestDistance = radius
 	for id, entry in entries do
-		if not entry.hidden then
+		if not entry.hidden and not entry.decorative then
 			local distance = flatDistance(position, entry.info.position)
 			if distance <= bestDistance then
 				bestDistance = distance
@@ -985,7 +1046,7 @@ function MushroomView.updateVisibility(position: Vector3, lanternRange: number, 
 	local t = os.clock()
 	for _, entry in entries do
 		local glows = entry.animated
-		local hidden = not glows and flatDistance(position, entry.info.position) > visibleRange
+		local hidden = not glows and not entry.decorative and flatDistance(position, entry.info.position) > visibleRange
 		if hidden ~= entry.hidden then
 			entry.hidden = hidden
 			for _, p in entry.parts do

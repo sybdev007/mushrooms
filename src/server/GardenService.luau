@@ -57,6 +57,7 @@ type GardenState = {
 	protectedUntil: number,
 	stealPrompt: ProximityPrompt,
 	contentKey: string?,
+	slotKeys: { [number]: string }, -- co stoi na każdej grządce (przebudowa tylko zmienionych)
 }
 
 type Carry = {
@@ -270,7 +271,8 @@ end
 
 -- Tabliczka nad grządką: mutacje, wartość i dochód na minutę. To ona kusi złodziei.
 local function slotLabel(slot: Attachment): TextLabel
-	local label = billboard(slot, "SlotTag", UDim2.fromOffset(100, 42), Vector3.new(0, 3.4, 0), 45)
+	-- Nad grzybem (klient mieści go w 3,4 studa wysokości, GardenMushrooms.FIT)
+	local label = billboard(slot, "SlotTag", UDim2.fromOffset(100, 42), Vector3.new(0, 4.4, 0), 45)
 	label.BackgroundColor3 = Color3.fromRGB(40, 28, 20)
 	label.BackgroundTransparency = 0.25
 	label.TextColor3 = Color3.fromRGB(255, 226, 140)
@@ -321,12 +323,41 @@ local function ownerSignLabel(sign: BasePart): TextLabel
 	return label
 end
 
+local function itemKey(item: Economy.PlantItem): string
+	return string.format("%s:%s:%s:%d", item.s, item.v or "", table.concat(item.x or {}, ","), item.t)
+end
+
 local function contentKey(planted: { Economy.PlantItem }): string
 	local parts = {}
 	for _, item in planted do
-		table.insert(parts, string.format("%s:%s:%s:%d", item.s, item.v or "", table.concat(item.x or {}, ","), item.t))
+		table.insert(parts, itemKey(item))
 	end
 	return table.concat(parts, "|")
+end
+
+-- Znacznik grzyba na grządce: niewidzialna część na ziemi z gatunkiem, wariantem i cechami.
+-- Samego grzyba (ten sam model co w lesie, z aurami) rysuje każdy klient (GardenMushrooms).
+local FRESH_SECONDS = 5
+local function plantMarker(parent: Instance, item: Economy.PlantItem, base: CFrame): Model
+	local marker = Instance.new("Model")
+	local root = Instance.new("Part")
+	root.Name = "Root"
+	root.Size = Vector3.new(0.2, 0.2, 0.2)
+	root.CFrame = base
+	root.Transparency = 1
+	root.Anchored = true
+	root.CanCollide = false
+	root.CanQuery = false
+	root.CanTouch = false
+	root.Parent = marker
+	marker.PrimaryPart = root
+	marker:SetAttribute("Species", item.s)
+	marker:SetAttribute("Variant", item.v or "")
+	marker:SetAttribute("Tags", table.concat(item.x or {}, ","))
+	marker:SetAttribute("Fresh", os.time() - item.t <= FRESH_SECONDS)
+	CollectionService:AddTag(marker, "GardenMushroom")
+	marker.Parent = parent
+	return marker
 end
 
 local function lockSeconds(owner: Player?): number
@@ -346,11 +377,19 @@ local function refreshGarden(garden: GardenState)
 	local key = if owner then contentKey(planted) else ""
 	if garden.contentKey ~= key then
 		garden.contentKey = key
-		garden.visuals:ClearAllChildren()
-		for index, item in planted do
-			local slot = garden.slots[index]
-			if slot then
-				buildMushroom(garden.visuals, item, slot.WorldCFrame).Name = "Slot" .. index
+		-- Przebudowujemy tylko grządki, na których coś się zmieniło (reszta grzybów stoi dalej)
+		for index, slot in garden.slots do
+			local item = if owner then planted[index] else nil
+			local slotKey = if item then itemKey(item) else ""
+			if garden.slotKeys[index] ~= slotKey then
+				garden.slotKeys[index] = slotKey
+				local old = garden.visuals:FindFirstChild("Slot" .. index)
+				if old then
+					old:Destroy()
+				end
+				if item then
+					plantMarker(garden.visuals, item, slot.WorldCFrame).Name = "Slot" .. index
+				end
 			end
 		end
 	end
@@ -920,6 +959,7 @@ function GardenService.start(gardenInfos: { { id: number, model: Model } }, serv
 			protectedUntil = 0,
 			stealPrompt = steal,
 			contentKey = nil,
+			slotKeys = {},
 		}
 		model:SetAttribute("OwnerUserId", 0)
 		model:SetAttribute("Count", 0)
