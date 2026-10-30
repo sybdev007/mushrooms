@@ -93,6 +93,19 @@ FontFix.start()
 -- Skąd wylatują monety po sprzedaży (przycisk w panelu sprzedaży)
 local sellShowerFrom: Vector2? = nil
 local introStarted = false
+
+-- Ekran wczytywania (ReplicatedFirst/LoadingScreen) kończy się atrybutem „Loaded”
+local function waitForLoadingScreen()
+	local playerGui = player:WaitForChild("PlayerGui")
+	local started = os.clock()
+	while player:GetAttribute("Loaded") ~= true and os.clock() - started < 60 do
+		-- Ekranu nie ma wcale (np. stara wersja bez ReplicatedFirst): nie ma na co czekać
+		if os.clock() - started > 3 and not playerGui:FindFirstChild("LoadingScreen") then
+			break
+		end
+		task.wait(0.1)
+	end
+end
 SellPanel.onSell(function(indices, key, from)
 	sellShowerFrom = from
 	SellBasket:FireServer(indices, key)
@@ -121,11 +134,19 @@ Remotes.get("StateUpdate").OnClientEvent:Connect(function(state)
 	end
 	Hud.update(state)
 	OilView.update(state)
-	-- Pierwsze wejście do gry: cutscenka ze złym snem, potem samouczek
+	-- Ekran wczytywania (ReplicatedFirst) czeka na pierwszy stan: po nim wie, czy zaraz ruszy intro
+	if player:GetAttribute("IntroPending") == nil then
+		player:SetAttribute("IntroPending", state.tutorial == 0)
+	end
+	-- Pierwsze wejście do gry: cutscenka ze złym snem, potem samouczek. Rusza dopiero po ekranie
+	-- wczytywania, kiedy mapa wokół postaci już jest.
 	if state.tutorial == 0 and not IntroCutscene.isPlaying() and not introStarted then
 		introStarted = true
-		IntroCutscene.play(function()
-			Remotes.get("TutorialStep"):FireServer(1)
+		task.spawn(function()
+			waitForLoadingScreen()
+			IntroCutscene.play(function()
+				Remotes.get("TutorialStep"):FireServer(1)
+			end)
 		end)
 	elseif state.tutorial ~= 0 then
 		introStarted = false

@@ -30,6 +30,10 @@ local function consider(object: Instance)
 	if not (object:IsA("TextLabel") or object:IsA("TextButton") or object:IsA("TextBox")) then
 		return
 	end
+	-- Ekran wczytywania (ReplicatedFirst) sam dobiera czcionki i nie może zmienić ich w trakcie
+	if object:FindFirstAncestor("LoadingScreen") then
+		return
+	end
 	local text = object :: any
 	local label = object :: GuiObject
 	local function check()

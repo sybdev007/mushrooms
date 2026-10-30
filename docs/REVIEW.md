@@ -90,3 +90,4 @@ Wszystko, co przychodzi z RemoteEvent albo ProximityPrompt, może być podrobion
 - Błędy, które wywalają pętlę serwera (np. `nil` w `tick`): jeden gracz nie może zatrzymać gry wszystkim.
 - Zapis: nowe pola w danych gracza muszą mieć wartość domyślną w `DataService.defaultData` i sprawdzenie w `reconcile` (stary zapis albo śmieci nie mogą wywalić gry).
 - Teksty dla gracza: nowy klucz musi być w `src/localization/GameStrings.csv` (EN i PL, bez przecinków w tekście).
+- Atrybuty, które klient ustawia na swoim graczu (`Loaded`, `IntroPending` z ekranu wczytywania), nie docierają do serwera. Serwer nie może na nich polegać. Teksty ekranu wczytywania są w `src/first/LoadingTheme.luau`, nie w CSV, bo ekran rusza, zanim klient dostanie tabelę tłumaczeń.

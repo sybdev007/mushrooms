@@ -38,6 +38,9 @@ rojo build -o lantern-forager.rbxlx
 
 | Ścieżka | Trafia do | Co robi |
 |---|---|---|
+| `src/first/LoadingScreen.client.luau` | ReplicatedFirst | Ekran wczytywania: etapy wczytywania, postać stoi, dopóki pod nią nie ma podłogi, przejście do intra |
+| `src/first/LoadingUI.luau` | ReplicatedFirst | Wygląd ekranu wczytywania: tło, pasek z dynią albo grzybkiem, wskazówki, iskry |
+| `src/first/LoadingTheme.luau` | ReplicatedFirst | Motyw ekranu (`ACTIVE`), teksty PL/EN, numery obrazków |
 | `src/shared/Config.luau` | ReplicatedStorage.Shared | **Cały balans**: strefy, grzyby, ceny, ulepszenia |
 | `src/shared/Economy.luau` | ReplicatedStorage.Shared | Czyste funkcje: koszty, losowanie gatunku, wartość koszyka |
 | `src/shared/Remotes.luau` | ReplicatedStorage.Shared | Nazwy RemoteEventów |
@@ -221,6 +224,20 @@ Jak podpiąć: Creator Hub → gra → Monetization → **Developer Products** �
 skopiuj ich numery do `Config.Products` (pole `id`). Dopóki `id = 0`, w Studio zakup działa za darmo (do testów),
 a w prawdziwej grze przycisk jest ukryty. Serwer obsługuje zakupy w `ProcessReceipt` i zapamiętuje ostatnie
 numery zakupów, więc ten sam zakup nigdy nie da rzeczy dwa razy.
+
+## Ekran wczytywania
+
+Własny ekran zamiast domyślnego Robloxa (`src/first`, czyli ReplicatedFirst). Zasłania wczytywanie mapy
+(przy StreamingEnabled świat dochodzi kawałkami) i trzyma postać w miejscu, aż pod nogami jest podłoga,
+więc nikt już nie spada z mapy na starcie. Nowemu graczowi intro startuje dopiero po ekranie, z czerni.
+
+- Motyw: `LoadingTheme.ACTIVE` = `"halloween"` (dynia toczy się po pasku) albo `"forest"` (grzybek skacze
+  i zostawia świecące kiełki). Po Halloween wystarczy zmienić tę jedną linijkę.
+- Grafiki: `assets/loading/` (tła i arkusz dyni/grzybków). Arkusz rysuje `python3 tools/loading_art.py`
+  (SVG → PNG przez Playwright). Po zmianie: wgraj w Studio (Asset Manager → Bulk Import) i wpisz numery
+  w `LoadingTheme`. Pusty numer = ekran działa dalej, tylko bez tła i z emoji zamiast dyni.
+- Podgląd bez wchodzenia do gry: w trakcie Play, w pasku poleceń (Client)
+  `require(game.ReplicatedFirst.LoadingUI).preview("forest", 12)`.
 
 ## Rozmiar serwera
 
