@@ -271,7 +271,7 @@ end
 
 -- Tabliczka nad grządką: mutacje, wartość i dochód na minutę. To ona kusi złodziei.
 local function slotLabel(slot: Attachment): TextLabel
-	-- Nad grzybem (klient mieści go w 3,4 studa wysokości, GardenMushrooms.FIT)
+	-- Nad grzybem (klient mieści go w 3,4 studa wysokości, DisplayMushrooms.FIT)
 	local label = billboard(slot, "SlotTag", UDim2.fromOffset(100, 42), Vector3.new(0, 4.4, 0), 45)
 	label.BackgroundColor3 = Color3.fromRGB(40, 28, 20)
 	label.BackgroundTransparency = 0.25
@@ -336,7 +336,7 @@ local function contentKey(planted: { Economy.PlantItem }): string
 end
 
 -- Znacznik grzyba na grządce: niewidzialna część na ziemi z gatunkiem, wariantem i cechami.
--- Samego grzyba (ten sam model co w lesie, z aurami) rysuje każdy klient (GardenMushrooms).
+-- Samego grzyba (ten sam model co w lesie, z aurami) rysuje każdy klient (DisplayMushrooms).
 local FRESH_SECONDS = 5
 local function plantMarker(parent: Instance, item: Economy.PlantItem, base: CFrame): Model
 	local marker = Instance.new("Model")

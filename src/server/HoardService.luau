@@ -2,7 +2,8 @@
 -- Skarbiec strażnika (Leszego w lesie, Skarbnika w jaskini). Gdy strażnik złapie gracza, odbiera mu
 -- swoje grzyby i odnosi je do legowiska. Leżą tam dla wszystkich: kto pierwszy dobiegnie i przytrzyma
 -- przycisk, ten je zabiera (i budzi strażnika). Grzyby w skarbcu są wspólne, w przeciwieństwie do
--- zwykłych, więc serwer buduje je jako prawdziwe części w Workspace, a nie przez MushroomView.
+-- zwykłych, więc serwer trzyma je w Workspace (znacznik z przyciskiem), a wygląd jak w lesie rysuje
+-- każdy klient (DisplayMushrooms).
 -- Każdy skarbiec to osobny obiekt: HoardService.new(...).
 
 local CollectionService = game:GetService("CollectionService")
@@ -53,18 +54,6 @@ function HoardService.new(groveCenter: Vector3?, name: string, serviceHooks: Hoo
 		return p
 	end
 
-	local function capColor(item: Item): Color3
-		local variant = Economy.getVariant(item.v)
-		if variant then
-			return Color3.fromRGB(variant.color[1], variant.color[2], variant.color[3])
-		end
-		local species = Economy.getSpecies(item.s)
-		if species and species.cap then
-			return Color3.fromRGB(species.cap[1], species.cap[2], species.cap[3])
-		end
-		return Color3.fromRGB(120, 255, 190)
-	end
-
 	local function slotPosition(index: number): Vector3
 		local origin = center or Vector3.zero
 		if index == 1 then
@@ -74,48 +63,33 @@ function HoardService.new(groveCenter: Vector3?, name: string, serviceHooks: Hoo
 		return origin + Vector3.new(math.cos(angle), 0, math.sin(angle)) * Config.Hoard.radius
 	end
 
+	-- Znacznik grzyba: niewidzialny "Root" z przyciskiem zabrania; samego grzyba (ten sam model co w lesie,
+	-- z aurami) rysuje każdy klient (DisplayMushrooms, tag "HoardMushroom")
 	local function build(item: Item, index: number): Model
 		local base = slotPosition(index)
 		local model = Instance.new("Model")
 		model.Name = "HoardCrown"
-
 		local stem = part({
-			Name = "Stem",
-			Shape = Enum.PartType.Cylinder,
-			Size = Vector3.new(1.6, 0.7, 0.7),
-			CFrame = CFrame.new(base + Vector3.new(0, 0.8, 0)) * CFrame.Angles(0, 0, math.rad(90)),
-			Color = Color3.fromRGB(236, 228, 210),
+			Name = "Root",
+			Size = Vector3.new(1.6, 1.6, 1.6),
+			Position = base + Vector3.new(0, 0.8, 0),
+			Transparency = 1,
+			CanQuery = false,
 			Parent = model,
 		})
-		local cap = part({
-			Name = "Cap",
-			Size = Vector3.new(2, 1, 2),
-			Position = base + Vector3.new(0, 1.75, 0),
-			Color = capColor(item),
-			Material = Enum.Material.Neon,
-			Parent = model,
-		})
-		local mesh = Instance.new("SpecialMesh")
-		mesh.MeshType = Enum.MeshType.Sphere
-		mesh.Parent = cap
 		model.PrimaryPart = stem
-
-		local light = Instance.new("PointLight")
-		light.Color = cap.Color
-		light.Range = 9
-		light.Brightness = 1.2
-		light.Parent = cap
-
-		local sparkles = Instance.new("ParticleEmitter")
-		sparkles.Texture = "rbxasset://textures/particles/sparkles_main.dds"
-		sparkles.Color = ColorSequence.new(cap.Color)
-		sparkles.LightEmission = 1
-		sparkles.Size = NumberSequence.new(0.3, 0)
-		sparkles.Lifetime = NumberRange.new(0.8, 1.4)
-		sparkles.Rate = 4
-		sparkles.Speed = NumberRange.new(0.5, 1.2)
-		sparkles.SpreadAngle = Vector2.new(180, 180)
-		sparkles.Parent = cap
+		model:SetAttribute("Species", item.s)
+		model:SetAttribute("Variant", item.v or "")
+		model:SetAttribute("Tags", table.concat(item.x or {}, ","))
+		model:SetAttribute("Ground", base)
+		-- Świeżo odniesiony grzyb wyrasta z ziemi; kto wejdzie później, widzi go od razu
+		model:SetAttribute("Fresh", true)
+		task.delay(3, function()
+			if model.Parent then
+				model:SetAttribute("Fresh", false)
+			end
+		end)
+		CollectionService:AddTag(model, "HoardMushroom")
 
 		local prompt = Instance.new("ProximityPrompt")
 		prompt.Name = "Take"

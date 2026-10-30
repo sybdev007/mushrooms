@@ -483,7 +483,7 @@ Config.Grove = {
 -- i może je zabrać każdy (pierwszy, który zdąży). Zabranie znów budzi Leszego.
 Config.Hoard = {
 	maxItems = 9, -- więcej się nie zmieści, nadmiar przepada
-	radius = 2.6, -- korony leżą w kółku wokół środka gniazda
+	radius = 4.2, -- korony leżą w kółku wokół środka gniazda (modele jak w lesie: DisplayMushrooms)
 	takeDistance = 12, -- serwer sprawdza odległość gracza od korony
 }
 

@@ -46,7 +46,7 @@ local IntroCutscene = require(script.Parent.IntroCutscene)
 local Tutorial = require(script.Parent.Tutorial)
 local LeszyAnimator = require(script.Parent.LeszyAnimator)
 local GardenPanel = require(script.Parent.GardenPanel)
-local GardenMushrooms = require(script.Parent.GardenMushrooms)
+local DisplayMushrooms = require(script.Parent.DisplayMushrooms)
 local FontFix = require(script.Parent.FontFix)
 
 local player = Players.LocalPlayer
@@ -86,7 +86,7 @@ GardenPrompts.start()
 MerchantView.start()
 LeszyAnimator.start()
 GardenPanel.start()
-GardenMushrooms.start()
+DisplayMushrooms.start()
 FontFix.start()
 
 -- Skąd wylatują monety po sprzedaży (przycisk w panelu sprzedaży)
