@@ -513,9 +513,10 @@ Config.Merchant = {
 }
 
 -- Komendy deweloperskie na czacie (np. /coins 1000000) działają w Studio
--- oraz w prawdziwej grze dla tych kont. Dopisz tu UserId Miłosza.
+-- oraz w prawdziwej grze dla tych kont.
 Config.DevUserIds = {
 	1293490018, -- Tom
+	7532199310, -- Miłosz (MiloszCzempion13)
 }
 
 -- Bagna: portal za Skarbcem Skarbnika na końcu Sztolni, otwiera się graczom z co najmniej
