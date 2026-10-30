@@ -143,11 +143,15 @@ local function cauldron(parent: Instance, at: CFrame)
 	local belly = part(m, "PotBelly", Vector3.new(3.4, 1.4, 3.4), at * CFrame.new(0, 2.25, 0), IRON)
 	texturize(belly, 3.4)
 	part(m, "PotNeck", Vector3.new(3, 0.4, 3), at * CFrame.new(0, 3.15, 0), IRON)
-	part(m, "Rim", Vector3.new(3.5, 0.3, 3.5), at * CFrame.new(0, 3.45, 0), IRON_LIGHT, Enum.Material.Metal)
+	-- Brzeg z czterech belek (pełny klocek zakrywał wywar)
+	for _, side in { -1, 1 } do
+		part(m, "Rim", Vector3.new(3.6, 0.32, 0.32), at * CFrame.new(0, 3.5, side * 1.64), IRON_LIGHT, Enum.Material.Metal)
+		part(m, "Rim", Vector3.new(0.32, 0.32, 3.6), at * CFrame.new(side * 1.64, 3.5, 0), IRON_LIGHT, Enum.Material.Metal)
+	end
 	for _, side in { -1, 1 } do
 		part(m, "Handle", Vector3.new(0.3, 0.6, 0.3), at * CFrame.new(side * 1.95, 3.1, 0), IRON_LIGHT, Enum.Material.Metal)
 	end
-	local brew = part(m, "Brew", Vector3.new(3.1, 0.2, 3.1), at * CFrame.new(0, 3.42, 0), BREW, Enum.Material.Neon)
+	local brew = part(m, "Brew", Vector3.new(3.0, 0.2, 3.0), at * CFrame.new(0, 3.46, 0), BREW, Enum.Material.Neon)
 	-- Bąble i zielona para
 	local bubbles = Instance.new("ParticleEmitter")
 	bubbles.Texture = "rbxasset://textures/particles/sparkles_main.dds"

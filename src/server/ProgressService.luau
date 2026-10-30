@@ -481,6 +481,14 @@ function ProgressService.dev(player: Player, action: string): boolean
 		data.equipped.knife = ""
 		api.applyStats(player)
 		refreshTitle(player, data)
+	elseif string.match(action, "^candySet:%d+:%d+$") then
+		-- Testy: ustawia cukierki zebrane i w kieszeni (np. przywrócenie zapisu po teście kotła)
+		local total, bag = string.match(action, "^candySet:(%d+):(%d+)$")
+		data.stats.candy = tonumber(total) or 0
+		data.candyBag = tonumber(bag) or 0
+		data.eventClaimed = Halloween.reached(data.stats.candy)
+		refreshTitle(player, data)
+		api.applyStats(player)
 	elseif action == "questsNew" then
 		-- Jakby był nowy dzień: nowe zadania i nagroda za kolejny dzień serii
 		data.daily.day = -1
