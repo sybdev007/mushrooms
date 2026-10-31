@@ -130,7 +130,7 @@ local function welcome(player: Player): boolean
 	if not data or (data.stats.owl or 0) >= 1 or not api.canSave(player) then
 		return false
 	end
-	local coins = math.floor(Config.Community.giftCoins * Progress.rewardScale(data.caveUnlocked, data.swampUnlocked))
+	local coins = Progress.communityGift(data.caveUnlocked, data.swampUnlocked)
 	data.coins += coins
 	data.luckUntil = math.max(os.time(), data.luckUntil) + Config.Community.giftLuckSeconds
 	api.notify(player, "MSG_OWL_WELCOME", { coins, math.floor(Config.Community.giftLuckSeconds / 60) })

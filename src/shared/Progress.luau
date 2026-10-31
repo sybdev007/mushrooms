@@ -315,6 +315,11 @@ function Progress.rewardScale(caveUnlocked: boolean, swampUnlocked: boolean): nu
 	return math.max(50, best * 10)
 end
 
+-- Monety w paczce powitalnej za dołączenie do grupy (Config.Community.giftReward jednostek nagród)
+function Progress.communityGift(caveUnlocked: boolean, swampUnlocked: boolean): number
+	return math.floor(Config.Community.giftReward * Progress.rewardScale(caveUnlocked, swampUnlocked))
+end
+
 -- ===== Codzienne zadania =====
 
 export type QuestDef = { id: string, kind: string, goal: number, reward: number }

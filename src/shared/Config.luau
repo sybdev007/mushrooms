@@ -791,12 +791,14 @@ Config.Boom = { seconds = 600, regrowFactor = 0.35, luck = 1.5 }
 Config.LuckPotion = { seconds = 900, luck = 2 }
 
 -- Grupa Old Owl Studios (właściciel gry). Członek grupy ma +10% szczęścia na mutacje (liczone jak płatne
--- bonusy, w pełni), tytuł „Old Owl Member” i raz na konto paczkę powitalną: monety (× skala nagród
--- świata, jak zadania) i miksturę szczęścia. CommunityService sprawdza członkostwo na serwerze.
+-- bonusy, w pełni), tytuł „Old Owl Member” i raz na konto paczkę powitalną: monety i miksturę szczęścia.
+-- CommunityService sprawdza członkostwo na serwerze.
 Config.Community = {
 	groupId = 463484833,
 	luck = 1.1,
-	giftCoins = 150,
+	-- Monety w paczce: giftReward × Progress.rewardScale (jednostka nagród świata w MONETACH, w lesie 1600),
+	-- tak jak nagroda za logowanie (0,5–3 jednostki). 1 = 1600 monet w lesie, więcej po jaskini i bagnach.
+	giftReward = 1,
 	giftLuckSeconds = 900,
 	recheckSeconds = 10, -- najczęściej co tyle gracz może poprosić o ponowne sprawdzenie (po dołączeniu)
 	friendLuck = 1.1, -- gdy na serwerze jest ktoś ze znajomych z Robloxa (obaj mają bonus)

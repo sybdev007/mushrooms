@@ -1159,6 +1159,17 @@ test("grupa Old Owl Studios: +10% szczęścia w pełni, nawet przy limicie darmo
 	check(deepMember <= Config.LuckBalance.maxLuck, "nie przebija maxLuck")
 end)
 
+test("paczka powitalna grupy: jak nagroda za logowanie, nie fortuna", function()
+	for _, worlds in { { false, false }, { true, false }, { true, true } } do
+		local scale = Progress.rewardScale(worlds[1], worlds[2])
+		local gift = Progress.communityGift(worlds[1], worlds[2])
+		check(gift > 0, "coś daje")
+		-- nie więcej niż najlepsza nagroda za logowanie (7. dzień serii)
+		check(gift <= Progress.LOGIN_REWARDS[#Progress.LOGIN_REWARDS] * scale, "najwyżej jak 7. dzień logowania: " .. gift)
+	end
+	eq(Progress.communityGift(false, false), Progress.rewardScale(false, false))
+end)
+
 test("tytuł Old Owl Member za dołączenie do grupy", function()
 	local def = Titles.get("TITLE_OWL_MEMBER")
 	check(def ~= nil, "jest na liście")
