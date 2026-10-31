@@ -197,7 +197,7 @@ function Garden.build(parent: Instance, cf: CFrame, size: number, beds: number, 
 	fence(m, at(half, -half), at(half, half))
 
 	-- Furtka: dwa wyższe słupki, belka i tabliczka z imieniem (napis dokłada GardenService)
-	local gateH = 5.6
+	local gateH = 11.2 -- wysoka brama (wcześniej 5,6)
 	for _, side in { -1, 1 } do
 		post(m, at(side * GATE_HALF, -half), gateH, 0.75)
 		collider(m, "GateCollider", Vector3.new(0.95, gateH, 0.95), cf * CFrame.new(side * GATE_HALF, gateH / 2, -half))
