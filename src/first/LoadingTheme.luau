@@ -81,7 +81,7 @@ end
 
 LoadingTheme.themes = {
 	halloween = {
-		background = "rbxassetid://100478588810107", -- assets/loading/bg-halloween.jpg
+		background = "rbxassetid://73915749094794", -- assets/loading/bg-halloween-v2.jpg (1672x941)
 		backdrop = Color3.fromRGB(26, 14, 38),
 		runner = "pumpkin",
 		fallbackRunner = "🎃",

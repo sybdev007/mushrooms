@@ -33,7 +33,9 @@ local BLACK = Color3.new(0, 0, 0)
 
 -- Układ w pikselach ekranu 1280 x 720; UIScale skaluje całość do prawdziwego ekranu
 local REF_W, REF_H = 1280, 720
-local STACK_W, STACK_H = 640, 278
+-- Zwykły ekran: tylko nazwa gry, toczona dynia i pasek (bez iskier, nietoperzy, poświat i wskazówek)
+local EFFECTS = false
+local STACK_W, STACK_H = 640, 236
 local BAR_W, BAR_H = 560, 26
 local BAR_X = (STACK_W - BAR_W) / 2
 local BAR_Y = 170
@@ -155,10 +157,10 @@ function LoadingUI.new(themeId: string?, parent: Instance?): Handle
 		ImageTransparency = 0.999,
 		ZIndex = 1,
 	}, root)
-	local artScale = make("UIScale", { Scale = 1.02 }, art)
+	local artScale = make("UIScale", { Scale = 1 }, art)
 	-- Tło pojawia się, kiedy się wczyta. IsLoaded nie wysyła sygnału zmiany, więc sprawdza go pętla klatek.
 	local artShown = theme.background == ""
-	if theme.background ~= "" then
+	if EFFECTS and theme.background ~= "" then
 		-- Powolny najazd i dryf (Ken Burns), żeby obraz żył
 		TweenService:Create(artScale, TweenInfo.new(24, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), { Scale = 1.09 }):Play()
 		TweenService:Create(art, TweenInfo.new(31, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), { Position = UDim2.fromScale(0.488, 0.508) }):Play()
@@ -199,7 +201,7 @@ function LoadingUI.new(themeId: string?, parent: Instance?): Handle
 	}, root)
 	local stackScale = make("UIScale", {}, stack)
 
-	if hasSprites then
+	if EFFECTS and hasSprites then
 		sprite("glow", {
 			Name = "TitleGlow",
 			AnchorPoint = Vector2.new(0.5, 0.5),
@@ -212,16 +214,17 @@ function LoadingUI.new(themeId: string?, parent: Instance?): Handle
 	end
 	local title: TextLabel = make("TextLabel", {
 		Name = "Title",
-		Text = "Lantern Forager",
+		Text = "Midnight Mushroom Hunt",
 		FontFace = FREDOKA,
-		TextSize = 64,
+		TextScaled = true,
 		TextColor3 = WHITE,
 		BackgroundTransparency = 1,
 		Size = UDim2.fromOffset(STACK_W, 70),
-		Position = UDim2.fromOffset(0, 0),
+		Position = UDim2.fromOffset(0, 72),
 		ZIndex = 6,
 	}, stack)
 	make("UIGradient", { Color = ColorSequence.new(theme.titleTop, theme.titleBottom), Rotation = 90 }, title)
+	make("UITextSizeConstraint", { MaxTextSize = 60 }, title)
 	local titleStroke = outline(title, 5)
 	make("UIGradient", { Color = ColorSequence.new(OUTLINE) }, titleStroke) -- obrys bez gradientu tytułu
 
@@ -239,6 +242,7 @@ function LoadingUI.new(themeId: string?, parent: Instance?): Handle
 		ZIndex = 6,
 	}, stack)
 	corner(badge)
+	badge.Visible = EFFECTS
 	make("UIPadding", { PaddingLeft = UDim.new(0, 14), PaddingRight = UDim.new(0, 14) }, badge)
 	make("UIStroke", { Color = OUTLINE, Thickness = 2.5, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }, badge)
 
@@ -287,10 +291,11 @@ function LoadingUI.new(themeId: string?, parent: Instance?): Handle
 			NumberSequenceKeypoint.new(1, 1),
 		}),
 	}, shine)
+	shine.Visible = EFFECTS
 	TweenService:Create(shineGradient, TweenInfo.new(1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, false, 0.6), { Offset = Vector2.new(1, 0) }):Play()
 
 	local headGlow: ImageLabel? = nil
-	if hasSprites then
+	if EFFECTS and hasSprites then
 		headGlow = sprite("glow", {
 			Name = "HeadGlow",
 			AnchorPoint = Vector2.new(0.5, 0.5),
@@ -304,7 +309,7 @@ function LoadingUI.new(themeId: string?, parent: Instance?): Handle
 	-- Biegacz: dynia albo grzybek (bez arkusza: emoji)
 	local runnerSize = if theme.runner == "pumpkin" then PUMPKIN else MUSHROOM
 	local halo: ImageLabel? = nil
-	if hasSprites then
+	if EFFECTS and hasSprites then
 		halo = sprite("glow", {
 			Name = "RunnerHalo",
 			AnchorPoint = Vector2.new(0.5, 0.5),
@@ -416,6 +421,7 @@ function LoadingUI.new(themeId: string?, parent: Instance?): Handle
 		ZIndex = 6,
 	}, stack)
 	outline(tip, 2)
+	tip.Visible = EFFECTS
 
 	local black: Frame = make("Frame", {
 		Name = "Black",
@@ -468,7 +474,7 @@ function LoadingUI.new(themeId: string?, parent: Instance?): Handle
 	-- ===== Drobinki =====
 	local particles: { Particle } = {}
 	local function spawnParticle(kind: string, x: number, y: number, vx: number, vy: number, size: number, life: number, color: Color3)
-		if #particles > 70 then
+		if not EFFECTS or #particles > 70 then
 			return
 		end
 		local object: GuiObject
@@ -705,7 +711,7 @@ function LoadingUI.new(themeId: string?, parent: Instance?): Handle
 		end
 
 		-- Nietoperze
-		if theme.bats and screen.X > 0 then
+		if EFFECTS and theme.bats and screen.X > 0 then
 			if now >= nextBat then
 				nextBat = now + 4 + math.random() * 5
 				local leftToRight = math.random() < 0.5
@@ -749,7 +755,9 @@ function LoadingUI.new(themeId: string?, parent: Instance?): Handle
 		end
 
 		-- Tytuł lekko się unosi
-		title.Position = UDim2.fromOffset(0, math.sin((now - startedAt) * 1.4) * 2.5)
+		if EFFECTS then
+			title.Position = UDim2.fromOffset(0, 72 + math.sin((now - startedAt) * 1.4) * 2.5)
+		end
 	end)
 
 	local handle: Handle
