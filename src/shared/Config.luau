@@ -548,11 +548,11 @@ Config.PortalPlaza = {
 -- w prawdziwej grze przycisk jest ukryty.
 export type ProductDef = { id: number, key: string, icon: string }
 Config.Products = {
-	rescue = { id = 0, key = "PRODUCT_RESCUE", icon = "💾" }, -- uratuj koszyk po zgaśnięciu latarni / złapaniu
-	boom = { id = 0, key = "PRODUCT_BOOM", icon = "🍄" }, -- Wysyp dla całego serwera
-	oil = { id = 0, key = "PRODUCT_OIL", icon = "🛢️" }, -- pełna latarnia od razu, w dowolnym miejscu
-	harvest = { id = 0, key = "PRODUCT_HARVEST", icon = "⚡" }, -- od razu dochód ogródka z Config.Garden.harvestMinutes
-	luck = { id = 0, key = "PRODUCT_LUCK", icon = "🍀" }, -- mikstura szczęścia: więcej mutacji
+	rescue = { id = 3724758636, key = "PRODUCT_RESCUE", icon = "💾" }, -- uratuj koszyk po zgaśnięciu latarni / złapaniu
+	boom = { id = 3724757048, key = "PRODUCT_BOOM", icon = "🍄" }, -- Wysyp dla całego serwera
+	oil = { id = 3724758135, key = "PRODUCT_OIL", icon = "🛢️" }, -- pełna latarnia od razu, w dowolnym miejscu
+	harvest = { id = 3724757863, key = "PRODUCT_HARVEST", icon = "⚡" }, -- od razu dochód ogródka z Config.Garden.harvestMinutes
+	luck = { id = 3724757551, key = "PRODUCT_LUCK", icon = "🍀" }, -- mikstura szczęścia: więcej mutacji
 } :: { [string]: ProductDef }
 -- Kolejność kart w sklepie (ratunek ma własny przycisk na czarnym ekranie)
 Config.ShopOrder = { "boom", "luck", "oil", "harvest" }
