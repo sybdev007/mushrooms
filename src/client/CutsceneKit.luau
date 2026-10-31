@@ -530,8 +530,10 @@ function Kit.bubble(s: Scene, actor: Actor?, text: string, hold: number, think: 
 		if fixed then
 			holder.Position = fixed
 		elseif actor and cam then
-			local point, visible = cam:WorldToViewportPoint(headPoint(actor))
-			holder.Visible = visible
+			-- Chowamy tylko, gdy głowa jest za kamerą. Głowa tuż nad kadrem (zbliżenia) to nie powód:
+			-- inFrame i tak trzyma dymek na ekranie (wcześniej dymki znikały w ciasnych kadrach)
+			local point = cam:WorldToViewportPoint(headPoint(actor))
+			holder.Visible = point.Z > 0
 			holder.Position = inFrame(s, holder, point.X, point.Y)
 		end
 	end)
@@ -579,8 +581,8 @@ function Kit.mark(s: Scene, actor: Actor, symbol: string, color: Color3?)
 	local follow = RunService.RenderStepped:Connect(function()
 		local cam = Workspace.CurrentCamera
 		if cam then
-			local point, visible = cam:WorldToViewportPoint(headPoint(actor) + Vector3.new(0, 0.6, 0))
-			label.Visible = visible
+			local point = cam:WorldToViewportPoint(headPoint(actor) + Vector3.new(0, 0.6, 0))
+			label.Visible = point.Z > 0
 			label.Position = inFrame(s, label, point.X, point.Y)
 		end
 	end)

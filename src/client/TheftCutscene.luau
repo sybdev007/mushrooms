@@ -276,39 +276,38 @@ local function scenario(s: Kit.Scene, garden: Model)
 	end
 	local bedCenter = P(bx, bz)
 
-	-- Prawdziwe grzyby i tabliczki ogródków chowamy (tylko u siebie); gramy na kopii grzyba
+	-- Prawdziwe grzyby i tabliczki ogródków chowamy (tylko u siebie); gramy na kopii grzyba.
+	-- Raz na starcie, a potem tylko to, co dojdzie w trakcie (wcześniej co ćwierć sekundy przeszukiwało
+	-- wszystkie ogródki i scenka gubiła klatki)
 	local hiddenParts: { [Instance]: boolean } = {}
 	local hiddenOther: { [Instance]: boolean } = {}
-	local function hideClutter()
-		if folder then
-			for _, d in folder:GetDescendants() do
-				if (d:IsA("BasePart") or d:IsA("Decal") or d:IsA("Texture")) and not hiddenParts[d] then
-					hiddenParts[d] = true;
-					(d :: any).LocalTransparencyModifier = 1
-				elseif (d:IsA("ParticleEmitter") or d:IsA("Light") or d:IsA("BillboardGui") or d:IsA("Beam") or d:IsA("Trail")) and hiddenOther[d] == nil then
-					hiddenOther[d] = (d :: any).Enabled;
-					(d :: any).Enabled = false
-				end
-			end
-		end
-		for _, g in CollectionService:GetTagged("GardenPlot") do
-			for _, d in g:GetDescendants() do
-				if d:IsA("BillboardGui") and hiddenOther[d] == nil then
-					hiddenOther[d] = d.Enabled
-					d.Enabled = false
-				end
-			end
+	local function hidePlanted(d: Instance)
+		if (d:IsA("BasePart") or d:IsA("Decal") or d:IsA("Texture")) and not hiddenParts[d] then
+			hiddenParts[d] = true;
+			(d :: any).LocalTransparencyModifier = 1
+		elseif (d:IsA("ParticleEmitter") or d:IsA("Light") or d:IsA("BillboardGui") or d:IsA("Beam") or d:IsA("Trail")) and hiddenOther[d] == nil then
+			hiddenOther[d] = (d :: any).Enabled;
+			(d :: any).Enabled = false
 		end
 	end
-	hideClutter()
-	local clutterTick = 0
-	table.insert(s.connections, RunService.Heartbeat:Connect(function(dt)
-		clutterTick += dt
-		if clutterTick > 0.25 then
-			clutterTick = 0
-			hideClutter()
+	local function hideSign(d: Instance)
+		if d:IsA("BillboardGui") and hiddenOther[d] == nil then
+			hiddenOther[d] = d.Enabled
+			d.Enabled = false
 		end
-	end))
+	end
+	if folder then
+		for _, d in folder:GetDescendants() do
+			hidePlanted(d)
+		end
+		table.insert(s.connections, folder.DescendantAdded:Connect(hidePlanted))
+	end
+	for _, g in CollectionService:GetTagged("GardenPlot") do
+		for _, d in g:GetDescendants() do
+			hideSign(d)
+		end
+		table.insert(s.connections, g.DescendantAdded:Connect(hideSign))
+	end
 	Kit.onCleanup(s, function()
 		for d in hiddenParts do
 			if d.Parent then
@@ -364,7 +363,8 @@ local function scenario(s: Kit.Scene, garden: Model)
 			return
 		end
 		k = math.max(k, 0.02)
-		if math.abs(k - fakeScale) > 0.001 then
+		-- ScaleTo przelicza cały model: nie w każdej klatce za drobną zmianę (to też gubiło klatki)
+		if math.abs(k - fakeScale) > 0.025 or (k == 1 and fakeScale ~= 1) then
 			m:ScaleTo(k)
 			fakeScale = k
 		end
