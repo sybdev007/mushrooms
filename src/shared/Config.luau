@@ -569,19 +569,19 @@ Config.MushroomSprites = { sheet = "rbxassetid://136090318037259", cell = 64, co
 -- Odznaki Robloxa (Creator Hub → Engagement → Badges, obrazki w assets/badges, opis w docs/Odznaki.md).
 -- Wpisz numer odznaki po jej założeniu; 0 = odznaki jeszcze nie ma i gra jej nie przyznaje.
 Config.Badges = {
-	first_mushroom = 0, -- pierwszy grzyb w koszyku
-	cave = 0, -- otwarty portal do jaskini
+	first_mushroom = 3569275503907076, -- pierwszy grzyb w koszyku
+	cave = 2082056460324259, -- otwarty portal do jaskini
 	swamp = 0, -- otwarte bagna
-	gold = 0, -- pierwszy złoty grzyb
+	gold = 3766445876669935, -- pierwszy złoty grzyb
 	rainbow = 0, -- pierwszy tęczowy grzyb
-	leszy = 0, -- okradziony Leszy
+	leszy = 4437565651201625, -- okradziony Leszy
 	skarbnik = 0, -- okradziony Skarbnik
 	utopiec = 0, -- okradziony Utopiec
 	atlas_page = 0, -- cała strona Grzybopedii odkryta
 	grandmaster = 0, -- Arcygrzybiarz: cała księga tęczowa
 	lifesaver = 0, -- podniesiony kumpel
 	streak7 = 0, -- 7 dni logowania z rzędu
-	halloween2026 = 0, -- Halloween 2026: 100 cukierków w czasie eventu
+	halloween2026 = 1589520696458272, -- Halloween 2026: 100 cukierków w czasie eventu
 } :: { [string]: number }
 -- ===== Halloween: Noc Dziadów (event) =====
 -- Włącza się sam według daty (os.time, UTC). W tym czasie:

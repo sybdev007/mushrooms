@@ -1592,6 +1592,9 @@ test("odznaki: osiągnięcia z postępu gracza", function()
 	check(not done.rainbow, "tęczy brak")
 	-- Bez numerów odznak nic nie czeka na przyznanie
 	local saved = table.clone(Config.Badges)
+	for id in Config.Badges do
+		Config.Badges[id] = 0 -- test niezależny od numerów już założonych odznak
+	end
 	eq(#Achievements.pending(done, {}), 0)
 	Config.Badges.gold = 123
 	Config.Badges.swamp = 456
