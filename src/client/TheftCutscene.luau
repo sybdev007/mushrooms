@@ -333,6 +333,9 @@ local function scenario(s: Kit.Scene, garden: Model)
 	local fake: Model? = nil
 	local fakeBase: CFrame? = nil
 	local fakeDrop = 0
+	-- Grzyby w ogródku to duże modele pomniejszone przez ScaleTo: skala kopii liczy się od tej
+	-- skali, a nie od 1 (inaczej kopia rosła do pełnego rozmiaru modelu i zasłaniała pół ekranu)
+	local fakeBaseScale = 1
 	if plant then
 		plant.Archivable = true
 		local copy = plant:Clone()
@@ -350,9 +353,17 @@ local function scenario(s: Kit.Scene, garden: Model)
 					d:Destroy()
 				end
 			end
+			-- Bez etykiet (np. „GardenMushroom”): inaczej widok grzybów ogródka brał kopię za nowy grzyb
+			-- i doklejał do niej drugi, olbrzymi model, który zasłaniał całą scenę
+			for _, d in { copy :: Instance, table.unpack(copy:GetDescendants()) } do
+				for _, tag in CollectionService:GetTags(d) do
+					CollectionService:RemoveTag(d, tag)
+				end
+			end
 			copy.Name = "CutsceneMushroom"
 			copy.Parent = Workspace
 			fake = copy
+			fakeBaseScale = copy:GetScale()
 			local base = copy:GetPivot()
 			fakeBase = base
 			local cf, size = copy:GetBoundingBox()
@@ -373,7 +384,7 @@ local function scenario(s: Kit.Scene, garden: Model)
 		k = math.max(k, 0.02)
 		-- ScaleTo przelicza cały model: nie w każdej klatce za drobną zmianę (to też gubiło klatki)
 		if math.abs(k - fakeScale) > 0.025 or (k == 1 and fakeScale ~= 1) then
-			m:ScaleTo(k)
+			m:ScaleTo(fakeBaseScale * k)
 			fakeScale = k
 		end
 		m:PivotTo(base * CFrame.new(0, -(1 - k) * fakeDrop + (lift or 0), 0) * (tilt or CFrame.new()))
