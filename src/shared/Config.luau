@@ -799,6 +799,8 @@ Config.Community = {
 	giftCoins = 150,
 	giftLuckSeconds = 900,
 	recheckSeconds = 10, -- najczęściej co tyle gracz może poprosić o ponowne sprawdzenie (po dołączeniu)
+	friendLuck = 1.1, -- gdy na serwerze jest ktoś ze znajomych z Robloxa (obaj mają bonus)
+	guideInvites = 3, -- tytuł „Przewodnik”: tylu graczy weszło z twojego zaproszenia
 }
 
 -- Kamera: bez limitu dało się oddalić widok i oglądać las z góry

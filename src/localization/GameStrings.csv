@@ -389,9 +389,6 @@ CUT2_THIEF2,Nobody's home... they're mine!,,,Nikogo nie ma… będą moje!
 CUT2_TUG,Nnngh... it's stuck!,,,Nnngh… siedzi mocno!
 CUT2_OOPS,Uh-oh...,,,Ojej…
 CUT2_SAFE,Phew. My mushroom is safe.,,,Uff. Mój grzybek jest cały.
-CUT2_SUB_RED,A thief with your mushroom glows red and walks slowly!,,,Złodziej z twoim grzybem świeci na czerwono i idzie wolno!
-CUT2_SUB_TOUCH,Touch the thief and your mushroom comes back!,,,Dotknij złodzieja – grzyb wróci na grządkę!
-CUT2_TITLE,Night falls on the garden...,,,Nocą w ogródku…
 TUT_COMPLETE,MISSION COMPLETE!,,,MISJA UKOŃCZONA!
 TUT_TITLE_GOT,New title unlocked:,,,Nowy tytuł:
 TITLE_NEW,Newbie,,,Nowy
@@ -581,3 +578,8 @@ MSG_OWL_THANKS,🦉 Thanks for joining Old Owl Studios! +10% luck is active.,,,�
 MSG_OWL_NOT_YET,🦉 You're not in the group yet. Join Old Owl Studios for +10% luck and a gift!,,,🦉 Jeszcze nie jesteś w grupie. Dołącz do Old Owl Studios: +10% szczęścia i prezent!
 TITLE_OWL_MEMBER,Old Owl Member,,,Old Owl Member
 TITLE_OWL_MEMBER_HOW,Join the Old Owl Studios group,,,Dołącz do grupy Old Owl Studios
+ODDS_FRIEND,Friend on server,,,Znajomy na serwerze
+MSG_FRIEND_BONUS,👥 {1} is playing with you: +10% luck for both of you!,,,👥 {1} gra z tobą: +10% szczęścia dla was obu!
+MSG_INVITE_CREDIT,👥 {1} joined from your invite! Invites: {2},,,👥 {1} wszedł z twojego zaproszenia! Zaproszeni: {2}
+TITLE_GUIDE,Guide,,,Przewodnik
+TITLE_GUIDE_HOW,Invite {1} friends who join the game,,,Zaproś {1} znajomych którzy wejdą do gry

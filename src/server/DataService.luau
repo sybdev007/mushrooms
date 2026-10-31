@@ -12,6 +12,7 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local Economy = require(ReplicatedStorage.Shared.Economy)
 local Progress = require(ReplicatedStorage.Shared.Progress)
 local Titles = require(ReplicatedStorage.Shared.Titles)
+local Social = require(ReplicatedStorage.Shared.Social)
 
 export type Data = {
 	version: number,
@@ -27,6 +28,7 @@ export type Data = {
 	titleChoice: string, -- wybrany tytuł ("" = najlepszy automatycznie, "none" = bez tytułu)
 	titles: { string }?, -- tytuły, o których gracz dostał już komunikat (nil = stary zapis, bez komunikatów)
 	badges: { string }, -- przyznane odznaki Robloxa (id z Config.Badges)
+	invited: { number }, -- UserId graczy, którzy weszli z zaproszenia tego gracza (już zaliczeni, Social)
 	-- muzyka i dźwięki włączone oraz głośność z suwaków (0..1); wyłączone = głośność 0
 	settings: { music: boolean, sfx: boolean, musicVolume: number, sfxVolume: number },
 	basket: { Economy.BasketItem },
@@ -102,6 +104,7 @@ function DataService.defaultData(): Data
 		titleChoice = "",
 		titles = {},
 		badges = {},
+		invited = {},
 		settings = { music = true, sfx = true, musicVolume = 1, sfxVolume = 1 },
 		basket = {},
 		planted = {},
@@ -270,6 +273,13 @@ local function reconcile(raw: any): Data
 		for _, id in raw.badges do
 			if typeof(id) == "string" and #data.badges < 64 and not table.find(data.badges, id) then
 				table.insert(data.badges, id)
+			end
+		end
+	end
+	if typeof(raw.invited) == "table" then
+		for _, id in raw.invited do
+			if finite(id) and id > 0 and id == math.floor(id) and #data.invited < Social.MAX_INVITED and not table.find(data.invited, id) then
+				table.insert(data.invited, id)
 			end
 		end
 	end

@@ -240,6 +240,7 @@ local function luckFactor(session: Session, zone: number?): number
 		boom = boomActive(),
 		potion = os.time() < session.data.luckUntil,
 		member = CommunityService.isMember(session.player),
+		friend = CommunityService.hasFriend(session.player),
 	})
 	return total
 end

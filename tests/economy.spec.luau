@@ -33,6 +33,8 @@ local Titles = loadModule("src/shared/Titles.luau", {
 	end,
 })
 
+local Social = loadModule("src/shared/Social.luau", {})
+
 local Achievements = loadModule("src/shared/Achievements.luau", {
 	script = { Parent = { Config = Config, Progress = Progress } },
 	require = function(module)
@@ -1166,6 +1168,42 @@ test("tytuł Old Owl Member za dołączenie do grupy", function()
 	check(not Titles.earned(ctx).TITLE_OWL_MEMBER, "bez grupy brak")
 	Titles.count(stats, "owl", 1)
 	check(Titles.earned(ctx).TITLE_OWL_MEMBER == true, "po dołączeniu jest")
+end)
+
+test("znajomy na serwerze: +10% szczęścia, razem z grupą się mnoży", function()
+	local base = Economy.luck({ knifeLevel = 0, zone = nil, event = nil, boom = false, potion = false })
+	local both, parts = Economy.luck({ knifeLevel = 0, zone = nil, event = nil, boom = false, potion = false, member = true, friend = true })
+	check(math.abs(both - base * Config.Community.luck * Config.Community.friendLuck) < 1e-9, "x1,21")
+	eq(#parts, 2)
+	eq(parts[2].key, "ODDS_FRIEND")
+end)
+
+test("zaproszenia: każdy zaproszony raz, nie sam siebie, z limitem", function()
+	local invited = {}
+	check(Social.creditInvite(invited, 11, 99), "nowy się liczy")
+	check(not Social.creditInvite(invited, 11, 99), "drugi raz nie")
+	check(not Social.creditInvite(invited, 99, 99), "sam siebie nie")
+	check(not Social.creditInvite(invited, 0, 99), "zły numer nie")
+	for i = 1, Social.MAX_INVITED do
+		Social.creditInvite(invited, 1000 + i, 99)
+	end
+	eq(#invited, Social.MAX_INVITED, "limit")
+	eq(Social.referrer({ ReferredByPlayerId = 42 }), 42)
+	eq(Social.referrer({ ReferredByPlayerId = 0 }), nil)
+	eq(Social.referrer({ ReferredByPlayerId = "42" }), nil)
+	eq(Social.referrer(nil), nil)
+	eq(Social.referrer({}), nil)
+end)
+
+test("tytuł Przewodnik za zaproszonych", function()
+	local stats = Titles.emptyStats()
+	local ctx = { atlas = {}, bestiary = {}, stats = stats, tutorialDone = false }
+	for _ = 1, Config.Community.guideInvites - 1 do
+		Titles.count(stats, "invite", 1)
+	end
+	check(not Titles.earned(ctx).TITLE_GUIDE, "jeszcze nie")
+	Titles.count(stats, "invite", 1)
+	check(Titles.earned(ctx).TITLE_GUIDE == true, "jest")
 end)
 
 test("szansa na cechę nie przekracza 100%", function()

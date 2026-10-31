@@ -171,6 +171,7 @@ local function render()
 		boom = state ~= nil and (state.boomUntil or 0) > now,
 		potion = potionActive,
 		member = Players.LocalPlayer:GetAttribute("OwlMember") == true,
+		friend = Players.LocalPlayer:GetAttribute("FriendBonus") == true,
 	}
 	local luck, parts, raw = Economy.luck(input)
 	-- Kolumna „z miksturą”: jeśli mikstura już działa, to te same szanse co teraz
