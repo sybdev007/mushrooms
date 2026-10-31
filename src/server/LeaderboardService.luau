@@ -11,6 +11,7 @@
 --             każdy późniejszy albo opóźniony UpdateAsync go widzi i nie odtwarza wyniku, na żadnym
 --             serwerze. Po końcu eventu cukierki już nie rosną (ProgressService.addCandy).
 -- Tygodniowe tablice mają nowy magazyn co poniedziałek, więc same się zerują.
+-- Studio i konta deweloperów (Config.DevUserIds) nie wysyłają wyników na żadną tablicę.
 -- Wyniki trafiają do atrybutu "Entries" (JSON) na ekranie tablicy; rysuje je klient (LeaderboardView),
 -- żeby tytuły i nazwy grzybów były w języku gracza.
 -- Bez dostępu do DataStore (Studio bez API) tablice pokazują graczy z tego serwera; ranking cukierków
@@ -43,7 +44,8 @@ local LeaderboardService = {}
 local UPLOAD_SECONDS = 60 -- co tyle wysyłamy wyniki graczy (limity zapisów DataStore)
 local REFRESH_SECONDS = 60 -- co tyle czytamy czołówkę
 local TOP = 10
-local STORE_PREFIX = "LanternForager_Top_v1_"
+-- v2: czyste tablice na premierę (v1 miało wyniki z testów w Studio i kont deweloperów)
+local STORE_PREFIX = "LanternForager_Top_v2_"
 
 local KINDS = { "richest", "rare", "thieves", "candy" }
 local WEEKLY: { [string]: boolean } = { rare = true, thieves = true }
@@ -111,10 +113,12 @@ local function candyAllowedId(userId: number): boolean
 	return not removed[userId] and Halloween.rankingAllowed(userId, staffId(userId))
 end
 
--- Czy wynik tego gracza na tej tablicy wolno wysłać (ranking cukierków ma dodatkowe warunki)
+-- Czy wynik tego gracza na tej tablicy wolno wysłać (ranking cukierków ma dodatkowe warunki).
+-- Ze Studio i z kont deweloperów nic nie trafia do magazynu (monety z /coins, testy).
+-- W Studio bez zapisu tablica i tak pokazuje graczy z serwera (topFor), żeby było co testować.
 local function allowed(player: Player, kind: string, canSave: boolean): boolean
 	if kind ~= "candy" then
-		return true
+		return RunService:IsStudio() or not staffId(player.UserId)
 	end
 	return canSave and not RunService:IsStudio() and candyAllowedId(player.UserId) and Halloween.rankingAllowed(player.UserId, api.isDeveloper(player))
 end
@@ -184,7 +188,7 @@ local function upload(player: Player, force: boolean?, known: Data?, knownCanSav
 	end
 	for _, kind in KINDS do
 		local score = if kind == "candy" then 0 else scoreOf(data, kind, week)
-		if score > 0 and (force or sent[kind] ~= score) and allowed(player, kind, canSave) then
+		if score > 0 and (force or sent[kind] ~= score) and allowed(player, kind, canSave) and not RunService:IsStudio() then
 			local store = storeFor(kind, week)
 			if store then
 				local ok, err = pcall(function()
@@ -233,7 +237,9 @@ local function topFor(kind: string, week: number): ({ Entry }, string, number?)
 				if kind ~= "candy" then
 					for _, row in store:GetSortedAsync(false, TOP):GetCurrentPage() do
 						local userId = tonumber(row.key) or 0
-						table.insert(list, { n = nameOf(userId), v = row.value, me = userId })
+						if not staffId(userId) then -- deweloperzy poza tablicami (też stare wpisy)
+							table.insert(list, { n = nameOf(userId), v = row.value, me = userId })
+						end
 					end
 					return list
 				end
