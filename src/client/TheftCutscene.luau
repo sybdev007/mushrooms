@@ -1,17 +1,22 @@
 --!strict
--- Cutscenka z kradzieżą (samouczek, po pierwszym posadzeniu grzyba):
---   1. sadzenie: gracz klęka przy grządce, rozgrzebuje ziemię, wkłada grzybek, klepie, wstaje — grzyb wyrasta z błyskiem
---   2. gotowe: ociera pot z czoła: „Gotowe! Teraz po olej i w las.” i wychodzi przez furtkę
---   3. zza rogu chatki: złodziejaszek wychyla się, chowa, wychyla jeszcze raz, chichocze i zaciera ręce
---   4. skradanie na paluszkach: przy furtce rozgląda się i robi „ćśś”, podkrada się do grządki i szarpie grzyba
---   5. zgrzyt płyty: gracz wraca biegiem: „Hej! Zostaw to!”. Złodziej podskakuje ze strachu, ucieka,
---      przeskakuje płot, ląduje na twarzy i zwiewa
---   6. gracz go przegania, otrzepuje ręce i sprawdza, czy grzybek jest cały. Potem okna z wyjaśnieniem kradzieży.
--- Pozycje są liczone w układzie ogródka (furtka, grządki, płot) i z prawdziwych ścian chatki,
--- więc nikt nie wchodzi w dom, w płot ani w grzyby, bez względu na to, który ogródek ma gracz.
+-- Cutscenka z kradzieżą (samouczek, po pierwszym posadzeniu grzyba). Gra w osobnym ogródku
+-- zbudowanym tylko u gracza (TheftStage, jak las ze snu w intro), więc każde ujęcie jest zaplanowane
+-- i nic nie wchodzi w kadr, bez względu na to, który ogródek ma gracz.
+--   1. Księżycowa noc, kamera zjeżdża nad ogródek. Gracz klęka przy grządce i sadzi grzyb.
+--   2. Z grządki wyrasta złoty borowik z buzią (iskry). Gracz ociera pot: „Gotowe! Teraz po olej
+--      i w las.” i wychodzi przez furtkę (kamera zza grządki, grzyb w kadrze).
+--   3. Zza krzaka za płotem wychyla się złodziejaszek, chowa się, wychyla znowu, zaciera ręce:
+--      „Hehe… ładne grzybki…”
+--   4. Skrada się na paluszkach wzdłuż płotu, w prześwicie furtki rozgląda się i robi „ćśś”,
+--      podkrada się do grządki.
+--   5. Szarpie: „Nnngh… siedzi mocno!” (grzyb zaciska oczka) — i grzyb wyskakuje mu w rękę.
+--   6. Z grzybem świeci na czerwono i idzie wolno (napis to tłumaczy). W furtce staje gracz: „Hej!
+--      Zostaw to!”, a złodziej robi minę przyłapanego.
+--   7. Gracz dobiega i dotyka złodzieja: błysk, grzyb wraca łukiem na grządkę (napis: dotknij złodzieja…).
+--   8. Złodziej ucieka, przeskakuje płot i ląduje na twarzy. Gracz: „I nie wracaj!”
+--   9. „Uff. Mój grzybek jest cały.” Kamera odjeżdża w górę nad ogródek. Potem okna samouczka.
 
-local CollectionService = game:GetService("CollectionService")
-local Players = game:GetService("Players")
+local Lighting = game:GetService("Lighting")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
@@ -19,29 +24,59 @@ local Audio = require(script.Parent.Audio)
 local Clips = require(script.Parent.CutsceneClips)
 local Kit = require(script.Parent.CutsceneKit)
 local Localize = require(script.Parent.Localize)
+local MushroomView = require(script.Parent.MushroomView)
+local TheftStage = require(script.Parent.TheftStage)
 
 local TheftCutscene = {}
 
-local player = Players.LocalPlayer
 local look = Kit.look
 local tween = Kit.tween
+local at = TheftStage.at
 
 local SOUNDS = {
 	"clues", "hall", "sneak", "pat", "plant", "gasp", "bubble", "blip", "surprise", "loony", "boom", "footstep", "crack",
 	"whoosh", "leaves", "coin", "pick", "dig", "grow", "tiptoe", "scratch", "slide", "bodyfall", "pant", "shimmer",
+	"forest", "ping", "owl", "warn",
 }
 
-local function flat(v: Vector3): Vector3
-	return Vector3.new(v.X, 0, v.Z)
-end
+local DIRT = Color3.fromRGB(92, 64, 40)
+local GOLD = Color3.fromRGB(236, 172, 44)
+local PRIZE_SIZE = 0.82 -- borowik z MushroomView jest spory: tyle, żeby kapelusz nie zasłaniał głów postaci
+local HELD_SCALE = 0.5 -- w ręce złodzieja (względem PRIZE_SIZE)
 
-local function myGarden(): Model?
-	for _, model in CollectionService:GetTagged("GardenPlot") do
-		if model:IsA("Model") and model:GetAttribute("OwnerUserId") == player.UserId then
-			return model
-		end
+-- ===== Światło =====
+
+-- Księżycowa noc: chłodna, ale postacie, grzyb i ogródek dobrze widać (Kit przywraca światło po
+-- scenie, a próg poświaty oddajemy sami). Wyższy próg poświaty: przy takim świetle twarze i dłonie
+-- świeciły na biało.
+local function gardenNight(s: Kit.Scene)
+	Lighting.ClockTime = 0.3
+	Lighting.Brightness = 2.4
+	Lighting.Ambient = Color3.fromRGB(116, 122, 170)
+	Lighting.OutdoorAmbient = Color3.fromRGB(128, 136, 184)
+	Lighting.ExposureCompensation = 0.3
+	local bloom = Lighting:FindFirstChildOfClass("BloomEffect")
+	if bloom then
+		local threshold = bloom.Threshold
+		bloom.Threshold = math.max(threshold, 1.6)
+		Kit.onCleanup(s, function()
+			bloom.Threshold = threshold
+		end)
 	end
-	return nil
+	local atmosphere = Lighting:FindFirstChildOfClass("Atmosphere")
+	if atmosphere then
+		atmosphere.Density = 0.28
+		atmosphere.Color = Color3.fromRGB(46, 54, 98)
+		atmosphere.Haze = 1.1
+		atmosphere.Glare = 0
+	end
+	local color = Lighting:FindFirstChildOfClass("ColorCorrectionEffect")
+	if color then
+		color.TintColor = Color3.fromRGB(214, 222, 255)
+		color.Saturation = 0.06
+		color.Contrast = 0.14
+		color.Brightness = 0.02
+	end
 end
 
 -- ===== Efekty =====
@@ -68,17 +103,19 @@ local function puff(where: Vector3, color: Color3, count: number, up: number?)
 	end)
 end
 
-local function sparkle(where: Vector3, count: number)
+local function sparkle(where: Vector3, count: number, color: Color3?)
 	local holder = Instance.new("Attachment")
 	holder.WorldPosition = where
 	holder.Parent = Workspace.Terrain
 	local e = Instance.new("ParticleEmitter")
 	e.Texture = "rbxasset://textures/particles/sparkles_main.dds"
-	e.Color = ColorSequence.new({
-		ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 240, 140)),
-		ColorSequenceKeypoint.new(0.5, Color3.fromRGB(150, 255, 160)),
-		ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 255, 255)),
-	})
+	e.Color = if color
+		then ColorSequence.new(color)
+		else ColorSequence.new({
+			ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 240, 140)),
+			ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 210, 90)),
+			ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 255, 255)),
+		})
 	e.LightEmission = 1
 	e.LightInfluence = 0
 	e.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.5), NumberSequenceKeypoint.new(1, 0) })
@@ -132,398 +169,240 @@ local function sweatDrop(actor: Kit.Actor)
 	end)
 end
 
--- ===== Geometria sceny =====
+-- Kroki w tle, dopóki ich nie zatrzymamy
+local function footsteps(s: Kit.Scene, every: number, volume: number): thread
+	return task.spawn(function()
+		while not s.cancelled do
+			Audio.play("footstep", { volume = volume, jitter = 0.12 })
+			task.wait(every)
+		end
+	end)
+end
 
-local function cabinWalls(): (Vector3?, Vector3?)
-	local map = Workspace:FindFirstChild("Map")
-	local cabin = map and map:FindFirstChild("Cabin")
-	if not cabin then
-		return nil, nil
-	end
-	local minV = Vector3.new(math.huge, 0, math.huge)
-	local maxV = Vector3.new(-math.huge, 0, -math.huge)
-	local any = false
-	for _, p in cabin:GetChildren() do
-		-- Ściany są z bali; dach i ganek pomijamy (wysoko albo płasko)
-		if p.Name == "Log" and p:IsA("BasePart") and p.Position.Y < 12 then
-			local cf, sz = p.CFrame, p.Size
-			for _, sx in { -1, 1 } do
-				for _, szz in { -1, 1 } do
-					local v = (cf * CFrame.new(sx * sz.X / 2, 0, szz * sz.Z / 2)).Position
-					minV = Vector3.new(math.min(minV.X, v.X), 0, math.min(minV.Z, v.Z))
-					maxV = Vector3.new(math.max(maxV.X, v.X), 0, math.max(maxV.Z, v.Z))
-					any = true
+-- ===== Złoty grzyb =====
+
+-- Złoty borowik w tej samej grafice co grzyby w grze (MushroomView: warstwowy kapelusz, buzia na
+-- nóżce). MushroomView buduje go raz, a scenka bierze kopię, którą przesuwa i skaluje sama
+-- (oryginał MushroomView by unosił). Bez aury: krąg i krążące świetliki ruszają się tylko w pętli
+-- MushroomView, w kopii stałyby w miejscu. Kapelusz bez neonu, żeby z bliska miał cienie, a nie był
+-- płaską żółtą plamą. Niewidzialny PrimaryPart leży pod nóżką (rośnie od podstawy), a jego przód
+-- (LookVector) to strona z buzią.
+local AURA_PARTS = { Orbit = true, RingGlow = true, RingPiece = true, RingRipple = true }
+
+local function prizeMushroom(where: Vector3, parent: Instance): Model
+	local id = "cut_theft_prize"
+	MushroomView.add({ { id = id, position = where, species = "porcini", variant = "gold" } }, { decorative = true, grow = false, parent = parent })
+	local built = parent:FindFirstChild(id)
+	local model = if built and built:IsA("Model") then built:Clone() else Instance.new("Model")
+	MushroomView.forget(id)
+	model.Name = "CutsceneMushroom"
+	for _, d in model:GetDescendants() do
+		if d:IsA("BasePart") then
+			if AURA_PARTS[d.Name] then
+				d:Destroy()
+			else
+				d.Anchored = true
+				d.CanCollide = false
+				d.CanQuery = false
+				d.CanTouch = false
+				d.CastShadow = false
+				if d.Name == "Cap" then
+					d.Material = Enum.Material.SmoothPlastic
+					d.Color = GOLD:Lerp(d.Color, 0.25)
 				end
 			end
+		elseif d:IsA("BillboardGui") or d:IsA("Beam") then
+			d:Destroy()
+		elseif d:IsA("PointLight") then
+			d.Color = Color3.fromRGB(255, 200, 100)
+			d.Range = 9
+			d.Brightness = 1.2
 		end
 	end
-	if not any then
-		return nil, nil
+	local stem = model:FindFirstChild("Stem", true)
+	local root = Instance.new("Part")
+	root.Name = "Root"
+	root.Size = Vector3.new(0.2, 0.2, 0.2)
+	root.Transparency = 1
+	root.Anchored = true
+	root.CanCollide = false
+	root.CanQuery = false
+	root.CanTouch = false
+	root.CFrame = CFrame.new(where) * (if stem and stem:IsA("BasePart") then stem.CFrame.Rotation else CFrame.identity)
+	root.Parent = model
+	model.PrimaryPart = root
+	if not model:FindFirstChildWhichIsA("ParticleEmitter", true) then
+		local glitter = Instance.new("ParticleEmitter")
+		glitter.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+		glitter.Rate = 4
+		glitter.Lifetime = NumberRange.new(0.6, 1.2)
+		glitter.Speed = NumberRange.new(0.4, 1.2)
+		glitter.SpreadAngle = Vector2.new(180, 180)
+		glitter.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(0.3, 0.3), NumberSequenceKeypoint.new(1, 0) })
+		glitter.LightEmission = 1
+		glitter.Color = ColorSequence.new(Color3.fromRGB(255, 236, 150))
+		glitter.Parent = stem or root
 	end
-	return minV, maxV
+	return model
 end
 
-local function groundAt(v: Vector3, fallback: number): number
-	local params = RaycastParams.new()
-	params.FilterType = Enum.RaycastFilterType.Exclude
-	local ignore: { Instance } = {}
-	if player.Character then
-		table.insert(ignore, player.Character)
-	end
-	params.FilterDescendantsInstances = ignore
-	local hit = Workspace:Raycast(Vector3.new(v.X, fallback + 8, v.Z), Vector3.new(0, -20, 0), params)
-	return if hit then hit.Position.Y else fallback
-end
-
--- Czy w tym miejscu stoi coś wyższego niż trawa (płot, skrzynia, tablica…)
-local function blocked(at: Vector3, size: Vector3, groundY: number): boolean
-	local params = OverlapParams.new()
-	params.FilterType = Enum.RaycastFilterType.Exclude
-	if player.Character then
-		params.FilterDescendantsInstances = { player.Character }
-	end
-	for _, p in Workspace:GetPartBoundsInBox(CFrame.new(at.X, groundY + size.Y / 2 + 0.4, at.Z), size, params) do
-		-- Niskie rzeczy (podłoga, ganek, kamienie) da się przejść; liczy się to, co wyższe niż schodek
-		if p.Transparency < 1 and p.CanCollide and p.Position.Y + p.Size.Y / 2 > groundY + 1.3 then
-			return true
+-- Oczka grzyba: zaciśnięte (kiedy złodziej go szarpie i niesie) albo zwykłe
+local function squint(model: Model, on: boolean)
+	for _, d in model:GetDescendants() do
+		if d:IsA("BasePart") and d.Name == "Eye" then
+			local normal = d:GetAttribute("NormalSize")
+			if typeof(normal) ~= "Vector3" then
+				normal = d.Size
+				d:SetAttribute("NormalSize", normal)
+			end
+			local k = d.Size.Z / (normal :: Vector3).Z -- bieżąca skala modelu (ScaleTo zmienia też oczka)
+			local base = (normal :: Vector3) * k
+			d.Size = if on then Vector3.new(base.X * 1.5, base.Y * 0.3, base.Z) else base
 		end
 	end
-	return false
-end
-
-type Corner = { c: Vector3, n1: Vector3, n2: Vector3, y: number, center: Vector3 }
-
--- Róg chatki na kryjówkę: blisko furtki, z miejscem na złodzieja i kamerę.
--- n1 = ściana widoczna od strony ogródka (stąd patrzy kamera), n2 = ściana, za którą stoi złodziej.
-local function pickCorner(gateOut: Vector3, groundY: number): Corner?
-	local minV, maxV = cabinWalls()
-	if not minV or not maxV then
-		return nil
-	end
-	local best: Corner? = nil
-	local bestScore = math.huge
-	for _, sx in { -1, 1 } do
-		for _, sz in { -1, 1 } do
-			local c = Vector3.new(if sx < 0 then minV.X else maxV.X, 0, if sz < 0 then minV.Z else maxV.Z)
-			local nx = Vector3.new(sx, 0, 0)
-			local nz = Vector3.new(0, 0, sz)
-			local toGate = flat(gateOut - c)
-			local dir = toGate.Unit
-			local n1, n2 = nx, nz
-			if dir:Dot(nz) > dir:Dot(nx) then
-				n1, n2 = nz, nx
-			end
-			local y = groundAt(c + n1 * 2 + n2 * 2, groundY)
-			local hide = c + n2 * 1.9 - n1 * 1.5
-			local eye = c + n1 * 6 - n2 * 4.5
-			local score = toGate.Magnitude
-			if blocked(hide, Vector3.new(1.6, 3.4, 1.6), y) then
-				score += 60
-			end
-			if blocked(eye, Vector3.new(2, 2, 2), y + 1.5) then
-				score += 30
-			end
-			if score < bestScore then
-				bestScore = score
-				best = { c = Vector3.new(c.X, y, c.Z), n1 = n1, n2 = n2, y = y, center = (minV + maxV) / 2 }
-			end
-		end
-	end
-	return best
 end
 
 -- ===== Scenariusz =====
 
-local function scenario(s: Kit.Scene, garden: Model)
-	local frame = garden:GetPivot()
-	local grass = garden:FindFirstChild("GardenGrass")
-	local groundY = if grass and grass:IsA("BasePart") then grass.Position.Y + grass.Size.Y / 2 else frame.Position.Y - 2.3
-	-- Punkt na ziemi w układzie ogródka: x w poprzek, z w głąb (furtka na z = -6.5, grządki od z = 4.8)
-	local function P(x: number, z: number, y: number?): Vector3
-		local p = (frame * CFrame.new(x, 0, z)).Position
-		return Vector3.new(p.X, groundY + (y or 0), p.Z)
-	end
-	local function localOf(v: Vector3): Vector3
-		return frame:PointToObjectSpace(v)
-	end
-	local inward = frame:VectorToWorldSpace(Vector3.new(0, 0, 1))
-	local across = frame:VectorToWorldSpace(Vector3.new(1, 0, 0))
-
-	-- Grzyb, którym się zajmujemy: posadzony najbliżej furtki (najlepiej w środkowym rzędzie)
-	local folder = garden:FindFirstChild("Planted")
-	local plant: Model? = nil
-	local bx, bz = 0, 4.8
-	if folder then
-		local bestScore = math.huge
-		for _, child in folder:GetChildren() do
-			if child:IsA("Model") then
-				local l = localOf(child:GetPivot().Position)
-				local score = l.Z * 10 + math.abs(l.X)
-				if score < bestScore then
-					bestScore = score
-					plant = child
-					bx, bz = l.X, l.Z
-				end
-			end
-		end
-	end
-	if not plant then
-		local slot = garden:FindFirstChild("Slot2", true)
-		if slot and slot:IsA("Attachment") then
-			local l = localOf(slot.WorldPosition)
-			bx, bz = l.X, l.Z
-		end
-	end
-	local bedCenter = P(bx, bz)
-
-	-- Prawdziwe grzyby i tabliczki ogródków chowamy (tylko u siebie); gramy na kopii grzyba.
-	-- Raz na starcie, a potem tylko to, co dojdzie w trakcie (wcześniej co ćwierć sekundy przeszukiwało
-	-- wszystkie ogródki i scenka gubiła klatki)
-	local hiddenParts: { [Instance]: boolean } = {}
-	local hiddenOther: { [Instance]: boolean } = {}
-	local function hidePlanted(d: Instance)
-		if (d:IsA("BasePart") or d:IsA("Decal") or d:IsA("Texture")) and not hiddenParts[d] then
-			hiddenParts[d] = true;
-			(d :: any).LocalTransparencyModifier = 1
-		elseif (d:IsA("ParticleEmitter") or d:IsA("Light") or d:IsA("BillboardGui") or d:IsA("Beam") or d:IsA("Trail")) and hiddenOther[d] == nil then
-			hiddenOther[d] = (d :: any).Enabled;
-			(d :: any).Enabled = false
-		end
-	end
-	local function hideSign(d: Instance)
-		if d:IsA("BillboardGui") and hiddenOther[d] == nil then
-			hiddenOther[d] = d.Enabled
-			d.Enabled = false
-		end
-	end
-	if folder then
-		for _, d in folder:GetDescendants() do
-			hidePlanted(d)
-		end
-		table.insert(s.connections, folder.DescendantAdded:Connect(hidePlanted))
-	end
-	for _, g in CollectionService:GetTagged("GardenPlot") do
-		for _, d in g:GetDescendants() do
-			hideSign(d)
-		end
-		table.insert(s.connections, g.DescendantAdded:Connect(hideSign))
-	end
-	-- Tabliczki z dochodem nad grzybami (GardenSlotTag) wiszą w PlayerGui, a nie w ogródku
-	local playerGui = player:FindFirstChildOfClass("PlayerGui")
-	if playerGui then
-		for _, d in playerGui:GetDescendants() do
-			hideSign(d)
-		end
-		table.insert(s.connections, playerGui.DescendantAdded:Connect(hideSign))
-	end
+local function scenario(s: Kit.Scene)
+	local stage = TheftStage.build()
 	Kit.onCleanup(s, function()
-		for d in hiddenParts do
-			if d.Parent then
-				(d :: any).LocalTransparencyModifier = 0
-			end
-		end
-		for d, was in hiddenOther do
-			if d.Parent then
-				(d :: any).Enabled = was
-			end
-		end
+		stage:Destroy()
 	end)
-
-	-- Kopia grzyba: rośnie, chwieje się i podskakuje bez ruszania prawdziwego modelu
-	local fake: Model? = nil
-	local fakeBase: CFrame? = nil
-	local fakeDrop = 0
-	-- Grzyby w ogródku to duże modele pomniejszone przez ScaleTo: skala kopii liczy się od tej
-	-- skali, a nie od 1 (inaczej kopia rosła do pełnego rozmiaru modelu i zasłaniała pół ekranu)
-	local fakeBaseScale = 1
-	-- Grzyb do scenki budowany od zera z kilku części (kopia prawdziwego grzyba mieszała się
-	-- z widokiem grzybów ogródka i potrafiła urosnąć do olbrzymich rozmiarów). Kolor kapelusza
-	-- bierzemy z prawdziwego grzyba, jeśli się da.
-	do
-		local base = if plant then plant:GetPivot() else CFrame.new(bedCenter)
-		local bottom = CFrame.new(base.Position.X, groundY, base.Position.Z) * base.Rotation
-		local capColor = Color3.fromRGB(214, 76, 48)
-		if plant then
-			local best = 0
-			for _, d in plant:GetDescendants() do
-				if d:IsA("BasePart") and d.Transparency < 0.5 and string.find(string.lower(d.Name), "cap") then
-					local v = d.Size.X * d.Size.Z
-					if v > best then
-						best = v
-						capColor = d.Color
-					end
-				end
-			end
-		end
-		local model = Instance.new("Model")
-		model.Name = "CutsceneMushroom"
-		local function piece(name: string, size: Vector3, cf: CFrame, color: Color3, shape: Enum.PartType?, mesh: boolean?): BasePart
-			local p = Instance.new("Part")
-			p.Name = name
-			p.Shape = shape or Enum.PartType.Block
-			p.Size = size
-			p.CFrame = cf
-			p.Color = color
-			p.Material = Enum.Material.SmoothPlastic
-			p.TopSurface = Enum.SurfaceType.Smooth
-			p.BottomSurface = Enum.SurfaceType.Smooth
-			p.Anchored = true
-			p.CanCollide = false
-			p.CanQuery = false
-			p.CanTouch = false
-			p.CastShadow = false
-			if mesh then
-				local m = Instance.new("SpecialMesh")
-				m.MeshType = Enum.MeshType.Sphere
-				m.Parent = p
-			end
-			p.Parent = model
-			return p
-		end
-		local rootPart = piece("Root", Vector3.new(0.2, 0.2, 0.2), bottom, capColor)
-		rootPart.Transparency = 1
-		piece("Stem", Vector3.new(1.7, 0.95, 0.95), bottom * CFrame.new(0, 0.85, 0) * CFrame.Angles(0, 0, math.rad(90)), Color3.fromRGB(240, 230, 208), Enum.PartType.Cylinder)
-		piece("Cap", Vector3.new(2.7, 1.25, 2.7), bottom * CFrame.new(0, 1.95, 0), capColor, nil, true)
-		piece("CapRim", Vector3.new(2.5, 0.35, 2.5), bottom * CFrame.new(0, 1.55, 0), capColor:Lerp(Color3.new(0, 0, 0), 0.25), nil, true)
-		for i = 1, 5 do
-			local angle = i * math.pi * 2 / 5
-			piece("Dot", Vector3.new(0.38, 0.14, 0.38), bottom * CFrame.new(math.cos(angle) * 0.75, 2.42, math.sin(angle) * 0.75), Color3.new(1, 1, 1), nil, true)
-		end
-		piece("Dot", Vector3.new(0.42, 0.14, 0.42), bottom * CFrame.new(0, 2.58, 0), Color3.new(1, 1, 1), nil, true)
-		model.PrimaryPart = rootPart
-		model.Parent = Workspace
-		fake = model
-		fakeBase = model:GetPivot()
-		fakeDrop = 0 -- punkt obrotu jest na ziemi, więc grzyb rośnie od podstawy
-		Kit.onCleanup(s, function()
-			model:Destroy()
-		end)
-	end
-	-- Skala grzyba od podstawy (k = 1 pełny rozmiar), lift = o ile wyciągnięty z ziemi
-	local fakeScale = 1
-	local function setFake(k: number, lift: number?, tilt: CFrame?)
-		local m = fake
-		local base = fakeBase
-		if not m or not base then
-			return
-		end
-		k = math.max(k, 0.02)
-		-- ScaleTo przelicza cały model: nie w każdej klatce za drobną zmianę (to też gubiło klatki)
-		if math.abs(k - fakeScale) > 0.025 or (k == 1 and fakeScale ~= 1) then
-			m:ScaleTo(fakeBaseScale * k)
-			fakeScale = k
-		end
-		m:PivotTo(base * CFrame.new(0, -(1 - k) * fakeDrop + (lift or 0), 0) * (tilt or CFrame.new()))
-	end
-	setFake(0.02)
-
 	local hero = Kit.actor(s, { name = "Gardener" })
 	local thief = Kit.actor(s, { name = "Thief", thief = true })
 	if not hero or not thief then
 		return
 	end
-	-- Złodziej czeka poza kadrem
-	Kit.place(thief, P(0, -400), inward)
+	gardenNight(s)
 
-	local heroSpot = P(bx, bz - 2.55)
-	Kit.place(hero, heroSpot, inward)
+	local bedZ = TheftStage.BED_Z
+	local soil = at(0, bedZ, TheftStage.SOIL_Y)
+	local plantSpot = at(0, bedZ - 2.55)
+	local forward = Vector3.new(0, 0, 1)
 
-	-- Strona, w którą gracz odchodzi: przeciwna do rogu chatki ze złodziejem
-	local gateOut = P(0, -9.6)
-	local corner = pickCorner(gateOut, groundY)
-	local cornerSide = 1
-	if corner then
-		cornerSide = if localOf(corner.c).X >= 0 then 1 else -1
+	-- Złoty grzyb: na razie maleńki i schowany w ziemi. Buzią w stronę furtki, lekko w lewo
+	-- (stamtąd patrzy większość ujęć).
+	local prize = prizeMushroom(soil, stage)
+	prize.Parent = stage
+	local prizeBase = CFrame.lookAt(soil, soil + Vector3.new(-0.45, 0, -0.9))
+	local prizeScale = 1
+	local function setPrize(k: number, lift: number?, tilt: CFrame?)
+		k = math.max(k, 0.02)
+		if math.abs(k - prizeScale) > 0.02 or (k == 1 and prizeScale ~= 1) then
+			prize:ScaleTo(k * PRIZE_SIZE)
+			prizeScale = k
+		end
+		prize:PivotTo(prizeBase * CFrame.new(0, lift or 0, 0) * (tilt or CFrame.identity))
 	end
-	local heroSide = -cornerSide
+	setPrize(0.02, -0.3)
 
-	-- Noc w ogródku: trochę jaśniej i ciepłe światło nad grządką, żeby było widać miny
-	local Lighting = game:GetService("Lighting")
-	if Lighting.ClockTime < 6.5 or Lighting.ClockTime > 17.5 then
-		Lighting.ExposureCompensation = math.max(Lighting.ExposureCompensation, 0) + 0.2
-	end
-	local function fill(where: Vector3, color: Color3, range: number, brightness: number)
-		local a = Instance.new("Attachment")
-		a.WorldPosition = where
-		a.Parent = Workspace.Terrain
-		local light = Instance.new("PointLight")
-		light.Color = color
-		light.Range = range
-		light.Brightness = brightness
-		light.Shadows = false
-		light.Parent = a
-		Kit.onCleanup(s, function()
-			a:Destroy()
-		end)
-	end
-	fill(P(bx - 7, bz - 7, 11), Color3.fromRGB(255, 214, 160), 24, 0.9)
-	fill(P(5, -9, 10), Color3.fromRGB(190, 210, 255), 20, 0.6)
-	if corner then
-		fill(Vector3.new(corner.c.X, corner.y + 8, corner.c.Z) + corner.n1 * 7 - corner.n2 * 2, Color3.fromRGB(190, 210, 255), 20, 0.6)
-	end
+	-- Czerwona poświata złodzieja z cudzym grzybem (tak jak w grze)
+	local glow = Instance.new("Highlight")
+	glow.FillColor = Color3.fromRGB(255, 50, 50)
+	glow.FillTransparency = 0.55
+	glow.OutlineColor = Color3.fromRGB(255, 120, 110)
+	glow.OutlineTransparency = 0
+	glow.DepthMode = Enum.HighlightDepthMode.Occluded
+	glow.Enabled = false
+	glow.Parent = thief.model
+	local redLight = Instance.new("PointLight")
+	redLight.Color = Color3.fromRGB(255, 70, 60)
+	redLight.Range = 10
+	redLight.Brightness = 0
+	redLight.Parent = thief.root
 
-	-- ===== 1. Sadzenie =====
+	Kit.place(thief, at(-200, -200), forward)
+	Kit.place(hero, plantSpot, forward)
+
+	-- ===== 1. Noc nad ogródkiem i sadzenie =====
 	Kit.phase(s, "plant")
 	Kit.letterbox(s, true, 0.01)
 	Kit.loop(s, "forest", 0.35)
-	Kit.shot(s, look(P(bx - 6.5, bz - 7.5, 3.4), P(bx - 0.2, bz - 1.3, 0.9)), look(P(bx - 5.4, bz - 6.4, 3.0), P(bx - 0.1, bz - 1.2, 1.0)), 3.6, 50)
-	Kit.fade(s, false, 0.8)
+	-- Najpierw czarny ekran z podpisem (jak w intro). Kamera już stoi nad ogródkiem, bo światło
+	-- w świeżo zbudowanym, dalekim ogródku układa się dopiero po chwili (inaczej pierwsze ujęcia
+	-- byłyby ciemne i jaśniały na oczach gracza).
+	local opening = look(at(-3, -27, 15), at(0, 4, 1))
+	Kit.shot(s, opening, nil, 0, 50)
+	Kit.caption(s, Localize.t("CUT2_TITLE"), true, 1.0)
+	if not Kit.wait(s, 2.2) then
+		return
+	end
+	Kit.caption(s, Localize.t("CUT2_TITLE"), false, 0.7)
+	Kit.shot(s, opening, look(at(-2.2, -13, 7.5), at(0, 3, 1.6)), 4.2, 50, Enum.EasingStyle.Quad)
+	Kit.fade(s, false, 1.4)
+	task.delay(1.4, function()
+		if not s.cancelled then
+			Audio.play("owl", { volume = 0.45 })
+		end
+	end)
+	if not Kit.wait(s, 2.6) then
+		return
+	end
+	-- Zza grządki, na twarz klęczącego gracza (w tle furtka i latarnia przy dróżce)
+	Kit.shot(s, look(at(3.8, bedZ + 5.8, 3.4), at(0, bedZ - 1.9, 2.0)), look(at(3.3, bedZ + 5.1, 3.2), at(0, bedZ - 1.9, 2.0)), 3.6, 42)
 	Kit.clip(hero, Clips.plantSeed, {
 		fade = 0.2,
 		events = function(name)
 			if name == "dig" then
 				Audio.play("dig", { volume = 0.7, jitter = 0.1, duration = 0.5 })
-				puff(bedCenter + Vector3.new(0, 0.9, 0) - inward * 0.6, Color3.fromRGB(92, 64, 40), 8)
+				puff(soil + Vector3.new(0, 0.3, -0.6), DIRT, 8)
 			elseif name == "place" then
 				Audio.play("plant", { volume = 0.7, duration = 1 })
-				setFake(0.18)
+				setPrize(0.16, -0.05)
 			elseif name == "pat" then
 				Audio.play("pat", { volume = 0.6, jitter = 0.12, duration = 0.3 })
-				puff(bedCenter + Vector3.new(0, 0.9, 0) - inward * 0.5, Color3.fromRGB(110, 78, 50), 4, 2.5)
 			end
 		end,
 	})
-	if not Kit.wait(s, 3.4) then
+	if not Kit.wait(s, 3.3) then
 		return
 	end
-	-- Krok w tył i grzyb wyrasta z błyskiem
-	Kit.clip(hero, nil, { fade = 0.2 })
-	Kit.track(hero, "idle")
-	local backTo = P(bx, bz - 3.6) + Vector3.new(0, hero.hip, 0)
-	tween(hero.rootValue, 0.45, { Value = CFrame.lookAt(backTo, backTo + inward) }, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-	Kit.shot(s, look(P(bx - 3.6, bz - 4.6, 2.6), P(bx, bz, 1.2)), look(P(bx - 3.1, bz - 4.0, 2.3), P(bx, bz, 1.4)), 1.8, 48)
-	if not Kit.wait(s, 0.35) then
+
+	-- ===== 2. Złoty grzyb wyrasta =====
+	Kit.phase(s, "grow")
+	Kit.clip(hero, nil, { fade = 0.3 })
+	-- Gracz obchodzi grządkę i staje z boku, żeby nie zasłaniać grzyba
+	local admire = at(2.8, bedZ + 0.4)
+	local aside = Kit.path(s, hero, { at(2.9, bedZ - 2.4), admire }, 7, "walk", 0.9)
+	task.delay(aside, function()
+		Kit.track(hero, "idle")
+		Kit.face(hero, soil, 0.2)
+	end)
+	-- Nisko, przed grządką: grzyb wyrasta buzią do nas, gracz patrzy z boku, w tle okna chatki
+	Kit.shot(s, look(at(-1.6, bedZ - 6.4, 1.5), at(0.6, bedZ, 2.0)), look(at(-1.4, bedZ - 5.6, 1.7), at(0.6, bedZ, 2.3)), 2.2, 46)
+	if not Kit.wait(s, 0.45) then
 		return
 	end
-	Audio.play("grow", { volume = 0.8, duration = 2 })
-	Audio.play("pick", { volume = 0.8 })
+	Audio.play("grow", { volume = 0.8, duration = 1.4 })
+	Audio.play("shimmer", { volume = 0.5, duration = 1.5 })
 	local growStart = os.clock()
 	local grow: RBXScriptConnection? = nil
 	grow = RunService.RenderStepped:Connect(function()
-		local k = math.clamp((os.clock() - growStart) / 0.85, 0, 1)
+		local k = math.clamp((os.clock() - growStart) / 0.9, 0, 1)
 		-- Sprężyste wyrastanie (lekko ponad rozmiar i z powrotem)
 		local e = 1 - math.pow(1 - k, 3)
-		local over = math.sin(k * math.pi) * 0.18
-		setFake(0.18 + (1 - 0.18) * e + over * (1 - k * 0.5))
+		local over = math.sin(k * math.pi) * 0.16
+		setPrize(0.16 + (1 - 0.16) * e + over * (1 - k * 0.5))
 		if k >= 1 then
-			setFake(1)
+			setPrize(1)
 			if grow then
 				grow:Disconnect()
 			end
 		end
 	end)
 	table.insert(s.connections, grow :: RBXScriptConnection)
-	sparkle(bedCenter + Vector3.new(0, 1.2, 0), 40)
-	puff(bedCenter + Vector3.new(0, 1, 0), Color3.fromRGB(120, 90, 60), 10)
-	if not Kit.wait(s, 1.5) then
+	sparkle(soil + Vector3.new(0, 1.2, 0), 40)
+	puff(soil + Vector3.new(0, 0.4, 0), DIRT, 10)
+	if not Kit.wait(s, 1.6) then
 		return
 	end
 
-	-- ===== 2. Gotowe: pot z czoła =====
+	-- ===== Gotowe: pot z czoła i wyjście =====
 	Kit.phase(s, "done")
-	Kit.face(hero, P(bx, bz - 12), 0.35)
-	-- Z boku, żeby za plecami było widać świeżo posadzony grzyb
-	Kit.shot(s, look(P(bx + 3.6, -5.6, 3.1), P(bx + 0.5, bz - 2.6, 2.0)), look(P(bx + 3.2, -5.0, 3.0), P(bx + 0.5, bz - 2.6, 2.1)), 4, 46)
+	Kit.face(hero, at(1.3, -12), 0.35)
+	-- Przed graczem, za jego plecami złoty grzyb na grządce
+	Kit.shot(s, look(at(5.8, bedZ - 7.6, 3.4), at(1.2, bedZ - 1.0, 2.4)), look(at(5.3, bedZ - 6.9, 3.2), at(1.2, bedZ - 0.8, 2.5)), 3.4, 46)
 	if not Kit.wait(s, 0.35) then
 		return
 	end
@@ -538,47 +417,38 @@ local function scenario(s: Kit.Scene, garden: Model)
 			end
 		end,
 	})
-	if not Kit.wait(s, 1.9) then
+	if not Kit.wait(s, 1.8) then
 		return
 	end
-	if not Kit.bubble(s, hero, Localize.t("CUT2_DONE"), 1.2, false, nil, 1.15) then
+	if not Kit.bubble(s, hero, Localize.t("CUT2_DONE"), 1.0, false, nil, 1.15) then
 		return
 	end
 
-	-- ===== Wychodzi przez furtkę =====
 	Kit.phase(s, "leave")
 	Kit.clip(hero, nil, { fade = 0.3 })
-	Kit.shot(s, look(P(bx - 3.2 * heroSide, bz + 3.2, 3.8), P(0, -7.5, 1.8)), look(P(bx - 2.8 * heroSide, bz + 2.6, 3.6), P(heroSide * 3, -9, 1.8)), 3, 50)
-	Kit.path(s, hero, { P(bx * 0.4, -3.2), P(0, -5.5), P(0, -9.4), P(heroSide * 14, -9.8) }, 8, "walk", 0.85)
-	local steps = task.spawn(function()
-		while not s.cancelled do
-			Audio.play("footstep", { volume = 0.4, jitter = 0.12 })
-			task.wait(0.36)
-		end
-	end)
+	-- Zza grządki: złoty grzyb z lewej, gracz odchodzi przez furtkę w noc
+	Kit.shot(s, look(at(3.2, bedZ + 6.2, 3.2), at(-0.6, -9, 1.6)), look(at(2.9, bedZ + 5.6, 3.4), at(-0.4, -12, 1.8)), 3.2, 48)
+	Kit.path(s, hero, { at(2.9, bedZ - 2.4), at(0.8, -4.5), at(0, -10.2), at(0, -16), at(2.5, -24) }, 7.5, "walk", 0.9)
+	local steps = footsteps(s, 0.38, 0.35)
 	if not Kit.wait(s, 2.9) then
 		task.cancel(steps)
 		return
 	end
 	task.cancel(steps)
+	Kit.place(hero, at(0, -300), forward)
 
-	-- ===== 3. Zza rogu chatki: złodziej =====
+	-- ===== 3. Zza krzaka: złodziej =====
 	Kit.phase(s, "peek")
-	Kit.place(hero, P(0, -400), inward)
 	Audio.music("clues", 0.4)
-	local c = if corner then corner.c else P(cornerSide * 10, -14)
-	local n1 = if corner then corner.n1 else -inward
-	local n2 = if corner then corner.n2 else across * cornerSide
-	local cy = if corner then corner.y else groundY
-	local function at(v: Vector3, y: number?): Vector3
-		return Vector3.new(v.X, cy + (y or 0), v.Z)
-	end
-	local hide = at(c + n2 * 1.9 - n1 * 1.5)
-	Kit.place(thief, hide, n1)
+	-- Kamera za płotem, przy rogu ogródka: krzak przed nami, płot po prawej prowadzi do chatki
+	local bush = TheftStage.BUSH
+	local peekEye = at(-12.6, -13.2, 2.9)
+	local toBush = Vector3.new(bush.X - (-12.6), 0, bush.Z - (-13.2)).Unit
+	local hide = at(bush.X + toBush.X * 2.2, bush.Z + toBush.Z * 2.2)
+	Kit.place(thief, hide, -toBush)
 	Kit.expression(thief, "smirk")
 	Kit.eyes(thief, 0, 0)
-	local edge = at(c + n2 * 1.6 - n1 * 0.4)
-	Kit.shot(s, look(at(c + n1 * 6 - n2 * 4.5, 2.6), edge + Vector3.new(0, 2.0, 0)), look(at(c + n1 * 5.2 - n2 * 4.0, 2.4), edge + Vector3.new(0, 2.1, 0)), 4.6, 44)
+	Kit.shot(s, look(peekEye, hide + Vector3.new(0, 3.3, 0)), look(peekEye + toBush * 1.2 + Vector3.new(0, -0.2, 0), hide + Vector3.new(0, 3.2, 0)), 4.4, 38)
 	Audio.play("leaves", { volume = 0.5, duration = 1.2 })
 	Kit.clip(thief, Clips.peekOut, {
 		fade = 0.15,
@@ -603,22 +473,19 @@ local function scenario(s: Kit.Scene, garden: Model)
 			end
 		end,
 	})
-	if not Kit.wait(s, 2.4) then
+	if not Kit.wait(s, 2.3) then
 		return
 	end
 	task.spawn(function()
 		Kit.bubble(s, thief, Localize.t("CUT2_THIEF"), 1.0, false, nil, 0.72)
 	end)
-	if not Kit.wait(s, 2.4) then
+	if not Kit.wait(s, 2.5) then
 		return
 	end
 
-	-- ===== 4. Skradanie =====
+	-- ===== 4. Skradanie wzdłuż płotu =====
 	Kit.phase(s, "sneak")
 	Kit.expression(thief, "smirk")
-	local out = at(c + n1 * 1.8 + n2 * 2.0)
-	local towardGate = flat(gateOut - out)
-	towardGate = if towardGate.Magnitude > 0.1 then towardGate.Unit else n1
 	local function sneakSteps(name: string)
 		if name == "step" then
 			Audio.play("tiptoe", { volume = 0.55, jitter = 0.15, duration = 0.4 })
@@ -626,31 +493,26 @@ local function scenario(s: Kit.Scene, garden: Model)
 		end
 	end
 	Kit.clip(thief, Clips.sneak, { fade = 0.25, events = sneakSteps })
-	Kit.path(s, thief, { out, out + towardGate * 5 }, 3.2)
-	local sideways = towardGate:Cross(Vector3.yAxis)
-	-- Kamera za plecami, lekko z boku, po stronie z dala od chatki (widać worek z „$” i drogę do ogródka)
-	local cabinCenter = if corner then corner.center else c - n1 * 5 - n2 * 5
-	if sideways:Dot(flat(out - cabinCenter)) < 0 then
-		sideways = -sideways
-	end
+	Kit.path(s, thief, { at(-13.6, -7.4), at(-13.4, -10.2) }, 3.6)
+	local sneakEye = at(-6.0, -19.5, 3.4)
 	Kit.follow(s, function()
-		local p = thief.root.Position
-		return look(p - towardGate * 5.5 + sideways * 2.2 + Vector3.new(0, 1.6, 0), p + towardGate * 4 + Vector3.new(0, 0.4, 0))
-	end, 50)
-	if not Kit.wait(s, 2.3) then
+		return look(sneakEye, thief.root.Position + Vector3.new(0, 0.4, 0))
+	end, 46)
+	if not Kit.wait(s, 2.4) then
 		return
 	end
 
-	-- Przy furtce: rozgląda się i „ćśś”
+	-- Przy furtce: rozgląda się i „ćśś” (ujęcie ze środka ogródka: wchodzi za płotem i staje
+	-- w samym prześwicie furtki, słupki i belka robią mu ramkę)
 	Kit.phase(s, "gate")
-	Kit.place(thief, P(cornerSide * 6, -9.6), -across * cornerSide)
+	Kit.place(thief, at(-6.4, -13.6), Vector3.new(1, 0, 0))
 	Kit.clip(thief, Clips.sneak, { fade = 0.1, events = sneakSteps })
-	local toGate = Kit.path(s, thief, { P(cornerSide * 0.5, -9.6) }, 3.2)
-	Kit.shot(s, look(P(-cornerSide * 2.6, -1.2, 3.3), P(cornerSide * 2, -9.6, 2.0)), look(P(-cornerSide * 2.2, -1.8, 3.1), P(cornerSide * 0.6, -9.6, 2.1)), toGate + 2.2, 50)
+	local toGate = Kit.path(s, thief, { at(-2.8, -13.3), at(-1.0, -12.5) }, 3.2)
+	Kit.shot(s, look(at(2.4, -4.6, 3.0), at(-1.0, -12.4, 2.7)), look(at(2.1, -5.1, 2.9), at(-1.1, -12.5, 2.7)), toGate + 2.4, 48)
 	if not Kit.wait(s, toGate) then
 		return
 	end
-	Kit.face(thief, P(0, 0), 0.25)
+	Kit.face(thief, at(0, 0), 0.25)
 	Kit.clip(thief, Clips.lookAround, {
 		fade = 0.15,
 		events = function(name)
@@ -673,47 +535,57 @@ local function scenario(s: Kit.Scene, garden: Model)
 		return
 	end
 
-	-- Podkrada się do grządki
+	-- Przez furtkę w głąb ogródka (z boku), a potem to samo ujęcie zza grzyba co przy wyjściu gracza
 	Kit.phase(s, "tiptoe")
 	Kit.expression(thief, "grin")
-	local tugSpot = P(bx, bz - 3.1)
-	local camSide = if bx > 0.5 then 1 elseif bx < -0.5 then -1 else -cornerSide
 	Kit.clip(thief, Clips.sneak, { fade = 0.1, events = sneakSteps })
-	local toBed = Kit.path(s, thief, { P(0, -4.6), tugSpot }, 3.6)
-	local tipEye = P(bx + camSide * 7, bz - 5.2, 3.4)
+	Kit.path(s, thief, { at(-0.4, -11.2), at(0, -6.2) }, 3.8)
+	local sideEye = at(-7.2, -6.0, 3.6)
 	Kit.follow(s, function()
-		return look(tipEye, thief.root.Position + Vector3.new(0, 0.3, 0))
-	end, 50)
+		return look(sideEye, thief.root.Position + Vector3.new(0, 0.3, 0))
+	end, 48)
+	if not Kit.wait(s, 1.9) then
+		return
+	end
+	-- Podchodzi do grzyba z boku grządki (z przodu kapelusz zasłaniał mu głowę). Kamera nisko przed
+	-- grządką: złodziej i złoty grzyb obok siebie, grzyb buzią do nas.
+	local tugSpot = at(-2.7, bedZ)
+	Kit.place(thief, at(-3.6, bedZ - 5.4), forward)
+	Kit.clip(thief, Clips.sneak, { fade = 0.05, events = sneakSteps })
+	local toBed = Kit.path(s, thief, { at(-3.1, bedZ - 2.2), tugSpot }, 3.4)
+	local tugEye = look(at(-0.8, bedZ - 6.6, 2.8), at(-1.4, bedZ, 2.2))
+	Kit.shot(s, look(at(-0.4, bedZ - 7.4, 3.0), at(-1.4, bedZ, 2.2)), tugEye, toBed + 0.3, 46)
 	if not Kit.wait(s, toBed) then
 		return
 	end
 
-	-- Szarpie grzyba
+	-- ===== 5. Szarpanie =====
 	Kit.phase(s, "tug")
-	Kit.face(thief, bedCenter, 0.2)
+	Kit.face(thief, soil, 0.2)
 	Kit.expression(thief, "shh")
 	Audio.music(nil, 1.2)
-	Kit.shot(s, look(P(bx + camSide * 5.8, bz - 2.4, 2.4), P(bx + camSide * 0.2, bz - 1.6, 1.3)), look(P(bx + camSide * 5.0, bz - 2.0, 2.2), P(bx + camSide * 0.1, bz - 1.4, 1.4)), 2.6, 50)
+	Kit.shot(s, tugEye, look(at(-1.0, bedZ - 5.8, 2.6), at(-1.4, bedZ, 2.3)), 2.6, 44)
 	local pull = Instance.new("NumberValue")
 	local wobbleStart = os.clock()
 	local wobble = RunService.RenderStepped:Connect(function()
 		local t = os.clock() - wobbleStart
-		local amount = math.clamp(t / 1.2, 0, 1) * 0.22
-		setFake(1, pull.Value + math.abs(math.sin(t * 9)) * 0.12, CFrame.Angles(math.sin(t * 14) * amount, 0, math.sin(t * 11) * amount))
+		local amount = math.clamp(t / 1.2, 0, 1) * 0.2
+		setPrize(1, pull.Value + math.abs(math.sin(t * 9)) * 0.1, CFrame.Angles(math.sin(t * 14) * amount, 0, math.sin(t * 11) * amount))
 	end)
 	table.insert(s.connections, wobble)
 	Kit.clip(thief, Clips.tug, {
 		fade = 0.2,
 		events = function(name)
 			if name == "tug" then
+				squint(prize, true)
 				thief.shake = 1
 				task.delay(0.25, function()
 					thief.shake = 0
 				end)
 				Audio.play("crack", { volume = 0.35, pitch = 1.6, duration = 0.35 })
 				Audio.play("dig", { volume = 0.5, pitch = 1.2, duration = 0.4 })
-				tween(pull, 0.25, { Value = pull.Value + 0.18 }, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-				puff(bedCenter + Vector3.new(0, 0.9, 0), Color3.fromRGB(92, 64, 40), 6, 3)
+				tween(pull, 0.25, { Value = pull.Value + 0.16 }, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+				puff(soil + Vector3.new(0, 0.3, 0), DIRT, 6, 3)
 				sweatDrop(thief)
 				s.shake = math.max(s.shake, 0.12)
 			end
@@ -724,119 +596,190 @@ local function scenario(s: Kit.Scene, garden: Model)
 			Kit.bubble(s, thief, Localize.t("CUT2_TUG"), 0.6, false, nil, 0.7)
 		end
 	end)
-	if not Kit.wait(s, 2.3) then
+	if not Kit.wait(s, 2.2) then
 		return
 	end
-
-	-- ===== 5. Zgrzyt płyty: gracz wraca =====
-	Kit.phase(s, "caught")
-	Audio.play("scratch", { volume = 0.9, duration = 1.2 })
-	s.shake = 0.3
-	local heroAt = P(0, -4.2)
-	Kit.place(hero, P(heroSide * 6.5, -9.6), -across * heroSide)
-	Kit.path(s, hero, { P(0, -9.6), heroAt }, 14, "run", 1.3)
-	do
-		-- Szeroki kadr z boku: gracz przy furtce i złodziej przy grządce naraz
-		local mid = (heroAt + tugSpot) / 2
-		local line = flat(tugSpot - heroAt)
-		local perp = if line.Magnitude > 0.1 then line.Unit:Cross(Vector3.yAxis) else across
-		local reach = math.max(9.5, line.Magnitude * 1.15)
-		local l = localOf(mid + perp * reach)
-		if math.abs(l.X) > 11.5 or l.Z < -5.5 then
-			perp = -perp
-		end
-		Kit.shot(s, look(mid + perp * reach + Vector3.new(0, 3.6, 0), mid + Vector3.new(0, 2.1, 0)), look(mid + perp * (reach - 0.8) + Vector3.new(0, 3.3, 0), mid + Vector3.new(0, 2.2, 0)), 1.4, 56)
-	end
-	task.delay(0.45, function()
-		if not s.cancelled then
-			Audio.play("surprise", { volume = 0.9, duration = 1.6 })
-			Kit.bubble(s, hero, Localize.t("CUT2_HEY"), 1.0, false, nil, 1.1)
-		end
-	end)
+	-- Pyk! Grzyb wyskakuje mu w rękę
+	wobble:Disconnect()
+	setPrize(HELD_SCALE)
+	Kit.attach(thief, "RightHand", prize, CFrame.new(0, -0.42, -0.1))
+	Audio.play("pick", { volume = 0.9 })
+	Audio.play("coin", { volume = 0.5, pitch = 1.2 })
+	sparkle(soil + Vector3.new(0, 1, 0), 26)
+	puff(soil + Vector3.new(0, 0.3, 0), DIRT, 12, 5)
+	s.shake = 0.25
+	Kit.clip(thief, nil, { fade = 0.15 })
+	Kit.track(thief, "idle")
+	Kit.expression(thief, "grin")
 	if not Kit.wait(s, 0.5) then
 		return
 	end
-	-- Złodziej podskakuje ze strachu, grzyb wraca do ziemi
-	wobble:Disconnect()
-	pull.Value = 0
-	setFake(1)
-	Kit.face(thief, heroAt, 0.1)
+
+	-- ===== 6. Złodziej z grzybem: czerwona poświata i powolny krok =====
+	Kit.phase(s, "carry")
+	Kit.face(thief, at(0, -12), 0.3)
+	glow.Enabled = true
+	tween(redLight, 0.4, { Brightness = 1.6 })
+	Audio.play("warn", { volume = 0.5 })
+	Kit.subtitle(s, Localize.t("CUT2_SUB_RED"), Color3.fromRGB(255, 120, 110))
+	local meet = at(0, -4.6)
+	Kit.path(s, thief, { at(-2.9, bedZ - 2.4), at(-0.6, -1.4), meet }, 2.8, "walk", 0.62)
+	-- Kamera cofa się przed nim, nisko, od jego lewej (złodziej na tle księżyca, grzyb w prawej ręce)
+	Kit.follow(s, function()
+		local p = thief.root.Position
+		return look(p + Vector3.new(-1.9, -0.9, -6.2), p + Vector3.new(0, 0.6, 0))
+	end, 46)
+	if not Kit.wait(s, 3.2) then
+		return
+	end
+
+	-- W furtce staje gracz
+	Kit.phase(s, "caught")
+	Kit.subtitle(s, nil)
+	Audio.play("scratch", { volume = 0.9, duration = 1.2 })
+	local heroGate = at(0, -10.2)
+	Kit.place(hero, heroGate, forward)
+	Kit.track(hero, "idle")
+	-- Zza pleców złodzieja: w furtce stoi gracz
+	Kit.shot(s, look(at(-2.6, -0.2, 3.6), at(0.2, -10.2, 3.3)), look(at(-2.4, -0.8, 3.5), at(0.2, -10.2, 3.4)), 2.4, 44)
+	Kit.track(thief, "idle")
+	Kit.mark(s, hero, "!")
+	Audio.play("surprise", { volume = 0.9, duration = 1.6 })
+	Kit.clip(hero, Clips.point, { fade = 0.1 })
+	if not Kit.bubble(s, hero, Localize.t("CUT2_HEY"), 0.5, false, nil, 1.1) then
+		return
+	end
+	-- Przyłapany: jego mina z bliska (od strony furtki)
+	Kit.shot(s, look(at(-2.3, -10.4, 3.4), at(0, -4.6, 3.3)), look(at(-2.0, -9.8, 3.4), at(0, -4.6, 3.4)), 1.8, 42)
+	Kit.face(thief, heroGate, 0.1)
 	Kit.clip(thief, Clips.jumpScare, { fade = 0.05 })
 	Kit.expression(thief, "o")
 	Kit.eyes(thief, 0, 0)
 	Kit.mark(s, thief, "!")
-	Audio.play("loony", { volume = 0.8, duration = 2.2 })
-	if not Kit.wait(s, 0.5) then
-		return
-	end
-	Kit.track(hero, "idle")
-	Kit.clip(hero, Clips.point, { fade = 0.1 })
-	if not Kit.wait(s, 0.5) then
-		return
-	end
+	Audio.play("loony", { volume = 0.7, duration = 2.2 })
 	task.spawn(function()
 		Kit.bubble(s, thief, Localize.t("CUT2_OOPS"), 0.5, false, nil, 0.8)
 	end)
-	if not Kit.wait(s, 0.9) then
+	if not Kit.wait(s, 1.2) then
 		return
 	end
 
-	-- ===== Ucieczka przez płot =====
-	Kit.phase(s, "flee")
-	local esc = if bx > 0.5 then 1 elseif bx < -0.5 then -1 else -heroSide
-	if blocked(P(esc * 16, bz - 0.6), Vector3.new(3, 3, 3), groundY) and not blocked(P(-esc * 16, bz - 0.6), Vector3.new(3, 3, 3), groundY) then
-		esc = -esc
+	-- ===== 7. Dotknięcie: grzyb wraca na grządkę =====
+	Kit.phase(s, "tag")
+	Kit.subtitle(s, Localize.t("CUT2_SUB_TOUCH"), Color3.fromRGB(150, 255, 150))
+	Kit.clip(hero, nil, { fade = 0.1 })
+	local thiefAt = thief.rootValue.Value.Position - Vector3.new(0, thief.hip, 0)
+	local reach = Vector3.new(thiefAt.X, heroGate.Y, thiefAt.Z) - forward * 1.7
+	local dash = Kit.path(s, hero, { reach }, 15, "run", 1.4)
+	Kit.shot(s, look(at(-10.0, -2.6, 3.4), at(0, -1.0, 2.4)), look(at(-9.6, -2.2, 3.3), at(0, -0.6, 2.4)), 3.2, 52)
+	if not Kit.wait(s, dash) then
+		return
 	end
+	Kit.track(hero, "idle")
+	Kit.flash(s, Color3.new(1, 1, 1), 0.55, 0.35)
+	s.shake = 0.35
+	Audio.play("boom", { volume = 0.45 })
+	Audio.play("coin", { volume = 0.8 })
+	glow.Enabled = false
+	tween(redLight, 0.2, { Brightness = 0 })
+	-- Grzyb wylatuje z ręki złodzieja i łukiem wraca na grządkę
+	for _, d in prize:GetDescendants() do
+		if d:IsA("WeldConstraint") then
+			d:Destroy()
+		elseif d:IsA("BasePart") then
+			d.Anchored = true
+		end
+	end
+	prize.Parent = stage
+	local from = prize:GetPivot()
+	local flyStart = os.clock()
+	local landed = false
+	local fly: RBXScriptConnection? = nil
+	fly = RunService.RenderStepped:Connect(function()
+		local k = math.clamp((os.clock() - flyStart) / 0.85, 0, 1)
+		local e = k * k * (3 - 2 * k)
+		local p = from.Position:Lerp(soil, e) + Vector3.new(0, math.sin(k * math.pi) * 5, 0)
+		local scale = HELD_SCALE + (1 - HELD_SCALE) * e
+		if math.abs(scale - prizeScale) > 0.02 then
+			prize:ScaleTo(scale * PRIZE_SIZE)
+			prizeScale = scale
+		end
+		prize:PivotTo(CFrame.new(p) * prizeBase.Rotation * CFrame.Angles(0, k * math.pi * 4, 0))
+		if k >= 1 then
+			if fly then
+				fly:Disconnect()
+			end
+			landed = true
+			setPrize(1)
+			squint(prize, false)
+			sparkle(soil + Vector3.new(0, 1.2, 0), 34)
+			puff(soil + Vector3.new(0, 0.3, 0), DIRT, 10)
+			Audio.play("plant", { volume = 0.7, duration = 1 })
+			Audio.play("shimmer", { volume = 0.6, duration = 1.5 })
+		end
+	end)
+	table.insert(s.connections, fly :: RBXScriptConnection)
+	Kit.clip(thief, Clips.jumpScare, { fade = 0.05 })
+	if not Kit.wait(s, 1.1) then
+		return
+	end
+	if not landed then
+		setPrize(1)
+		squint(prize, false)
+	end
+
+	-- ===== 8. Ucieczka przez płot i lądowanie na twarzy =====
+	Kit.phase(s, "flee")
+	Kit.subtitle(s, nil)
 	Audio.music("hall", 0.2)
 	Kit.clip(thief, nil, { fade = 0.12 })
-	local run = Kit.path(s, thief, { P(esc * 8.8, bz - 2.8), P(esc * 11.2, bz - 1.4) }, 15, "run", 1.5)
-	local fleeEye = P(esc * 3.5, bz - 7.5, 5.2)
+	Kit.expression(thief, "o")
+	local run = Kit.path(s, thief, { at(-6.0, -3.2), at(-9.6, 1.0) }, 13, "run", 1.5)
+	local fleeEye = at(-1.5, -10.5, 4.6)
 	Kit.follow(s, function()
-		return look(fleeEye, thief.root.Position + Vector3.new(0, 0.2, 0))
-	end, 52)
+		return look(fleeEye, thief.root.Position + Vector3.new(0, 0.4, 0))
+	end, 50)
 	Audio.play("pant", { volume = 0.5, duration = 1.4, pitch = 1.3 })
 	if not Kit.wait(s, run) then
 		return
 	end
-	-- Hop przez płot
 	Audio.play("slide", { volume = 0.8 })
 	Kit.track(thief, nil)
 	Kit.clip(thief, Clips.vault, { fade = 0.05 })
-	Kit.hop(s, thief, P(esc * 15.6, bz - 1.0), 0.62, 3.4)
+	local landing = at(-14.6, 1.6)
+	Kit.hop(s, thief, landing, 0.62, 3.4)
 	if not Kit.wait(s, 0.62) then
 		return
 	end
-	-- I prosto na twarz
+	Kit.shot(s, look(at(-19.4, 7.2, 2.4), landing + Vector3.new(0, 0.8, 0)), look(at(-19.0, 6.6, 2.2), landing + Vector3.new(0, 0.7, 0)), 2.0, 46)
 	Kit.clip(thief, Clips.faceplant, {
 		fade = 0.05,
 		events = function(name)
 			if name == "thud" then
 				Audio.play("bodyfall", { volume = 0.9, duration = 1 })
 				Audio.play("boom", { volume = 0.5 })
-				puff(thief.root.Position - Vector3.new(0, 1.5, 0), Color3.fromRGB(150, 130, 100), 14, 3)
+				puff(landing + Vector3.new(0, 0.3, 0), Color3.fromRGB(150, 130, 100), 14, 3)
 				s.shake = 0.5
-				Kit.mark(s, thief, "✦", Color3.fromRGB(255, 220, 80))
+				-- Gwiazdki z głowy po lądowaniu (znaku ✦ nie ma w czcionce gry)
+				sparkle(landing + Vector3.new(0, 1.6, 0), 18, Color3.fromRGB(255, 220, 80))
 			end
 		end,
 	})
-	if not Kit.wait(s, 2.2) then
+	if not Kit.wait(s, 2.0) then
 		return
 	end
 	Kit.clip(thief, nil, { fade = 0.1 })
-	Kit.expression(thief, "o")
-	Kit.path(s, thief, { P(esc * 34, bz + 4) }, 17, "run", 1.6)
+	Kit.path(s, thief, { at(-26, 10), at(-40, 22) }, 17, "run", 1.6)
 	Audio.play("pant", { volume = 0.5, duration = 1.2, pitch = 1.4 })
-	if not Kit.wait(s, 0.9) then
+	if not Kit.wait(s, 0.7) then
 		return
 	end
 
-	-- ===== 6. Przeganianie =====
+	-- ===== Przeganianie =====
 	Kit.phase(s, "shoo")
-	local away = P(esc * 20, bz)
-	Kit.face(hero, away, 0.2)
-	local dir = flat(away - heroAt).Unit
-	local camSide2 = dir:Cross(Vector3.yAxis)
-	Kit.shot(s, look(heroAt + dir * 7.5 + camSide2 * 1.8 + Vector3.new(0, 3.1, 0), heroAt + Vector3.new(0, 2.4, 0)), look(heroAt + dir * 6.6 + camSide2 * 1.5 + Vector3.new(0, 3.0, 0), heroAt + Vector3.new(0, 2.5, 0)), 3.2, 48)
+	local heroAt = hero.rootValue.Value.Position - Vector3.new(0, hero.hip, 0)
+	Kit.face(hero, at(-20, 4), 0.2)
+	Kit.shot(s, look(heroAt + Vector3.new(-6.4, 3.2, 1.6), heroAt + Vector3.new(0, 2.4, 0)), look(heroAt + Vector3.new(-5.8, 3.0, 1.4), heroAt + Vector3.new(0, 2.5, 0)), 2.6, 48)
 	Kit.clip(hero, Clips.shoo, {
 		fade = 0.15,
 		events = function(name)
@@ -846,11 +789,23 @@ local function scenario(s: Kit.Scene, garden: Model)
 		end,
 	})
 	task.spawn(function()
-		Kit.bubble(s, hero, Localize.t("CUT2_BYE"), 0.9, false, nil, 1.1)
+		Kit.bubble(s, hero, Localize.t("CUT2_BYE"), 0.8, false, nil, 1.1)
 	end)
-	if not Kit.wait(s, 1.7) then
+	if not Kit.wait(s, 1.8) then
 		return
 	end
+	Kit.place(thief, at(-200, -200), forward)
+
+	-- ===== 9. Grzybek cały =====
+	Kit.phase(s, "safe")
+	Audio.music(nil, 1.2)
+	Kit.clip(hero, nil, { fade = 0.1 })
+	-- Gracz znowu z boku grządki, kamera nisko przed nią: grzyb buzią do nas, gracz obok
+	Kit.place(hero, admire, forward)
+	Kit.face(hero, soil, 0)
+	Kit.track(hero, "idle")
+	local safeEnd = look(at(-1.2, bedZ - 5.8, 2.0), at(0.8, bedZ, 2.4))
+	Kit.shot(s, look(at(-1.5, bedZ - 6.6, 1.8), at(0.8, bedZ, 2.2)), safeEnd, 2.6, 46)
 	Kit.clip(hero, Clips.dustHands, {
 		fade = 0.15,
 		events = function(name)
@@ -859,32 +814,32 @@ local function scenario(s: Kit.Scene, garden: Model)
 			end
 		end,
 	})
-	if not Kit.wait(s, 1.2) then
-		return
-	end
-	-- Na koniec spojrzenie na grzybek: cały
-	Kit.face(hero, bedCenter, 0.3)
-	Kit.shot(s, look(P(bx - camSide * 3.2, bz - 4.8, 2.8), P(bx, bz - 0.5, 1.3)), look(P(bx - camSide * 2.6, bz - 4.0, 2.5), P(bx, bz - 0.3, 1.4)), 2.4, 48)
-	sparkle(bedCenter + Vector3.new(0, 1.6, 0), 18)
+	sparkle(soil + Vector3.new(0, 1.8, 0), 18)
 	Audio.play("shimmer", { volume = 0.5, duration = 1.5 })
 	if not Kit.bubble(s, hero, Localize.t("CUT2_SAFE"), 0.9, true, nil, 1.1) then
 		return
 	end
-	Audio.music(nil, 1.2)
-	Kit.fade(s, true, 0.5)
-	Kit.wait(s, 0.6)
+	-- Odjazd w górę nad ogródek
+	Kit.shot(s, safeEnd, look(at(0, -20, 15), at(0, 2, 0.5)), 3.0, 50, Enum.EasingStyle.Quad)
+	if not Kit.wait(s, 1.9) then
+		return
+	end
+	Kit.fade(s, true, 0.9)
+	Kit.wait(s, 1.0)
 end
 
 function TheftCutscene.play(onDone: () -> ())
-	local garden = myGarden()
-	if not garden then
-		onDone()
-		return
-	end
 	local s = Kit.begin(SOUNDS)
-	Kit.run(s, function(scene)
-		scenario(scene, garden)
-	end, onDone)
+	Kit.run(s, scenario, onDone)
+end
+
+-- Podgląd w Studio: workspace:SetAttribute("DebugTheftScene", <cokolwiek>) u klienta odpala scenkę od nowa
+if RunService:IsStudio() then
+	Workspace:GetAttributeChangedSignal("DebugTheftScene"):Connect(function()
+		if not Kit.isPlaying() then
+			TheftCutscene.play(function() end)
+		end
+	end)
 end
 
 return TheftCutscene

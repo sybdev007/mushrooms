@@ -244,4 +244,16 @@ function DreamForest.build(): Model
 	return model
 end
 
+-- Klocki tego lasu dla innych scen (np. ogródek w scence kradzieży: TheftStage)
+DreamForest.kit = {
+	part = part,
+	birch = birch,
+	spruce = spruce,
+	leafy = leafy,
+	bush = bush,
+	fern = fern,
+	rock = rock,
+	glowShrooms = glowShrooms,
+}
+
 return DreamForest
