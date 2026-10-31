@@ -308,6 +308,14 @@ local function scenario(s: Kit.Scene, garden: Model)
 		end
 		table.insert(s.connections, g.DescendantAdded:Connect(hideSign))
 	end
+	-- Tabliczki z dochodem nad grzybami (GardenSlotTag) wiszą w PlayerGui, a nie w ogródku
+	local playerGui = player:FindFirstChildOfClass("PlayerGui")
+	if playerGui then
+		for _, d in playerGui:GetDescendants() do
+			hideSign(d)
+		end
+		table.insert(s.connections, playerGui.DescendantAdded:Connect(hideSign))
+	end
 	Kit.onCleanup(s, function()
 		for d in hiddenParts do
 			if d.Parent then
