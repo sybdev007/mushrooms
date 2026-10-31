@@ -34,7 +34,7 @@ local _QuestPanel = require(script.Parent.QuestPanel)
 local _AtlasPanel = require(script.Parent.AtlasPanel)
 local _TitlePanel = require(script.Parent.TitlePanel)
 local CommunityButton = require(script.Parent.CommunityButton) -- ostatni w kolumnie: znika u członków grupy
-local _SettingsButtons = require(script.Parent.SettingsButtons)
+local SettingsButtons = require(script.Parent.SettingsButtons)
 local PanelKit = require(script.Parent.PanelKit)
 
 local _LeaderboardView = require(script.Parent.LeaderboardView)
@@ -130,6 +130,8 @@ Remotes.get("StateUpdate").OnClientEvent:Connect(function(state)
 	upgrades = state.upgrades
 	PortalView.setUnlocked({ cave = state.caveUnlocked == true, swamp = state.swampUnlocked == true })
 	DevPanel.setEnabled(state.dev == true)
+	Hud.setDev(state.dev == true)
+	SettingsButtons.setDev(state.dev == true)
 	ShopPanel.update(state, Economy.isSafeZone(state.zone))
 	-- Lista grzybów przychodzi tylko po zmianie koszyka
 	if state.basket then

@@ -30,7 +30,8 @@ gui.Parent = player:WaitForChild("PlayerGui")
 
 local HEIGHT = UiScale.ROW_HEIGHT
 local GAP = 6
-local LANGUAGE_WIDTH = 88 -- przycisk języka z Hud
+local LANGUAGE_WIDTH = 88 -- przycisk języka z Hud (widoczny tylko dla deweloperów)
+local languageShown = false
 local TOGGLE_WIDTH = 50
 local ICON = 30
 local ON_COLOR = UiKit.COLORS.wood
@@ -249,18 +250,24 @@ local function audioButton(name: string, icon: string): Toggle
 	}
 end
 
-local musicButton = audioButton("Music", "music")
+-- Jeden przycisk dźwięku: otwiera panel z suwakami muzyki i dźwięków. Czerwony, gdy oba wyciszone.
 local soundButton = audioButton("Sounds", "sound")
+local musicLevel, soundLevel = 1, 1
+local function renderAudio()
+	soundButton.render(musicLevel <= 0 and soundLevel <= 0)
+end
 
 local musicSlider = slider(1, "music", "SET_MUSIC", Color3.fromRGB(255, 196, 80), function(value)
 	Audio.setMusicLevel(value)
-	musicButton.render(value <= 0)
+	musicLevel = value
+	renderAudio()
 end, function(value)
 	SaveSettings:FireServer("musicVolume", value)
 end)
 local soundSlider = slider(2, "sound", "SET_SOUNDS", Color3.fromRGB(140, 226, 110), function(value)
 	Audio.setSfxLevel(value)
-	soundButton.render(value <= 0)
+	soundLevel = value
+	renderAudio()
 end, function(value)
 	SaveSettings:FireServer("sfxVolume", value)
 	Audio.play("click") -- próbka głośności dźwięków
@@ -282,8 +289,8 @@ local function fromServer()
 	soundSlider.set(sounds)
 	Audio.setMusicLevel(music)
 	Audio.setSfxLevel(sounds)
-	musicButton.render(music <= 0)
-	soundButton.render(sounds <= 0)
+	musicLevel, soundLevel = music, sounds
+	renderAudio()
 end
 for _, name in { "MusicVolume", "MusicOn", "SfxVolume", "SfxOn" } do
 	player:GetAttributeChangedSignal(name):Connect(fromServer)
@@ -325,7 +332,7 @@ end)
 local function layout()
 	local scale = UiScale.row()
 	local y = UiScale.rowTop()
-	local x = 12 + math.floor((LANGUAGE_WIDTH + GAP) * scale)
+	local x = 12 + (if languageShown then math.floor((LANGUAGE_WIDTH + GAP) * scale) else 0)
 	for _, entry in entries do
 		if entry.button.Visible then
 			local uiScale = entry.button:FindFirstChildOfClass("UIScale")
@@ -337,9 +344,9 @@ local function layout()
 			x += math.floor((entry.width + GAP) * scale)
 		end
 	end
-	-- Panel pod rzędem, od lewej krawędzi przycisku muzyki
+	-- Panel pod rzędem, od lewej krawędzi przycisku dźwięku
 	panelScale.Scale = scale
-	panel.Position = UDim2.fromOffset(musicButton.button.Position.X.Offset, UiScale.rowBottom() + 8)
+	panel.Position = UDim2.fromOffset(soundButton.button.Position.X.Offset, UiScale.rowBottom() + 8)
 end
 
 local function setOpen(open: boolean)
@@ -348,9 +355,6 @@ local function setOpen(open: boolean)
 		layout()
 	end
 end
-musicButton.button.Activated:Connect(function()
-	setOpen(not panel.Visible)
-end)
 soundButton.button.Activated:Connect(function()
 	setOpen(not panel.Visible)
 end)
@@ -367,7 +371,7 @@ UserInputService.InputBegan:Connect(function(input)
 	if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then
 		return
 	end
-	if inside(panel, input.Position) or inside(musicButton.button, input.Position) or inside(soundButton.button, input.Position) then
+	if inside(panel, input.Position) or inside(soundButton.button, input.Position) then
 		return
 	end
 	setOpen(false)
@@ -381,5 +385,13 @@ end)
 
 UiScale.onChanged(layout)
 layout()
+
+-- Deweloper ma przed tymi przyciskami przełącznik języka (Hud), więc rząd przesuwa się w prawo
+function SettingsButtons.setDev(enabled: boolean)
+	if languageShown ~= enabled then
+		languageShown = enabled
+		layout()
+	end
+end
 
 return SettingsButtons

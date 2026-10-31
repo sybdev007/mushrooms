@@ -201,6 +201,8 @@ languageButton.Position = UDim2.new(0, 12, 0, 96)
 languageButton.Font = TITLE_FONT
 languageButton.TextSize = 22
 languageButton.TextXAlignment = Enum.TextXAlignment.Right
+-- Przełącznik języka tylko dla deweloperów (Hud.setDev); gracze mają język z ustawień konta Roblox
+languageButton.Visible = false
 languageButton.Parent = gui
 UiKit.button(languageButton, UiKit.COLORS.wood, { gloss = true })
 UiKit.icon("globe", languageButton, UDim2.new(0, 32, 0, 32), UDim2.new(0, 6, 0.5, 0), Vector2.new(0, 0.5))
@@ -1203,6 +1205,11 @@ end
 
 local pickPulse: Tween? = nil
 local pickEnabled: boolean? = nil
+
+-- Deweloper widzi przełącznik języka (do testów tłumaczeń)
+function Hud.setDev(enabled: boolean)
+	languageButton.Visible = enabled
+end
 
 function Hud.setPick(enabled: boolean, visible: boolean)
 	pickButton.Visible = visible
