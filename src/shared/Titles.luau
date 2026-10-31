@@ -21,6 +21,7 @@ export type Stats = {
 	bestStreak: number,
 	candy: number, -- cukierki z Halloween (wszystkie zdobyte; nie wydaje się ich)
 	graveyard: number, -- Halloween 2026: zapalony znicz na sekretnym cmentarzyku grzybiarzy
+	owl: number, -- 1 = dołączył do grupy Old Owl Studios (i dostał paczkę powitalną, CommunityService)
 }
 
 -- Liczniki z całej gry: rodzaj zdarzenia (jak w ProgressService.event) -> pole w Stats
@@ -34,10 +35,11 @@ Titles.EVENT_STAT = {
 	death = "deaths",
 	candy = "candy",
 	graveyard = "graveyard",
+	owl = "owl",
 } :: { [string]: string }
 
 function Titles.emptyStats(): Stats
-	return { picked = 0, sold = 0, steals = 0, escapes = 0, revives = 0, planted = 0, deaths = 0, bestStreak = 0, candy = 0, graveyard = 0 }
+	return { picked = 0, sold = 0, steals = 0, escapes = 0, revives = 0, planted = 0, deaths = 0, bestStreak = 0, candy = 0, graveyard = 0, owl = 0 }
 end
 
 -- Rzadkości od najsłabszej: kolor napisu nad głową i ramki w oknie (mityczny = tęcza)
@@ -78,6 +80,7 @@ local LIST: { TitleDef } = {
 	{ id = "TITLE_GARDENER", rarity = "common", stat = "planted", goal = 25 },
 	{ id = "TITLE_UNLUCKY", rarity = "common", stat = "deaths", goal = 10 },
 	{ id = "TITLE_THIEF", rarity = "rare", stat = "steals", goal = 1 },
+	{ id = "TITLE_OWL_MEMBER", rarity = "rare", stat = "owl", goal = 1 }, -- członek grupy Old Owl Studios
 	{ id = "TITLE_TRADER", rarity = "rare", stat = "sold", goal = 500 },
 	{ id = "TITLE_LIFESAVER", rarity = "rare", stat = "revives", goal = 5 },
 	{ id = "TITLE_REGULAR", rarity = "rare", stat = "bestStreak", goal = 7 },

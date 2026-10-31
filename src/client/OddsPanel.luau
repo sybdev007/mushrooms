@@ -170,6 +170,7 @@ local function render()
 		event = if Workspace:GetAttribute("CyclePhase") == "night" then Cycle.getEvent(Workspace:GetAttribute("CycleEvent")) else nil,
 		boom = state ~= nil and (state.boomUntil or 0) > now,
 		potion = potionActive,
+		member = Players.LocalPlayer:GetAttribute("OwlMember") == true,
 	}
 	local luck, parts, raw = Economy.luck(input)
 	-- Kolumna „z miksturą”: jeśli mikstura już działa, to te same szanse co teraz

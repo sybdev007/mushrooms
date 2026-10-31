@@ -168,6 +168,7 @@ export type LuckInput = {
 	event: Config.NightEventDef?, -- zdarzenie trwającej nocy (Cycle.activeEvent)
 	boom: boolean, -- Wysyp dla całego serwera
 	potion: boolean, -- mikstura szczęścia gracza
+	member: boolean?, -- członek grupy Old Owl Studios (Config.Community)
 }
 export type LuckPart = { key: string, mult: number }
 
@@ -202,6 +203,10 @@ function Economy.luck(input: LuckInput): (number, { LuckPart }, number)
 	if input.potion then
 		add("PRODUCT_LUCK", Config.LuckPotion.luck)
 		paid *= Config.LuckPotion.luck
+	end
+	if input.member then
+		add("ODDS_OWL", Config.Community.luck)
+		paid *= Config.Community.luck
 	end
 	local balance = Config.LuckBalance
 	local room = balance.freeCap - 1

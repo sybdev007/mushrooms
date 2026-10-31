@@ -27,6 +27,7 @@ local NAMES = {
 	"GardenPlant", -- posadź grzyb z koszyka na wybranej grządce (przy zamianie stary wraca do koszyka)
 	"GardenAuto", -- posadź najlepsze automatycznie
 	"EquipSkin", -- Halloween: załóż / zdejmij skórkę latarni albo nożyka (slot, id; "" = zwykła)
+	"OwlCheck", -- gracz zamknął okno dołączenia do grupy Old Owl Studios: sprawdź członkostwo jeszcze raz
 }
 
 local folder: Folder

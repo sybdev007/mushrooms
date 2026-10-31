@@ -33,6 +33,7 @@ local _CauldronView = require(script.Parent.CauldronView)
 local _QuestPanel = require(script.Parent.QuestPanel)
 local _AtlasPanel = require(script.Parent.AtlasPanel)
 local _TitlePanel = require(script.Parent.TitlePanel)
+local CommunityButton = require(script.Parent.CommunityButton) -- ostatni w kolumnie: znika u członków grupy
 local _SettingsButtons = require(script.Parent.SettingsButtons)
 local PanelKit = require(script.Parent.PanelKit)
 
@@ -90,6 +91,7 @@ LeszyAnimator.start()
 GardenPanel.start()
 DisplayMushrooms.start()
 HalloweenFx.start()
+CommunityButton.start()
 FontFix.start()
 
 -- Skąd wylatują monety po sprzedaży (przycisk w panelu sprzedaży)

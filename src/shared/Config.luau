@@ -790,6 +790,17 @@ Config.Boom = { seconds = 600, regrowFactor = 0.35, luck = 1.5 }
 -- Mikstura szczęścia: przez tyle sekund mutacje u kupującego są dwa razy częstsze
 Config.LuckPotion = { seconds = 900, luck = 2 }
 
+-- Grupa Old Owl Studios (właściciel gry). Członek grupy ma +10% szczęścia na mutacje (liczone jak płatne
+-- bonusy, w pełni), tytuł „Old Owl Member” i raz na konto paczkę powitalną: monety (× skala nagród
+-- świata, jak zadania) i miksturę szczęścia. CommunityService sprawdza członkostwo na serwerze.
+Config.Community = {
+	groupId = 463484833,
+	luck = 1.1,
+	giftCoins = 150,
+	giftLuckSeconds = 900,
+	recheckSeconds = 10, -- najczęściej co tyle gracz może poprosić o ponowne sprawdzenie (po dołączeniu)
+}
+
 -- Kamera: bez limitu dało się oddalić widok i oglądać las z góry
 Config.CameraMaxZoom = 22
 

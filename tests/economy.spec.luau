@@ -1145,6 +1145,29 @@ test("mikstura podwaja szczęście, części mnożą się w całość", function
 	eq(#none, 0, "bez bonusów pusta lista")
 end)
 
+test("grupa Old Owl Studios: +10% szczęścia w pełni, nawet przy limicie darmowych", function()
+	local base = Economy.luck({ knifeLevel = 0, zone = nil, event = nil, boom = false, potion = false })
+	local member, parts = Economy.luck({ knifeLevel = 0, zone = nil, event = nil, boom = false, potion = false, member = true })
+	check(math.abs(member - base * Config.Community.luck) < 1e-9, "x1,1")
+	eq(#parts, 1, "jedna część")
+	eq(parts[1].key, "ODDS_OWL")
+	local deep = Economy.luck({ knifeLevel = 8, zone = 4, event = nil, boom = false, potion = false })
+	local deepMember = Economy.luck({ knifeLevel = 8, zone = 4, event = nil, boom = false, potion = false, member = true })
+	check(deepMember > deep, "działa też przy limicie darmowych bonusów")
+	check(deepMember <= Config.LuckBalance.maxLuck, "nie przebija maxLuck")
+end)
+
+test("tytuł Old Owl Member za dołączenie do grupy", function()
+	local def = Titles.get("TITLE_OWL_MEMBER")
+	check(def ~= nil, "jest na liście")
+	local stats = Titles.emptyStats()
+	eq(stats.owl, 0)
+	local ctx = { atlas = {}, bestiary = {}, stats = stats, tutorialDone = false }
+	check(not Titles.earned(ctx).TITLE_OWL_MEMBER, "bez grupy brak")
+	Titles.count(stats, "owl", 1)
+	check(Titles.earned(ctx).TITLE_OWL_MEMBER == true, "po dołączeniu jest")
+end)
+
 test("szansa na cechę nie przekracza 100%", function()
 	for _, tag in Config.Tags do
 		eq(Economy.tagOdds(tag, 1), tag.chance)

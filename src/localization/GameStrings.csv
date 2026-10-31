@@ -570,3 +570,11 @@ OBJ_GRAVEYARD,Foragers' graveyard,,,Cmentarzyk grzybiarzy
 MSG_GRAVEYARD_LIT,🕯️ You lit a candle for the old foragers.,,,🕯️ Zapaliłeś znicz dawnym grzybiarzom.
 MSG_GRAVEYARD_DONE,🕯️ Your candle is still burning here.,,,🕯️ Twój znicz już tu płonie.
 TITLE_HALLOWEEN_2026_HOW,Light a candle at the hidden foragers' graveyard in the forest,,,Zapal znicz na ukrytym cmentarzyku grzybiarzy w lesie
+OWL_JOIN_BUTTON,Join group,,,Dołącz
+OWL_JOIN_FALLBACK,🦉 Join Old Owl Studios (game page → Community) for +10% luck and a gift!,,,🦉 Dołącz do Old Owl Studios (strona gry → Społeczność): +10% szczęścia i prezent!
+ODDS_OWL,Old Owl Studios,,,Old Owl Studios
+MSG_OWL_WELCOME,🦉 Welcome to Old Owl Studios! Gift: {1} coins and a {2}-min Luck Potion. Members always get +10% luck!,,,🦉 Witaj w Old Owl Studios! Prezent: {1} monet i mikstura szczęścia na {2} min. Członkowie mają zawsze +10% szczęścia!
+MSG_OWL_THANKS,🦉 Thanks for joining Old Owl Studios! +10% luck is active.,,,🦉 Dzięki za dołączenie do Old Owl Studios! +10% szczęścia działa.
+MSG_OWL_NOT_YET,🦉 You're not in the group yet. Join Old Owl Studios for +10% luck and a gift!,,,🦉 Jeszcze nie jesteś w grupie. Dołącz do Old Owl Studios: +10% szczęścia i prezent!
+TITLE_OWL_MEMBER,Old Owl Member,,,Old Owl Member
+TITLE_OWL_MEMBER_HOW,Join the Old Owl Studios group,,,Dołącz do grupy Old Owl Studios

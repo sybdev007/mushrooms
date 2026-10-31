@@ -33,6 +33,7 @@ local ProgressService = require(script.Parent.ProgressService)
 local TutorialService = require(script.Parent.TutorialService)
 local LeaderboardService = require(script.Parent.LeaderboardService)
 local HalloweenService = require(script.Parent.HalloweenService)
+local CommunityService = require(script.Parent.CommunityService)
 
 type SpotState = {
 	speciesId: string,
@@ -229,7 +230,7 @@ local liveEvent: Config.NightEventDef? = Cycle.activeEvent(os.time())
 -- Halloween, panel DEV: „Dyniowy wysyp” (las odrasta, co drugi grzyb dyniowy) na czas jednego odrostu
 local pumpkinBoom = false
 
--- Mnożnik szans na mutacje: Wysyp dla wszystkich, mikstura szczęścia dla kupującego,
+-- Mnożnik szans na mutacje: Wysyp dla wszystkich, mikstura szczęścia dla kupującego, bonus grupy,
 -- nożyk gracza, zdarzenie nocy (pełnia, krwawy księżyc) i głębokość strefy
 local function luckFactor(session: Session, zone: number?): number
 	local total = Economy.luck({
@@ -238,6 +239,7 @@ local function luckFactor(session: Session, zone: number?): number
 		event = liveEvent,
 		boom = boomActive(),
 		potion = os.time() < session.data.luckUntil,
+		member = CommunityService.isMember(session.player),
 	})
 	return total
 end
@@ -944,6 +946,7 @@ local function onPlayerAdded(player: Player)
 	sessions[player] = session
 	GardenService.assign(player)
 	ProgressService.join(player)
+	CommunityService.join(player)
 
 	-- Bez limitu dało się oddalić kamerę i oglądać las z góry. Zoom = kamera przysuwa się,
 	-- gdy coś (korony drzew) zasłania postać, zamiast robić je przezroczystymi.
@@ -1700,6 +1703,28 @@ function GameService.start(mapInfo: MapBuilder.MapInfo)
 		end,
 		refresh = function(player: Player)
 			ProgressService.refresh(player)
+		end,
+		canSave = function(player: Player): boolean
+			local session = sessions[player]
+			return session ~= nil and session.canSave
+		end,
+	})
+	CommunityService.start({
+		getData = function(player: Player)
+			local session = sessions[player]
+			return if session then session.data else nil
+		end,
+		notify = function(player: Player, key: string, args: { any }?)
+			local session = sessions[player]
+			if session then
+				notify(session, key, args)
+			end
+		end,
+		pushState = function(player: Player)
+			local session = sessions[player]
+			if session then
+				pushState(session)
+			end
 		end,
 		canSave = function(player: Player): boolean
 			local session = sessions[player]
