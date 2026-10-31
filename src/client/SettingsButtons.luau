@@ -310,14 +310,14 @@ renderInvite()
 Localize.onChanged(renderInvite)
 
 -- Plakietka „+10% 🍀”: znajomy na tym samym serwerze daje obu graczom więcej szczęścia
--- (CommunityService). Wisi na dolnym rogu przycisku, bo rząd stoi przy górnej krawędzi ekranu.
+-- (CommunityService). Wisi pod dolnym rogiem przycisku, bo rząd stoi przy górnej krawędzi ekranu.
 do
 	local badge = Instance.new("TextLabel")
 	badge.Name = "Badge"
 	badge.AutomaticSize = Enum.AutomaticSize.X
 	badge.Size = UDim2.fromOffset(20, 22)
-	badge.AnchorPoint = Vector2.new(1, 0.5)
-	badge.Position = UDim2.new(1, 8, 1, 0)
+	badge.AnchorPoint = Vector2.new(1, 0)
+	badge.Position = UDim2.new(1, 8, 1, -4) -- prawie cała pod przyciskiem, nie zasłania napisu
 	badge.BackgroundColor3 = Color3.fromRGB(64, 186, 78)
 	badge.Font = Enum.Font.FredokaOne
 	badge.TextSize = 15
