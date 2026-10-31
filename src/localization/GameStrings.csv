@@ -389,6 +389,9 @@ CUT2_THIEF2,Nobody's home... they're mine!,,,Nikogo nie ma… będą moje!
 CUT2_TUG,Nnngh... it's stuck!,,,Nnngh… siedzi mocno!
 CUT2_OOPS,Uh-oh...,,,Ojej…
 CUT2_SAFE,Phew. My mushroom is safe.,,,Uff. Mój grzybek jest cały.
+CUT2_SUB_RED,A thief with your mushroom glows red and walks slowly!,,,Złodziej z twoim grzybem świeci na czerwono i idzie wolno!
+CUT2_SUB_TOUCH,Touch the thief and your mushroom comes back!,,,Dotknij złodzieja – grzyb wróci na grządkę!
+CUT2_TITLE,Night falls on the garden...,,,Nocą w ogródku…
 TUT_COMPLETE,MISSION COMPLETE!,,,MISJA UKOŃCZONA!
 TUT_TITLE_GOT,New title unlocked:,,,Nowy tytuł:
 TITLE_NEW,Newbie,,,Nowy
@@ -481,7 +484,7 @@ TITLE_GRANDMASTER_HOW,The whole Atlas Rainbow,,,Cała Grzybopedia tęczowa
 QUESTS_DONE,Done!,,,Gotowe!
 DEATH_TIP_OIL_1,Head back when the oil bar starts flashing red - the timer shows how long your lantern lasts.,,,Wracaj gdy pasek oleju miga na czerwono - licznik pokazuje ile wytrzyma latarnia.
 DEATH_TIP_OIL_2,A bigger Oil Tank and the wick upgrades (Crystal Wick or Rush Wick) keep you out longer.,,,Większy zbiornik oleju i knoty (kryształowy albo z sitowia) pozwolą zostać dłużej.
-DEATH_TIP_OIL_3,Forage with friends: joined lanterns burn less oil and a friend can help you up.,,,Zbieraj z kumplami: połączone latarnie palą mniej a kumpel może cię podnieść.
+DEATH_TIP_OIL_3,Play with friends: +10% luck for both of you. Invite 3 people to earn the Guide title.,,,Graj ze znajomymi: +10% szczęścia dla was obu. Zaproś 3 osoby a dostaniesz tytuł Przewodnik.
 DEATH_TIP_GUARD_1,Grab the guarded mushroom and run straight back - guardians wake up fast.,,,Zerwij strzeżony grzyb i od razu uciekaj - strażnicy budzą się szybko.
 DEATH_TIP_GUARD_2,Faster Boots help you outrun guardians. Check their page in the Atlas.,,,Szybsze buty pomagają uciec strażnikom. Zajrzyj do ich karty w Grzybopedii.
 DEATH_TIP_GUARD_3,The guardian takes back only its own mushrooms - they wait in its lair for anyone brave enough.,,,Strażnik zabiera tylko swoje grzyby - czekają w legowisku na odważnych.

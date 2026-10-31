@@ -12,6 +12,7 @@ local SocialService = game:GetService("SocialService")
 local UserInputService = game:GetService("UserInputService")
 
 local Remotes = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Remotes"))
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 local Audio = require(script.Parent.Audio)
 local Localize = require(script.Parent.Localize)
 local UiKit = require(script.Parent.UiKit)
@@ -307,6 +308,36 @@ local function renderInvite()
 end
 renderInvite()
 Localize.onChanged(renderInvite)
+
+-- Plakietka „+10% 🍀”: znajomy na tym samym serwerze daje obu graczom więcej szczęścia
+-- (CommunityService). Wisi na dolnym rogu przycisku, bo rząd stoi przy górnej krawędzi ekranu.
+do
+	local badge = Instance.new("TextLabel")
+	badge.Name = "Badge"
+	badge.AutomaticSize = Enum.AutomaticSize.X
+	badge.Size = UDim2.fromOffset(20, 22)
+	badge.AnchorPoint = Vector2.new(1, 0.5)
+	badge.Position = UDim2.new(1, 8, 1, 0)
+	badge.BackgroundColor3 = Color3.fromRGB(64, 186, 78)
+	badge.Font = Enum.Font.FredokaOne
+	badge.TextSize = 15
+	badge.TextColor3 = Color3.new(1, 1, 1)
+	badge.Text = string.format("+%d%% 🍀", math.floor((Config.Community.friendLuck - 1) * 100 + 0.5))
+	badge.ZIndex = 5
+	badge.Parent = invite
+	local badgeCorner = Instance.new("UICorner")
+	badgeCorner.CornerRadius = UDim.new(1, 0)
+	badgeCorner.Parent = badge
+	local badgeStroke = Instance.new("UIStroke")
+	badgeStroke.Color = Color3.new(1, 1, 1)
+	badgeStroke.Thickness = 2
+	badgeStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	badgeStroke.Parent = badge
+	local badgePad = Instance.new("UIPadding")
+	badgePad.PaddingLeft = UDim.new(0, 7)
+	badgePad.PaddingRight = UDim.new(0, 7)
+	badgePad.Parent = badge
+end
 
 local function callSocial(names: { string }, ...: any): (boolean, any)
 	for _, name in names do
