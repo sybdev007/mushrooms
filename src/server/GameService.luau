@@ -1310,11 +1310,12 @@ local DEV_TELEPORTS: { [string]: () -> CFrame? } = {
 	end,
 }
 
--- Na opublikowanej grze (nie w Studio) deweloper może tylko się teleportować, odświeżyć rankingi,
+-- Na opublikowanej grze (nie w Studio) deweloper może tylko się teleportować, wyzerować własny zapis, odświeżyć rankingi,
 -- usunąć wynik z rankingu i odpalić dwa ogłaszane wydarzenia „admin abuse” (Noc Dziadów, Dyniowy wysyp).
 -- Wszystko, co zmienia monety, cukierki, ulepszenia, zadania, postęp albo porę dnia, działa tylko w Studio.
 local LIVE_DEV_ACTIONS: { [string]: boolean } = {
 	boardsRefresh = true,
+	resetSave = true, -- tylko własny zapis i tylko w dół (do zera), więc bezpieczne też na żywo
 	spiritNight = true,
 	pumpkinBoom = true,
 }
@@ -1340,6 +1341,21 @@ local function onDevAction(player: Player, action: unknown)
 			character:PivotTo(target)
 			session.zone = Economy.zoneIndexAt(target.Position.Z)
 		end
+	elseif action == "resetSave" then
+		-- Cały zapis od zera (jak nowy gracz) i wyrzucenie z gry: po ponownym wejściu wszystko
+		-- (ogródek, las, samouczek, okna) startuje czysto. Zostają tylko obsłużone zakupy (żeby Roblox
+		-- nie dał ich drugi raz) i lista odznak (Roblox i tak ich nie odbiera).
+		local fresh = DataService.defaultData()
+		fresh.receipts = data.receipts
+		fresh.badges = data.badges
+		session.data = fresh
+		session.basketKey = nil
+		task.delay(0.5, function()
+			if player.Parent then
+				player:Kick("Zapis wyzerowany. Wejdź do gry ponownie. / Save reset. Please rejoin.")
+			end
+		end)
+		return
 	elseif action == "coins10k" then
 		data.coins += 10000
 	elseif action == "coins100k" then

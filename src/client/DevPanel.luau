@@ -57,7 +57,10 @@ local ACTIONS: { { id: string, label: string } } = {
 	{ id = "candy50", label = "🎃 +50 cukierków" },
 	{ id = "candyReset", label = "🎃 Cukierki na 0" },
 	{ id = "cauldron", label = "🎃 Kocioł (5 🍬)" },
+	{ id = "resetSave", label = "⚠️ Wyzeruj MÓJ zapis" },
 }
+-- Akcje, które trzeba kliknąć dwa razy (drugi raz w ciągu 4 s)
+local CONFIRM: { [string]: boolean } = { resetSave = true }
 
 local gui = Instance.new("ScreenGui")
 gui.Name = "DevPanel"
@@ -114,14 +117,27 @@ for order, action in ACTIONS do
 	local button = Instance.new("TextButton")
 	button.Name = action.id
 	button.LayoutOrder = order
-	button.BackgroundColor3 = if string.sub(action.id, 1, 2) == "tp" then Color3.fromRGB(50, 70, 110) else Color3.fromRGB(80, 50, 100)
+	button.BackgroundColor3 = if CONFIRM[action.id]
+		then Color3.fromRGB(150, 40, 40)
+		elseif string.sub(action.id, 1, 2) == "tp" then Color3.fromRGB(50, 70, 110)
+		else Color3.fromRGB(80, 50, 100)
 	button.TextColor3 = Color3.new(1, 1, 1)
 	button.Font = Enum.Font.GothamBold
 	button.TextSize = 14
 	button.Text = action.label
 	button.Parent = panel
 	corner(button)
+	local armedAt = -math.huge
 	button.Activated:Connect(function()
+		if CONFIRM[action.id] and os.clock() - armedAt > 4 then
+			armedAt = os.clock()
+			button.Text = "Na pewno? Kliknij jeszcze raz"
+			task.delay(4, function()
+				button.Text = action.label
+			end)
+			return
+		end
+		armedAt = -math.huge
 		DevAction:FireServer(action.id)
 	end)
 end
