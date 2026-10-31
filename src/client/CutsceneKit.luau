@@ -1144,6 +1144,12 @@ function Kit.begin(sounds: { string }?): Scene
 		if aspect < 16 / 9 then
 			fov = math.deg(2 * math.atan(math.tan(math.rad(fov) / 2) * (16 / 9) / aspect))
 		end
+		-- Czarne pasy zasłaniają górę i dół: kąt rośnie tak, żeby między pasami był cały zaplanowany
+		-- kadr (bez tego postacie wychodziły poza kadr i ujęcia były za ciasne i niewycentrowane)
+		local bar = if s.bars[1] then s.bars[1].Size.Y.Scale else 0
+		if bar > 0 and bar < 0.4 then
+			fov = math.deg(2 * math.atan(math.tan(math.rad(fov) / 2) / (1 - 2 * bar)))
+		end
 		cam.FieldOfView = math.min(fov, 100)
 		-- Inne moduły potrafią w trakcie włączyć swój interfejs (np. panel DEV przy każdej aktualizacji stanu)
 		for _, g in player.PlayerGui:GetChildren() do
