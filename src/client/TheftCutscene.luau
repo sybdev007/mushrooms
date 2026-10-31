@@ -336,42 +336,68 @@ local function scenario(s: Kit.Scene, garden: Model)
 	-- Grzyby w ogródku to duże modele pomniejszone przez ScaleTo: skala kopii liczy się od tej
 	-- skali, a nie od 1 (inaczej kopia rosła do pełnego rozmiaru modelu i zasłaniała pół ekranu)
 	local fakeBaseScale = 1
-	if plant then
-		plant.Archivable = true
-		local copy = plant:Clone()
-		if copy then
-			for _, d in copy:GetDescendants() do
-				if d:IsA("BasePart") then
-					d.Anchored = true
-					d.CanCollide = false
-					d.CanQuery = false
-					d.CanTouch = false
-					d.LocalTransparencyModifier = 0
-				elseif d:IsA("Decal") or d:IsA("Texture") then
-					d.LocalTransparencyModifier = 0
-				elseif d:IsA("BillboardGui") then
-					d:Destroy()
+	-- Grzyb do scenki budowany od zera z kilku części (kopia prawdziwego grzyba mieszała się
+	-- z widokiem grzybów ogródka i potrafiła urosnąć do olbrzymich rozmiarów). Kolor kapelusza
+	-- bierzemy z prawdziwego grzyba, jeśli się da.
+	do
+		local base = if plant then plant:GetPivot() else CFrame.new(bedCenter)
+		local bottom = CFrame.new(base.Position.X, groundY, base.Position.Z) * base.Rotation
+		local capColor = Color3.fromRGB(214, 76, 48)
+		if plant then
+			local best = 0
+			for _, d in plant:GetDescendants() do
+				if d:IsA("BasePart") and d.Transparency < 0.5 and string.find(string.lower(d.Name), "cap") then
+					local v = d.Size.X * d.Size.Z
+					if v > best then
+						best = v
+						capColor = d.Color
+					end
 				end
 			end
-			-- Bez etykiet (np. „GardenMushroom”): inaczej widok grzybów ogródka brał kopię za nowy grzyb
-			-- i doklejał do niej drugi, olbrzymi model, który zasłaniał całą scenę
-			for _, d in { copy :: Instance, table.unpack(copy:GetDescendants()) } do
-				for _, tag in CollectionService:GetTags(d) do
-					CollectionService:RemoveTag(d, tag)
-				end
-			end
-			copy.Name = "CutsceneMushroom"
-			copy.Parent = Workspace
-			fake = copy
-			fakeBaseScale = copy:GetScale()
-			local base = copy:GetPivot()
-			fakeBase = base
-			local cf, size = copy:GetBoundingBox()
-			fakeDrop = base.Position.Y - (cf.Position.Y - size.Y / 2)
-			Kit.onCleanup(s, function()
-				copy:Destroy()
-			end)
 		end
+		local model = Instance.new("Model")
+		model.Name = "CutsceneMushroom"
+		local function piece(name: string, size: Vector3, cf: CFrame, color: Color3, shape: Enum.PartType?, mesh: boolean?): BasePart
+			local p = Instance.new("Part")
+			p.Name = name
+			p.Shape = shape or Enum.PartType.Block
+			p.Size = size
+			p.CFrame = cf
+			p.Color = color
+			p.Material = Enum.Material.SmoothPlastic
+			p.TopSurface = Enum.SurfaceType.Smooth
+			p.BottomSurface = Enum.SurfaceType.Smooth
+			p.Anchored = true
+			p.CanCollide = false
+			p.CanQuery = false
+			p.CanTouch = false
+			p.CastShadow = false
+			if mesh then
+				local m = Instance.new("SpecialMesh")
+				m.MeshType = Enum.MeshType.Sphere
+				m.Parent = p
+			end
+			p.Parent = model
+			return p
+		end
+		local rootPart = piece("Root", Vector3.new(0.2, 0.2, 0.2), bottom, capColor)
+		rootPart.Transparency = 1
+		piece("Stem", Vector3.new(1.7, 0.95, 0.95), bottom * CFrame.new(0, 0.85, 0) * CFrame.Angles(0, 0, math.rad(90)), Color3.fromRGB(240, 230, 208), Enum.PartType.Cylinder)
+		piece("Cap", Vector3.new(2.7, 1.25, 2.7), bottom * CFrame.new(0, 1.95, 0), capColor, nil, true)
+		piece("CapRim", Vector3.new(2.5, 0.35, 2.5), bottom * CFrame.new(0, 1.55, 0), capColor:Lerp(Color3.new(0, 0, 0), 0.25), nil, true)
+		for i = 1, 5 do
+			local angle = i * math.pi * 2 / 5
+			piece("Dot", Vector3.new(0.38, 0.14, 0.38), bottom * CFrame.new(math.cos(angle) * 0.75, 2.42, math.sin(angle) * 0.75), Color3.new(1, 1, 1), nil, true)
+		end
+		piece("Dot", Vector3.new(0.42, 0.14, 0.42), bottom * CFrame.new(0, 2.58, 0), Color3.new(1, 1, 1), nil, true)
+		model.PrimaryPart = rootPart
+		model.Parent = Workspace
+		fake = model
+		fakeBase = model:GetPivot()
+		fakeDrop = 0 -- punkt obrotu jest na ziemi, więc grzyb rośnie od podstawy
+		Kit.onCleanup(s, function()
+			model:Destroy()
+		end)
 	end
 	-- Skala grzyba od podstawy (k = 1 pełny rozmiar), lift = o ile wyciągnięty z ziemi
 	local fakeScale = 1
