@@ -89,10 +89,11 @@ trafiają na tablice rankingów (magazyny `LanternForager_Top_v2_*`).
    nowe grzyby / 4. świat / boss / dużo mutacji (`docs/plans/content-expansion.md`). Po ich oddaniu:
    sprawdzić liczby w kodzie i symulatorze, zanim cokolwiek budować.
 5. **Monetyzacja** — raport Codexa `docs/plans/monetization-research.md` (3.11). Decyzje: NIE dla stałego x2
-   monet, gatunków za Robux i x2 za monety; Zarodniki odłożone. Do pilotażu po tygodniu obserwacji:
-   nagroda co 6 h 0,1 S (max 4 / 24 h) + kod 0,25 S raz na konto, potem kosmetyczny VIP 249 R$ (0 monet,
-   0 ochrony). Otwarte: nagroda 6 h dubluje się z zadaniami dziennymi i serią logowań — rozstrzygnąć przed
-   budową; paczka Old Owl daje darmowe 15 min mikstury (świadomy wyjątek czy zmienić?).
+   monet, gatunków za Robux i x2 za monety; Zarodniki odłożone; nagrody co 6 h na razie nie robimy
+   (dublowałaby zadania dzienne i serię logowań). Do pilotażu po tygodniu obserwacji: kod 0,25 S raz na
+   konto, potem kosmetyczny VIP 249 R$ (0 monet, 0 ochrony).
+   Paczka Old Owl (15 min mikstury za darmo) to **świadomy wyjątek** od zasady „mikstura tylko płatna” —
+   jednorazowy prezent na konto za dołączenie do grupy. Nie rozszerzać na inne darmowe źródła.
 6. **UI v2 (kierunek „Chatka Leszego”)** — makiety w Figmie:
    https://www.figma.com/design/nWef7rc8ymwxygFWwJ3LKp (sklep, szanse, klasy kolor + kształt, ratunek,
    karta x2, panel DEV Studio / na żywo). Tytuły w Nunito Black, bo tak wygląda gra po polsku (`FontFix`).
