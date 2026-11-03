@@ -839,7 +839,7 @@ local function buildModel(info: MushroomInfo, parent: Instance?, fit: Vector2?):
 		local newLight = Instance.new("PointLight")
 		newLight.Color = if neon then (if glowing and rank < 2 then rgb(110, 255, 214) else capColor) else classLight :: Color3
 		newLight.Range = if rank >= 2 then 10 else 8
-		newLight.Brightness = if neon then 1.6 else 0.9
+		newLight.Brightness = if neon then 1.2 else 0.9 -- 1,6 przy kilku złotych obok przepalało otoczenie
 		newLight.Parent = mainCap
 		light = newLight
 	elseif pumpkin then

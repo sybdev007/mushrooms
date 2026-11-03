@@ -76,10 +76,12 @@ atmosphere.Decay = Color3.fromRGB(60, 50, 80)
 
 local colorCorrection = getOrCreate("ColorCorrectionEffect", "ForestColor") :: ColorCorrectionEffect
 local bloom = getOrCreate("BloomEffect", "ForestBloom") :: BloomEffect
--- Poświata tylko dla naprawdę jasnych rzeczy (neon, latarnie), nie dla oświetlonego drewna
-bloom.Intensity = 0.45
-bloom.Size = 24
-bloom.Threshold = 1.25
+-- Poświata tylko dla naprawdę jasnych rzeczy (neon, latarnie), nie dla oświetlonego drewna. Słabsza
+-- i węższa niż kiedyś (0,45 / 24 / 1,25): przy grupach neonów (złote grzyby, podest z reliktami,
+-- skarbiec Skarbnika) zlewała się w białe plamy (test 4.11).
+bloom.Intensity = 0.3
+bloom.Size = 16
+bloom.Threshold = 1.5
 
 local sky = getOrCreate("Sky", "ForestSky") :: Sky
 sky.StarCount = 3500

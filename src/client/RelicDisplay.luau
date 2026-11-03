@@ -2,8 +2,11 @@
 -- Relikty na podestach w ogródkach (DelveService, tag "RelicDisplay"): u każdego gracza lokalnie
 -- obracają się powoli i unoszą nad postumentem, a nad nimi wisi tabliczka z nazwą w języku gracza
 -- (gwiazdki = oprawa, „zakurzony” = jeszcze do odnowienia). Daleko od kamery nic się nie rusza.
+-- Tabliczka świeci tylko nad reliktem najbliżej gracza (do NAME_RANGE): osiem nazw naraz zlewało się
+-- ze sobą i z tabliczkami grządek za podestem.
 
 local CollectionService = game:GetService("CollectionService")
+local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
@@ -16,6 +19,7 @@ local TAG = "RelicDisplay"
 local SPIN_SPEED = 0.8 -- rad/s
 local BOB = 0.18
 local FAR = 90
+local NAME_RANGE = 9 -- tabliczka tylko nad najbliższym reliktem, gdy gracz stoi przy podeście
 local FRAME_COLORS = {
 	[0] = Color3.fromRGB(255, 244, 222),
 	[1] = Color3.fromRGB(240, 170, 110),
@@ -23,7 +27,7 @@ local FRAME_COLORS = {
 	[3] = Color3.fromRGB(255, 214, 90),
 }
 
-type Entry = { model: Model, base: CFrame, phase: number, label: TextLabel?, sub: TextLabel? }
+type Entry = { model: Model, base: CFrame, phase: number, label: TextLabel?, sub: TextLabel?, billboard: BillboardGui? }
 local entries: { [Model]: Entry } = {}
 
 local function refreshLabel(entry: Entry)
@@ -59,6 +63,7 @@ local function track(instance: Instance)
 	billboard.MaxDistance = 32
 	billboard.LightInfluence = 0
 	billboard.Adornee = core
+	billboard.Enabled = false
 	local label = Instance.new("TextLabel")
 	label.BackgroundTransparency = 1
 	label.Size = UDim2.new(1, 0, 0, 22)
@@ -78,6 +83,7 @@ local function track(instance: Instance)
 	billboard.Parent = core
 	entry.label = label
 	entry.sub = sub
+	entry.billboard = billboard
 	entries[model] = entry
 	refreshLabel(entry)
 	model.AncestryChanged:Connect(function()
@@ -109,6 +115,26 @@ RunService.RenderStepped:Connect(function()
 	end
 	local eye = camera.CFrame.Position
 	local t = os.clock()
+	-- Najbliższy relikt przy graczu dostaje tabliczkę z nazwą
+	local character = Players.LocalPlayer.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	local nearest: Entry? = nil
+	if root and root:IsA("BasePart") then
+		local best = NAME_RANGE
+		for _, entry in entries do
+			local distance = (entry.base.Position - root.Position).Magnitude
+			if distance < best then
+				best = distance
+				nearest = entry
+			end
+		end
+	end
+	for _, entry in entries do
+		local billboard = entry.billboard
+		if billboard then
+			billboard.Enabled = entry == nearest
+		end
+	end
 	for model, entry in entries do
 		if not model.Parent then
 			entries[model] = nil

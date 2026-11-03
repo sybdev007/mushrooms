@@ -700,7 +700,8 @@ local function giantMushroom(parent: Instance, base: Vector3, color: Color3, rng
 		Shape = Enum.PartType.Cylinder,
 		Size = Vector3.new(height, stemD, stemD),
 		CFrame = CFrame.new(base) * lean * CFrame.new(0, height / 2, 0) * VERTICAL,
-		Color = Color3.fromRGB(226, 220, 206),
+		-- Ciemniejszy niż kiedyś (226, 220, 206): w świetle blaszek i latarni trzon wychodził biały
+		Color = Color3.fromRGB(196, 190, 176),
 		Parent = m,
 	})
 	-- Kołnierz na trzonie
@@ -708,7 +709,7 @@ local function giantMushroom(parent: Instance, base: Vector3, color: Color3, rng
 		Shape = Enum.PartType.Cylinder,
 		Size = Vector3.new(0.4, stemD * 1.8, stemD * 1.8),
 		CFrame = CFrame.new(base) * lean * CFrame.new(0, height * 0.7, 0) * VERTICAL,
-		Color = Color3.fromRGB(240, 236, 226),
+		Color = Color3.fromRGB(214, 208, 196),
 		Parent = m,
 	}))
 	local cap = decor(make("Part", {
@@ -727,14 +728,15 @@ local function giantMushroom(parent: Instance, base: Vector3, color: Color3, rng
 		Shape = Enum.PartType.Cylinder,
 		Size = Vector3.new(0.3, capW * 0.92, capW * 0.92),
 		CFrame = top * CFrame.new(0, -0.15, 0) * VERTICAL,
-		Color = color:Lerp(Color3.new(1, 1, 1), 0.35),
+		Color = color:Lerp(Color3.new(1, 1, 1), 0.15),
 		Material = Enum.Material.Neon,
 		Parent = m,
 	}))
+	-- Łagodniej niż kiedyś (1,4): dwadzieścia takich grzybów wybielało trzony i podłogę jaskini (test 4.11)
 	local light = Instance.new("PointLight")
 	light.Color = color
 	light.Range = math.min(capW * 1.6, 24)
-	light.Brightness = 1.4
+	light.Brightness = 0.9
 	light.Parent = gills
 	for k = 1, 5 do
 		local theta = k * math.pi * 2 / 5 + rng:NextNumber(-0.3, 0.3)
@@ -983,8 +985,9 @@ local function buildLair(parent: Instance, rng: Random): Model
 			decor(make("Part", {
 				Size = Vector3.new(size, size * 0.5, size),
 				CFrame = CFrame.new(center + offset + Vector3.new(0, size * 0.2, 0)) * CFrame.Angles(0, rng:NextNumber(0, math.pi), 0),
-				Color = Color3.fromRGB(255, 200, 60),
-				Material = if k % 3 == 0 then Enum.Material.Neon else Enum.Material.Metal,
+				-- Sam metal, bez neonu: świecące sztabki zlewały się w bladożółte plamy. Co trzecia ciemniejsza.
+				Color = if k % 3 == 0 then Color3.fromRGB(214, 158, 40) else Color3.fromRGB(255, 200, 60),
+				Material = Enum.Material.Metal,
 				Reflectance = 0.2,
 				Parent = m,
 			}))
