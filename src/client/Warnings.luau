@@ -214,6 +214,7 @@ function Warnings.update(
 	local wantedKey = if chaser == "skarbnik"
 		then "HUD_SKARBNIK_CHASE"
 		elseif chaser == "utopiec" then "HUD_UTOPIEC_CHASE"
+		elseif chaser == "jaga" then "HUD_JAGA_CHASE"
 		else "HUD_LESZY_CHASE"
 	if (chased == true) ~= chaseBanner or wantedKey ~= chaserKey then
 		chaseBanner = chased == true

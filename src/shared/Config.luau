@@ -667,7 +667,7 @@ Config.Swamp = {
 Config.Mountain = {
 	unlockCoins = 10000000,
 	halfWidth = 56,
-	portal = { x = 0, z = 2432 }, -- na końcu Stawu Utopca, za wysepką
+	portal = { x = 44, z = 2418 }, -- z boku Stawu Utopca (staw zajmuje środek końca bagien)
 	returnPortal = { x = 0, z = 3008 }, -- na Polanie Zielarki, prowadzi do chatki
 	camp = { x = 0, z = 3024 }, -- tu ląduje gracz po przejściu i po zgaśnięciu latarni na górze
 	path = 3.5, -- pół szerokości kamiennej ścieżki środkiem góry

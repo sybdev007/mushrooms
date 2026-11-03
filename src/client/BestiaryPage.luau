@@ -37,7 +37,7 @@ local LEGENDARY = (function(): Color3
 end)()
 
 -- Gdy portret jeszcze się nie wczytał (albo siatka zawiodła): emoji na karcie
-local FALLBACK_ICON: { [string]: string } = { leszy = "🌳", skarbnik = "⛏️", utopiec = "🐸" }
+local FALLBACK_ICON: { [string]: string } = { leszy = "🌳", skarbnik = "⛏️", utopiec = "🐸", jaga = "🧹" }
 
 local function corner(parent: Instance, radius: number)
 	local c = Instance.new("UICorner")

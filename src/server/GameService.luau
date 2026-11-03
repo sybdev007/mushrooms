@@ -26,6 +26,8 @@ local World = script.Parent:WaitForChild("World")
 local LeszyModel = require(World:WaitForChild("Leszy"))
 local SkarbnikModel = require(World:WaitForChild("Skarbnik"))
 local UtopiecModel = require(World:WaitForChild("Utopiec"))
+local JagaModel = require(World:WaitForChild("Jaga"))
+local MountainShared = require(ReplicatedStorage.Shared.Mountain)
 local HandTools = require(World:WaitForChild("HandTools"))
 local HalloweenDecor = require(World:WaitForChild("HalloweenDecor"))
 local GardenService = require(script.Parent.GardenService)
@@ -59,6 +61,7 @@ type Session = {
 	rng: Random,
 	spots: { [string]: SpotState },
 	portalNoticeAt: number, -- kiedy ostatnio mówiliśmy „portal zamknięty” (żeby nie spamować)
+	fumesNoticeAt: number, -- kiedy ostatnio ostrzegaliśmy o trujących oparach (Łysa Góra)
 	rescue: Rescue?, -- koszyk do uratowania za Robuxy (przez chwilę po zgaśnięciu latarni / złapaniu)
 	group: number, -- ilu graczy idzie razem (wspólna wyprawa: ten gracz + sąsiedzi w promieniu)
 	groupNoticeAt: number, -- kiedy ostatnio mówiliśmy „wspólna wyprawa” (żeby nie spamować)
@@ -136,7 +139,18 @@ local GUARDIANS: { [string]: GuardianDef } = {
 		hoardDrop = "MSG_HOARD_DROP_UTOPIEC",
 		respawn = Config.UtopiecLair.respawnSeconds,
 	},
+	jaga = {
+		settings = Config.Jaga,
+		model = JagaModel,
+		woke = "MSG_JAGA_WOKE",
+		caught = "MSG_CAUGHT_JAGA",
+		gaveUp = "MSG_JAGA_GAVE_UP",
+		escaped = "MSG_ESCAPED_JAGA",
+		hoardDrop = "MSG_HOARD_DROP_JAGA",
+		respawn = Config.JagaLair.respawnSeconds,
+	},
 }
+
 local chasers: { [string]: ChaseService.Chaser } = {}
 local hoards: { [string]: HoardService.Hoard } = {}
 
@@ -875,8 +889,16 @@ local function tick(step: number)
 						end
 					end
 				else
-					-- Wspólna wyprawa: połączone latarnie palą mniej
-					session.oil -= Economy.oilDrain(zone, oilScale(session, zone)) * Expedition.drain(session.group) * step
+					-- Wspólna wyprawa: połączone latarnie palą mniej. Łysa Góra: trujące opary z kotłów palą więcej.
+					local fumes = 1
+					if Config.Zones[zone] and Config.Zones[zone].world == "mountain" then
+						fumes = MountainShared.oilFactor(root.Position)
+						if fumes > 1 and now - session.fumesNoticeAt > 20 then
+							session.fumesNoticeAt = now
+							notify(session, "MSG_FUMES")
+						end
+					end
+					session.oil -= Economy.oilDrain(zone, oilScale(session, zone)) * Expedition.drain(session.group) * fumes * step
 				end
 				-- W samouczku latarnia nigdy nie gaśnie do końca (ostrzeżenia działają, Leszy nie łapie)
 				if session.data.tutorial < Config.Tutorial.done then
@@ -942,6 +964,7 @@ local function onPlayerAdded(player: Player)
 		rng = Random.new(),
 		spots = {},
 		portalNoticeAt = 0,
+		fumesNoticeAt = 0,
 		group = 1,
 		groupNoticeAt = 0,
 	}
@@ -1049,6 +1072,30 @@ local summonEvent = Halloween.SPIRIT_NIGHT
 local abuseUntil: { [string]: number } = {}
 local function abuseActive(id: string): boolean
 	return os.time() < (abuseUntil[id] or 0)
+end
+
+-- Budzi strażnika `name` dla gracza. Baba Jaga wylatuje od razu, kiedy jej chatka patrzy na złodzieja
+-- (Shared/Mountain.hutWatching); inni strażnicy mają stałe opóźnienie z Config.
+local function wakeGuardian(session: any, name: string, from: Vector3?)
+	local chaser = chasers[name]
+	if not chaser or abuseActive("sleep") then
+		return
+	end
+	local wakeDelay: number? = nil
+	local message = GUARDIANS[name].woke
+	if name == "jaga" then
+		local root = getRoot(session.player)
+		if root then
+			local delay, watched = MountainShared.jagaWakeDelay(Workspace:GetServerTimeNow(), root.Position)
+			wakeDelay = delay
+			if watched then
+				message = "MSG_JAGA_WOKE_WATCHED"
+			end
+		end
+	end
+	if chaser.startChase(session.player, from, wakeDelay) then
+		notify(session, message)
+	end
 end
 
 -- Komunikat na początek nocy, osobny dla każdego zdarzenia
@@ -1187,9 +1234,8 @@ local function onPick(player: Player, spotId: unknown)
 
 	regrow()
 	-- Grzyb z legowiska budzi jego strażnika (chyba że admin uśpił strażników)
-	local chaser = guardian and chasers[guardian]
-	if guardian and chaser and not abuseActive("sleep") and chaser.startChase(player, spot.position) then
-		notify(session, GUARDIANS[guardian].woke)
+	if guardian then
+		wakeGuardian(session, guardian, spot.position)
 	end
 	pushState(session)
 end
@@ -1819,10 +1865,7 @@ function GameService.start(mapInfo: MapBuilder.MapInfo)
 				end
 				table.insert(basket, { s = item.s, v = item.v, x = item.x })
 				ProgressService.found(player, item, "hoard")
-				local chaser = chasers[name]
-				if chaser and not abuseActive("sleep") and chaser.startChase(player, place.origin) then
-					notify(session, def.woke)
-				end
+				wakeGuardian(session, name, place.origin)
 				pushState(session)
 				return true
 			end,

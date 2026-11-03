@@ -20,6 +20,7 @@ local Garden = require(World:WaitForChild("Garden"))
 local Cave = require(World:WaitForChild("Cave"))
 local DelveMap = require(World:WaitForChild("DelveMap"))
 local Swamp = require(World:WaitForChild("Swamp"))
+local MountainWorld = require(World:WaitForChild("Mountain"))
 local Leszy = require(World:WaitForChild("Leszy"))
 local Backdrop = require(World:WaitForChild("Backdrop"))
 
@@ -81,6 +82,9 @@ local FOREST_LAST = Config.Zones[FOREST_ZONES[#FOREST_ZONES]]
 type Builder = (Instance, Vector3, number, Random, number) -> ()
 
 local MapBuilder = {}
+
+-- Portal na Łysą Górę: trująco zielony, jak wywar w kotłach sabatu
+local MOUNTAIN_PORTAL_COLOR = Color3.fromRGB(150, 255, 70)
 
 -- Co rośnie w której strefie: rodzaj drzewa z wagą i zakresem skali, ilość drobiazgów
 local TREE_BUILDERS: { [string]: Builder } = {
@@ -464,11 +468,7 @@ end
 local function buildSpots(rng: Random): { Spot }
 	local spots: { Spot } = {}
 	for zoneIndex, zone in Config.Zones do
-		local halfWidth = (
-			if zone.world == "cave" then Config.Cave.halfWidth
-			elseif zone.world == "swamp" then Config.Swamp.halfWidth
-			else Config.ForestHalfWidth
-		) - 8
+		local halfWidth = Economy.worldHalfWidth(zone.world) - 8
 		for i = 1, zone.spotCount do
 			local x, z = findSpot(rng, -halfWidth, halfWidth, zone.startZ + 6, zone.endZ - 6, 3)
 			if x and z then
@@ -529,6 +529,20 @@ local function buildUtopiecSpots(): { Spot }
 		local position = center + Vector3.new(math.sin(angle), 0, math.cos(angle)) * lair.spotRadius
 		occupy(position.X, position.Z, 3)
 		table.insert(spots, { id = "utopiec_" .. i, zone = Economy.zoneIndexAt(position.Z), position = position, guardian = "utopiec" })
+	end
+	return spots
+end
+
+-- Ogródek Baby Jagi za chatką: Ziele rośnie w kole na grządkach
+local function buildJagaSpots(): { Spot }
+	local spots: { Spot } = {}
+	local lair = Config.JagaLair
+	local center = Vector3.new(lair.centerX, 0, lair.centerZ)
+	for i = 1, lair.spots do
+		local angle = (i - 1) / lair.spots * math.pi * 2 + math.pi / lair.spots
+		local position = center + Vector3.new(math.sin(angle), 0, math.cos(angle)) * lair.spotRadius
+		occupy(position.X, position.Z, 3)
+		table.insert(spots, { id = "jaga_" .. i, zone = Economy.zoneIndexAt(position.Z), position = position, guardian = "jaga" })
 	end
 	return spots
 end
@@ -690,6 +704,7 @@ local function buildPortalPlaza(parent: Instance, rng: Random): { [string]: Vect
 	local SHORTCUT_LOOK: { [string]: { sign: string, color: Color3 } } = {
 		cave = { sign = "SIGN_PORTAL_SHORTCUT", color = Color3.fromRGB(160, 90, 255) },
 		swamp = { sign = "SIGN_PORTAL_SHORTCUT_SWAMP", color = Color3.fromRGB(90, 230, 140) },
+		mountain = { sign = "SIGN_PORTAL_SHORTCUT_MOUNTAIN", color = MOUNTAIN_PORTAL_COLOR },
 	}
 	for _, x in plaza.slots do
 		-- Z chatki idzie się na plac w stronę -Z, więc przód portali patrzy na +Z
@@ -823,6 +838,14 @@ function MapBuilder.build(): MapInfo
 	local swampPortalDef = Config.Swamp.portal
 	local swampPortal = Vector3.new(swampPortalDef.x, 0, swampPortalDef.z)
 	table.insert(reserved, { x1 = swampPortal.X - 16, x2 = swampPortal.X + 16, z1 = swampPortal.Z - 6, z2 = swampPortal.Z + 12 })
+	-- Łysa Góra: najpierw rezerwacje (polana, ścieżka, kotły, krąg, chatka z ogródkiem)
+	for _, rect in MountainWorld.reservedRects() do
+		table.insert(reserved, rect)
+	end
+	-- Portal na Łysą Górę przy Stawie Utopca (z boku stawu, przodem do kładki)
+	local mountainPortalDef = Config.Mountain.portal
+	local mountainPortal = Vector3.new(mountainPortalDef.x, 0, mountainPortalDef.z)
+	table.insert(reserved, { x1 = mountainPortal.X - 10, x2 = mountainPortal.X + 10, z1 = mountainPortal.Z - 12, z2 = mountainPortal.Z + 12 })
 
 	-- Ścieżka z latarniami od ganku w głąb skraju lasu
 
@@ -843,6 +866,9 @@ function MapBuilder.build(): MapInfo
 		table.insert(spots, spot)
 	end
 	for _, spot in buildUtopiecSpots() do
+		table.insert(spots, spot)
+	end
+	for _, spot in buildJagaSpots() do
 		table.insert(spots, spot)
 	end
 	-- Obrzeże przed lasem: las wewnątrz omija korony obrzeża
@@ -868,6 +894,13 @@ function MapBuilder.build(): MapInfo
 	local swampReturnDef = Config.Swamp.returnPortal
 	local swampReturn = Vector3.new(swampReturnDef.x, 0.6, swampReturnDef.z)
 	Cave.portal(map, CFrame.new(swampReturn) * CFrame.Angles(0, math.pi, 0), "SIGN_PORTAL_HOME", Color3.fromRGB(255, 190, 90))
+	-- Portal na Łysą Górę stoi z boku Stawu Utopca, napisem w stronę kładki (-X)
+	Cave.portal(map, CFrame.new(mountainPortal) * CFrame.Angles(0, math.rad(90), 0), "SIGN_PORTAL_MOUNTAIN", MOUNTAIN_PORTAL_COLOR)
+
+	local mountainCamp, jagaStatue = MountainWorld.build(map, Random.new(Config.SpotSeed + 13), placeApi)
+	local mountainReturnDef = Config.Mountain.returnPortal
+	local mountainReturn = Vector3.new(mountainReturnDef.x, 0, mountainReturnDef.z)
+	Cave.portal(map, CFrame.new(mountainReturn) * CFrame.Angles(0, math.pi, 0), "SIGN_PORTAL_HOME", Color3.fromRGB(255, 190, 90))
 	local returnDef = Config.Cave.returnPortal
 	local returnPortal = Vector3.new(returnDef.x, 0, returnDef.z)
 	-- Z obozowiska idzie się do portalu w stronę -Z, więc napis patrzy na +Z
@@ -909,11 +942,13 @@ function MapBuilder.build(): MapInfo
 		worlds = {
 			cave = { camp = campCFrame, portal = portal, shortcut = shortcuts.cave, returnPortal = returnPortal },
 			swamp = { camp = swampCamp, portal = swampPortal, shortcut = shortcuts.swamp, returnPortal = swampReturn },
+			mountain = { camp = mountainCamp, portal = mountainPortal, shortcut = shortcuts.mountain, returnPortal = mountainReturn },
 		},
 		guardians = {
 			leszy = { origin = center, statue = leszyStatue },
 			skarbnik = { origin = lairCenter(), statue = skarbnikStatue },
 			utopiec = { origin = Vector3.new(Config.UtopiecLair.centerX, 0, Config.UtopiecLair.centerZ), statue = utopiecStatue },
+			jaga = { origin = MountainWorld.jagaOrigin(), statue = jagaStatue },
 		},
 	}
 end

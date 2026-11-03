@@ -47,7 +47,7 @@ type Chase = {
 export type Chaser = {
 	isChased: (Player) -> boolean,
 	stop: (Player) -> (),
-	startChase: (Player, Vector3?) -> boolean,
+	startChase: (Player, Vector3?, number?) -> boolean,
 }
 
 local ChaseService = {}
@@ -111,8 +111,9 @@ function ChaseService.new(options: Options): Chaser
 		end
 	end
 
-	-- Zwraca true, jeśli pościg właśnie się zaczął
-	function self.startChase(player: Player, from: Vector3?): boolean
+	-- Zwraca true, jeśli pościg właśnie się zaczął. wakeDelay: inne opóźnienie startu dla tego pościgu
+	-- (Baba Jaga wylatuje od razu, gdy jej chatka patrzy na złodzieja)
+	function self.startChase(player: Player, from: Vector3?, wakeDelay: number?): boolean
 		if chases[player] then
 			return false
 		end
@@ -133,7 +134,7 @@ function ChaseService.new(options: Options): Chaser
 			model = model,
 			position = position,
 			startedAt = now,
-			wakeAt = now + settings.wakeDelay,
+			wakeAt = now + (wakeDelay or settings.wakeDelay),
 		}
 		if options.statue then
 			options.setAwake(options.statue, true)

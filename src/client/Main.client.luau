@@ -58,6 +58,7 @@ local DelveHud = require(script.Parent.DelveHud)
 local _AdminEvents = require(script.Parent.AdminEvents)
 local _AnnounceView = require(script.Parent.AnnounceView)
 local _RelicDisplay = require(script.Parent.RelicDisplay)
+local _JagaHutView = require(script.Parent.JagaHutView)
 local Delve = require(Shared:WaitForChild("Delve"))
 
 local player = Players.LocalPlayer
@@ -231,7 +232,17 @@ local TOAST_KIND: { [string]: string } = {
 	MSG_LESZY_WOKE = "warn",
 	MSG_SKARBNIK_WOKE = "warn",
 	MSG_UTOPIEC_WOKE = "warn",
+	MSG_JAGA_WOKE = "warn",
+	MSG_JAGA_WOKE_WATCHED = "warn",
 	MSG_HOARD_DROP_UTOPIEC = "gold",
+	MSG_HOARD_DROP_JAGA = "gold",
+	MSG_ESCAPED_JAGA = "gold",
+	MSG_MOUNTAIN_UNLOCKED = "gold",
+	MSG_MOUNTAIN_ENTER = "info",
+	MSG_PORTAL_FIND_MOUNTAIN = "warn",
+	MSG_RAVEN_HIT = "warn",
+	MSG_FUMES = "warn",
+	MSG_HUT_WATCHING = "warn",
 	MSG_ESCAPED_SKARBNIK = "gold",
 	MSG_ESCAPED_UTOPIEC = "gold",
 	MSG_SWAMP_UNLOCKED = "gold",
@@ -350,6 +361,8 @@ local BLACKOUT_TITLE: { [string]: string } = {
 	MSG_CAUGHT_SKARBNIK = "CAUGHT_TITLE_SKARBNIK",
 	MSG_CAUGHT_UTOPIEC = "CAUGHT_TITLE_UTOPIEC",
 	MSG_ENGULFED_SWAMP = "ENGULF_TITLE_SWAMP",
+	MSG_CAUGHT_JAGA = "CAUGHT_TITLE_JAGA",
+	MSG_ENGULFED_MOUNTAIN = "ENGULF_TITLE_MOUNTAIN",
 	MSG_DELVE_CAUGHT = "CAUGHT_TITLE_SKARBNIK",
 }
 
@@ -384,7 +397,13 @@ Remotes.get("Notify").OnClientEvent:Connect(function(payload)
 		return
 	end
 	Hud.toast(text, TOAST_KIND[payload.key])
-	if payload.key == "MSG_LESZY_WOKE" or payload.key == "MSG_SKARBNIK_WOKE" or payload.key == "MSG_UTOPIEC_WOKE" then
+	if
+		payload.key == "MSG_LESZY_WOKE"
+		or payload.key == "MSG_SKARBNIK_WOKE"
+		or payload.key == "MSG_UTOPIEC_WOKE"
+		or payload.key == "MSG_JAGA_WOKE"
+		or payload.key == "MSG_JAGA_WOKE_WATCHED"
+	then
 		Effects.leszyWoke()
 	elseif payload.key == "MSG_ROBBED" or payload.key == "MSG_RACK_ALERT" or payload.key == "MSG_THIEF_RUNNING" then
 		Effects.play("engulf", 1.4, 0.5)
