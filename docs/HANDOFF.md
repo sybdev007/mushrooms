@@ -27,6 +27,12 @@ Aktualizuj go, gdy zmieni się coś z poniższych list.
 
 - Luau `--!strict`, Rojo (`default.project.json`: `src/server`, `src/client`, `src/shared`, `src/first` → ReplicatedFirst).
 - Testy: `lune run tests/economy.spec.luau` (ok. 716 testów). Lint: `selene src` (2 stare, nieszkodliwe błędy).
+- Etap 1 na `feat/upgrade-gates`: 764 testy; DATA_VERSION = 6. Buty 4/8/12 poziomów według map
+  (22/28/34 prędkości); olej 8/11/14; koszyk 6/10/14. Kupione stare poziomy zachowane. Nowe poziomy
+  wymagają otwarcia świata i jego obozu lub późniejszego. Plan i scenariusze DEV: `docs/plans/upgrade-gates.md`.
+  Model: jaskinia 1 h 31 min; bagna 2 h 47 min; 82 poziomy dochodowe 5 h 53 min.
+  Lune i Rojo sprawdzone; zmienione moduły Selene bez błędów. Play w Studio niewykonany;
+  etap czeka na test Play i akceptację przed merge. Etapy 2–5 jeszcze niewdrożone.
 - Symulator ekonomii: `lune run tools/economy_sim.luau`.
 - Tłumaczenia: `src/localization/GameStrings.csv` — kolumny `Key,Source,Context,Example,pl`, **bez przecinków w tekście**
   (test to sprawdza), każdy klucz z `Localize.t(...)` musi tu być.

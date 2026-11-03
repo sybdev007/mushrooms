@@ -52,6 +52,12 @@ local CATEGORIES: { Category } = {
 				{ id = "upgradesMax", label = "Ulepszenia MAX" },
 				{ id = "upgradesReset", label = "Ulepszenia na 0" },
 			} },
+			{ name = "Bramki ulepszeń (Studio)", actions = {
+				{ id = "upgradeGatesForest", label = "Bramki: limit lasu" },
+				{ id = "upgradeGatesCave", label = "Bramki: limit jaskini" },
+				{ id = "upgradeGatesSwamp", label = "Bramki: limit bagien" },
+				{ id = "upgradeGatesLegacy", label = "Bramki: stary zapis" },
+			} },
 		},
 	},
 	{

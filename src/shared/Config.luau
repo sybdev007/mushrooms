@@ -40,6 +40,7 @@ export type UpgradeDef = {
 	costBase: number, -- koszt pierwszego poziomu
 	costGrowth: number, -- mnożnik kosztu na każdy kolejny poziom
 	shop: string?, -- gdzie się kupuje: "forest" (chatka, domyślnie) albo "cave" (obozowisko)
+	worldCaps: { [string]: number }?, -- maks. kupiony poziom po odblokowaniu danego świata
 }
 
 local Config = {}
@@ -430,9 +431,9 @@ Config.Species = {
 
 Config.Upgrades = {
 	lantern = { key = "UPG_LANTERN", base = 14, step = 4, maxLevel = 8, costBase = 30, costGrowth = 1.9 },
-	oil = { key = "UPG_OIL", base = 30, step = 12, maxLevel = 10, costBase = 20, costGrowth = 1.8 },
-	basket = { key = "UPG_BASKET", base = 5, step = 3, maxLevel = 10, costBase = 15, costGrowth = 1.75 },
-	boots = { key = "UPG_BOOTS", base = 16, step = 1.5, maxLevel = 8, costBase = 35, costGrowth = 1.9 },
+	oil = { key = "UPG_OIL", base = 30, step = 12, maxLevel = 14, costBase = 20, costGrowth = 2.5, worldCaps = { forest = 8, cave = 11, swamp = 14 } },
+	basket = { key = "UPG_BASKET", base = 5, step = 3, maxLevel = 14, costBase = 15, costGrowth = 2.5, worldCaps = { forest = 6, cave = 10, swamp = 14 } },
+	boots = { key = "UPG_BOOTS", base = 16, step = 1.5, maxLevel = 12, costBase = 35, costGrowth = 2.8, worldCaps = { forest = 4, cave = 8, swamp = 12 } },
 	-- Kłódka ogródka: ile sekund złodziej musi trzymać przycisk, żeby wyrwać grzyb
 	lock = { key = "UPG_LOCK", base = 2, step = 1, maxLevel = 6, costBase = 60, costGrowth = 1.7 },
 	-- Grządki: ile grzybów można mieć posadzonych naraz (siatka 3 x 3 w ogródku)
@@ -466,8 +467,8 @@ Config.KnifeColors = {
 	[5] = { 255, 130, 60 },
 	[6] = { 200, 120, 255 },
 }
-Config.CaveUpgradeOrder = { "crystal", "pack" }
-Config.SwampUpgradeOrder = { "rushwick", "creel" }
+Config.CaveUpgradeOrder = { "boots", "oil", "basket", "crystal", "pack" }
+Config.SwampUpgradeOrder = { "boots", "oil", "basket", "rushwick", "creel" }
 
 -- ===== Gniazdo Leszego =====
 -- Polana na końcu Mrocznego Jaru z kręgiem kamieni i grzybami „Korona Leszego”.
@@ -881,7 +882,7 @@ Config.Lair = {
 }
 
 Config.Skarbnik = {
-	speed = 25, -- studs/s; ucieka się dopiero na prawie maksymalnych butach
+	speed = 25, -- studs/s; próg ucieczki sprawdza Progress.bootsToEscape i test bramki jaskini
 	wakeDelay = 2.5,
 	catchRadius = 4,
 	giveUpSeconds = 50,
@@ -900,7 +901,7 @@ Config.UtopiecLair = {
 }
 
 Config.Utopiec = {
-	speed = 27.5, -- ucieka się tylko na maksymalnych butach (28)
+	speed = 27.5, -- próg butów 8 (28); nowe poziomy bagienne dają dalszą przewagę
 	wakeDelay = 0.6, -- wyskakuje ze stawu prawie od razu
 	catchRadius = 4,
 	giveUpSeconds = 55,

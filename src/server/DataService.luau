@@ -63,7 +63,7 @@ export type Forest = { g: number, s: { [string]: ForestSpot } }
 
 local LEGACY_STORE_NAME = "LanternForager_Prototype_v1" -- stary zapis bez blokady sesji (tylko do przeniesienia)
 local PROFILE_STORE_NAME = "LanternForager_Profiles_v1"
-local DATA_VERSION = 5
+local DATA_VERSION = 6
 local MAX_ATTEMPTS = 3
 
 local DataService = {}
@@ -184,14 +184,9 @@ local function reconcile(raw: any): Data
 	if typeof(raw.coins) == "number" and raw.coins >= 0 then
 		data.coins = math.floor(raw.coins)
 	end
-	if typeof(raw.upgrades) == "table" then
-		for id, def in Config.Upgrades do
-			local level = raw.upgrades[id]
-			if typeof(level) == "number" then
-				data.upgrades[id] = math.clamp(math.floor(level), 0, def.maxLevel)
-			end
-		end
-	end
+	-- v6: nowe poziomy i bramki map. Zachowujemy numery kupionych poziomów bez
+	-- przycinania do aktualnie otwartej mapy i bez przyznawania nowego maksimum.
+	data.upgrades = Economy.upgradeLevelsFromSave(raw.upgrades, if finite(raw.version) then raw.version else 0)
 	if typeof(raw.atlas) == "table" then
 		for id, found in raw.atlas do
 			if typeof(id) == "string" and Economy.getSpecies(id) then

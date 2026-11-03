@@ -159,7 +159,8 @@ end
 
 local function shopOpen(s: State, id: string): boolean
 	local shop = Economy.upgradeShop(id)
-	return shop == "forest" or (shop == "cave" and s.cave) or (shop == "swamp" and s.swamp)
+	return Economy.worldUnlocked(shop, s.cave, s.swamp)
+		and Economy.upgradeLockedWorld(id, s.levels[id] or 0, s.cave, s.swamp) == nil
 end
 
 local function fmtTime(minutes: number): string
@@ -221,7 +222,7 @@ for _ = 1, 200000 do
 				local total = 0
 				for ahead = 1, 3 do
 					local step = Economy.upgradeCost(id, s.levels[id])
-					if not step then
+					if not step or not shopOpen(s, id) then
 						break
 					end
 					total += step
@@ -270,9 +271,13 @@ for _ = 1, 200000 do
 		end
 		return true
 	end
-	if not flags.forestEcon and allMax({ "oil", "basket", "boots" }) then
+	local forestCapped = true
+	for _, id in { "oil", "basket", "boots" } do
+		forestCapped = forestCapped and s.levels[id] >= Economy.upgradeCap(id, "forest")
+	end
+	if not flags.forestEcon and forestCapped then
 		flags.forestEcon = true
-		mark("olej, koszyk i buty na maks.")
+		mark("olej, koszyk i buty: limit lasu")
 	end
 	if not flags.caveEcon and s.cave and allMax({ "crystal", "pack" }) then
 		flags.caveEcon = true
@@ -299,14 +304,21 @@ for _, line in milestones do
 end
 print(string.format("\nKupionych poziomow: %d, zarobione razem: %s", bought, fmt(s.earned)))
 
+print("\nBossowie (limit butow swiata | najnizszy poziom ucieczki | predkosc):")
+for _, guardian in Progress.GUARDIANS do
+	local first = Progress.bootsToEscape(guardian)
+	print(string.format("  %s: limit %d | prog %s | %.1f studs/s", guardian.id,
+		Economy.upgradeCap("boots", guardian.world), tostring(first), if first then Economy.upgradeStat("boots", first) else 0))
+end
+
 -- Strefy przy kilku poziomach ulepszen: monety na minute, grzyby na wyprawe, dlugosc wyprawy
 print("\nStrefy (monety/min | grzyby na wyprawe | minuty wyprawy):")
 for _, stage in {
 	{ name = "start", levels = {} },
 	{ name = "las polowa", levels = { oil = 5, basket = 5, boots = 4 } },
-	{ name = "las max", levels = { oil = 10, basket = 10, boots = 8, knife = 3 } },
-	{ name = "jaskinia+", levels = { oil = 10, basket = 10, boots = 8, knife = 6, crystal = 5, pack = 6 } },
-	{ name = "bagna max", levels = { oil = 10, basket = 10, boots = 8, knife = 6, crystal = 5, pack = 6, rushwick = 6, creel = 5 } },
+	{ name = "las max", levels = { oil = Economy.upgradeCap("oil", "forest"), basket = Economy.upgradeCap("basket", "forest"), boots = Economy.upgradeCap("boots", "forest"), knife = 3 } },
+	{ name = "jaskinia+", levels = { oil = Economy.upgradeCap("oil", "cave"), basket = Economy.upgradeCap("basket", "cave"), boots = Economy.upgradeCap("boots", "cave"), knife = 6, crystal = 5, pack = 6 } },
+	{ name = "bagna max", levels = { oil = Economy.upgradeCap("oil", "swamp"), basket = Economy.upgradeCap("basket", "swamp"), boots = Economy.upgradeCap("boots", "swamp"), knife = 6, crystal = 5, pack = 6, rushwick = 6, creel = 5 } },
 } do
 	local probe: State = { levels = {}, cave = true, swamp = true, coins = 0, minutes = 0, earned = 0 }
 	for id in Config.Upgrades do
