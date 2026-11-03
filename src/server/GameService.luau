@@ -1313,12 +1313,7 @@ local DEV_TELEPORTS: { [string]: () -> CFrame? } = {
 -- Na opublikowanej grze (nie w Studio) deweloper może tylko się teleportować, wyzerować własny zapis, odświeżyć rankingi,
 -- usunąć wynik z rankingu i odpalić dwa ogłaszane wydarzenia „admin abuse” (Noc Dziadów, Dyniowy wysyp).
 -- Wszystko, co zmienia monety, cukierki, ulepszenia, zadania, postęp albo porę dnia, działa tylko w Studio.
-local LIVE_DEV_ACTIONS: { [string]: boolean } = {
-	boardsRefresh = true,
-	resetSave = true, -- tylko własny zapis i tylko w dół (do zera), więc bezpieczne też na żywo
-	spiritNight = true,
-	pumpkinBoom = true,
-}
+local LIVE_DEV_ACTIONS: { [string]: boolean } = Config.DevLiveActions
 local function devActionAllowed(action: string): boolean
 	if RunService:IsStudio() then
 		return true

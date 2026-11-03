@@ -521,6 +521,16 @@ Config.DevUserIds = {
 	7532199310, -- Miłosz (MiloszCzempion13)
 }
 
+-- Akcje panelu DEV dozwolone na opublikowanej grze (poza Studio). Teleporty (id „tp…”) działają tam zawsze.
+-- Wszystko inne (monety, cukierki, ulepszenia, zadania, postęp, pora dnia) działa tylko w Studio.
+-- Tę samą listę czyta serwer (GameService sprawdza każdą akcję) i panel DEV (szare przyciski „Studio”).
+Config.DevLiveActions = {
+	boardsRefresh = true,
+	resetSave = true, -- tylko własny zapis i tylko w dół (do zera), więc bezpieczne też na żywo
+	spiritNight = true,
+	pumpkinBoom = true,
+} :: { [string]: boolean }
+
 -- Bagna: portal za Skarbcem Skarbnika na końcu Sztolni, otwiera się graczom z co najmniej
 -- unlockCoins monet (i tylko z jaskini, więc trzeba też mieć otwartą jaskinię).
 Config.Swamp = {

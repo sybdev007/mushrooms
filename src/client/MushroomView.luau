@@ -11,6 +11,7 @@ local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Economy = require(ReplicatedStorage.Shared.Economy)
+local ClassMark = require(script.Parent.ClassMark)
 local Localize = require(script.Parent.Localize)
 local MutationText = require(script.Parent.MutationText)
 
@@ -1033,7 +1034,8 @@ function MushroomView.updateTarget(position: Vector3, radius: number): string?
 			local species = Economy.getSpecies(target.info.species)
 			highlight.OutlineColor = color
 			targetLabel.TextColor3 = color
-			targetLabel.Text = (if species then Localize.t(species.key) else "?") .. " · " .. Localize.t(class.key)
+			-- Znak klasy (kształt) przed nazwą: klasę widać także bez rozróżniania kolorów
+			targetLabel.Text = ClassMark.plain(target.info.species) .. " " .. (if species then Localize.t(species.key) else "?") .. " · " .. Localize.t(class.key)
 			targetMutations.Text = MutationText.rich(target.info.variant, target.info.tags)
 			targetTag.Adornee = target.model.PrimaryPart
 			targetTag.Enabled = true

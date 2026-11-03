@@ -14,6 +14,7 @@ local Economy = require(Shared.Economy)
 local Progress = require(Shared.Progress)
 local Remotes = require(Shared.Remotes)
 local BestiaryPage = require(script.Parent.BestiaryPage)
+local ClassMark = require(script.Parent.ClassMark)
 local Localize = require(script.Parent.Localize)
 local MushroomArt = require(script.Parent.MushroomArt)
 local PanelKit = require(script.Parent.PanelKit)
@@ -339,7 +340,7 @@ local function render()
 		if known then
 			name.Text = Localize.t(species.key)
 			name.TextColor3 = rgb(class.color):Lerp(Color3.new(1, 1, 1), 0.25)
-			info.Text = string.format("%s · %s · 💰 %s", Localize.t(class.key), if zone then Localize.t(zone.key) else "", formatCoins(species.value))
+			info.Text = string.format("%s %s · %s · 💰 %s", ClassMark.rich(species.id), Localize.t(class.key), if zone then Localize.t(zone.key) else "", formatCoins(species.value))
 		else
 			name.Text = "???"
 			name.TextColor3 = PanelKit.MUTED

@@ -21,6 +21,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Economy = require(ReplicatedStorage.Shared.Economy)
+local ClassMark = require(script.Parent.ClassMark)
 local Localize = require(script.Parent.Localize)
 local MushroomView = require(script.Parent.MushroomView)
 local MutationText = require(script.Parent.MutationText)
@@ -157,7 +158,8 @@ local function gardenLabel(marker: Model, root: BasePart, info: MushroomView.Mus
 		local amount = marker:GetAttribute("Value")
 		local rate = marker:GetAttribute("Rate")
 		value.Text = string.format(
-			'💰 %s\n<font color="%s">+%s/min</font>',
+			'%s 💰 %s\n<font color="%s">+%s/min</font>',
+			ClassMark.rich(info.species),
 			if typeof(amount) == "number" then formatCoins(amount) else "…",
 			RATE_COLOR,
 			if typeof(rate) == "number" then formatRate(rate) else "…"

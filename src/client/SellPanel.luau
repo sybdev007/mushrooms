@@ -13,6 +13,7 @@ local TweenService = game:GetService("TweenService")
 local Economy = require(ReplicatedStorage.Shared.Economy)
 local Localize = require(script.Parent.Localize)
 local MerchantLook = require(script.Parent.MerchantLook)
+local ClassMark = require(script.Parent.ClassMark)
 local MushroomArt = require(script.Parent.MushroomArt)
 local UiKit = require(script.Parent.UiKit)
 local UiScale = require(script.Parent.UiScale)
@@ -487,6 +488,7 @@ local function buildCard(index: number, item: Item): Card
 	shade(button)
 	local scale = Instance.new("UIScale")
 	scale.Parent = button
+	ClassMark.new(button, item.s, 24, UDim2.fromOffset(8, 7))
 
 	-- Pikselowy grzybek z aurą według rzadkości (MushroomArt); bez arkusza – grzybek z ramek
 	local artBox = Instance.new("Frame")

@@ -212,6 +212,7 @@ function UiKit.button(button: GuiButton, color: Color3, style: Style?): UIStroke
 	-- Wciśnięcie i najechanie myszką
 	local scale = scaleOf(button)
 	local pressed = false
+	local hovering = false
 	local function base(): number
 		return (scale:GetAttribute("Base") :: number?) or 1
 	end
@@ -227,21 +228,25 @@ function UiKit.button(button: GuiButton, color: Color3, style: Style?): UIStroke
 		elseif input.UserInputType == Enum.UserInputType.MouseMovement and button.Active then
 			stroke.Thickness = (options.stroke or 2.5) + 1
 			gradient.Offset = Vector2.new(0, -0.15)
+			-- Lekkie powiększenie po najechaniu (jak w hitowych grach)
+			hovering = true
+			if not pressed then
+				to(base() * 1.05, 0.18)
+			end
 		end
 	end)
 	button.InputEnded:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
 			if pressed then
 				pressed = false
-				to(base(), 0.25)
+				to(base() * (if hovering then 1.05 else 1), 0.25)
 			end
 		elseif input.UserInputType == Enum.UserInputType.MouseMovement then
+			hovering = false
 			stroke.Thickness = options.stroke or 2.5
 			gradient.Offset = Vector2.zero
-			if pressed then
-				pressed = false
-				to(base(), 0.2)
-			end
+			pressed = false
+			to(base(), 0.2)
 		end
 	end)
 	return stroke

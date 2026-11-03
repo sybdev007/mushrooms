@@ -23,6 +23,7 @@ local CutsceneKit = require(script.Parent.CutsceneKit)
 local Localize = require(script.Parent.Localize)
 local PanelKit = require(script.Parent.PanelKit)
 local Purchases = require(script.Parent.Purchases)
+local UiFx = require(script.Parent.UiFx)
 local UiKit = require(script.Parent.UiKit)
 
 local ChestOffers = {}
@@ -272,7 +273,9 @@ local function showWelcome(offer: Offer)
 	welcome.title.Text = Localize.t("X2_WELCOME_TITLE")
 	awayText.Text = Localize.t("X2_AWAY", { duration((offer.away or 0) / 60) })
 	earnedTitle.Text = Localize.t("X2_EARNED")
-	amountText.Text = "+" .. short(offer.amount)
+	UiFx.countTo(amountText, offer.amount, function(value)
+		return "+" .. short(value)
+	end, 0.9)
 	ruleText.Text = Localize.t("X2_RULE")
 	wFree.title.Text = Localize.t("X2_CLAIM")
 	wFree.sub.Text = "+" .. short(offer.pot or offer.amount)
@@ -294,7 +297,7 @@ local card = PanelKit.window({
 	name = "ChestCard",
 	parent = playerGui,
 	width = 420,
-	height = 250,
+	height = 300,
 	ribbon = AMBER,
 	icon = "chest",
 	displayOrder = 8,
@@ -327,7 +330,7 @@ sticker(cFrame, UDim2.fromOffset(372, 142))
 local cLink = Instance.new("TextButton")
 cLink.Name = "DontShow"
 cLink.Size = UDim2.fromOffset(372, 18)
-cLink.Position = UDim2.fromOffset(24, 224)
+cLink.Position = UDim2.fromOffset(24, 272)
 cLink.BackgroundTransparency = 1
 cLink.Font = PanelKit.BODY_FONT
 cLink.TextColor3 = Color3.fromRGB(201, 168, 130)
@@ -335,6 +338,53 @@ cLink.TextSize = 13
 cLink.RichText = true
 cLink.ZIndex = 4
 cLink.Parent = cFrame
+
+-- Progi x2 (Config.ChestX2.tiers): od ilu minut dochodu w skrzyni jaka cena; bieżący świeci na złoto
+type Tier = { frame: Frame, stroke: UIStroke, top: TextLabel, price: TextLabel, product: string, minutes: number }
+local tierTiles: { Tier } = {}
+local tierRow = Instance.new("Frame")
+tierRow.Name = "Tiers"
+tierRow.BackgroundTransparency = 1
+tierRow.Size = UDim2.fromOffset(372, 40)
+tierRow.Position = UDim2.fromOffset(24, 226)
+tierRow.ZIndex = 4
+tierRow.Parent = cFrame
+local tierLayout = Instance.new("UIListLayout")
+tierLayout.FillDirection = Enum.FillDirection.Horizontal
+tierLayout.Padding = UDim.new(0, 6)
+tierLayout.SortOrder = Enum.SortOrder.LayoutOrder
+tierLayout.Parent = tierRow
+for order, tier in Config.ChestX2.tiers do
+	local count = #Config.ChestX2.tiers
+	local tile = Instance.new("Frame")
+	tile.Name = "Tier_" .. tier.product
+	tile.LayoutOrder = order
+	tile.Size = UDim2.new(1 / count, -6 * (count - 1) / count, 1, 0)
+	tile.BackgroundColor3 = Color3.fromRGB(52, 36, 26)
+	tile.ZIndex = 4
+	tile.Parent = tierRow
+	round(tile, 10)
+	local tileStroke = Instance.new("UIStroke")
+	tileStroke.Color = PanelKit.OUTLINE
+	tileStroke.Thickness = 2
+	tileStroke.Parent = tile
+	local top = label(tile, UDim2.new(1, -8, 0, 15), UDim2.fromOffset(4, 4), 12, PanelKit.MUTED, PanelKit.BODY_FONT)
+	local price = label(tile, UDim2.new(1, -8, 0, 16), UDim2.fromOffset(4, 20), 14, PanelKit.TEXT, PanelKit.TITLE_FONT)
+	table.insert(tierTiles, { frame = tile, stroke = tileStroke, top = top, price = price, product = tier.product, minutes = tier.fromMinutes })
+end
+
+local function showTiers(current: string)
+	for _, tile in tierTiles do
+		local on = tile.product == current
+		tile.top.Text = Localize.t("X2_TIER", { duration(tile.minutes) })
+		tile.price.Text = Purchases.priceText(tile.product)
+		tile.stroke.Color = if on then PanelKit.GOLD else PanelKit.OUTLINE
+		tile.stroke.Thickness = if on then 3 else 2
+		tile.frame.BackgroundColor3 = if on then Color3.fromRGB(96, 70, 22) else Color3.fromRGB(52, 36, 26)
+		tile.top.TextColor3 = if on then PanelKit.GOLD else PanelKit.MUTED
+		tile.price.TextColor3 = if on then PanelKit.GOLD else PanelKit.TEXT
+	end
+end
 
 local cardOffer: Offer? = nil
 local lastCard = -math.huge
@@ -397,7 +447,10 @@ local function showCard(offer: Offer)
 	cardOffer = offer
 	card.title.Text = Localize.t("X2_CHEST_TITLE")
 	cTitle.Text = Localize.t("X2_COLLECTED")
-	cAmount.Text = "+" .. short(offer.amount)
+	UiFx.countTo(cAmount, offer.amount, function(value)
+		return "+" .. short(value)
+	end, 0.7)
+	showTiers(offer.product)
 	cMinutes.Text = Localize.t("X2_MINUTES", { duration(offer.minutes) })
 	cX2.title.Text = Localize.t("X2_CLAIM_X2")
 	cX2.sub.Text = Localize.t("X2_MORE", { Purchases.priceText(offer.product), short(offer.amount) })

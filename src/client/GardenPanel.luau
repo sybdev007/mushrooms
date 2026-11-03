@@ -16,6 +16,7 @@ local Economy = require(ReplicatedStorage.Shared.Economy)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Audio = require(script.Parent.Audio)
 local Localize = require(script.Parent.Localize)
+local ClassMark = require(script.Parent.ClassMark)
 local MushroomArt = require(script.Parent.MushroomArt)
 local UiKit = require(script.Parent.UiKit)
 local UiScale = require(script.Parent.UiScale)
@@ -320,6 +321,7 @@ local function buildBed(index: number): Bed
 	end
 	if state == "planted" then
 		local item = planted[index]
+		ClassMark.new(frame, item.s, 26, UDim2.fromOffset(7, 6))
 		local art = Instance.new("Frame")
 		art.Size = UDim2.fromOffset(78, 78)
 		art.AnchorPoint = Vector2.new(0.5, 0)
@@ -396,6 +398,7 @@ local function buildCard(index: number, item: Item): Card
 		end,
 		stroke = cardStroke,
 	})
+	ClassMark.new(frame, item.s, 24, UDim2.fromOffset(7, 6))
 	local species = Economy.getSpecies(item.s)
 	local name = label(frame, UDim2.new(1, -8, 0, 18), UDim2.new(0, 4, 0, 66), TITLE_FONT, 16)
 	name.Text = if species then t(species.key) else "?"

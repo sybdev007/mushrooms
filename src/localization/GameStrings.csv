@@ -154,6 +154,20 @@ SHOP_TITLE,Shop,,,Sklep
 SHOP_RESCUE,Keep your mushrooms,,,Zachowaj grzyby
 SHOP_BOOM_TIMER,Mushroom Boom {1},,,Wysyp {1}
 SHOP_LUCK_TIMER,Lucky {1},,,Szczęście {1}
+SHOP_HINT,Bonuses start right after you buy,,,Bonusy działają od razu po zakupie
+SHOP_SERVER,WHOLE SERVER,,,CAŁY SERWER
+SHOP_ONLY_YOU,JUST YOU,,,TYLKO TY
+SHOP_ACTIVE,Active {1},,,Działa {1}
+SHOP_MINUTES,{1} min,,,{1} min
+SHOP_OIL_NOW,Lantern {1}%,,,Latarnia {1}%
+SHOP_HARVEST_NOW,≈ +{1} 💰,,,≈ +{1} 💰
+SHOP_NEED_PLANTS,Plant mushrooms first,,,Najpierw posadź grzyby
+SHOP_OWL_ON,Old Owl Studios ✓ {1} luck,,,Old Owl Studios ✓ {1} szczęścia
+SHOP_OWL_OFF,Join Old Owl Studios: {1} luck,,,Dołącz do Old Owl Studios: {1} szczęścia
+SHOP_FRIEND_ON,Friend on server ✓ {1},,,Znajomy na serwerze ✓ {1}
+SHOP_FRIEND_OFF,Play with a friend: {1} for both,,,Graj ze znajomym: {1} dla obu
+SHOP_RESCUE_SUB,Get your whole basket back · {1} 💰,,,Odzyskaj cały koszyk · {1} 💰
+X2_TIER,from {1},,,od {1}
 PRODUCT_RESCUE,Keep your mushrooms,,,Zachowaj grzyby
 PRODUCT_RESCUE_DESC,Get back the whole basket you just lost,,,Odzyskaj cały koszyk który właśnie straciłeś
 PRODUCT_BOOM,Mushroom Boom for everyone,,,Wysyp dla wszystkich

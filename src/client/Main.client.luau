@@ -132,6 +132,7 @@ Remotes.get("StateUpdate").OnClientEvent:Connect(function(state)
 	upgrades = state.upgrades
 	PortalView.setUnlocked({ cave = state.caveUnlocked == true, swamp = state.swampUnlocked == true })
 	DevPanel.setEnabled(state.dev == true)
+	DevPanel.update(state)
 	Hud.setDev(state.dev == true)
 	SettingsButtons.setDev(state.dev == true)
 	ShopPanel.update(state, Economy.isSafeZone(state.zone))

@@ -441,6 +441,8 @@ local function refreshGarden(garden: GardenState)
 	end
 
 	garden.model:SetAttribute("Count", #planted)
+	-- Dochód na minutę (klient pokazuje w sklepie, ile da teraz „Zbiory od razu”)
+	garden.model:SetAttribute("Rate", if owner then Economy.gardenIncome(planted, fertilizer) else 0)
 	garden.model:SetAttribute("Beds", beds)
 	garden.stealPrompt.HoldDuration = lockSeconds(owner)
 	if owner and data then
