@@ -139,8 +139,11 @@ Kod: `src/shared/Delve.luau` (liczby i czysta logika, testy w `tests/economy.spe
   Cała kolekcja to ~57 mln monet zlewu. Zlecenie dnia: ten sam relikt dla wszystkich danego dnia (raz dziennie).
 - **Ranga i tytuły:** punkty = zabezpieczone ekspedycje + trofea z Krypty (progi 3/8/15/25/40). Tytuły:
   Ekspedytor (5 ekspedycji, rzadki), Łupieżca Krypty (10 trofeów, epicki).
-- **Regał:** w każdym ogródku (prawy przedni róg), odnowione relikty stoją na nim z kolorem oprawy; przycisk
-  przy regale otwiera kolekcję (tylko właścicielowi).
+- **Podest z reliktami:** w każdym ogródku przy furtce (po drugiej stronie dróżki niż skrzynia), 8 kamiennych
+  postumentów w dwóch rzędach (tylny wyżej). Nad postumentem unosi się i obraca model reliktu (`World/RelicArt`,
+  1,5× większy, klient `RelicDisplay` obraca i podpisuje): odnowiony w kolorach ze świecącym pierścieniem,
+  zakurzony szary; płytka ma kolor oprawy, przy złotej iskry. Puste postumenty: „?”, nad podestem „🏺 5/8”.
+  Przycisk przy podeście otwiera kolekcję (tylko właścicielowi).
 
 Do sprawdzenia w Studio: czas jednej ekspedycji (cel 10–15 min), czy 240 s oleju na odcinek nie jest za dużo /
 za mało, czy strażnik nie jest za ostry, wygląd komór i karty celu, obciążenie przy kilku kopiach naraz.

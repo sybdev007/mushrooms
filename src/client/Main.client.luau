@@ -57,6 +57,7 @@ local DelvePanel = require(script.Parent.DelvePanel)
 local DelveHud = require(script.Parent.DelveHud)
 local _AdminEvents = require(script.Parent.AdminEvents)
 local _AnnounceView = require(script.Parent.AnnounceView)
+local _RelicDisplay = require(script.Parent.RelicDisplay)
 local Delve = require(Shared:WaitForChild("Delve"))
 
 local player = Players.LocalPlayer

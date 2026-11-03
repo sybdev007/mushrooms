@@ -13,6 +13,7 @@
 --     (koszyk traci jak wszędzie, nie ma darmowego ubezpieczenia),
 --   * ekipa ma jedną kopię komór i jeden stan komór; różne ekipy nigdy się nie spotykają.
 
+local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -24,6 +25,7 @@ local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local World = script.Parent:WaitForChild("World")
 local DelveMap = require(World:WaitForChild("DelveMap"))
 local SkarbnikModel = require(World:WaitForChild("Skarbnik"))
+local RelicArt = require(World:WaitForChild("RelicArt"))
 
 local DelveService = {}
 
@@ -523,6 +525,10 @@ local function grantRelic(player: Player, relicId: string, bonusShards: number)
 	if new and bonusShards > 0 then
 		api.notify(player, "MSG_DELVE_SHARDS", { bonusShards })
 	end
+	if new then
+		-- Nowy (zakurzony) relikt od razu staje na podeście w ogródku
+		DelveService.refreshShelfOf(player)
+	end
 end
 
 -- Ognisko: znalezisko zabezpieczone, każdy z ekipy w komorach dostaje swoją nagrodę (raz)
@@ -826,7 +832,14 @@ local function nearBoard(player: Player): boolean
 	return near(player, entrances.board, BOARD_DISTANCE)
 end
 
--- Gdzie stoi regał gracza (jego ogródek), żeby odświeżyć relikty
+-- Podest z reliktami w ogródku (World/Garden: relicDais): nad postumentami unoszą się modele reliktów
+-- właściciela (World/RelicArt), odnowione w kolorach i ze światłem, zakurzone szare. Płytka postumentu
+-- ma kolor oprawy. Obrót, kołysanie i tabliczki z nazwą robi klient (RelicDisplay, tag "RelicDisplay").
+local FRAME_COLORS: { [number]: Color3 } = {
+	[1] = Color3.fromRGB(196, 124, 64),
+	[2] = Color3.fromRGB(205, 210, 218),
+	[3] = Color3.fromRGB(255, 206, 64),
+}
 local function refreshShelf(garden: Model)
 	local shelf = garden:FindFirstChild("RelicShelf")
 	if not shelf then
@@ -836,6 +849,19 @@ local function refreshShelf(garden: Model)
 	if old then
 		old:Destroy()
 	end
+	-- Płytki wracają do koloru kamienia
+	for index = 1, #Delve.RELICS do
+		local plate = shelf:FindFirstChild("Plate" .. index)
+		if plate and plate:IsA("BasePart") then
+			local base = plate:GetAttribute("BaseColor")
+			if typeof(base) ~= "Color3" then
+				plate:SetAttribute("BaseColor", plate.Color)
+			else
+				plate.Color = base
+			end
+			plate.Material = Enum.Material.Slate
+		end
+	end
 	local ownerId = garden:GetAttribute("OwnerUserId")
 	local owner = if typeof(ownerId) == "number" and ownerId ~= 0 then Players:GetPlayerByUserId(ownerId) else nil
 	local save = if owner then saveOf(owner) else nil
@@ -844,62 +870,107 @@ local function refreshShelf(garden: Model)
 	end
 	local folder = Instance.new("Folder")
 	folder.Name = "Relics"
-	local frameColors = {
-		[0] = Color3.fromRGB(112, 78, 52),
-		[1] = Color3.fromRGB(196, 124, 64),
-		[2] = Color3.fromRGB(200, 206, 214),
-		[3] = Color3.fromRGB(255, 206, 64),
-	}
+	local owned = 0
 	for index, def in Delve.RELICS do
 		local state = save.relics[def.id]
 		local slot = shelf:FindFirstChild("RelicSlot" .. index, true)
-		if not (state and state.r and slot and slot:IsA("Attachment")) then
+		if not (slot and slot:IsA("Attachment")) then
 			continue
 		end
-		local base = slot.WorldCFrame
-		local pedestal = Instance.new("Part")
-		pedestal.Name = "Pedestal"
-		pedestal.Anchored = true
-		pedestal.CanCollide = false
-		pedestal.CanQuery = false
-		pedestal.Size = Vector3.new(1, 0.3, 0.9)
-		pedestal.CFrame = base * CFrame.new(0, 0.15, 0)
-		pedestal.Color = frameColors[state.f] or frameColors[0]
-		pedestal.Material = if state.f >= 1 then Enum.Material.Metal else Enum.Material.Wood
-		pedestal.Parent = folder
-		local gem = Instance.new("Part")
-		gem.Name = "Relic"
-		gem.Shape = Enum.PartType.Ball
-		gem.Anchored = true
-		gem.CanCollide = false
-		gem.CanQuery = false
-		gem.Size = Vector3.new(0.75, 0.75, 0.75)
-		gem.CFrame = base * CFrame.new(0, 0.75, 0)
-		gem.Color = Color3.fromRGB(def.color[1], def.color[2], def.color[3])
-		gem.Material = Enum.Material.Neon
-		gem.Parent = folder
-		local billboard = Instance.new("BillboardGui")
-		billboard.Size = UDim2.fromOffset(34, 34)
-		billboard.StudsOffset = Vector3.new(0, 0.9, 0)
-		billboard.MaxDistance = 40
-		billboard.LightInfluence = 0
-		local icon = Instance.new("TextLabel")
-		icon.BackgroundTransparency = 1
-		icon.Size = UDim2.fromScale(1, 1)
-		icon.TextScaled = true
-		icon.Text = def.icon
-		icon.Parent = billboard
-		billboard.Parent = gem
-		if state.f >= 3 then
+		local plateBase = slot.Parent
+		if not state then
+			-- Pusty postument: szary znak zapytania (jeszcze nieznaleziony)
+			if plateBase and plateBase:IsA("BasePart") then
+				local mark = Instance.new("BillboardGui")
+				mark.Name = "Missing"
+				mark.Size = UDim2.fromOffset(40, 40)
+				mark.StudsOffset = Vector3.new(0, 1.4, 0)
+				mark.MaxDistance = 30
+				mark.LightInfluence = 0
+				local text = Instance.new("TextLabel")
+				text.BackgroundTransparency = 1
+				text.Size = UDim2.fromScale(1, 1)
+				text.Text = "?"
+				text.TextScaled = true
+				text.Font = Enum.Font.FredokaOne
+				text.TextColor3 = Color3.fromRGB(200, 190, 175)
+				text.TextTransparency = 0.35
+				text.Parent = mark
+				mark.Adornee = plateBase
+				mark.Parent = folder
+			end
+			continue
+		end
+		owned += 1
+		local color = Color3.fromRGB(def.color[1], def.color[2], def.color[3])
+		-- Świecący pierścień na płytce i światło od dołu (relikt widać nocą z dróżki)
+		if plateBase and plateBase:IsA("BasePart") then
+			local ring = Instance.new("Part")
+			ring.Name = "Glow"
+			ring.Anchored = true
+			ring.CanCollide = false
+			ring.CanQuery = false
+			ring.CanTouch = false
+			ring.CastShadow = false
+			ring.Shape = Enum.PartType.Cylinder
+			ring.Size = Vector3.new(0.06, 1.3, 1.3)
+			ring.CFrame = plateBase.CFrame * CFrame.new(0, 0.12, 0) * CFrame.Angles(0, 0, math.rad(90))
+			ring.Color = if state.r then color else Color3.fromRGB(150, 140, 120)
+			ring.Material = Enum.Material.Neon
+			ring.Transparency = if state.r then 0.15 else 0.6
+			ring.Parent = folder
+			local up = Instance.new("PointLight")
+			up.Color = ring.Color
+			up.Range = 7
+			up.Brightness = if state.r then 3 else 0.8
+			up.Shadows = false
+			up.Parent = ring
+		end
+		local model = RelicArt.build(folder, def.id, color, slot.WorldCFrame * CFrame.new(0, 1.8, 0), state.r)
+		model:SetAttribute("RelicKey", def.key)
+		model:SetAttribute("Restored", state.r)
+		model:SetAttribute("Frame", state.f)
+		model:SetAttribute("Rare", def.rare)
+		CollectionService:AddTag(model, "RelicDisplay")
+		local plate = slot.Parent
+		if state.r and state.f > 0 and plate and plate:IsA("BasePart") then
+			plate.Color = FRAME_COLORS[state.f] or plate.Color
+			plate.Material = Enum.Material.Metal
+		end
+		if state.r and state.f >= 3 and model.PrimaryPart then
 			local sparkle = Instance.new("Sparkles")
 			sparkle.SparkleColor = Color3.fromRGB(255, 220, 120)
-			sparkle.Parent = gem
+			sparkle.Parent = model.PrimaryPart
 		end
+	end
+	-- Nad podestem: ile reliktów z całej kolekcji ma właściciel
+	local board = shelf:FindFirstChild("ShelfBoard")
+	if board and board:IsA("BasePart") then
+		local header = Instance.new("BillboardGui")
+		header.Name = "Count"
+		header.Size = UDim2.fromOffset(120, 34)
+		header.StudsOffset = Vector3.new(0, 5.6, 0)
+		header.MaxDistance = 60
+		header.LightInfluence = 0
+		local text = Instance.new("TextLabel")
+		text.BackgroundTransparency = 1
+		text.Size = UDim2.fromScale(1, 1)
+		text.Text = string.format("🏺 %d/%d", owned, #Delve.RELICS)
+		text.TextScaled = true
+		text.Font = Enum.Font.FredokaOne
+		text.TextColor3 = Color3.fromRGB(255, 214, 90)
+		text.Parent = header
+		local outline = Instance.new("UIStroke")
+		outline.Color = Color3.fromRGB(43, 27, 18)
+		outline.Thickness = 2
+		outline.Parent = text
+		header.Adornee = board
+		header.Parent = folder
 	end
 	folder.Parent = shelf
 end
 
-local function refreshShelfOf(player: Player)
+function DelveService.refreshShelfOf(player: Player)
 	for _, garden in gardens do
 		if garden:GetAttribute("OwnerUserId") == player.UserId then
 			refreshShelf(garden)
@@ -1011,7 +1082,7 @@ local function onAction(player: Player, action: unknown, arg: unknown)
 		save.relics[arg].r = true
 		api.notify(player, "MSG_DELVE_RESTORED", nil, def.key)
 		api.pushState(player)
-		refreshShelfOf(player)
+		DelveService.refreshShelfOf(player)
 		sendState(player)
 	elseif action == "frame" and typeof(arg) == "string" then
 		local cost = Delve.canFrame(save, arg, data.coins)
@@ -1025,7 +1096,7 @@ local function onAction(player: Player, action: unknown, arg: unknown)
 		save.relics[arg].f += 1
 		api.notify(player, "MSG_DELVE_FRAMED", nil, def.key)
 		api.pushState(player)
-		refreshShelfOf(player)
+		DelveService.refreshShelfOf(player)
 		sendState(player)
 	elseif action == "craft" and typeof(arg) == "string" then
 		local def = Delve.relic(arg)
@@ -1033,6 +1104,7 @@ local function onAction(player: Player, action: unknown, arg: unknown)
 			return
 		end
 		api.notify(player, "MSG_DELVE_CRAFTED", nil, def.key)
+		DelveService.refreshShelfOf(player)
 		sendState(player)
 	elseif action == "state" then
 		sendState(player)

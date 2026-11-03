@@ -165,25 +165,58 @@ local function chest(parent: Instance, cf: CFrame): Part
 	return body
 end
 
--- Regał na relikty z ekspedycji (DelveService stawia na nim odnowione relikty właściciela)
-local function relicShelf(parent: Instance, cf: CFrame)
+-- Podest z reliktami z ekspedycji (DelveService stawia nad postumentami modele reliktów właściciela):
+-- kamienne podwyższenie w przedniej części ogródka (po drugiej stronie dróżki niż skrzynia), 8 postumentów
+-- w dwóch rzędach — przedni rząd: Pamiątki górników, tylny, wyższy: Dary głębin. Na szczycie każdego
+-- postumentu jest płytka (kolor oprawy) i Attachment "RelicSlot<i>" (tu unosi się relikt).
+-- cf: środek podestu na ziemi, -Z w stronę furtki.
+local function relicDais(parent: Instance, cf: CFrame)
 	local m = Instance.new("Model")
 	m.Name = "RelicShelf"
-	local wood = Palette.plankDark
-	for _, side in { -1, 1 } do
-		make(m, { Name = "ShelfSide", Size = Vector3.new(0.3, 4.4, 1.4), CFrame = cf * CFrame.new(side * 2.6, 2.2, 0), Color = wood })
-	end
-	make(m, { Name = "ShelfBack", Size = Vector3.new(5.5, 4.4, 0.2), CFrame = cf * CFrame.new(0, 2.2, 0.6), Color = Palette.plank })
-	for i, y in { 0.3, 2.3, 4.3 } do
-		local board = make(m, { Name = "ShelfBoard", Size = Vector3.new(5.5, 0.25, 1.4), CFrame = cf * CFrame.new(0, y, 0), Color = wood })
-		if i < 3 then
-			-- Po 4 miejsca na półkę (dolna: zestaw Górników, górna: Dary Głębin)
-			for slot = 1, 4 do
-				local a = Instance.new("Attachment")
-				a.Name = "RelicSlot" .. ((i - 1) * 4 + slot)
-				a.CFrame = CFrame.new(-1.95 + (slot - 1) * 1.3, 0.13, -0.1)
-				a.Parent = board
-			end
+	local stone = Color3.fromRGB(128, 120, 112)
+	local stoneDark = Color3.fromRGB(96, 90, 86)
+	local base = make(m, {
+		Name = "ShelfBoard",
+		Size = Vector3.new(10, 0.5, 7.2),
+		CFrame = cf * CFrame.new(0, 0.25, 0),
+		Color = stoneDark,
+		Material = Enum.Material.Cobblestone,
+	})
+	base.CanCollide = true
+	-- Tylny rząd stoi na drugim stopniu (lepiej widać relikty zza przednich)
+	make(m, {
+		Name = "DaisStep",
+		Size = Vector3.new(10, 0.5, 3.4),
+		CFrame = cf * CFrame.new(0, 0.75, 1.9),
+		Color = stone,
+		Material = Enum.Material.Cobblestone,
+	})
+	for row = 1, 2 do
+		local z = if row == 1 then -1.6 else 1.9
+		local height = if row == 1 then 2 else 2.5
+		local floor = if row == 1 then 0.5 else 1
+		for col = 1, 4 do
+			local index = (row - 1) * 4 + col
+			local x = -3.75 + (col - 1) * 2.5
+			local at = cf * CFrame.new(x, floor, z)
+			make(m, {
+				Name = "Pedestal",
+				Size = Vector3.new(1.2, height, 1.2),
+				CFrame = at * CFrame.new(0, height / 2, 0),
+				Color = stone,
+				Material = Enum.Material.Slate,
+			})
+			local plate = make(m, {
+				Name = "Plate" .. index,
+				Size = Vector3.new(1.6, 0.22, 1.6),
+				CFrame = at * CFrame.new(0, height + 0.11, 0),
+				Color = stoneDark,
+				Material = Enum.Material.Slate,
+			})
+			local slot = Instance.new("Attachment")
+			slot.Name = "RelicSlot" .. index
+			slot.CFrame = CFrame.new(0, 0.11, 0)
+			slot.Parent = plate
 		end
 	end
 	m.Parent = parent
@@ -268,7 +301,7 @@ function Garden.build(parent: Instance, cf: CFrame, size: number, beds: number, 
 	-- Skrzynia na monety po lewej od furtki (patrząc od wejścia), latarnia nad nią
 	chest(m, cf * CFrame.new(-(half - 3.2), 0, -half + 3.2) * CFrame.Angles(0, math.rad(20), 0))
 
-	relicShelf(m, cf * CFrame.new(half - 3.2, 0, -half + 3.2) * CFrame.Angles(0, math.rad(-20), 0))
+	relicDais(m, cf * CFrame.new(half - 5.4, 0, -half + 4.6))
 
 	-- Niewidoczny punkt między furtką a grządkami: przyciski sadzenia i kradzieży, tabliczka z dochodem
 	local hub = make(m, {
