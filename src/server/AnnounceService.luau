@@ -1,5 +1,5 @@
 --!strict
--- Ogłoszenia admina na środku ekranu, na WSZYSTKICH serwerach gry naraz.
+-- Ogłoszenia admina na środku ekranu, na WSZYSTKICH serwerach gry naraz (z miniaturką autora od pasa w górę).
 -- Deweloper (Config.DevUserIds / Studio) pisze tekst w panelu DEV („📢 Ogłoszenie”) albo na czacie:
 --   /ogloszenie Za 5 minut Krwawy księżyc!      (też /announce)
 -- Serwer sprawdza uprawnienia, filtruje tekst filtrem Robloxa (wymóg dla tekstu pokazywanego innym),
@@ -31,7 +31,7 @@ local AnnounceShow = Remotes.get("AnnounceShow")
 local lastSent: { [Player]: number } = {}
 local seen: { [string]: boolean } = {} -- id ogłoszeń już pokazanych na tym serwerze (bez dubli)
 
-local function show(id: string, text: string, from: string)
+local function show(id: string, text: string, from: string, userId: number)
 	if seen[id] then
 		return
 	end
@@ -39,7 +39,7 @@ local function show(id: string, text: string, from: string)
 	task.delay(120, function()
 		seen[id] = nil
 	end)
-	AnnounceShow:FireAllClients({ text = text, from = from })
+	AnnounceShow:FireAllClients({ text = text, from = from, userId = userId })
 end
 
 local function send(player: Player, raw: unknown)
@@ -73,10 +73,10 @@ local function send(player: Player, raw: unknown)
 		return
 	end
 	local id = HttpService:GenerateGUID(false)
-	local payload = { id = id, t = filtered, n = player.DisplayName }
+	local payload = { id = id, t = filtered, n = player.DisplayName, u = player.UserId }
 	local published = pcall(MessagingService.PublishAsync, MessagingService, TOPIC, payload)
 	-- Ten serwer pokazuje od razu (wiadomość z MessagingService przyjdzie też tu, ale id się powtórzy)
-	show(id, filtered, player.DisplayName)
+	show(id, filtered, player.DisplayName, player.UserId)
 	api.notify(player, if published then "MSG_ANNOUNCE_SENT" else "MSG_ANNOUNCE_LOCAL")
 end
 
@@ -103,7 +103,7 @@ function AnnounceService.start(serviceApi: Api)
 			MessagingService:SubscribeAsync(TOPIC, function(message)
 				local data = message.Data
 				if typeof(data) == "table" and typeof(data.id) == "string" and typeof(data.t) == "string" and typeof(data.n) == "string" then
-					show(data.id, data.t, data.n)
+					show(data.id, data.t, data.n, if typeof(data.u) == "number" then data.u else 0)
 				end
 			end)
 		end)

@@ -1,16 +1,20 @@
 --!strict
--- Ogłoszenia admina (AnnounceService): duży napis na środku ekranu u wszystkich graczy na każdym
--- serwerze, z podpisem, kto pisze. Kolejne ogłoszenia czekają w kolejce.
+-- Ogłoszenia admina (AnnounceService): na środku ekranu u wszystkich graczy na każdym serwerze.
+-- Spokojna karta na lekko szarym, półprzezroczystym tle: po lewej miniaturka autora od pasa w górę
+-- (jego awatar z Robloxa), po prawej imię i tekst. Bez promieni i błysków: wjeżdża, wisi, znika.
+-- Kolejne ogłoszenia czekają w kolejce.
 -- openInput(): okienko dla dewelopera z polem tekstowym (panel DEV → „📢 Ogłoszenie”).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
 
 local Remotes = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Remotes"))
 local Localize = require(script.Parent.Localize)
 local PanelKit = require(script.Parent.PanelKit)
 local UiFx = require(script.Parent.UiFx)
 local UiKit = require(script.Parent.UiKit)
+local UiScale = require(script.Parent.UiScale)
 
 local AnnounceView = {}
 
@@ -18,7 +22,7 @@ local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
 local HOLD_SECONDS = 7
 local MAX_LENGTH = 140
 
--- ===== Napis na środku ekranu =====
+-- ===== Karta na środku ekranu =====
 
 local gui = Instance.new("ScreenGui")
 gui.Name = "Announcement"
@@ -28,60 +32,72 @@ gui.DisplayOrder = 20
 gui.Enabled = false
 gui.Parent = playerGui
 
-local band = Instance.new("Frame")
-band.Name = "Band"
-band.AnchorPoint = Vector2.new(0.5, 0.5)
-band.Position = UDim2.fromScale(0.5, 0.42)
-band.Size = UDim2.new(1, 0, 0, 170)
-band.BackgroundColor3 = Color3.fromRGB(20, 10, 30)
-band.BackgroundTransparency = 0.25
-band.BorderSizePixel = 0
-band.Parent = gui
-local bandFade = Instance.new("UIGradient")
-bandFade.Transparency = NumberSequence.new({
-	NumberSequenceKeypoint.new(0, 1),
-	NumberSequenceKeypoint.new(0.18, 0),
-	NumberSequenceKeypoint.new(0.82, 0),
-	NumberSequenceKeypoint.new(1, 1),
-})
-bandFade.Parent = band
+local CARD_Y = 0.36
+local card = Instance.new("CanvasGroup")
+card.Name = "Card"
+card.AnchorPoint = Vector2.new(0.5, 0.5)
+card.Position = UDim2.fromScale(0.5, CARD_Y)
+card.Size = UDim2.fromOffset(640, 150)
+card.BackgroundColor3 = Color3.fromRGB(64, 64, 70)
+card.BackgroundTransparency = 0.22
+card.GroupTransparency = 1
+card.Parent = gui
+PanelKit.corner(card, UDim.new(0, 20))
+local cardStroke = Instance.new("UIStroke")
+cardStroke.Color = Color3.fromRGB(200, 200, 208)
+cardStroke.Transparency = 0.55
+cardStroke.Thickness = 2
+cardStroke.Parent = card
 local scale = Instance.new("UIScale")
-scale.Parent = band
+scale.Parent = card
 
-local rays = UiFx.rays(band, { size = 420, color = Color3.fromRGB(255, 210, 110), count = 9, speed = 22, transparency = 0.55, zIndex = 1 })
-rays.Position = UDim2.fromScale(0.5, 0.5)
+-- Miniaturka autora od pasa w górę (AvatarBust z Robloxa) w jasnoszarym kółku
+local portraitBack = Instance.new("Frame")
+portraitBack.Name = "PortraitBack"
+portraitBack.AnchorPoint = Vector2.new(0, 0.5)
+portraitBack.Position = UDim2.new(0, 16, 0.5, 0)
+portraitBack.Size = UDim2.fromOffset(118, 118)
+portraitBack.BackgroundColor3 = Color3.fromRGB(150, 150, 158)
+portraitBack.BackgroundTransparency = 0.35
+portraitBack.Parent = card
+PanelKit.corner(portraitBack, UDim.new(1, 0))
+local portrait = Instance.new("ImageLabel")
+portrait.Name = "Portrait"
+portrait.BackgroundTransparency = 1
+portrait.Size = UDim2.fromScale(1, 1)
+portrait.ScaleType = Enum.ScaleType.Fit
+portrait.Parent = portraitBack
+PanelKit.corner(portrait, UDim.new(1, 0))
 
-local header = PanelKit.label(band, "Header", UDim2.new(0.8, 0, 0, 30), UDim2.new(0.1, 0, 0, 14), 26, PanelKit.GOLD, PanelKit.TITLE_FONT)
-header.ZIndex = 3
-UiKit.outline(header, 2.5)
-UiFx.textGradient(header, Color3.fromRGB(255, 244, 190), Color3.fromRGB(255, 176, 40))
-
-local message = PanelKit.label(band, "Message", UDim2.new(0.84, 0, 0, 104), UDim2.new(0.08, 0, 0, 50), 46, Color3.new(1, 1, 1), PanelKit.TITLE_FONT)
+local name = PanelKit.label(card, "Name", UDim2.new(1, -170, 0, 24), UDim2.fromOffset(150, 16), 20, Color3.fromRGB(215, 215, 222), PanelKit.BODY_FONT)
+name.TextXAlignment = Enum.TextXAlignment.Left
+local message = PanelKit.label(card, "Message", UDim2.new(1, -170, 1, -54), UDim2.fromOffset(150, 44), 32, Color3.new(1, 1, 1), PanelKit.TITLE_FONT)
 message.TextWrapped = true
 message.RichText = false
-message.ZIndex = 3
-UiKit.outline(message, 3.5)
-UiFx.textGradient(message, Color3.new(1, 1, 1), Color3.fromRGB(255, 226, 150))
+message.TextXAlignment = Enum.TextXAlignment.Left
+message.TextYAlignment = Enum.TextYAlignment.Top
+UiKit.outline(message, 1.5, Color3.fromRGB(30, 30, 34))
 
-type Item = { text: string, from: string }
+type Item = { text: string, from: string, userId: number }
 local queue: { Item } = {}
 local showing = false
+local thumbnails: { [number]: string } = {}
 
-local function setVisible(alpha: number)
-	band.BackgroundTransparency = 1 - (1 - 0.25) * alpha
-	header.TextTransparency = 1 - alpha
-	message.TextTransparency = 1 - alpha
-	for _, d in header:GetChildren() do
-		if d:IsA("UIStroke") then
-			d.Transparency = 1 - alpha
-		end
+-- Miniaturka z Robloxa (raz na autora); bez niej sam szary krąg
+local function portraitOf(userId: number): string
+	local cached = thumbnails[userId]
+	if cached then
+		return cached
 	end
-	for _, d in message:GetChildren() do
-		if d:IsA("UIStroke") then
-			d.Transparency = 1 - alpha
-		end
+	if userId <= 0 then
+		return ""
 	end
-	rays.Visible = alpha > 0.05
+	local ok, image = pcall(function()
+		return (Players:GetUserThumbnailAsync(userId, Enum.ThumbnailType.AvatarBust, Enum.ThumbnailSize.Size180x180))
+	end)
+	local url = if ok and typeof(image) == "string" then image else ""
+	thumbnails[userId] = url
+	return url
 end
 
 local function showNext()
@@ -94,20 +110,21 @@ local function showNext()
 		return
 	end
 	showing = true
-	header.Text = Localize.t("ANNOUNCE_HEADER", { item.from })
+	portrait.Image = portraitOf(item.userId)
+	name.Text = Localize.t("ANNOUNCE_HEADER", { item.from })
 	message.Text = item.text
+	scale.Scale = UiScale.get()
 	gui.Enabled = true
-	setVisible(1)
-	UiFx.popIn(scale, 1, 0.5)
-	UiFx.sound("ping", 0.7, 0.9)
+	-- Wjazd: z lekkim przesunięciem w górę i rozjaśnieniem
+	card.Position = UDim2.new(0.5, 0, CARD_Y, 24)
+	card.GroupTransparency = 1
+	local info = TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+	TweenService:Create(card, info, { GroupTransparency = 0, Position = UDim2.fromScale(0.5, CARD_Y) }):Play()
+	UiFx.sound("ping", 0.5, 0.85)
 	task.delay(HOLD_SECONDS, function()
-		-- Wygaszenie w 0,6 s
-		local start = os.clock()
-		while os.clock() - start < 0.6 do
-			setVisible(1 - (os.clock() - start) / 0.6)
-			task.wait()
-		end
-		setVisible(0)
+		local out = TweenService:Create(card, TweenInfo.new(0.5), { GroupTransparency = 1 })
+		out:Play()
+		out.Completed:Wait()
 		showing = false
 		showNext()
 	end)
@@ -117,7 +134,11 @@ Remotes.get("AnnounceShow").OnClientEvent:Connect(function(payload)
 	if typeof(payload) ~= "table" or typeof(payload.text) ~= "string" then
 		return
 	end
-	table.insert(queue, { text = payload.text, from = if typeof(payload.from) == "string" then payload.from else "Admin" })
+	table.insert(queue, {
+		text = payload.text,
+		from = if typeof(payload.from) == "string" then payload.from else "Admin",
+		userId = if typeof(payload.userId) == "number" then payload.userId else 0,
+	})
 	showNext()
 end)
 

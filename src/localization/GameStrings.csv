@@ -784,7 +784,7 @@ ABUSE_SHARDS,💠 Double expedition shards,,,💠 Podwójne odłamki z ekspedycj
 ABUSE_STOP,⏹ End all events,,,⏹ Koniec wydarzeń
 MSG_ABUSE_START,⚡ ADMIN ABUSE! {2} turned on: {1}!,,,⚡ ADMIN ABUSE! {2} włącza: {1}!
 MSG_ABUSE_STOP,⚡ {1} ended the admin events.,,,⚡ {1} kończy wydarzenia admina.
-ANNOUNCE_HEADER,📢 {1} says:,,,📢 {1} ogłasza:
+ANNOUNCE_HEADER,📢 {1},,,📢 {1}
 ANNOUNCE_TITLE,Announcement for all servers,,,Ogłoszenie na wszystkie serwery
 ANNOUNCE_PLACEHOLDER,Type a message - everyone on every server will see it in the middle of the screen,,,Wpisz wiadomość - zobaczą ją wszyscy na każdym serwerze na środku ekranu
 ANNOUNCE_SEND,📢 Send,,,📢 Wyślij
