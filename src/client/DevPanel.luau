@@ -18,6 +18,7 @@ local Localize = require(script.Parent.Localize)
 local PanelKit = require(script.Parent.PanelKit)
 local UiFx = require(script.Parent.UiFx)
 local UiKit = require(script.Parent.UiKit)
+local AnnounceView = require(script.Parent.AnnounceView)
 local UiScale = require(script.Parent.UiScale)
 
 local DevPanel = {}
@@ -153,6 +154,9 @@ local CATEGORIES: { Category } = {
 				{ id = "abuseBloodMoon", label = "🩸 Krwawy księżyc (10 min)" },
 				{ id = "abuseMist", label = "🌫️ Mgła (10 min)" },
 				{ id = "abuseRain", label = "🌧️ Deszcz (10 min)" },
+			} },
+			{ name = "Ogłoszenie (wszystkie serwery)", actions = {
+				{ id = "announce", label = "📢 Napisz ogłoszenie na środku ekranu" },
 			} },
 			{ name = "Bonusy (ogłaszane, cały serwer)", actions = {
 				{ id = "abuseRegrow", label = "🌱 Las odrasta teraz" },
@@ -543,6 +547,11 @@ local function actionButton(parent: Instance, action: Action, order: number): Te
 			return
 		end
 		armedAt = -math.huge
+		if action.id == "announce" then
+			-- Okienko z polem tekstowym (AnnounceView), wysyła serwer po sprawdzeniu i filtrze
+			AnnounceView.openInput()
+			return
+		end
 		DevAction:FireServer(action.id)
 		UiFx.sound("blip", 0.5, 1.2)
 		UiKit.burst(gui, button.AbsolutePosition + button.AbsoluteSize / 2, 6)

@@ -551,6 +551,7 @@ Config.AdminAbuse = {
 for action in Config.AdminAbuse do
 	Config.DevLiveActions[action] = true
 end
+Config.DevLiveActions.announce = true -- ogłoszenie na środku ekranu na wszystkich serwerach (AnnounceService)
 
 -- Bagna: portal za Skarbcem Skarbnika na końcu Sztolni, otwiera się graczom z co najmniej
 -- unlockCoins monet (i tylko z jaskini, więc trzeba też mieć otwartą jaskinię).

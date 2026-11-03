@@ -35,6 +35,7 @@ local LeaderboardService = require(script.Parent.LeaderboardService)
 local HalloweenService = require(script.Parent.HalloweenService)
 local CommunityService = require(script.Parent.CommunityService)
 local DelveService = require(script.Parent.DelveService)
+local AnnounceService = require(script.Parent.AnnounceService)
 
 type SpotState = {
 	speciesId: string,
@@ -2008,6 +2009,16 @@ function GameService.start(mapInfo: MapBuilder.MapInfo)
 	})
 
 	setupDevCommands()
+	-- Ogłoszenia admina na środku ekranu na wszystkich serwerach (panel DEV albo /ogloszenie)
+	AnnounceService.start({
+		isDeveloper = isDeveloper,
+		notify = function(player: Player, key: string, args: { any }?)
+			local session = sessions[player]
+			if session then
+				notify(session, key, args)
+			end
+		end,
+	})
 
 	PickMushroom.OnServerEvent:Connect(onPick)
 	SellBasket.OnServerEvent:Connect(onSell)

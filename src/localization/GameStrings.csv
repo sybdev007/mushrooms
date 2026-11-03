@@ -784,3 +784,11 @@ ABUSE_SHARDS,💠 Double expedition shards,,,💠 Podwójne odłamki z ekspedycj
 ABUSE_STOP,⏹ End all events,,,⏹ Koniec wydarzeń
 MSG_ABUSE_START,⚡ ADMIN ABUSE! {2} turned on: {1}!,,,⚡ ADMIN ABUSE! {2} włącza: {1}!
 MSG_ABUSE_STOP,⚡ {1} ended the admin events.,,,⚡ {1} kończy wydarzenia admina.
+ANNOUNCE_HEADER,📢 {1} says:,,,📢 {1} ogłasza:
+ANNOUNCE_TITLE,Announcement for all servers,,,Ogłoszenie na wszystkie serwery
+ANNOUNCE_PLACEHOLDER,Type a message - everyone on every server will see it in the middle of the screen,,,Wpisz wiadomość - zobaczą ją wszyscy na każdym serwerze na środku ekranu
+ANNOUNCE_SEND,📢 Send,,,📢 Wyślij
+MSG_ANNOUNCE_SENT,📢 Announcement sent to all servers.,,,📢 Ogłoszenie wysłane na wszystkie serwery.
+MSG_ANNOUNCE_LOCAL,📢 Shown on this server only (cross-server messages are unavailable here).,,,📢 Pokazane tylko na tym serwerze (wiadomości między serwerami tu nie działają).
+MSG_ANNOUNCE_FAILED,📢 The text filter did not let this message through.,,,📢 Filtr tekstu Robloxa nie przepuścił tej wiadomości.
+MSG_ANNOUNCE_WAIT,📢 Wait {1} s between announcements.,,,📢 Odczekaj {1} s między ogłoszeniami.

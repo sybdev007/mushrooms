@@ -15,6 +15,7 @@ local NAMES = {
 	"GardenView", -- stan grządek dla okna sadzenia (i czy je otworzyć)
 	"CauldronResult", -- Halloween: co wypadło z kotła (okienko i dźwięk u gracza)
 	"ChestOffer", -- x2 skrzyni: okno „Witaj z powrotem”, karta po odbiorze, zakup po G, wypłata premii
+	"AnnounceShow", -- ogłoszenie admina na środku ekranu (ze wszystkich serwerów, MessagingService)
 	"DelveState", -- ekspedycja: zlecenia na tablicy, ekipa, postęp w komorach, kolekcja reliktów (i które okno otworzyć)
 	-- klient -> serwer
 	"PickMushroom",
@@ -31,6 +32,7 @@ local NAMES = {
 	"GardenAuto", -- posadź najlepsze automatycznie
 	"EquipSkin", -- Halloween: załóż / zdejmij skórkę latarni albo nożyka (slot, id; "" = zwykła)
 	"ChestClaim", -- x2 skrzyni: klient gotowy na okno powrotu / odbierz z okna powrotu (x2 = też kup)
+	"AdminAnnounce", -- panel DEV: wyślij ogłoszenie na wszystkie serwery (serwer sprawdza dewelopera i filtruje tekst)
 	"DelveAction", -- ekspedycja: weź / dołącz / opuść zlecenie, renowacja, oprawa, składanie reliktu
 	"OwlCheck", -- gracz zamknął okno dołączenia do grupy Old Owl Studios: sprawdź członkostwo jeszcze raz
 }
