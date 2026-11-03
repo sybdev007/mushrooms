@@ -40,6 +40,7 @@ local PanelKit = require(script.Parent.PanelKit)
 
 local _LeaderboardView = require(script.Parent.LeaderboardView)
 local _TitleView = require(script.Parent.TitleView)
+local _BoomGiverView = require(script.Parent.BoomGiverView)
 local ExpeditionView = require(script.Parent.ExpeditionView)
 local DeathScreen = require(script.Parent.DeathScreen)
 local OilView = require(script.Parent.OilView)

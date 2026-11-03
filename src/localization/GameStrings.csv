@@ -153,6 +153,8 @@ MSG_MIMIC,That was a will-o'-the-wisp! It stole {1}% of your oil,,,To był błę
 SHOP_TITLE,Shop,,,Sklep
 SHOP_RESCUE,Keep your mushrooms,,,Zachowaj grzyby
 SHOP_BOOM_TIMER,Mushroom Boom {1},,,Wysyp {1}
+SHOP_BOOM_FROM,Boom from {1} {2},,,Wysyp od {1} {2}
+BOOM_GIVER,BOOM GIVER,,,DAWCA WYSYPU
 SHOP_LUCK_TIMER,Lucky {1},,,Szczęście {1}
 SHOP_HINT,Bonuses start right after you buy,,,Bonusy działają od razu po zakupie
 SHOP_SERVER,WHOLE SERVER,,,CAŁY SERWER

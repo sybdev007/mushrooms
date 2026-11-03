@@ -1474,6 +1474,15 @@ local function grantProduct(session: Session, key: string): boolean
 		notify(session, "MSG_RESCUED", { Economy.basketValue(rescue.items :: any) })
 	elseif key == "boom" then
 		boomUntil = math.max(os.time(), boomUntil) + Config.Boom.seconds
+		-- Dawca Wysypu: plakietka nad głową i iskierki (klient, BoomGiverView) do końca Wysypu.
+		-- Kto dorzucił się wcześniej do tego samego Wysypu, zostaje Dawcą do jego nowego końca.
+		for _, other in Players:GetPlayers() do
+			local giverEnds = other:GetAttribute("BoomGiverUntil")
+			if typeof(giverEnds) == "number" and giverEnds > os.time() then
+				other:SetAttribute("BoomGiverUntil", boomUntil)
+			end
+		end
+		player:SetAttribute("BoomGiverUntil", boomUntil)
 		-- Grzyby, które właśnie odrastają, też przyspieszają
 		local now = os.clock()
 		for _, other in sessions do

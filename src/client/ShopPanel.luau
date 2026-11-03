@@ -17,6 +17,7 @@ local TweenService = game:GetService("TweenService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Localize = require(script.Parent.Localize)
+local BoomGiverView = require(script.Parent.BoomGiverView)
 local OddsPanel = require(script.Parent.OddsPanel)
 local PanelKit = require(script.Parent.PanelKit)
 local Purchases = require(script.Parent.Purchases)
@@ -594,6 +595,17 @@ local function ownGarden(): (number, number)
 	return 0, 0
 end
 
+-- Napis licznika Wysypu: „Wysyp od Tom 4:12” (Wysyp serwera i jego Dawca) albo „Wysyp 4:12”
+local function boomText(now: number): string
+	if boomUntil >= soloBoomUntil then
+		local giver = BoomGiverView.currentGiver()
+		if giver then
+			return Localize.t("SHOP_BOOM_FROM", { giver.DisplayName, formatTime(boomUntil - now) })
+		end
+	end
+	return Localize.t("SHOP_BOOM_TIMER", { formatTime(math.max(boomUntil, soloBoomUntil) - now) })
+end
+
 local function setInfo(card: Card, text: string, color: Color3)
 	card.info.label.Text = text
 	card.info.label.TextColor3 = color
@@ -659,7 +671,7 @@ local function refreshWindow()
 	-- Działające bonusy u góry; bez nich podpowiedź
 	local anyBoom = math.max(boomUntil, soloBoomUntil)
 	liveBoom.frame.Visible = anyBoom > now
-	liveBoom.label.Text = Localize.t("SHOP_BOOM_TIMER", { formatTime(anyBoom - now) })
+	liveBoom.label.Text = boomText(now)
 	liveLuck.frame.Visible = luckUntil > now
 	liveLuck.label.Text = Localize.t("SHOP_LUCK_TIMER", { formatTime(luckUntil - now) })
 	hint.Visible = not (liveBoom.frame.Visible or liveLuck.frame.Visible)
@@ -771,10 +783,9 @@ task.spawn(function()
 	while true do
 		local now = os.time()
 		-- Wysyp serwera albo Twój Wysyp: pokazujemy ten, który działa dłużej
-		local anyBoom = math.max(boomUntil, soloBoomUntil)
-		boomPill.frame.Visible = anyBoom > now
+		boomPill.frame.Visible = math.max(boomUntil, soloBoomUntil) > now
 		if boomPill.frame.Visible then
-			boomPill.label.Text = Localize.t("SHOP_BOOM_TIMER", { formatTime(anyBoom - now) })
+			boomPill.label.Text = boomText(now)
 		end
 		luckPill.frame.Visible = luckUntil > now
 		if luckPill.frame.Visible then
