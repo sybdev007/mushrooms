@@ -14,6 +14,7 @@ local Progress = require(Shared.Progress)
 local Remotes = require(Shared.Remotes)
 local Localize = require(script.Parent.Localize)
 local PanelKit = require(script.Parent.PanelKit)
+local ShopLook = require(script.Parent.ShopLook)
 local SideButtons = require(script.Parent.SideButtons)
 local UiFx = require(script.Parent.UiFx)
 local UiKit = require(script.Parent.UiKit)
@@ -120,6 +121,7 @@ for index = 1, Progress.QUESTS_PER_DAY do
 	body.Size = UDim2.fromScale(1, 1)
 	body.BackgroundColor3 = DEFAULT_LOOK.color
 	body.ZIndex = 4
+	body.ClipsDescendants = true -- promienie za ikoną zostają w karcie (jak w sklepie)
 	body.Parent = holder
 	PanelKit.corner(body, UDim.new(0, 18))
 	local bodyStroke = PanelKit.stroke(body, OUTLINE, 3.5)
@@ -127,6 +129,9 @@ for index = 1, Progress.QUESTS_PER_DAY do
 	shade.Rotation = 90
 	shade.Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.fromRGB(186, 186, 186))
 	shade.Parent = body
+
+	-- Promienie i poświata za ikoną (jak karty sklepu)
+	ShopLook.halo(body, UDim2.new(0, 43, 0.5, 0), Color3.fromRGB(255, 240, 200), 110, false, 4)
 
 	-- Duża ikona w jaśniejszym kółku
 	local iconHolder = Instance.new("Frame")
@@ -141,11 +146,13 @@ for index = 1, Progress.QUESTS_PER_DAY do
 	PanelKit.corner(iconHolder, UDim.new(1, 0))
 	local icon = UiKit.icon("mushroom", iconHolder, UDim2.fromScale(0.86, 0.86), UDim2.fromScale(0.5, 0.5), Vector2.new(0.5, 0.5))
 	icon.ZIndex = 6
+	ShopLook.bob(icon, 3, 2.2 + index * 0.25)
 
 	local label = PanelKit.label(body, "Label", UDim2.new(1, -250, 0, 28), UDim2.fromOffset(88, 10), 22)
 	label.TextXAlignment = Enum.TextXAlignment.Left
 	label.ZIndex = 6
 	UiKit.outline(label, 2.5)
+	ShopLook.title(label)
 	local _, fill, barText = PanelKit.bar(body, UDim2.new(1, -250, 0, 26), UDim2.fromOffset(88, 46), PanelKit.GOLD)
 
 	-- Nagroda jak przycisk z ceną
@@ -180,6 +187,7 @@ for index = 1, Progress.QUESTS_PER_DAY do
 	swap.Parent = holder
 	local swapStroke = UiKit.button(swap, Color3.fromRGB(250, 246, 236), { stroke = 3, radius = UDim.new(0, 12), gloss = true })
 	swapStroke.Color = OUTLINE
+	ShopLook.button(swap, 3.4 + index * 0.5)
 	local dice = UiKit.icon("dice", swap, UDim2.fromScale(0.8, 0.8), UDim2.fromScale(0.5, 0.5), Vector2.new(0.5, 0.5))
 	dice.ZIndex = 9
 	swap.MouseEnter:Connect(function()
@@ -196,6 +204,8 @@ for index = 1, Progress.QUESTS_PER_DAY do
 	local claim = claimOverlay(rewardPill, 9, function()
 		QuestClaim:FireServer(index)
 	end)
+	-- Karta rośnie pod kursorem (jak w sklepie)
+	ShopLook.hover(holder)
 
 	cards[index] = {
 		holder = holder,
@@ -226,8 +236,13 @@ bonus.ZIndex = 4
 bonus.Parent = content
 PanelKit.corner(bonus, UDim.new(0, 14))
 PanelKit.stroke(bonus, OUTLINE, 3)
+ShopLook.shade(bonus, Color3.fromRGB(190, 180, 196))
+-- Złote promienie za skrzynką, gdy premia czeka na odbiór
+local bonusHalo = ShopLook.halo(bonus, UDim2.new(0, 21, 0.5, -2), Color3.fromRGB(255, 220, 110), 70, true, 5)
+bonusHalo.Visible = false
 local bonusChest = UiKit.icon("chest", bonus, UDim2.fromOffset(54, 54), UDim2.new(0, -6, 0.5, -2), Vector2.new(0, 0.5))
 bonusChest.ZIndex = 6
+ShopLook.bob(bonusChest, 3, 2.6)
 local bonusText = PanelKit.label(bonus, "Text", UDim2.new(1, -150, 1, -12), UDim2.fromOffset(56, 6), 19, PanelKit.GOLD)
 bonusText.TextXAlignment = Enum.TextXAlignment.Left
 bonusText.ZIndex = 6
@@ -267,7 +282,7 @@ streakGrid.CellPadding = UDim2.fromOffset(8, 0)
 streakGrid.SortOrder = Enum.SortOrder.LayoutOrder
 streakGrid.Parent = streakRow
 
-type Day = { frame: Frame, stroke: UIStroke, day: TextLabel, amount: TextLabel, check: GuiObject, icon: GuiObject, claim: TextButton }
+type Day = { frame: Frame, stroke: UIStroke, day: TextLabel, amount: TextLabel, check: GuiObject, icon: GuiObject, claim: TextButton, halo: Frame }
 local days: { Day } = {}
 for index = 1, #Progress.LOGIN_REWARDS do
 	local frame = Instance.new("Frame")
@@ -277,10 +292,15 @@ for index = 1, #Progress.LOGIN_REWARDS do
 	frame.Parent = streakRow
 	PanelKit.corner(frame, UDim.new(0, 12))
 	local tileStroke = PanelKit.stroke(frame, OUTLINE, 3)
+	ShopLook.shade(frame, Color3.fromRGB(180, 172, 166))
+	-- Złote promienie za ikoną kafelka, który czeka na odbiór
+	local tileHalo = ShopLook.halo(frame, UDim2.new(0.5, 0, 0, 34), Color3.fromRGB(255, 220, 110), 52, true, 5)
+	tileHalo.Visible = false
 	local day = PanelKit.label(frame, "Day", UDim2.new(1, -6, 0, 16), UDim2.fromOffset(3, 3), 14, PanelKit.MUTED)
 	day.ZIndex = 6
 	local tileIcon = UiKit.icon(if index == #Progress.LOGIN_REWARDS then "luck" else "chest", frame, UDim2.fromOffset(32, 32), UDim2.new(0.5, 0, 0, 18), Vector2.new(0.5, 0))
 	tileIcon.ZIndex = 6
+	ShopLook.bob(tileIcon, 2, 2 + index * 0.15)
 	local amount = PanelKit.label(frame, "Amount", UDim2.new(1, -6, 0, 15), UDim2.new(0, 3, 1, -18), 13, PanelKit.GOLD)
 	amount.ZIndex = 6
 	UiKit.outline(amount, 1.5)
@@ -290,7 +310,7 @@ for index = 1, #Progress.LOGIN_REWARDS do
 	local claim = claimOverlay(frame, 9, function()
 		QuestClaim:FireServer("login")
 	end)
-	days[index] = { frame = frame, stroke = tileStroke, day = day, amount = amount, check = check, icon = tileIcon, claim = claim }
+	days[index] = { frame = frame, stroke = tileStroke, day = day, amount = amount, check = check, icon = tileIcon, claim = claim, halo = tileHalo }
 end
 local streakHint = PanelKit.label(content, "StreakHint", UDim2.new(1, -40, 0, 18), UDim2.fromOffset(20, BONUS_Y + 162), 15, PanelKit.MUTED)
 
@@ -393,12 +413,13 @@ local function render()
 	end
 	local bonusReady = state.bonusDone and not state.bonusClaimed
 	bonusText.Text = if bonusReady
-		then Localize.t("QUESTS_BONUS_CLAIM", { shortCoins(state.dailyBonus), math.floor(Progress.DAILY_BONUS.luckSeconds / 60) })
+		then Localize.t("QUESTS_BONUS_CLAIM", { shortCoins(state.dailyBonus) :: any, math.floor(Progress.DAILY_BONUS.luckSeconds / 60) })
 		elseif state.bonusDone then Localize.t("QUESTS_BONUS_DONE")
-		else Localize.t("QUESTS_BONUS", { shortCoins(state.dailyBonus), math.floor(Progress.DAILY_BONUS.luckSeconds / 60) })
+		else Localize.t("QUESTS_BONUS", { shortCoins(state.dailyBonus) :: any, math.floor(Progress.DAILY_BONUS.luckSeconds / 60) })
 	bonusText.TextColor3 = if bonusReady then Color3.new(1, 1, 1) elseif state.bonusDone then PanelKit.GREEN else PanelKit.GOLD
 	bonus.BackgroundColor3 = if bonusReady then CLAIM_GREEN else Color3.fromRGB(70, 44, 92)
 	bonusClaim.Visible = bonusReady
+	bonusHalo.Visible = bonusReady
 
 	-- Dzisiejsza nagroda czeka: kafelek dnia, który da odbiór, jest przyciskiem „ODBIERZ”
 	local ready = state.loginReady == true
@@ -413,6 +434,7 @@ local function render()
 		day.stroke.Color = if isToday then PanelKit.GOLD else OUTLINE
 		day.check.Visible = claimed
 		day.claim.Visible = isToday and ready
+		day.halo.Visible = isToday and ready
 	end
 	-- Dzisiejszy kafelek pulsuje obwódką
 	if todayPulse then
@@ -439,6 +461,17 @@ end
 window.onToggle(function(open: boolean)
 	if open then
 		render()
+		-- Karty wskakują po kolei (jak w sklepie): zadania, premia, kafelki serii
+		ShopLook.openSound()
+		local items: { GuiObject } = {}
+		for _, card in cards do
+			table.insert(items, card.holder)
+		end
+		table.insert(items, bonus)
+		for _, day in days do
+			table.insert(items, day.frame)
+		end
+		ShopLook.cascade(items, 0.04)
 	elseif todayPulse then
 		todayPulse:Cancel()
 		todayPulse = nil
