@@ -57,8 +57,8 @@ trafiają na tablice rankingów (magazyny `LanternForager_Top_v2_*`).
 
 - Grupa **Old Owl Studios**: 463484833. Gra (universe): 10772830253, place: 72216132547990.
 - Produkty (`Config.Products`): rescue 3724758636 (59 R$), boom 3724757048 (99), oil 3724758135 (15),
-  harvest 3724757863 (29), luck 3724757551 (49). **x2s / x2m / x2l (19/39/79 R$) mają id = 0 — do założenia
-  w Creator Hub jako Unlisted.**
+  harvest 3724757863 (29), luck 3724757551 (49). **x2s / x2m / x2l / x2xl (19/39/79/149 R$) mają id = 0 —
+  do założenia w Creator Hub jako Unlisted.**
 - Odznaki (`Config.Badges`, lista nazw i opisów w `docs/Odznaki.md`, obrazki `assets/badges/`):
   gotowe: first_mushroom, cave, gold, leszy, halloween2026.
   **Do założenia (po 5 dziennie za darmo):** atlas_page, swamp, skarbnik, utopiec, rainbow; potem lifesaver,
@@ -88,3 +88,11 @@ trafiają na tablice rankingów (magazyny `LanternForager_Top_v2_*`).
 4. **Research u Codexa** (prompty już dane): kradzież bez kamperów (`docs/plans/theft-research.md`),
    nowe grzyby / 4. świat / boss / dużo mutacji (`docs/plans/content-expansion.md`). Po ich oddaniu:
    sprawdzić liczby w kodzie i symulatorze, zanim cokolwiek budować.
+5. **Monetyzacja** — raport Codexa `docs/plans/monetization-research.md` (3.11). Decyzje: NIE dla stałego x2
+   monet, gatunków za Robux i x2 za monety; Zarodniki odłożone. Do pilotażu po tygodniu obserwacji:
+   nagroda co 6 h 0,1 S (max 4 / 24 h) + kod 0,25 S raz na konto, potem kosmetyczny VIP 249 R$ (0 monet,
+   0 ochrony). Otwarte: nagroda 6 h dubluje się z zadaniami dziennymi i serią logowań — rozstrzygnąć przed
+   budową; paczka Old Owl daje darmowe 15 min mikstury (świadomy wyjątek czy zmienić?).
+6. **UI v2 (kierunek „Chatka Leszego”)** — makiety w Figmie:
+   https://www.figma.com/design/nWef7rc8ymwxygFWwJ3LKp (sklep, szanse, klasy kolor + kształt, ratunek,
+   karta x2, panel DEV Studio / na żywo). Tytuły w Nunito Black, bo tak wygląda gra po polsku (`FontFix`).
