@@ -17,6 +17,7 @@ local Remotes = require(Shared.Remotes)
 local Audio = require(script.Parent.Audio)
 local Localize = require(script.Parent.Localize)
 local PanelKit = require(script.Parent.PanelKit)
+local ShopLook = require(script.Parent.ShopLook)
 local UiKit = require(script.Parent.UiKit)
 local UiScale = require(script.Parent.UiScale)
 
@@ -104,10 +105,16 @@ shade.Parent = card
 local cardScale = Instance.new("UIScale")
 cardScale.Parent = card
 
+-- Za ikoną promienie i poświata jak w sklepie: złote przy cukierku, fioletowe przy psikusie
+local treatHalo = ShopLook.halo(card, UDim2.fromOffset(62, 64), PanelKit.GOLD, 120, true, 1)
+local trickHalo = ShopLook.halo(card, UDim2.fromOffset(62, 64), Color3.fromRGB(190, 130, 255), 120, true, 1)
+trickHalo.Visible = false
 local icon = PanelKit.label(card, "Icon", UDim2.fromOffset(96, 96), UDim2.fromOffset(14, 16), 80)
+ShopLook.bob(icon, 4, 1.8)
 local header = PanelKit.label(card, "Header", UDim2.new(1, -130, 0, 40), UDim2.fromOffset(116, 12), 34)
 header.TextXAlignment = Enum.TextXAlignment.Left
 UiKit.outline(header, 3)
+ShopLook.title(header)
 local body = PanelKit.label(card, "Body", UDim2.new(1, -130, 0, 44), UDim2.fromOffset(116, 52), 22)
 body.TextXAlignment = Enum.TextXAlignment.Left
 body.TextWrapped = true
@@ -134,6 +141,8 @@ local function showCard(result: { [string]: any })
 	local trick = string.sub(id, 1, 6) == "trick_"
 	card.BackgroundColor3 = if trick then TRICK else TREAT
 	cardStroke.Color = PanelKit.OUTLINE
+	treatHalo.Visible = not trick
+	trickHalo.Visible = trick
 	icon.Text = ICONS[id] or "🎃"
 	header.Text = Localize.t(if trick then "CAULDRON_TRICK" else "CAULDRON_TREAT")
 	local skinName = if typeof(result.skinKey) == "string" then Localize.t(result.skinKey) else ""

@@ -14,6 +14,7 @@ local Cycle = require(ReplicatedStorage.Shared.Cycle)
 local Economy = require(ReplicatedStorage.Shared.Economy)
 local Localize = require(script.Parent.Localize)
 local PanelKit = require(script.Parent.PanelKit)
+local ShopLook = require(script.Parent.ShopLook)
 local UiFx = require(script.Parent.UiFx)
 local UiKit = require(script.Parent.UiKit)
 
@@ -276,6 +277,7 @@ function OddsPanel.open(back: (() -> ())?)
 	returnTo = back
 	render()
 	window.setOpen(true)
+	ShopLook.openSound()
 	for i, row in rows do
 		local scale = row.frame:FindFirstChildOfClass("UIScale") or Instance.new("UIScale")
 		scale.Parent = row.frame

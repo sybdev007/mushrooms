@@ -15,6 +15,7 @@ local Localize = require(script.Parent.Localize)
 local MerchantLook = require(script.Parent.MerchantLook)
 local ClassMark = require(script.Parent.ClassMark)
 local MushroomArt = require(script.Parent.MushroomArt)
+local ShopLook = require(script.Parent.ShopLook)
 local UiKit = require(script.Parent.UiKit)
 local UiScale = require(script.Parent.UiScale)
 
@@ -193,6 +194,7 @@ end
 local roleTitle = label(ribbon, "Title", UDim2.new(1, -40, 1, -12), UDim2.fromOffset(20, 6), TITLE_FONT, 32)
 roleTitle.ZIndex = 7
 UiKit.outline(roleTitle, 3)
+ShopLook.title(roleTitle)
 
 -- Nagłówek: portret skupywacza wystający nad okno, imię i dymek z powitaniem
 local portrait = Instance.new("Frame")
@@ -382,6 +384,16 @@ local function footerButton(name: string, order: number, width: number, color: C
 	local text = label(button, "Text", UDim2.new(1, -58, 1, -14), UDim2.fromOffset(48, 7), TITLE_FONT, 22)
 	text.ZIndex = 4
 	UiKit.outline(text, 2.5)
+	-- Błysk jak na przyciskach sklepu. Ikona wystaje poza przycisk, więc błysk biegnie po osobnej,
+	-- przycinanej warstwie (UiFx.shine przycina swojego rodzica)
+	local shineLayer = Instance.new("Frame")
+	shineLayer.Name = "ShineLayer"
+	shineLayer.BackgroundTransparency = 1
+	shineLayer.Size = UDim2.fromScale(1, 1)
+	shineLayer.ZIndex = 3
+	shineLayer.Active = false
+	shineLayer.Parent = button
+	ShopLook.button(shineLayer, 2.6 + order * 0.5)
 	return button, text
 end
 local selectAll, selectAllText = footerButton("SelectAll", 1, 180, UiKit.COLORS.wood, "check")
@@ -490,6 +502,11 @@ local function buildCard(index: number, item: Item): Card
 	scale.Parent = button
 	ClassMark.new(button, item.s, 24, UDim2.fromOffset(8, 7))
 
+	-- Złote i tęczowe: promienie i poświata za grzybkiem (jak za ikoną w sklepie)
+	if Economy.variantRank(item.v) >= 2 then
+		ShopLook.halo(button, UDim2.new(0.5, 0, 0, 37), capColor(item), 90, false, 0)
+	end
+
 	-- Pikselowy grzybek z aurą według rzadkości (MushroomArt); bez arkusza – grzybek z ramek
 	local artBox = Instance.new("Frame")
 	artBox.Name = "ArtBox"
@@ -572,6 +589,7 @@ local function buildCard(index: number, item: Item): Card
 	local name = label(button, "Name", UDim2.new(1, -10, 0, 20), UDim2.new(0, 5, 0, 76), TITLE_FONT, 18)
 	name.Text = if species then Localize.t(species.key) else "?"
 	UiKit.outline(name, 2)
+	ShopLook.title(name)
 	-- Klasa na ciemnej plakietce
 	local classPill = Instance.new("Frame")
 	classPill.Name = "ClassPill"
@@ -601,6 +619,7 @@ local function buildCard(index: number, item: Item): Card
 	price.Text = formatCoins(Economy.itemValue(item))
 	price.ZIndex = 4
 	UiKit.outline(price, 2)
+	ShopLook.button(sellOne, 3.5 + (index % 5) * 0.7)
 
 	-- Kółko zaznaczenia w prawym górnym rogu (z ptaszkiem z arkusza)
 	local check = Instance.new("Frame")
@@ -833,10 +852,12 @@ function SellPanel.open()
 	TweenService:Create(windowScale, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = base }):Play()
 	dim.BackgroundTransparency = 1
 	TweenService:Create(dim, TweenInfo.new(0.25), { BackgroundTransparency = 0.5 }):Play()
-	-- Karty wskakują jedna po drugiej
+	ShopLook.openSound()
+	-- Karty wskakują jedna po drugiej (przy pełnym koszyku całość najwyżej ~0,6 s)
+	local step = math.min(0.03, 0.6 / math.max(#cards, 1))
 	for index, card in cards do
 		TweenService:Create(card.scale, TweenInfo.new(0), { Scale = 0 }):Play()
-		task.delay(0.03 * index, function()
+		task.delay(step * index, function()
 			TweenService:Create(card.scale, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
 		end)
 	end

@@ -22,6 +22,7 @@ local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local CutsceneKit = require(script.Parent.CutsceneKit)
 local Localize = require(script.Parent.Localize)
 local PanelKit = require(script.Parent.PanelKit)
+local ShopLook = require(script.Parent.ShopLook)
 local Purchases = require(script.Parent.Purchases)
 local UiFx = require(script.Parent.UiFx)
 local UiKit = require(script.Parent.UiKit)
@@ -204,17 +205,11 @@ local welcome = PanelKit.window({
 	displayOrder = 9,
 })
 local wFrame = welcome.frame
-local glowBall = Instance.new("Frame")
-glowBall.Name = "ChestGlow"
-glowBall.Size = UDim2.fromOffset(140, 140)
-glowBall.Position = UDim2.fromOffset(22, 58)
-glowBall.BackgroundColor3 = PanelKit.GOLD
-glowBall.BackgroundTransparency = 0.78
-glowBall.ZIndex = 3
-glowBall.Parent = wFrame
-round(glowBall, 70)
+-- Za skrzynią złote promienie i poświata, skrzynia się kołysze (jak karty sklepu)
+ShopLook.halo(wFrame, UDim2.fromOffset(92, 126), PanelKit.GOLD, 150, true, 3)
 local chestIcon = UiKit.icon("chest", wFrame, UDim2.fromOffset(128, 128), UDim2.fromOffset(28, 62))
 chestIcon.ZIndex = 4
+ShopLook.bob(chestIcon, 4, 2.2)
 
 local awayPill = Instance.new("Frame")
 awayPill.Name = "Away"
@@ -241,6 +236,9 @@ ruleText.TextXAlignment = Enum.TextXAlignment.Left
 local wFree = bigButton(wFrame, UDim2.fromOffset(200, 64), UDim2.fromOffset(24, 204), false)
 local wX2 = bigButton(wFrame, UDim2.fromOffset(200, 64), UDim2.fromOffset(236, 204), true)
 local wSticker = sticker(wFrame, UDim2.fromOffset(408, 188))
+ShopLook.button(wFree.button, 3.2)
+ShopLook.button(wX2.button, 2.2)
+ShopLook.title(amountText, Color3.fromRGB(255, 250, 210), PanelKit.GOLD)
 local footText = label(wFrame, UDim2.fromOffset(412, 15), UDim2.fromOffset(24, 278), 12, Color3.fromRGB(201, 168, 130), PanelKit.BODY_FONT)
 
 type Offer = { product: string, amount: number, minutes: number, pot: number?, away: number? }
@@ -263,7 +261,9 @@ wX2.button.Activated:Connect(function()
 end)
 -- X, kliknięcie obok i B na padzie zamykają okno: to też darmowy odbiór (nic nie przepada)
 welcome.onToggle(function(open)
-	if not open then
+	if open then
+		ShopLook.openSound()
+	else
 		claimWelcome(false)
 	end
 end)
@@ -303,8 +303,10 @@ local card = PanelKit.window({
 	displayOrder = 8,
 })
 local cFrame = card.frame
+ShopLook.halo(cFrame, UDim2.fromOffset(72, 100), Color3.fromRGB(255, 200, 90), 120, false, 3)
 local cChest = UiKit.icon("chest", cFrame, UDim2.fromOffset(96, 96), UDim2.fromOffset(24, 52))
 cChest.ZIndex = 4
+ShopLook.bob(cChest, 3, 2.4)
 local cCheck = UiKit.icon("check", cFrame, UDim2.fromOffset(36, 36), UDim2.fromOffset(92, 112))
 cCheck.ZIndex = 5
 local cTitle = label(cFrame, UDim2.fromOffset(250, 18), UDim2.fromOffset(140, 50), 15, PanelKit.MUTED, PanelKit.BODY_FONT)
@@ -327,6 +329,7 @@ local okText = label(cOk, UDim2.new(1, -16, 0.6, 0), UDim2.new(0, 8, 0.2, 0), 26
 okText.Text = "OK"
 local cX2 = bigButton(cFrame, UDim2.fromOffset(240, 60), UDim2.fromOffset(156, 156), true)
 sticker(cFrame, UDim2.fromOffset(372, 142))
+ShopLook.button(cX2.button, 2.2)
 local cLink = Instance.new("TextButton")
 cLink.Name = "DontShow"
 cLink.Size = UDim2.fromOffset(372, 18)

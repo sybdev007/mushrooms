@@ -13,6 +13,7 @@ local Config = require(Shared.Config)
 local Economy = require(Shared.Economy)
 local Progress = require(Shared.Progress)
 local Localize = require(script.Parent.Localize)
+local ShopLook = require(script.Parent.ShopLook)
 local UiKit = require(script.Parent.UiKit)
 
 local BestiaryPage = {}
@@ -113,7 +114,9 @@ local function newPortrait(parent: GuiObject, guardian: string): Portrait
 	viewport.Name = "Portrait"
 	viewport.Size = UDim2.new(1, -8, 1, -30)
 	viewport.Position = UDim2.fromOffset(4, 4)
+	-- Tło portretu leży pod spodem (karta, Back), żeby za modelem było widać promienie wybranej karty
 	viewport.BackgroundColor3 = CARD_DARK
+	viewport.BackgroundTransparency = 1
 	viewport.Ambient = Color3.fromRGB(150, 140, 130)
 	viewport.LightColor = Color3.fromRGB(255, 236, 205)
 	viewport.LightDirection = Vector3.new(-0.6, -1, 0.8)
@@ -175,6 +178,7 @@ export type Page = {
 type Card = {
 	button: TextButton,
 	stroke: UIStroke,
+	halo: Frame,
 	name: TextLabel,
 	lock: GuiObject,
 	portrait: Portrait,
@@ -209,12 +213,26 @@ function BestiaryPage.new(parent: Instance, size: UDim2, position: UDim2): Page
 		stroke.Thickness = 2
 		stroke.Color = EDGE
 		stroke.Parent = button
+		ShopLook.shade(button)
+		ShopLook.hover(button, 0.03)
+		button.ClipsDescendants = true -- promienie zostają w karcie
+		-- Ciemne tło portretu, nad nim promienie (tylko wybrany i odkryty strażnik), na wierzchu model
+		local back = Instance.new("Frame")
+		back.Name = "Back"
+		back.Size = UDim2.new(1, -8, 1, -30)
+		back.Position = UDim2.fromOffset(4, 4)
+		back.BackgroundColor3 = CARD_DARK
+		back.ZIndex = 1
+		back.Parent = button
+		corner(back, 8)
+		local halo = ShopLook.halo(button, UDim2.new(0.5, 0, 0.5, -13), ACCENT, 96, false, 1)
+		halo.Visible = false
 		local portrait = newPortrait(button, def.id)
 		local name = text(button, "Name", UDim2.new(1, -8, 0, 20), UDim2.new(0, 4, 1, -24), TITLE_FONT, 16)
 		name.TextXAlignment = Enum.TextXAlignment.Center
 		local lock = UiKit.icon("lock", button, UDim2.fromOffset(22, 22), UDim2.new(1, -8, 0, 8), Vector2.new(1, 0))
 		lock.ZIndex = 4
-		cards[def.id] = { button = button, stroke = stroke, name = name, lock = lock, portrait = portrait }
+		cards[def.id] = { button = button, stroke = stroke, halo = halo, name = name, lock = lock, portrait = portrait }
 	end
 
 	-- Opis wybranego strażnika po prawej
@@ -225,6 +243,7 @@ function BestiaryPage.new(parent: Instance, size: UDim2, position: UDim2): Page
 	detail.Position = UDim2.fromOffset(LIST_WIDTH + GAP, 0)
 	detail.Parent = frame
 	corner(detail, 10)
+	ShopLook.shade(detail)
 	local detailStroke = Instance.new("UIStroke")
 	detailStroke.Thickness = 2
 	detailStroke.Color = EDGE
@@ -236,6 +255,9 @@ function BestiaryPage.new(parent: Instance, size: UDim2, position: UDim2): Page
 
 	local nameLabel = text(detail, "Name", UDim2.new(1, 0, 0, 28), UDim2.fromOffset(0, 8), TITLE_FONT, 26)
 	UiKit.outline(nameLabel, 1.5, Color3.fromRGB(30, 18, 10))
+	-- Imię odkrytego strażnika w złotym gradiencie (jak tytuły kart w sklepie)
+	ShopLook.title(nameLabel, LEGENDARY:Lerp(Color3.new(1, 1, 1), 0.55), LEGENDARY)
+	local nameGradient = nameLabel:FindFirstChildOfClass("UIGradient")
 	local epithet = text(detail, "Epithet", UDim2.new(1, 0, 0, 16), UDim2.fromOffset(0, 38), BODY_FONT, 13, MUTED)
 	local lore = text(detail, "Lore", UDim2.new(1, 0, 0, 104), UDim2.fromOffset(0, 60), LORE_FONT, 14)
 	lore.TextWrapped = true
@@ -293,7 +315,10 @@ function BestiaryPage.new(parent: Instance, size: UDim2, position: UDim2): Page
 		local known = info.found
 
 		nameLabel.Text = if known then Localize.t(def.key) else "???"
-		nameLabel.TextColor3 = if known then LEGENDARY else MUTED
+		nameLabel.TextColor3 = if known then Color3.new(1, 1, 1) else MUTED
+		if nameGradient then
+			nameGradient.Enabled = known
+		end
 		epithet.Text = if known
 			then string.format("%s  ·  %s", Localize.t(def.key .. "_TITLE"), Localize.t("ATLAS_PAGE_" .. string.upper(def.world)))
 			else Localize.t("BESTIARY_UNKNOWN_TITLE")
@@ -343,6 +368,7 @@ function BestiaryPage.new(parent: Instance, size: UDim2, position: UDim2): Page
 			card.lock.Visible = not info.found
 			card.stroke.Color = if isSelected then ACCENT else EDGE
 			card.button.BackgroundColor3 = if isSelected then Color3.fromRGB(84, 60, 40) else CARD
+			card.halo.Visible = isSelected and info.found
 			-- Nieodkryty: czarna sylwetka (jak nieodkryte formy grzybów)
 			local viewport = card.portrait.viewport
 			viewport.ImageColor3 = if info.found then Color3.new(1, 1, 1) else Color3.new(0, 0, 0)
@@ -366,6 +392,14 @@ function BestiaryPage.new(parent: Instance, size: UDim2, position: UDim2): Page
 		frame.Visible = active
 		if active and spin then
 			return -- już się kręci (np. nowa paczka danych przy otwartym oknie)
+		end
+		if active then
+			-- Karty strażników wskakują po kolei (jak karty w sklepie)
+			local list: { GuiObject } = {}
+			for _, def in Progress.GUARDIANS do
+				table.insert(list, cards[def.id].button)
+			end
+			ShopLook.cascade(list, 0.06)
 		end
 		if spin then
 			spin:Disconnect()

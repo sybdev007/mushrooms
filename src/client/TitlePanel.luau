@@ -14,6 +14,7 @@ local Remotes = require(Shared.Remotes)
 local Titles = require(Shared.Titles)
 local Localize = require(script.Parent.Localize)
 local PanelKit = require(script.Parent.PanelKit)
+local ShopLook = require(script.Parent.ShopLook)
 local SideButtons = require(script.Parent.SideButtons)
 local UiKit = require(script.Parent.UiKit)
 
@@ -61,6 +62,7 @@ preview.ZIndex = 4
 preview.Parent = content
 PanelKit.corner(preview, UDim.new(0, 16))
 PanelKit.stroke(preview, OUTLINE, 3)
+ShopLook.shade(preview, Color3.fromRGB(170, 160, 152))
 local previewHint = PanelKit.label(preview, "Hint", UDim2.new(1, -330, 0, 18), UDim2.fromOffset(16, 6), 14, PanelKit.MUTED, PanelKit.BODY_FONT)
 previewHint.TextXAlignment = Enum.TextXAlignment.Left
 previewHint.ZIndex = 5
@@ -86,6 +88,7 @@ local function smallButton(name: string, color: Color3, x: number): (TextButton,
 	button.Parent = preview
 	local buttonStroke = UiKit.button(button, color, { stroke = 3, radius = UDim.new(0, 12), gloss = true })
 	buttonStroke.Color = OUTLINE
+	ShopLook.button(button, if x < -100 then 3.2 else 3.9)
 	local constraint = Instance.new("UITextSizeConstraint")
 	constraint.MaxTextSize = 18
 	constraint.Parent = button
@@ -145,6 +148,7 @@ type Card = {
 	barText: TextLabel,
 	lock: GuiObject,
 	equip: TextButton,
+	halo: Frame,
 }
 local cards: { Card } = {}
 
@@ -155,9 +159,14 @@ for order, def in Titles.LIST do
 	frame.LayoutOrder = order
 	frame.BackgroundColor3 = PanelKit.CARD
 	frame.ZIndex = 5
+	frame.ClipsDescendants = true -- promienie zostają w karcie (jak w sklepie)
 	frame.Parent = list
 	PanelKit.corner(frame, UDim.new(0, 14))
 	local frameStroke = PanelKit.stroke(frame, OUTLINE, 3)
+	ShopLook.shade(frame, Color3.fromRGB(170, 160, 150))
+	-- Promienie w kolorze rzadkości za nazwą (tylko zdobyte tytuły, render włącza)
+	local halo = ShopLook.halo(frame, UDim2.new(0.5, 0, 0, 43), color, 120, def.rarity == "legendary" or def.rarity == "mythic", 5)
+	halo.Visible = false
 	if def.rarity == "mythic" then
 		local g = Instance.new("UIGradient")
 		g.Color = RAINBOW
@@ -180,6 +189,10 @@ for order, def in Titles.LIST do
 		local g = Instance.new("UIGradient")
 		g.Color = RAINBOW
 		g.Parent = name
+		name.TextColor3 = Color3.new(1, 1, 1)
+	else
+		-- Gradient jak tytuły kart sklepu, w kolorze rzadkości (jaśniej u góry)
+		ShopLook.title(name, color:Lerp(Color3.new(1, 1, 1), 0.55), color)
 	end
 	local how = PanelKit.label(frame, "How", UDim2.new(1, -16, 0, 28), UDim2.fromOffset(8, 56), 13, PanelKit.MUTED, PanelKit.BODY_FONT)
 	how.ZIndex = 6
@@ -199,6 +212,8 @@ for order, def in Titles.LIST do
 	equip.Parent = frame
 	local equipStroke = UiKit.button(equip, UiKit.COLORS.green, { stroke = 2.5, radius = UDim.new(0, 10), gloss = true })
 	equipStroke.Color = OUTLINE
+	ShopLook.button(equip, 3 + (order % 5) * 0.45)
+	ShopLook.hover(frame)
 	local constraint = Instance.new("UITextSizeConstraint")
 	constraint.MaxTextSize = 17
 	constraint.Parent = equip
@@ -219,6 +234,7 @@ for order, def in Titles.LIST do
 		barText = barText,
 		lock = lock,
 		equip = equip,
+		halo = halo,
 	}
 end
 
@@ -325,6 +341,7 @@ local function render()
 			card.frameStroke.Color = if equipped then PanelKit.GOLD elseif has then rarityColor(def.rarity) else OUTLINE
 		end
 		card.name.TextTransparency = if has then 0 else 0.35
+		card.halo.Visible = has
 		card.bar.Visible = not has
 		card.lock.Visible = not has
 		card.equip.Visible = has
@@ -375,6 +392,15 @@ window.onToggle(function(open: boolean)
 			seen = Titles.earned(ctx)
 		end
 		render()
+		-- Pierwsze karty wskakują po kolei (jak w sklepie); reszta listy od razu
+		ShopLook.openSound()
+		local shown: { GuiObject } = {}
+		for _, card in cards do
+			if card.frame.Visible and #shown < 12 then
+				table.insert(shown, card.frame)
+			end
+		end
+		ShopLook.cascade(shown, 0.035)
 	end
 end)
 side.onActivated(TitlePanel.toggle)

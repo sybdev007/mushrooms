@@ -18,6 +18,7 @@ local Audio = require(script.Parent.Audio)
 local Localize = require(script.Parent.Localize)
 local ClassMark = require(script.Parent.ClassMark)
 local MushroomArt = require(script.Parent.MushroomArt)
+local ShopLook = require(script.Parent.ShopLook)
 local UiKit = require(script.Parent.UiKit)
 local UiScale = require(script.Parent.UiScale)
 
@@ -86,6 +87,15 @@ local function label(parent: Instance, size: UDim2, position: UDim2, font: Enum.
 	return l
 end
 
+-- Kolor promieni za złotym / tęczowym grzybem (jak za ikoną w sklepie); nil = zwykły grzyb
+local function rareAccent(item: Item): Color3?
+	if Economy.variantRank(item.v) < 2 then
+		return nil
+	end
+	local variant = Economy.getVariant(item.v)
+	return if variant then Color3.fromRGB(variant.color[1], variant.color[2], variant.color[3]) else nil
+end
+
 local function formatRate(rate: number): string
 	if rate >= 100 then
 		return string.format("+%d/min", math.floor(rate + 0.5))
@@ -133,12 +143,14 @@ ribbon.ZIndex = 5
 ribbon.Parent = window
 corner(ribbon, UDim.new(0, 16))
 stroke(ribbon, OUTLINE, 3.5)
+ShopLook.shade(ribbon)
 local ribbonIcon = UiKit.icon("beds", ribbon, UDim2.fromOffset(64, 64), UDim2.new(0, -14, 0.5, -4), Vector2.new(0, 0.5))
 ribbonIcon.ZIndex = 7
 ribbonIcon.Rotation = -10
 local title = label(ribbon, UDim2.new(1, -70, 1, -12), UDim2.fromOffset(56, 6), TITLE_FONT, 32)
 title.ZIndex = 7
 UiKit.outline(title, 3)
+ShopLook.title(title)
 
 local close = Instance.new("TextButton")
 close.Size = UDim2.fromOffset(52, 52)
@@ -236,6 +248,7 @@ autoIcon.ZIndex = 4
 local autoText = label(auto, UDim2.new(1, -56, 1, -12), UDim2.fromOffset(50, 6), TITLE_FONT, 22)
 autoText.ZIndex = 4
 UiKit.outline(autoText, 2.5)
+ShopLook.button(auto, 2.6)
 
 -- Ciągnięty grzyb (duch pod kursorem) i podpis zamiany nad grządką
 local ghost = Instance.new("Frame")
@@ -307,6 +320,7 @@ local function buildBed(index: number): Bed
 	frame.Parent = bedsBox
 	corner(frame, UDim.new(0, 16))
 	local glow = stroke(frame, OUTLINE, 3)
+	ShopLook.shade(frame, Color3.fromRGB(190, 180, 172))
 	local scale = Instance.new("UIScale")
 	scale.Parent = frame
 	-- Zaorane rzędy w ziemi
@@ -322,6 +336,11 @@ local function buildBed(index: number): Bed
 	if state == "planted" then
 		local item = planted[index]
 		ClassMark.new(frame, item.s, 26, UDim2.fromOffset(7, 6))
+		local accent = rareAccent(item)
+		if accent then
+			frame.ClipsDescendants = true
+			ShopLook.halo(frame, UDim2.new(0.5, 0, 0, 41), accent, 90, false, 1)
+		end
 		local art = Instance.new("Frame")
 		art.Size = UDim2.fromOffset(78, 78)
 		art.AnchorPoint = Vector2.new(0.5, 0)
@@ -386,6 +405,10 @@ local function buildCard(index: number, item: Item): Card
 	shade.Parent = frame
 	local scale = Instance.new("UIScale")
 	scale.Parent = frame
+	local accent = rareAccent(item)
+	if accent then
+		ShopLook.halo(frame, UDim2.new(0.5, 0, 0, 33), accent, 80, false, 1)
+	end
 	local art = Instance.new("Frame")
 	art.Size = UDim2.fromOffset(70, 70)
 	art.AnchorPoint = Vector2.new(0.5, 0)
@@ -404,6 +427,7 @@ local function buildCard(index: number, item: Item): Card
 	name.Text = if species then t(species.key) else "?"
 	name.ZIndex = 3
 	UiKit.outline(name, 2)
+	ShopLook.title(name)
 	local pill = Instance.new("Frame")
 	pill.Size = UDim2.new(1, -12, 0, 24)
 	pill.AnchorPoint = Vector2.new(0.5, 1)
@@ -762,14 +786,21 @@ function GardenPanel.open()
 	local base = UiScale.get()
 	windowScale.Scale = base * 0.75
 	TweenService:Create(windowScale, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = base }):Play()
-	-- Grządki wskakują jedna po drugiej
+	-- Grządki wskakują jedna po drugiej, potem grzyby z koszyka (przy pełnym koszyku najwyżej ~0,5 s)
 	for i, bed in bedFrames do
 		bed.scale.Scale = 0
 		task.delay(0.03 * i, function()
 			TweenService:Create(bed.scale, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
 		end)
 	end
-	Audio.play("whoosh", { volume = 0.4 })
+	local cardStep = math.min(0.025, 0.5 / math.max(#cardFrames, 1))
+	for i, card in cardFrames do
+		card.scale.Scale = 0
+		task.delay(0.12 + cardStep * i, function()
+			TweenService:Create(card.scale, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+		end)
+	end
+	ShopLook.openSound()
 end
 
 function GardenPanel.close()
