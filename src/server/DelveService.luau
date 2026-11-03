@@ -903,7 +903,8 @@ local function refreshShelf(garden: Model)
 		end
 		owned += 1
 		local color = Color3.fromRGB(def.color[1], def.color[2], def.color[3])
-		-- Świecący pierścień na płytce i światło od dołu (relikt widać nocą z dróżki)
+		-- Delikatny pierścień na płytce i małe światło tylko na własny postument. Osiem lamp o jasności 3
+		-- (zasięg 7) na kilku studsach i pełny neon przepalały podest na żółto-białą plamę (zrzut Toma 4.11).
 		if plateBase and plateBase:IsA("BasePart") then
 			local ring = Instance.new("Part")
 			ring.Name = "Glow"
@@ -913,16 +914,16 @@ local function refreshShelf(garden: Model)
 			ring.CanTouch = false
 			ring.CastShadow = false
 			ring.Shape = Enum.PartType.Cylinder
-			ring.Size = Vector3.new(0.06, 1.3, 1.3)
+			ring.Size = Vector3.new(0.06, 1.1, 1.1)
 			ring.CFrame = plateBase.CFrame * CFrame.new(0, 0.12, 0) * CFrame.Angles(0, 0, math.rad(90))
 			ring.Color = if state.r then color else Color3.fromRGB(150, 140, 120)
 			ring.Material = Enum.Material.Neon
-			ring.Transparency = if state.r then 0.15 else 0.6
+			ring.Transparency = if state.r then 0.6 else 0.88
 			ring.Parent = folder
 			local up = Instance.new("PointLight")
 			up.Color = ring.Color
-			up.Range = 7
-			up.Brightness = if state.r then 3 else 0.8
+			up.Range = 4.5
+			up.Brightness = if state.r then 0.35 else 0.15
 			up.Shadows = false
 			up.Parent = ring
 		end
