@@ -7,13 +7,14 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local UiScale = require(script.Parent.UiScale)
+local Localize = require(script.Parent.Localize)
 
 local DevPanel = {}
 
 local DevAction = Remotes.get("DevAction")
 
 -- Kolejność = kolejność przycisków (po dwa w rzędzie)
-local ACTIONS: { { id: string, label: string } } = {
+local ACTIONS: { { id: string, label: string?, key: string? } } = {
 	{ id = "coins10k", label = "+10 000 💰" },
 	{ id = "coins100k", label = "+100 000 💰" },
 	{ id = "coins1m", label = "+1 000 000 💰" },
@@ -29,6 +30,10 @@ local ACTIONS: { { id: string, label: string } } = {
 	{ id = "swampLock", label = "Zablokuj bagna" },
 	{ id = "upgradesMax", label = "Ulepszenia MAX" },
 	{ id = "upgradesReset", label = "Ulepszenia na 0" },
+	{ id = "upgradeGatesForest", key = "DEV_UPGRADE_GATES_FOREST" },
+	{ id = "upgradeGatesCave", key = "DEV_UPGRADE_GATES_CAVE" },
+	{ id = "upgradeGatesSwamp", key = "DEV_UPGRADE_GATES_SWAMP" },
+	{ id = "upgradeGatesLegacy", key = "DEV_UPGRADE_GATES_LEGACY" },
 	{ id = "cycleDawn", label = "Świt teraz (60 s)" },
 	{ id = "cycleNight", label = "Noc teraz (60 s)" },
 	{ id = "pot20m", label = "Skrzynia: +20 min dochodu" },
@@ -127,7 +132,12 @@ for order, action in ACTIONS do
 	button.TextColor3 = Color3.new(1, 1, 1)
 	button.Font = Enum.Font.GothamBold
 	button.TextSize = 14
-	button.Text = action.label
+	button.Text = if action.key then Localize.t(action.key) else action.label or action.id
+	if action.key then
+		Localize.onChanged(function()
+			button.Text = Localize.t(action.key :: string)
+		end)
+	end
 	button.Parent = panel
 	corner(button)
 	local armedAt = -math.huge
@@ -136,7 +146,7 @@ for order, action in ACTIONS do
 			armedAt = os.clock()
 			button.Text = "Na pewno? Kliknij jeszcze raz"
 			task.delay(4, function()
-				button.Text = action.label
+				button.Text = if action.key then Localize.t(action.key) else action.label or action.id
 			end)
 			return
 		end

@@ -28,6 +28,8 @@ export type State = {
 	lanternRange: number,
 	zone: number,
 	upgrades: { [string]: number },
+	caveUnlocked: boolean?,
+	swampUnlocked: boolean?,
 }
 
 local Hud = {}
@@ -70,12 +72,13 @@ local UPGRADE_ICONS = {
 }
 
 -- Karty w panelu: najpierw sklep w chatce, potem w obozowisku. Panel pokazuje tylko karty bieżącego sklepu.
-local ALL_UPGRADES: { string } = table.clone(Config.UpgradeOrder)
-for _, id in Config.CaveUpgradeOrder do
-	table.insert(ALL_UPGRADES, id)
-end
-for _, id in Config.SwampUpgradeOrder do
-	table.insert(ALL_UPGRADES, id)
+local ALL_UPGRADES: { string } = {}
+for _, order in { Config.UpgradeOrder, Config.CaveUpgradeOrder, Config.SwampUpgradeOrder } do
+	for _, id in order do
+		if not table.find(ALL_UPGRADES, id) then
+			table.insert(ALL_UPGRADES, id)
+		end
+	end
 end
 
 local callbacks = {
@@ -640,7 +643,7 @@ local function setPips(card: Card, level: number, maxLevel: number)
 			local pip = Instance.new("Frame")
 			pip.Name = "Pip" .. i
 			pip.LayoutOrder = i
-			pip.Size = UDim2.fromOffset(12, 12)
+			pip.Size = UDim2.fromOffset(math.min(12, math.floor((CARD_W - 24 - (maxLevel - 1) * 4) / maxLevel)), 12)
 			pip.ZIndex = 14
 			pip.Parent = card.pips
 			corner(pip, UDim.new(1, 0))
@@ -850,8 +853,9 @@ end
 
 applyTab = function()
 	local count = 0
+	local order = if selectedTab == "cave" then Config.CaveUpgradeOrder elseif selectedTab == "swamp" then Config.SwampUpgradeOrder else Config.UpgradeOrder
 	for id, card in cards do
-		local visible = Economy.upgradeShop(id) == selectedTab
+		local visible = table.find(order, id) ~= nil
 		card.holder.Visible = visible
 		if visible then
 			count += 1
@@ -955,6 +959,10 @@ end, false, Enum.KeyCode.R, Enum.KeyCode.ButtonY)
 
 -- Teksty panelu, podpowiedź, gdzie można kupować, i liczba ulepszeń na kropce przycisku
 local function renderUpgradePanel(state: State)
+	if not tabUnlocked(selectedTab) then
+		selectedTab = "forest"
+		applyTab()
+	end
 	upgradeCaption.Text = Localize.t("UPG_BUTTON")
 	upgradeTitle.Text = Localize.t("UPG_TITLE")
 	pillCoins.Text = formatCoins(state.coins)
@@ -969,7 +977,7 @@ local function renderUpgradePanel(state: State)
 
 	local affordable = 0
 	for _, id in ALL_UPGRADES do
-		if tabUnlocked(Economy.upgradeShop(id)) then
+		if Economy.upgradeLockedWorld(id, state.upgrades[id] or 0, state.caveUnlocked, state.swampUnlocked) == nil then
 			local cost = Economy.upgradeCost(id, state.upgrades[id] or 0)
 			if cost and state.coins >= cost then
 				affordable += 1
@@ -1087,16 +1095,23 @@ render = function()
 		local def = Config.Upgrades[id]
 		local level = state.upgrades[id] or 0
 		local cost = Economy.upgradeCost(id, level)
+		local locked = if cost then Economy.upgradeLockedWorld(id, level, state.caveUnlocked, state.swampUnlocked) else nil
 		card.title.Text = Localize.t(def.key)
-		card.desc.Text = Localize.t(def.key .. "_DESC")
+		card.desc.Text = if locked then Localize.t(if locked == "cave" then "UPG_UNLOCK_CAVE" else "UPG_UNLOCK_SWAMP") else Localize.t(def.key .. "_DESC")
+		if cost and not locked and not Economy.upgradeCanBuyInWorld(id, level, Economy.zoneWorld(state.zone)) then
+			local required = Economy.upgradeRequiredWorld(id, level)
+			if required ~= "forest" then
+				card.desc.Text = Localize.t(if required == "cave" then "UPG_BUY_CAVE" else "UPG_BUY_SWAMP")
+			end
+		end
 		card.value.Text = valueText(id, level)
 		setPips(card, level, def.maxLevel)
 		card.maxed = cost == nil
-		card.affordable = cost ~= nil and state.coins >= (cost :: number)
+		card.affordable = cost ~= nil and locked == nil and state.coins >= (cost :: number)
 		if cost then
 			card.cost.Text = formatCoins(cost)
-			UiKit.recolor(card.buy, if card.affordable then BUY_GREEN else BUY_RED)
-			UiKit.setIcon(card.buyIcon, "coin")
+			UiKit.recolor(card.buy, if locked then UiKit.COLORS.locked elseif card.affordable then BUY_GREEN else BUY_RED)
+			UiKit.setIcon(card.buyIcon, if locked then "lock" else "coin")
 		else
 			card.cost.Text = Localize.t("HUD_MAX")
 			UiKit.recolor(card.buy, BUY_GOLD)
@@ -1113,6 +1128,9 @@ end
 function Hud.update(state: State)
 	local previous = lastState
 	lastState = state
+	if previous and (previous.caveUnlocked ~= state.caveUnlocked or previous.swampUnlocked ~= state.swampUnlocked) then
+		applyTab()
+	end
 	if previous then
 		if state.coins ~= previous.coins then
 			TweenService:Create(coinsValue, TweenInfo.new(0.5, Enum.EasingStyle.Quad), { Value = state.coins }):Play()
