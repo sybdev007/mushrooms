@@ -1,5 +1,6 @@
 --!strict
--- Ekspedycja: karta z celem po prawej stronie ekranu (jak lista zadań w hitowych grach).
+-- Ekspedycja: karta z celem w prawym górnym rogu (jak lista zadań w hitowych grach), nad kolumną
+-- przycisków (Ulepszenia na 42% wysokości), w skali HUD (UiScale), żeby na telefonie nic nie zasłaniała.
 -- Przed zejściem: przypomnienie, gdzie jest szczelina, i ile czasu zostało.
 -- W komorach: nazwa komory, kroki (zawał → cel → ognisko → lina albo Krypta) z odhaczaniem,
 -- kto niesie znalezisko i czas do końca ekspedycji.
@@ -14,6 +15,7 @@ local Localize = require(script.Parent.Localize)
 local PanelKit = require(script.Parent.PanelKit)
 local UiFx = require(script.Parent.UiFx)
 local UiKit = require(script.Parent.UiKit)
+local UiScale = require(script.Parent.UiScale)
 
 local DelveHud = {}
 
@@ -33,7 +35,7 @@ gui.Parent = player:WaitForChild("PlayerGui")
 local card = Instance.new("Frame")
 card.Name = "Card"
 card.AnchorPoint = Vector2.new(1, 0)
-card.Position = UDim2.new(1, -14, 0.3, 0)
+card.Position = UDim2.new(1, -16, 0, 10)
 card.Size = UDim2.fromOffset(300, 182)
 card.BackgroundColor3 = PanelKit.BG_DARK
 card.BackgroundTransparency = 0.08
@@ -42,7 +44,11 @@ card.Parent = gui
 PanelKit.corner(card, UDim.new(0, 16))
 PanelKit.stroke(card, OUTLINE, 3)
 local scale = Instance.new("UIScale")
+scale.Scale = UiScale.get()
 scale.Parent = card
+UiScale.onChanged(function()
+	scale.Scale = UiScale.get()
+end)
 
 local title = PanelKit.label(card, "Title", UDim2.new(1, -60, 0, 26), UDim2.fromOffset(12, 8), 19, PanelKit.GOLD, PanelKit.TITLE_FONT)
 title.TextXAlignment = Enum.TextXAlignment.Left
@@ -133,7 +139,7 @@ local function render()
 	card.Size = UDim2.fromOffset(300, 64 + #list * 24)
 	if not card.Visible or key ~= lastStepKey then
 		-- Nowy krok odhaczony: karta podskakuje
-		UiFx.popIn(scale, 1, 0.85, 0)
+		UiFx.popIn(scale, UiScale.get(), 0.85, 0)
 		if card.Visible and key ~= lastStepKey and string.find(key, "1") then
 			UiFx.sound("ping", 0.4, 1.3)
 		end
