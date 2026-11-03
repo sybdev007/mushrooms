@@ -55,7 +55,7 @@ export type Forest = { g: number, s: { [string]: ForestSpot } }
 
 local LEGACY_STORE_NAME = "LanternForager_Prototype_v1" -- stary zapis bez blokady sesji (tylko do przeniesienia)
 local PROFILE_STORE_NAME = "LanternForager_Profiles_v1"
-local DATA_VERSION = 4
+local DATA_VERSION = 5
 local MAX_ATTEMPTS = 3
 
 local DataService = {}
@@ -397,6 +397,18 @@ local function reconcile(raw: any): Data
 			if typeof(id) == "string" and #data.receipts < 50 then
 				table.insert(data.receipts, id)
 			end
+		end
+	end
+	-- Wersja 5: skrzynia w ogródku dostała limit. Stare zapisy dostają za darmo Skrzynię na maksymalnym
+	-- poziomie (8 h dochodu), a monety w skrzyni ponad te 8 h przepadają (wcześniej limitu nie było,
+	-- więc AFK nazbierało tam miliony). Pusty ogródek (pojemność 0) zostawia skrzynię w spokoju.
+	local oldVersion = if typeof(raw.version) == "number" then raw.version else 0
+	if oldVersion < 5 then
+		data.upgrades.chest = Config.Upgrades.chest.maxLevel
+		local fertilizer = Economy.upgradeStat("fertilizer", data.upgrades.fertilizer or 0)
+		local capacity = Economy.potCapacity(data.planted, fertilizer, Economy.upgradeStat("chest", data.upgrades.chest))
+		if capacity > 0 and data.pot > capacity then
+			data.pot = capacity
 		end
 	end
 	return data
