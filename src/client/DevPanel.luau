@@ -1,5 +1,5 @@
 --!strict
--- Panel DEV (UI v2, makiety 06/07 w Figmie): przycisk 🛠 pod przełącznikiem języka, widoczny tylko dla
+-- Panel DEV (UI v2, makiety 06/07 w Figmie): przycisk 🛠 pod przełącznikiem języka (lewy górny róg), widoczny tylko dla
 -- deweloperów (Studio, twórca gry, Config.DevUserIds). Każdą akcję i tak sprawdza serwer (GameService).
 --   lewa kolumna: kategorie z liczbą akcji (na żywej grze: ile z nich działa),
 --   środek: wyszukiwarka i akcje w sekcjach; plakietka „na żywo” / „Studio” przy każdej akcji,
@@ -758,8 +758,8 @@ local function fit()
 	local panelFit = math.clamp(math.min((viewport.X - 40) / WIDTH, (viewport.Y - 70) / HEIGHT), 0.45, 1)
 	panelScale:SetAttribute("Base", panelFit)
 	panelScale.Scale = panelFit
-	-- Pod rzędem przycisku języka i pod sklepem 🛒 (ten sam rachunek co w ShopPanel)
-	local y = UiScale.rowBottom() + 6 + math.floor(36 * scale)
+	-- Pod rzędem przycisku języka (sklep jest teraz w kolumnie po prawej); liczniki Wysypu są pod nim
+	local y = UiScale.rowBottom() + 6
 	toggle.Position = UDim2.fromOffset(12, y)
 end
 UiScale.onChanged(fit)

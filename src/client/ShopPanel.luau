@@ -1,6 +1,6 @@
 --!strict
 -- Sklep za Robuxy i wszystko, co z nim związane na ekranie (UI v2, makieta „Chatka Leszego” w Figmie):
---   przycisk 🛒 pod przełącznikiem języka i okno sklepu z kartami produktów (Config.ShopOrder):
+--   przycisk „Sklep” w kolumnie pod „Ulepszeniami” (SideButtons) i okno sklepu z kartami produktów (Config.ShopOrder):
 --     Wysyp (cały serwer, złota karta z biegnącym blaskiem), mikstura, olej, zbiory od razu.
 --     Każda karta: promienie za ikoną, kołysząca się ikona, „żywa” informacja (działa / ile minut /
 --     ile monet da teraz ogródek), zielony przycisk z ceną i przebiegającym błyskiem.
@@ -20,6 +20,7 @@ local Localize = require(script.Parent.Localize)
 local OddsPanel = require(script.Parent.OddsPanel)
 local PanelKit = require(script.Parent.PanelKit)
 local Purchases = require(script.Parent.Purchases)
+local SideButtons = require(script.Parent.SideButtons)
 local UiFx = require(script.Parent.UiFx)
 local UiKit = require(script.Parent.UiKit)
 local UiScale = require(script.Parent.UiScale)
@@ -43,10 +44,10 @@ local GOLD_TEXT = PanelKit.GOLD
 local ORANGE_TEXT = Color3.fromRGB(255, 170, 90)
 
 local WIDTH = 880
-local HEIGHT = 482
+local HEIGHT = 502
 local CONTENT_W = WIDTH - 28
 local CARD_GAP = 14
-local CARD_H = 312
+local CARD_H = 332
 
 -- Wygląd karty: ikona z arkusza UiKit, kolor promieni i czy działa na cały serwer
 type Look = { icon: string, accent: Color3, server: boolean }
@@ -151,15 +152,15 @@ rescueGui.DisplayOrder = 30
 rescueGui.IgnoreGuiInset = true
 rescueGui.Parent = playerGui
 
-local shopButton = Instance.new("TextButton")
-shopButton.Name = "ShopButton"
-shopButton.Size = UDim2.fromOffset(70, 30)
-shopButton.Text = ""
-shopButton.Parent = gui
-UiKit.button(shopButton, ROBUX_GREEN, { gloss = true })
-UiKit.icon("shop", shopButton, UDim2.fromOffset(30, 30), UDim2.fromScale(0.5, 0.5), Vector2.new(0.5, 0.55))
-local shopButtonScale = shopButton:FindFirstChildOfClass("UIScale") :: UIScale
-UiFx.shine(shopButton, 5)
+-- Przycisk sklepu w kolumnie pod „Ulepszeniami” (ten sam styl co Zadania i Grzybopedia).
+-- ShopPanel ładuje się przed innymi oknami, więc sklep jest pierwszy w kolumnie.
+local shopSide = SideButtons.add({
+	name = "ShopButton",
+	icon = "shop",
+	color = ROBUX_GREEN,
+	caption = "SHOP_TITLE",
+})
+UiFx.shine(shopSide.button, 4.5)
 
 local oilButton = Instance.new("TextButton")
 oilButton.Name = "QuickOil"
@@ -325,7 +326,7 @@ local function buildCard(order: number, key: string, width: number): Card
 	end
 
 	-- Ikona w kole, za nią promienie i poświata
-	local ICON_Y = 92
+	local ICON_Y = 88
 	UiFx.rays(body, {
 		size = 230,
 		color = look.accent,
@@ -350,19 +351,20 @@ local function buildCard(order: number, key: string, width: number): Card
 	icon.ZIndex = 3
 	UiFx.bob(icon, 4, 2.2 + order * 0.15)
 
-	local title = PanelKit.label(body, "Title", UDim2.new(1, -18, 0, 50), UDim2.fromOffset(9, 150), 23, TEXT, TITLE_FONT)
+	local title = PanelKit.label(body, "Title", UDim2.new(1, -18, 0, 48), UDim2.fromOffset(9, 146), 23, TEXT, TITLE_FONT)
 	title.TextWrapped = true
 	title.ZIndex = 3
 	UiKit.outline(title, 2.5)
 	UiFx.textGradient(title, Color3.new(1, 1, 1), Color3.fromRGB(255, 226, 150))
 
-	local desc = PanelKit.label(body, "Desc", UDim2.new(1, -22, 0, 34), UDim2.fromOffset(11, 200), 13, if server then Color3.fromRGB(255, 240, 214) else MUTED, BODY_FONT)
+	local desc = PanelKit.label(body, "Desc", UDim2.new(1, -22, 0, 32), UDim2.fromOffset(11, 194), 13, if server then Color3.fromRGB(255, 240, 214) else MUTED, BODY_FONT)
 	desc.TextWrapped = true
 	desc.ZIndex = 3
 
 	local info = chip(body, "Info", nil, 26, 15)
 	info.frame.AnchorPoint = Vector2.new(0.5, 0)
-	info.frame.Position = UDim2.new(0.5, 0, 0, 236)
+	-- Pasek informacji kończy się na 256 px, przycisk zaczyna na 268 px (332 - 12 - 52)
+	info.frame.Position = UDim2.new(0.5, 0, 0, 230)
 	info.frame.ZIndex = 3
 
 	local buy = Instance.new("TextButton")
@@ -666,19 +668,20 @@ end
 
 local function refreshHud()
 	oilButton.Text = Purchases.priceText("oil")
-	shopButton.Visible = #cards > 0
+	shopSide.root.Visible = #cards > 0
 end
+
+local devShown = false
 
 local function layout()
 	local scale = UiScale.get()
-	for _, s in { shopButtonScale, oilScale, timersScale, rescueScale } do
+	for _, s in { oilScale, timersScale, rescueScale } do
 		s:SetAttribute("Base", scale) -- UiKit i UiFx wracają do tej skali po wciśnięciu / pulsie
 		s.Scale = scale
 	end
-	-- Pod rzędem przycisku języka (UiScale.rowBottom); panel DEV jest jeszcze niżej
+	-- Pod rzędem przycisku języka (UiScale.rowBottom); u deweloperów niżej, pod przyciskiem 🛠 DEV
 	local y = UiScale.rowBottom() + 6
-	shopButton.Position = UDim2.fromOffset(12, y)
-	timers.Position = UDim2.fromOffset(12 + math.floor(32 * scale), y + math.floor(36 * scale) * 2 + 8)
+	timers.Position = UDim2.fromOffset(12, y + (if devShown then math.floor(36 * scale) + 4 else 0))
 	-- Obok paska oleju (środek u góry, pasek ma 300 px szerokości)
 	oilButton.Position = UDim2.new(0.5, math.floor(156 * scale), 0, 8 + math.floor(34 * scale))
 end
@@ -686,6 +689,10 @@ UiScale.onChanged(layout)
 
 function ShopPanel.update(state: any, safeZone: boolean)
 	OddsPanel.update(state)
+	if (state.dev == true) ~= devShown then
+		devShown = state.dev == true
+		layout()
+	end
 	boomUntil = state.boomUntil or 0
 	luckUntil = state.luckUntil or 0
 	oilFraction = if state.oilMax and state.oilMax > 0 then state.oil / state.oilMax else 1
@@ -720,7 +727,7 @@ function ShopPanel.hideRescue()
 	rescue.Visible = false
 end
 
-shopButton.Activated:Connect(function()
+shopSide.onActivated(function()
 	if window.isOpen() then
 		window.setOpen(false)
 		return
