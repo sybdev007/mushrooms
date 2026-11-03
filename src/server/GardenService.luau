@@ -76,6 +76,8 @@ local SOIL = Color3.fromRGB(86, 60, 42)
 local SOIL_LOCKED = Color3.fromRGB(52, 44, 40)
 local STEM_COLOR = Color3.fromRGB(232, 222, 200)
 local RATE_COLOR = "#A6F06A"
+local FULL_COLOR = "#FF7A5C" -- MAX na pełnej skrzyni
+local CAPACITY_COLOR = "#D8C49A" -- pojemność skrzyni
 
 local api: Api
 local gardens: { GardenState } = {}
@@ -121,6 +123,11 @@ local function stat(player: Player?, id: string): number
 	local data = player and api.getData(player)
 	local level = if data then data.upgrades[id] or 0 else 0
 	return Economy.upgradeStat(id, level)
+end
+
+-- Ile monet mieści skrzynia gracza (dochód z kilku godzin, ulepszenie Skrzynia)
+local function capacityOf(player: Player, data: Data): number
+	return Economy.potCapacity(data.planted, stat(player, "fertilizer"), stat(player, "chest"))
 end
 
 local function bedsOf(garden: GardenState, player: Player?): number
@@ -427,7 +434,16 @@ local function refreshGarden(garden: GardenState)
 			formatRate(Economy.gardenIncome(planted, fertilizer))
 		)
 		if garden.potLabel then
-			garden.potLabel.Text = "💰 " .. formatCoins(math.floor(data.pot))
+			-- Ile jest w skrzyni i ile się zmieści; pełna = czerwone MAX (grządki stoją, trzeba odebrać)
+			local capacity = Economy.potCapacity(planted, fertilizer, stat(owner, "chest"))
+			local pot = "💰 " .. formatCoins(math.floor(data.pot))
+			if capacity <= 0 then
+				garden.potLabel.Text = pot
+			elseif data.pot >= capacity then
+				garden.potLabel.Text = pot .. ' <font color="' .. FULL_COLOR .. '">MAX</font>'
+			else
+				garden.potLabel.Text = pot .. ' <font color="' .. CAPACITY_COLOR .. '">/ ' .. formatCoins(math.floor(capacity)) .. "</font>"
+			end
 		end
 	else
 		garden.label.Text = ""
@@ -820,13 +836,18 @@ function GardenService.assign(player: Player)
 					local weakest = Economy.weakestIndex(data.planted) :: number
 					data.pot += Economy.itemValue(table.remove(data.planted, weakest) :: Economy.PlantItem)
 				end
-				-- Dochód za czas offline
+				-- Dochód za czas offline (Economy.offlineMinutes), ile zmieści się w skrzyni
 				local now = os.time()
 				if data.incomeAt > 0 then
+					local capacity = capacityOf(player, data)
+					local before = data.pot
 					local earned = Economy.offlineIncome(data.planted, stat(player, "fertilizer"), now - data.incomeAt)
-					data.pot += earned
-					if earned >= 1 then
-						api.notify(player, "MSG_OFFLINE_INCOME", { math.floor(earned) })
+					data.pot = Economy.fillPot(data.pot, earned, capacity)
+					if data.pot - before >= 1 then
+						api.notify(player, "MSG_OFFLINE_INCOME", { math.floor(data.pot - before) })
+					end
+					if capacity > 0 and data.pot >= capacity then
+						api.notify(player, "MSG_POT_FULL")
 					end
 				end
 				data.incomeAt = now
@@ -960,7 +981,7 @@ function GardenService.start(gardenInfos: { { id: number, model: Model } }, serv
 				Vector3.new(0, 3, 0),
 				80
 			),
-			potLabel = if chest then billboard(chest, "PotTag", UDim2.fromOffset(140, 36), Vector3.new(0, 3.4, 0), 50) else nil,
+			potLabel = if chest then billboard(chest, "PotTag", UDim2.fromOffset(210, 36), Vector3.new(0, 3.4, 0), 50) else nil,
 			ownerSign = if signPart and signPart:IsA("BasePart") then ownerSignLabel(signPart) else nil,
 			owner = nil,
 			protectedUntil = 0,
@@ -1034,8 +1055,16 @@ function GardenService.start(gardenInfos: { { id: number, model: Model } }, serv
 				local owner = garden.owner
 				local data = owner and api.getData(owner)
 				if owner and data then
-					data.pot += Economy.gardenIncome(data.planted, stat(owner, "fertilizer")) * INCOME_TICK / 60
+					-- Do pełna skrzyni; zapełniła się właśnie teraz = jedno powiadomienie
+					local capacity = capacityOf(owner, data)
+					local before = data.pot
+					local income = Economy.gardenIncome(data.planted, stat(owner, "fertilizer")) * INCOME_TICK / 60
+					data.pot = Economy.fillPot(data.pot, income, capacity)
 					data.incomeAt = now
+					if capacity > 0 and before < capacity and data.pot >= capacity then
+						api.notify(owner, "MSG_POT_FULL")
+						refreshGarden(garden)
+					end
 				end
 				if sinceVisual >= VISUAL_REFRESH then
 					refreshGarden(garden)

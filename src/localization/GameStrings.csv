@@ -175,12 +175,15 @@ UPG_BEDS,Garden Beds,,,Grządki
 UPG_BEDS_DESC,Plant more mushrooms,,,Więcej posadzonych grzybów
 UPG_FERTILIZER,Fertilizer,,,Nawóz
 UPG_FERTILIZER_DESC,More coins from your garden,,,Więcej monet z grządek
+UPG_CHEST,Coin Chest,,,Skrzynia na monety
+UPG_CHEST_DESC,Holds garden coins for longer,,,Mieści monety z grządek na dłużej
 MSG_PLANTED,Planted: {1}. They make coins every minute!,,,Posadzone: {1}. Co minutę sypią monety!
 MSG_PLANTED_SWAP,Planted: {1}. Swapped mushrooms went back to your basket.,,,Posadzone: {1}. Zamienione grzyby wróciły do koszyka.
 MSG_GARDEN_FULL,Your beds are full of better mushrooms. Buy more beds!,,,Grządki są pełne lepszych grzybów. Kup więcej grządek!
 MSG_NOTHING_TO_PLANT,Your basket is empty. Pick mushrooms in the forest!,,,Koszyk jest pusty. Nazbieraj grzybów w lesie!
 MSG_COLLECTED,Coins from your garden: +{1},,,Monety z ogródka: +{1}
 MSG_POT_EMPTY,Nothing in the chest yet.,,,W skrzyni jeszcze nic nie ma.
+MSG_POT_FULL,Your garden chest is full! Collect the coins so your garden keeps earning.,,,Skrzynia w ogródku jest pełna! Odbierz monety – inaczej grządki przestaną zarabiać.
 MSG_OFFLINE_INCOME,Your garden earned {1} coins while you were away!,,,Pod twoją nieobecność ogródek zarobił {1} monet!
 MSG_THIEF_RUNNING,{2} is running off with your {1}{3}! Catch them!,,,{2} ucieka z twoim grzybem: {1}{3}! Dogoń go!
 MSG_LOOT_PLANTED,{1}{2} is now growing in your garden!,,,{1}{2} rośnie teraz w twoim ogródku!

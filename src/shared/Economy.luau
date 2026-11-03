@@ -477,10 +477,32 @@ function Economy.gardenIncome(planted: { PlantItem }, fertilizer: number?): numb
 	return sum
 end
 
--- Dochód za czas offline, najwyżej za Config.Garden.offlineMinutes
+-- Ile minut pełnego dochodu daje nieobecność: 100% przez Config.Garden.offlineFullMinutes, potem
+-- offlineSlowRate, łącznie najwyżej za Config.Garden.offlineMinutes
+function Economy.offlineMinutes(seconds: number): number
+	local garden = Config.Garden
+	local minutes = math.clamp(seconds / 60, 0, garden.offlineMinutes)
+	local full = math.min(minutes, garden.offlineFullMinutes)
+	return full + (minutes - full) * garden.offlineSlowRate
+end
+
+-- Dochód za czas offline (przed limitem skrzyni)
 function Economy.offlineIncome(planted: { PlantItem }, fertilizer: number?, seconds: number): number
-	local minutes = math.clamp(seconds / 60, 0, Config.Garden.offlineMinutes)
-	return Economy.gardenIncome(planted, fertilizer) * minutes
+	return Economy.gardenIncome(planted, fertilizer) * Economy.offlineMinutes(seconds)
+end
+
+-- Pojemność skrzyni w monetach: dochód z tylu godzin, ile daje ulepszenie Skrzynia (hours)
+function Economy.potCapacity(planted: { PlantItem }, fertilizer: number?, hours: number): number
+	return Economy.gardenIncome(planted, fertilizer) * hours * 60
+end
+
+-- Dokłada monety do skrzyni, ale nie ponad pojemność. Nadwyżki, która już w niej leży (np. ze Zbiorów
+-- od razu za Robuxy albo sprzed wprowadzenia limitu), nie zabiera.
+function Economy.fillPot(pot: number, amount: number, capacity: number): number
+	if pot >= capacity then
+		return pot
+	end
+	return math.min(pot + amount, capacity)
 end
 
 local function extremeIndex(list: { BasketItem }, best: boolean): number?

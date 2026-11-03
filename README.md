@@ -121,7 +121,7 @@ rojo build -o lantern-forager.rbxlx
   Każdy gracz dostaje własny, z imieniem na furtce. W środku siatka 9 grządek, z czego na start odblokowane są 3
   (ulepszenie **Grządki**, do 9). „Posadź grzyby” sadzi najcenniejsze z koszyka; gdy grządki są pełne, lepszy grzyb
   wypiera najsłabszy (ten jest sprzedawany). Posadzony grzyb daje co minutę 4% swojej wartości (zwrot po 25 min),
-  ulepszenie **Nawóz** mnoży dochód do 3×. Monety zbierają się w skrzyni przy furtce, także offline (do 2 godzin).
+  ulepszenie **Nawóz** mnoży dochód do 3×. Monety zbierają się w skrzyni przy furtce. Skrzynia mieści dochód z 2 godzin (ulepszenie **Skrzynia na monety** do 8 h); pełna = grządki nic nie dokładają, także gdy gracz siedzi AFK w grze, i pokazuje czerwone MAX. Offline: pełny dochód przez 2 h, potem 25% do 8 h (o ile zmieści się w skrzyni).
   Nad każdą grządką tabliczka z mutacjami, wartością i `+X/min`.
 - **Kradzież jak w Steal an Egg**: inny gracz trzyma „Wyrwij grzyb” (2 s + poziom kłódki) i zabiera najcenniejszy.
   Niesie go nad głową, podświetlony na czerwono dla wszystkich, wolniej niż zwykle (zwykły łup 85% prędkości,

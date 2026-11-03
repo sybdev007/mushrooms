@@ -61,6 +61,7 @@ local UPGRADE_ICONS = {
 	lock = "lock",
 	beds = "beds",
 	fertilizer = "fertilizer",
+	chest = "chest",
 	knife = "knife",
 	crystal = "crystal",
 	pack = "pack",
@@ -281,15 +282,16 @@ local UPGRADE_COLORS: { [string]: Color3 } = {
 	knife = Color3.fromRGB(104, 124, 168),
 	beds = Color3.fromRGB(70, 182, 84),
 	fertilizer = Color3.fromRGB(138, 196, 56),
+	chest = Color3.fromRGB(214, 160, 52),
 	lock = Color3.fromRGB(156, 96, 222),
 	crystal = Color3.fromRGB(56, 196, 228),
 	pack = Color3.fromRGB(122, 142, 72),
 	rushwick = Color3.fromRGB(52, 164, 142),
 	creel = Color3.fromRGB(172, 112, 62),
 }
--- Jak pokazać wartość statystyki: mnożnik (x1.25), dodatek (+4) albo sekundy (3s)
+-- Jak pokazać wartość statystyki: mnożnik (x1.25), dodatek (+4), sekundy (3s) albo godziny (4h)
 local VALUE_PREFIX: { [string]: string } = { fertilizer = "x", knife = "x", crystal = "x", rushwick = "x", pack = "+", creel = "+" }
-local VALUE_SUFFIX: { [string]: string } = { lock = "s" }
+local VALUE_SUFFIX: { [string]: string } = { lock = "s", chest = "h" }
 
 local function number(value: number): string
 	if math.abs(value - math.round(value)) < 0.001 then

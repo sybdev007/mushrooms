@@ -1576,7 +1576,7 @@ local function onBuy(player: Player, upgradeId: unknown)
 	session.data.upgrades[upgradeId] = level + 1
 	if upgradeId == "oil" then
 		session.oil = stat(session, "oil")
-	elseif upgradeId == "lock" then
+	elseif upgradeId == "lock" or upgradeId == "chest" then
 		GardenService.refresh(player)
 	end
 	applyCharacterStats(session)

@@ -489,12 +489,39 @@ test("dochód z grządki: część wartości na minutę, nawóz go mnoży", func
 	check(payback >= 10 and payback <= 60, string.format("zwrot po %.0f min", payback))
 end)
 
-test("dochód offline jest ograniczony", function()
+test("dochód offline: pełny przez 2 h, potem 25% do 8 h", function()
 	local planted = { { s = "porcini", t = 0 } }
 	local perMinute = Economy.gardenIncome(planted)
 	eq(Economy.offlineIncome(planted, 1, 60), perMinute, "minuta")
-	eq(Economy.offlineIncome(planted, 1, 999999), perMinute * Config.Garden.offlineMinutes, "limit")
+	eq(Economy.offlineMinutes(2 * 3600), 120, "2 h w pełni")
+	eq(Economy.offlineMinutes(4 * 3600), 120 + 120 * 0.25, "4 h: dwie ostatnie za 25%")
+	eq(Economy.offlineMinutes(8 * 3600), 210, "8 h = 3,5 h dochodu")
+	eq(Economy.offlineMinutes(7 * 24 * 3600), 210, "tydzień = tyle co 8 h")
+	eq(Economy.offlineIncome(planted, 1, 999999), perMinute * 210, "limit")
 	eq(Economy.offlineIncome(planted, 1, -100), 0, "czas z przyszłości")
+end)
+
+test("skrzynia: pojemność w godzinach dochodu, pełna nic nie przyjmuje", function()
+	local planted = { { s = "porcini", t = 0 } }
+	local perMinute = Economy.gardenIncome(planted)
+	local hours = Economy.upgradeStat("chest", 0)
+	eq(hours, 2, "na start 2 h")
+	eq(Economy.upgradeStat("chest", Config.Upgrades.chest.maxLevel), 8, "maks. 8 h")
+	local capacity = Economy.potCapacity(planted, 1, hours)
+	eq(capacity, perMinute * 120, "pojemność")
+	eq(Economy.fillPot(0, 50, 100), 50, "dokłada")
+	eq(Economy.fillPot(80, 50, 100), 100, "do pełna")
+	eq(Economy.fillPot(100, 50, 100), 100, "pełna stoi")
+	eq(Economy.fillPot(500, 50, 100), 500, "nadwyżki nie zabiera")
+	eq(Economy.fillPot(0, 50, 0), 0, "pusty ogródek nic nie zbiera")
+	-- AFK w grze przez dobę: najwyżej jedna pełna skrzynia
+	local pot = 0
+	for _ = 1, 24 * 60 do
+		pot = Economy.fillPot(pot, perMinute, capacity)
+	end
+	eq(pot, capacity, "doba AFK = jedna skrzynia")
+	-- Na 8 h nieobecności (3,5 h dochodu) wystarcza skrzynia od 4 h, czyli poziom 2
+	check(Economy.potCapacity(planted, 1, Economy.upgradeStat("chest", 2)) >= Economy.offlineIncome(planted, 1, 8 * 3600), "4 h mieszczą noc")
 end)
 
 test("sadzenie: wolne grządki dostają najcenniejsze grzyby z koszyka", function()

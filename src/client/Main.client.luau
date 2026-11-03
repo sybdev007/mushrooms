@@ -236,6 +236,7 @@ local TOAST_KIND: { [string]: string } = {
 	MSG_GARDEN_FULL = "warn",
 	MSG_NOTHING_TO_PLANT = "warn",
 	MSG_POT_EMPTY = "warn",
+	MSG_POT_FULL = "warn",
 	MSG_THIEF_RUNNING = "warn",
 	MSG_LOOT_TAGGED = "warn",
 	MSG_LOOT_DROPPED = "warn",

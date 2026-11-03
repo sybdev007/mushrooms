@@ -439,6 +439,8 @@ Config.Upgrades = {
 	beds = { key = "UPG_BEDS", base = 3, step = 1, maxLevel = 6, costBase = 150, costGrowth = 2 },
 	-- Nawóz: mnożnik dochodu z posadzonych grzybów
 	fertilizer = { key = "UPG_FERTILIZER", base = 1, step = 0.25, maxLevel = 8, costBase = 250, costGrowth = 1.85 },
+	-- Skrzynia w ogródku: mieści dochód z tylu godzin (2 h na start, 8 h na maksymalnym poziomie)
+	chest = { key = "UPG_CHEST", base = 2, step = 1, maxLevel = 6, costBase = 20000, costGrowth = 2.6 },
 	-- Nożyk grzybiarza: mnożnik szans na mutacje (srebro, złoto, tęcza i cechy z miejsca)
 	knife = { key = "UPG_KNIFE", base = 1, step = 0.25, maxLevel = 6, costBase = 300, costGrowth = 2.3 },
 	-- Obozowisko w jaskini. Kryształowy wkład: mnożnik spalania oleju w jaskini (1 = bez zmian)
@@ -452,7 +454,7 @@ Config.Upgrades = {
 } :: { [string]: UpgradeDef }
 
 -- Kolejność przycisków ulepszeń: w chatce i w obozowisku w jaskini
-Config.UpgradeOrder = { "lantern", "oil", "basket", "boots", "knife", "beds", "fertilizer", "lock" }
+Config.UpgradeOrder = { "lantern", "oil", "basket", "boots", "knife", "beds", "fertilizer", "chest", "lock" }
 
 -- Wygląd nożyka w lewej ręce na kolejnych poziomach (0 = scyzoryk, 6 = kryształowy)
 Config.KnifeColors = {
@@ -855,13 +857,19 @@ Config.Leszy = {
 
 -- ===== Ogródki graczy (jak w Steal an Egg) =====
 -- Przynosisz grzyb z lasu i sadzisz go na grządce: od tej chwili co minutę sypie monety do skrzyni
--- (także gdy jesteś offline, do limitu). Inni gracze mogą wyrwać ci posadzony grzyb, ale muszą go
+-- (także gdy jesteś offline, do limitu). Skrzynia mieści dochód z kilku godzin (ulepszenie Skrzynia):
+-- pełna = grządki nic nie dokładają, aż właściciel odbierze monety. Tak samo w grze i offline, więc
+-- siedzenie AFK nie daje więcej niż jedna pełna skrzynia, a powrót co kilka godzin się opłaca. Inni gracze mogą wyrwać ci posadzony grzyb, ale muszą go
 -- donieść do swojego ogródka, niosąc go nad głową wolniej niż zwykle. Dogonisz złodzieja = grzyb wraca.
 Config.Garden = {
 	size = 26, -- bok ogródka (studs)
 	maxBeds = 9, -- tyle grządek stoi w ogródku; odblokowane są pierwsze upgradeStat("beds")
 	incomeRate = 0.04, -- posadzony grzyb daje co minutę taką część swojej wartości (oddaje się w 25 min)
-	offlineMinutes = 120, -- dochód offline najwyżej za tyle minut
+	-- Offline: pełny dochód przez offlineFullMinutes, dalej offlineSlowRate dochodu, łącznie najwyżej
+	-- offlineMinutes (8 h nieobecności = 2 h + 6 h × 25% = 3,5 h dochodu, o ile zmieści się w skrzyni)
+	offlineFullMinutes = 120,
+	offlineSlowRate = 0.25,
+	offlineMinutes = 480,
 	harvestMinutes = 30, -- produkt za Robuxy: tyle minut dochodu od razu
 	stealCooldown = 25, -- po kradzieży ogródek jest chroniony przez tyle sekund
 	thiefCooldown = 8, -- ten sam złodziej może kraść co tyle sekund
