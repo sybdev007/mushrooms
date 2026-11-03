@@ -61,11 +61,31 @@ Nowa rzecz w grze i w kodzie to **Ekspedycja** (np. `DelveService`, klucze `DELV
 Złapanie lub zgaśnięcie latarni w Krypcie kasuje tylko premię z Krypty. Zabezpieczone znalezisko zostaje.
 Przed ogniskiem: przepada zlecenie (bez kary w monetach), relikt nie wypada na ziemię dla innych.
 
-## Do ustalenia (decyzje Toma)
-1. Zlecenia **osobne dla każdego gracza** (proponowane: brak podbierania i kamperów) czy wspólne na serwer.
-2. Limit dzienny: bez limitu czy np. 3 nagrody dziennie + zlecenie dnia.
-3. Gdzie trofea: od razu w gablocie (pierwszy krok wystaw) czy na razie osobny regał w ogródku.
-4. Wejście: Otchłań czy Kopalnia.
+## Review Codexa (3.11) — do wpisania w projekt przed budową
+
+1. **[P1] Olej nie starcza.** Max latarnia 150 oleju (`Config.Upgrades.oil`: 30 + 12 × 10); z max kryształem
+   (×0,5) solo to ~46 s w Otchłani (6,5/s) i ~40 s w Kopalni (7,5/s). Odnoga w osi X dziedziczy strefę po Z
+   (`Economy.oilDrain`). Komory potrzebują **własnego spalania**, punktów uzupełnienia i zapasu na powrót.
+   Zwykłe ukończenie musi być możliwe **bez kupowania oleju**.
+2. **[P1] Relikt to nie grzyb.** Zapis koszyka odrzuca przedmioty spoza listy gatunków. Relikt trzymać
+   w stanie ekspedycji, z wirtualnym zajęciem miejsca w koszyku. Ognisko przyznaje nagrodę i oznacza odbiór
+   dla konkretnego podejścia (id podejścia) — ponowne kliknięcie i reconnect nie wypłacają drugi raz.
+   Los reliktów osobno od grzybów: zachowanie całego koszyka po celowej porażce byłoby darmowym
+   ubezpieczeniem zamiast płatnego ratunku (rescue).
+3. **[P2] Modyfikatory a grupa.** Dwóch graczy w tej samej fizycznej komorze nie może mieć różnej wody.
+   Podejście = solo albo **jawnie utworzona grupa** z jednym układem i modyfikatorem, nagrody osobiste.
+   Pomoc, podnoszenie i bonus latarni (`Expedition.luau`, dziś po odległości) muszą sprawdzać przynależność
+   do podejścia.
+4. **[P2] Kolekcja ma koniec, zlew nie ma liczb.** Dopisać koszt renowacji, przelicznik duplikatów → odłamki,
+   cenę złożenia brakującego reliktu i zastosowanie odłamków po skompletowaniu. 8 reliktów wystarczy do
+   sprawdzenia zabawy, ale **nie jest to jeszcze trwałe rozwiązanie nadwyżek**.
+
+## Do ustalenia (decyzje Toma) — z propozycjami Codexa
+1. Zlecenia: **prywatne podejście solo albo dla zaproszonej grupy**, bez wspólnego łupu na serwer.
+2. Limit: **bez limitu** zwykłych ekspedycji (limit 3 nagród kończyłby zabawę po 30–45 min);
+   zlecenie dnia rozliczane raz dziennie.
+3. Trofea: **prosty regał w ogródku jako pierwszy etap gabloty**, na tej samej kolekcji reliktów.
+4. Wejście: **Otchłań** — wcześniejsze odkrycie, z dala od skarbca Skarbnika i portalu na Bagna.
 
 ## Ryzyka do sprawdzenia (nie zakładamy z góry)
 - **Balans**: osobna odnoga nie gwarantuje braku wpływu. Grzyby zbierane po drodze, szczęście (nożyk,
