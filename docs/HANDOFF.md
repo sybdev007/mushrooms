@@ -59,6 +59,9 @@ trafiają na tablice rankingów (magazyny `LanternForager_Top_v2_*`).
 - Produkty (`Config.Products`): rescue 3724758636 (59 R$), boom 3724757048 (99), oil 3724758135 (15),
   harvest 3724757863 (29), luck 3724757551 (49). **x2s / x2m / x2l / x2xl (19/39/79/149 R$) mają id = 0 —
   do założenia w Creator Hub jako Unlisted.**
+- **Twój Wysyp** (`boomSolo`, gałąź `ui-v2`): Wysyp tylko dla kupującego (te same `Config.Boom`, zapis
+  `soloBoomUntil`, nie sumuje się z Wysypem serwera). Na razie `id = 0` (test w Studio, cena roboczo 49 R$).
+  Do sklepu: zwykły produkt w Creator Hub (NIE Unlisted) i numer w `Config.Products.boomSolo`.
 - Odznaki (`Config.Badges`, lista nazw i opisów w `docs/Odznaki.md`, obrazki `assets/badges/`):
   gotowe: first_mushroom, cave, gold, leszy, halloween2026.
   **Do założenia (po 5 dziennie za darmo):** atlas_page, swamp, skarbnik, utopiec, rainbow; potem lifesaver,

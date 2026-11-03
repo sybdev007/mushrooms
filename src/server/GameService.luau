@@ -224,6 +224,14 @@ local function boomActive(): boolean
 	return os.time() < boomUntil
 end
 
+-- Wysyp dla tego gracza: serwerowy albo jego własny (produkt boomSolo)
+local function soloBoomActive(session: Session): boolean
+	return os.time() < session.data.soloBoomUntil
+end
+local function boomFor(session: Session): boolean
+	return boomActive() or soloBoomActive(session)
+end
+
 -- Zdarzenie trwającej nocy (nil o świcie). Pętla dnia i nocy odświeża je co sekundę,
 -- razem z wymuszeniami z panelu DEV (świt / noc teraz, Noc Dziadów teraz).
 local liveEvent: Config.NightEventDef? = Cycle.activeEvent(os.time())
@@ -238,6 +246,7 @@ local function luckFactor(session: Session, zone: number?): number
 		zone = zone,
 		event = liveEvent,
 		boom = boomActive(),
+		soloBoom = soloBoomActive(session),
 		potion = os.time() < session.data.luckUntil,
 		member = CommunityService.isMember(session.player),
 		friend = CommunityService.hasFriend(session.player),
@@ -305,6 +314,7 @@ local function pushState(session: Session)
 		swampUnlocked = data.swampUnlocked,
 		luckUntil = data.luckUntil,
 		boomUntil = boomUntil,
+		soloBoomUntil = data.soloBoomUntil,
 		dev = isDeveloper(session.player),
 		tutorial = data.tutorial,
 		tutorialSell = TutorialService.sellRule(session :: any),
@@ -1086,7 +1096,7 @@ local function onPick(player: Player, spotId: unknown)
 		local seconds = if guardian then GUARDIANS[guardian].respawn else Config.RespawnSeconds
 		local event = liveEvent
 		state.readyAt = now
-			+ seconds * (if boomActive() then Config.Boom.regrowFactor else 1) * (if event then event.regrow else 1)
+			+ seconds * (if boomFor(session) then Config.Boom.regrowFactor else 1) * (if event then event.regrow else 1)
 		state.speciesId = speciesId or state.speciesId
 		state.variant = variant
 		state.tags = tags
@@ -1476,6 +1486,21 @@ local function grantProduct(session: Session, key: string): boolean
 			notify(other, "MSG_BOOM", { player.DisplayName, math.floor(Config.Boom.seconds / 60) })
 			pushState(other)
 		end
+	elseif key == "boomSolo" then
+		-- Twój Wysyp: jak Wysyp, ale tylko dla kupującego. Odrastające grzyby przyspieszają raz
+		-- (gdy Wysyp już działał, były przyspieszone wcześniej).
+		local wasActive = boomFor(session)
+		data.soloBoomUntil = math.max(os.time(), data.soloBoomUntil) + Config.Boom.seconds
+		if not wasActive then
+			local now = os.clock()
+			for id, state in session.spots do
+				if not state.visible and state.readyAt > now then
+					state.readyAt = now + (state.readyAt - now) * Config.Boom.regrowFactor
+					rememberSpot(session, id, state)
+				end
+			end
+		end
+		notify(session, "MSG_BOOM_SOLO", { math.floor(Config.Boom.seconds / 60) })
 	elseif key == "oil" then
 		-- Butelka oleju podnosi też gracza, któremu zgasła latarnia i czeka na pomoc
 		clearDowned(session)

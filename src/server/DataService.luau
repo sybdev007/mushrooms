@@ -44,6 +44,7 @@ export type Data = {
 	caveUnlocked: boolean, -- portal do jaskini raz otwarty zostaje otwarty
 	swampUnlocked: boolean, -- to samo dla bagien
 	luckUntil: number, -- os.time(), do kiedy działa mikstura szczęścia
+	soloBoomUntil: number, -- os.time(), do kiedy działa Twój Wysyp (produkt boomSolo)
 	receipts: { string }, -- ostatnie obsłużone zakupy (Roblox może przysłać ten sam drugi raz)
 	tutorial: number, -- krok samouczka (0 = cutscenka na start, Config.Tutorial.done = skończony)
 	eventClaimed: number, -- Halloween: ile progów ścieżki nagród gracz już dostał (cukierki są w stats.candy)
@@ -121,6 +122,7 @@ function DataService.defaultData(): Data
 		caveUnlocked = false,
 		swampUnlocked = false,
 		luckUntil = 0,
+		soloBoomUntil = 0,
 		receipts = {},
 		tutorial = 0,
 		eventClaimed = 0,
@@ -358,6 +360,9 @@ local function reconcile(raw: any): Data
 	data.swampUnlocked = raw.swampUnlocked == true
 	if finite(raw.luckUntil) then
 		data.luckUntil = math.floor(raw.luckUntil)
+	end
+	if finite(raw.soloBoomUntil) then
+		data.soloBoomUntil = math.floor(raw.soloBoomUntil)
 	end
 	if typeof(raw.eventClaimed) == "number" then
 		data.eventClaimed = math.clamp(math.floor(raw.eventClaimed), 0, #Config.Halloween.track)

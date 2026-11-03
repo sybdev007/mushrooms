@@ -562,6 +562,10 @@ export type ProductDef = { id: number, key: string, icon: string, price: number?
 Config.Products = {
 	rescue = { id = 3724758636, key = "PRODUCT_RESCUE", icon = "💾" }, -- uratuj koszyk po zgaśnięciu latarni / złapaniu
 	boom = { id = 3724757048, key = "PRODUCT_BOOM", icon = "🍄" }, -- Wysyp dla całego serwera
+	-- Twój Wysyp: to samo co Wysyp (Config.Boom), ale tylko dla kupującego. NA TEST: id = 0, więc w Studio
+	-- „kupuje się” za darmo, a na żywej grze karta jest ukryta. Żeby wrzucić do sklepu: załóż produkt
+	-- w Creator Hub (zwykły, nie Unlisted), wpisz tu jego numer, cena z Robloxa zastąpi `price`.
+	boomSolo = { id = 0, key = "PRODUCT_BOOM_SOLO", icon = "🍄", price = 49 },
 	oil = { id = 3724758135, key = "PRODUCT_OIL", icon = "🛢️" }, -- pełna latarnia od razu, w dowolnym miejscu
 	harvest = { id = 3724757863, key = "PRODUCT_HARVEST", icon = "⚡" }, -- od razu dochód ogródka z Config.Garden.harvestMinutes
 	luck = { id = 3724757551, key = "PRODUCT_LUCK", icon = "🍀" }, -- mikstura szczęścia: więcej mutacji
@@ -589,7 +593,7 @@ Config.ChestX2 = {
 	welcomeDelay = 2.5, -- okno „Witaj z powrotem” tyle sekund po pojawieniu się postaci
 }
 -- Kolejność kart w sklepie (ratunek ma własny przycisk na czarnym ekranie)
-Config.ShopOrder = { "boom", "luck", "oil", "harvest" }
+Config.ShopOrder = { "boom", "boomSolo", "luck", "oil", "harvest" }
 
 -- Arkusz ikon interfejsu z Figmy (assets/ui-icons.png: 5 kolumn x 4 wiersze, pola po 204 px).
 -- Po wgraniu obrazka do Robloxa wpisz tu "rbxassetid://NUMER"; pusty = ikony z emoji.

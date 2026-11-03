@@ -167,6 +167,7 @@ export type LuckInput = {
 	zone: number?,
 	event: Config.NightEventDef?, -- zdarzenie trwającej nocy (Cycle.activeEvent)
 	boom: boolean, -- Wysyp dla całego serwera
+	soloBoom: boolean?, -- Twój Wysyp (tylko ten gracz); nie sumuje się z Wysypem serwera
 	potion: boolean, -- mikstura szczęścia gracza
 	member: boolean?, -- członek grupy Old Owl Studios (Config.Community)
 	friend: boolean?, -- na serwerze gra ktoś ze znajomych gracza (Config.Community.friendLuck)
@@ -197,8 +198,9 @@ function Economy.luck(input: LuckInput): (number, { LuckPart }, number)
 		free *= part.mult
 	end
 	local paid = 1
-	if input.boom then
-		add("PRODUCT_BOOM", Config.Boom.luck)
+	if input.boom or input.soloBoom then
+		-- Twój Wysyp działa tak samo jak Wysyp serwera; oba naraz to nadal jeden Wysyp
+		add(if input.boom then "PRODUCT_BOOM" else "PRODUCT_BOOM_SOLO", Config.Boom.luck)
 		paid *= Config.Boom.luck
 	end
 	if input.potion then

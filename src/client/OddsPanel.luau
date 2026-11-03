@@ -188,6 +188,7 @@ local function luckInput(): Economy.LuckInput
 		-- Zdarzenie od serwera (uwzględnia Noc Dziadów przywołaną z panelu DEV)
 		event = if Workspace:GetAttribute("CyclePhase") == "night" then Cycle.getEvent(Workspace:GetAttribute("CycleEvent")) else nil,
 		boom = state ~= nil and (state.boomUntil or 0) > now,
+		soloBoom = state ~= nil and (state.soloBoomUntil or 0) > now,
 		potion = state ~= nil and (state.luckUntil or 0) > now,
 		member = Players.LocalPlayer:GetAttribute("OwlMember") == true,
 		friend = Players.LocalPlayer:GetAttribute("FriendBonus") == true,

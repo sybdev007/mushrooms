@@ -224,6 +224,7 @@ local TOAST_KIND: { [string]: string } = {
 	MSG_PORTAL_FIND_SWAMP = "warn",
 	MSG_MIMIC = "warn",
 	MSG_BOOM = "gold",
+	MSG_BOOM_SOLO = "gold",
 	MSG_LUCK = "gold",
 	MSG_RESCUED = "gold",
 	MSG_OIL_BOUGHT = "info",

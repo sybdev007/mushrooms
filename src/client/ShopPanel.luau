@@ -43,16 +43,25 @@ local GREEN_TEXT = PanelKit.GREEN
 local GOLD_TEXT = PanelKit.GOLD
 local ORANGE_TEXT = Color3.fromRGB(255, 170, 90)
 
-local WIDTH = 880
+-- Karty tylko dla produktów, które da się kupić (z numerem albo w Studio); zestaw się nie zmienia
+local SHOP_KEYS: { string } = {}
+for _, key in Config.ShopOrder do
+	if Purchases.available(key) then
+		table.insert(SHOP_KEYS, key)
+	end
+end
+local CARD_GAP = 14
+-- Okno rośnie z liczbą kart (karta ~200 px); na małym ekranie PanelKit i tak je zmniejszy
+local WIDTH = math.max(880, #SHOP_KEYS * 200 + (#SHOP_KEYS - 1) * CARD_GAP + 28)
 local HEIGHT = 502
 local CONTENT_W = WIDTH - 28
-local CARD_GAP = 14
 local CARD_H = 332
 
 -- Wygląd karty: ikona z arkusza UiKit, kolor promieni i czy działa na cały serwer
 type Look = { icon: string, accent: Color3, server: boolean }
 local LOOKS: { [string]: Look } = {
 	boom = { icon = "boom", accent = Color3.fromRGB(255, 200, 70), server = true },
+	boomSolo = { icon = "boom", accent = Color3.fromRGB(255, 140, 90), server = false },
 	luck = { icon = "luck", accent = Color3.fromRGB(130, 240, 110), server = false },
 	oil = { icon = "bottle", accent = Color3.fromRGB(255, 160, 70), server = false },
 	harvest = { icon = "chest", accent = Color3.fromRGB(255, 222, 100), server = false },
@@ -448,17 +457,10 @@ local function buildCard(order: number, key: string, width: number): Card
 	return card
 end
 
--- Karty tylko dla produktów, które da się kupić (z numerem albo w Studio); zestaw się nie zmienia
 do
-	local keys = {}
-	for _, key in Config.ShopOrder do
-		if Purchases.available(key) then
-			table.insert(keys, key)
-		end
-	end
-	local count = math.max(#keys, 1)
+	local count = math.max(#SHOP_KEYS, 1)
 	local width = math.min(220, math.floor((CONTENT_W - CARD_GAP * (count - 1)) / count))
-	for order, key in keys do
+	for order, key in SHOP_KEYS do
 		table.insert(cards, buildCard(order, key, width))
 	end
 end
@@ -575,6 +577,7 @@ local rescueToken = 0
 -- ===== Logika =====
 
 local boomUntil = 0
+local soloBoomUntil = 0
 local luckUntil = 0
 local oilFraction = 1
 local inDanger = false
@@ -608,6 +611,15 @@ local function refreshCards(now: number)
 		if card.key == "boom" then
 			if boomUntil > now then
 				setInfo(card, "✓ " .. Localize.t("SHOP_ACTIVE", { formatTime(boomUntil - now) }), GREEN_TEXT)
+			else
+				setInfo(card, "⏱ " .. Localize.t("SHOP_MINUTES", { math.floor(Config.Boom.seconds / 60) }), TEXT)
+			end
+		elseif card.key == "boomSolo" then
+			if soloBoomUntil > now then
+				setInfo(card, "✓ " .. Localize.t("SHOP_ACTIVE", { formatTime(soloBoomUntil - now) }), GREEN_TEXT)
+			elseif boomUntil > now then
+				-- Wysyp serwera już działa: Twój Wysyp nic by nie dodał (nie sumują się)
+				setInfo(card, Localize.t("SHOP_BOOM_ON_SERVER"), GOLD_TEXT)
 			else
 				setInfo(card, "⏱ " .. Localize.t("SHOP_MINUTES", { math.floor(Config.Boom.seconds / 60) }), TEXT)
 			end
@@ -645,8 +657,9 @@ local function refreshWindow()
 	oddsText.Text = "% " .. Localize.t("SHOP_ODDS")
 	window.pillText.Text = OddsPanel.luckText()
 	-- Działające bonusy u góry; bez nich podpowiedź
-	liveBoom.frame.Visible = boomUntil > now
-	liveBoom.label.Text = Localize.t("SHOP_BOOM_TIMER", { formatTime(boomUntil - now) })
+	local anyBoom = math.max(boomUntil, soloBoomUntil)
+	liveBoom.frame.Visible = anyBoom > now
+	liveBoom.label.Text = Localize.t("SHOP_BOOM_TIMER", { formatTime(anyBoom - now) })
 	liveLuck.frame.Visible = luckUntil > now
 	liveLuck.label.Text = Localize.t("SHOP_LUCK_TIMER", { formatTime(luckUntil - now) })
 	hint.Visible = not (liveBoom.frame.Visible or liveLuck.frame.Visible)
@@ -694,6 +707,7 @@ function ShopPanel.update(state: any, safeZone: boolean)
 		layout()
 	end
 	boomUntil = state.boomUntil or 0
+	soloBoomUntil = state.soloBoomUntil or 0
 	luckUntil = state.luckUntil or 0
 	oilFraction = if state.oilMax and state.oilMax > 0 then state.oil / state.oilMax else 1
 	inDanger = not safeZone
@@ -756,9 +770,11 @@ refreshWindow()
 task.spawn(function()
 	while true do
 		local now = os.time()
-		boomPill.frame.Visible = boomUntil > now
+		-- Wysyp serwera albo Twój Wysyp: pokazujemy ten, który działa dłużej
+		local anyBoom = math.max(boomUntil, soloBoomUntil)
+		boomPill.frame.Visible = anyBoom > now
 		if boomPill.frame.Visible then
-			boomPill.label.Text = Localize.t("SHOP_BOOM_TIMER", { formatTime(boomUntil - now) })
+			boomPill.label.Text = Localize.t("SHOP_BOOM_TIMER", { formatTime(anyBoom - now) })
 		end
 		luckPill.frame.Visible = luckUntil > now
 		if luckPill.frame.Visible then
