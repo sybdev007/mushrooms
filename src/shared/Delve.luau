@@ -242,7 +242,7 @@ export type ModifierDef = { id: string, key: string, icon: string, minRank: numb
 Delve.MODIFIERS = {
 	{ id = "calm", key = "DELVE_MOD_CALM", icon = "🕯️", minRank = 0, hard = false },
 	{ id = "flood", key = "DELVE_MOD_FLOOD", icon = "🌊", minRank = 0, hard = false }, -- wysoka woda
-	{ id = "collapse", key = "DELVE_MOD_COLLAPSE", icon = "🪨", minRank = 1, hard = true }, -- częstsze osuwiska
+	{ id = "collapse", key = "DELVE_MOD_COLLAPSE", icon = "💥", minRank = 1, hard = true }, -- częstsze osuwiska
 	{ id = "watch", key = "DELVE_MOD_WATCH", icon = "👁️", minRank = 2, hard = true }, -- czuwający Skarbnik
 } :: { ModifierDef }
 
