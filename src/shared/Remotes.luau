@@ -14,6 +14,7 @@ local NAMES = {
 	"ProgressUpdate", -- Grzybopedia, zadania, seria logowań (ProgressService)
 	"GardenView", -- stan grządek dla okna sadzenia (i czy je otworzyć)
 	"CauldronResult", -- Halloween: co wypadło z kotła (okienko i dźwięk u gracza)
+	"ChestOffer", -- x2 skrzyni: okno „Witaj z powrotem”, karta po odbiorze, zakup po G, wypłata premii
 	-- klient -> serwer
 	"PickMushroom",
 	"SellBasket",
@@ -27,6 +28,7 @@ local NAMES = {
 	"GardenPlant", -- posadź grzyb z koszyka na wybranej grządce (przy zamianie stary wraca do koszyka)
 	"GardenAuto", -- posadź najlepsze automatycznie
 	"EquipSkin", -- Halloween: załóż / zdejmij skórkę latarni albo nożyka (slot, id; "" = zwykła)
+	"ChestClaim", -- x2 skrzyni: klient gotowy na okno powrotu / odbierz z okna powrotu (x2 = też kup)
 	"OwlCheck", -- gracz zamknął okno dołączenia do grupy Old Owl Studios: sprawdź członkostwo jeszcze raz
 }
 

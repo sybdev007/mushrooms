@@ -35,6 +35,7 @@ local _AtlasPanel = require(script.Parent.AtlasPanel)
 local _TitlePanel = require(script.Parent.TitlePanel)
 local CommunityButton = require(script.Parent.CommunityButton) -- ostatni w kolumnie: znika u członków grupy
 local SettingsButtons = require(script.Parent.SettingsButtons)
+local ChestOffers = require(script.Parent.ChestOffers)
 local PanelKit = require(script.Parent.PanelKit)
 
 local _LeaderboardView = require(script.Parent.LeaderboardView)
@@ -86,6 +87,7 @@ local upgrades: { [string]: number } = {} -- poziomy ulepszeń (knoty zmniejszaj
 Signs.start()
 PortalView.start()
 GardenPrompts.start()
+ChestOffers.start()
 MerchantView.start()
 LeszyAnimator.start()
 GardenPanel.start()
@@ -237,6 +239,7 @@ local TOAST_KIND: { [string]: string } = {
 	MSG_NOTHING_TO_PLANT = "warn",
 	MSG_POT_EMPTY = "warn",
 	MSG_POT_FULL = "warn",
+	MSG_X2_DONE = "gold",
 	MSG_THIEF_RUNNING = "warn",
 	MSG_LOOT_TAGGED = "warn",
 	MSG_LOOT_DROPPED = "warn",

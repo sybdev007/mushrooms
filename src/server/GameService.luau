@@ -1390,6 +1390,11 @@ local function onDevAction(player: Player, action: unknown)
 		TutorialService.setStep(session :: any, if step >= 6 then Config.Tutorial.done else step + 1)
 	elseif action == "tutorialSkip" then
 		TutorialService.setStep(session :: any, Config.Tutorial.done)
+	elseif action == "pot20m" then
+		GardenService.devFill(player, 20)
+	elseif action == "away30m" or action == "away3h" then
+		-- Okno „Witaj z powrotem” od razu: tyle minut nieobecności
+		GardenService.devAway(player, if action == "away3h" then 3 * 3600 else 30 * 60)
 	elseif action == "basketClear" then
 		table.clear(data.basket)
 	elseif action == "basketFill" then
@@ -1490,6 +1495,10 @@ local function grantProduct(session: Session, key: string): boolean
 	elseif key == "luck" then
 		data.luckUntil = math.max(os.time(), data.luckUntil) + Config.LuckPotion.seconds
 		notify(session, "MSG_LUCK", { math.floor(Config.LuckPotion.seconds / 60) })
+	elseif Economy.x2MinMinutes(key) then
+		if not GardenService.grantX2(player, key) then
+			return false
+		end
 	else
 		return false
 	end
@@ -1504,29 +1513,35 @@ for key, def in Config.Products do
 	end
 end
 
+-- Zakup jest „przyznany” dopiero, gdy zapis z jego numerem jest już w DataStore. Wcześniej, gdyby zapis
+-- się nie udał (albo serwer padł), gracz zapłaciłby i nic nie dostał, a Roblox nie spróbowałby drugi raz.
+-- Rzecz dajemy raz: numer zakupu ląduje w danych razem z nią, więc ponowna próba niczego nie dubluje.
 local function processReceipt(receipt: any): Enum.ProductPurchaseDecision
 	local player = Players:GetPlayerByUserId(receipt.PlayerId)
 	local session = player and sessions[player]
 	local key = productById[receipt.ProductId]
-	if not session or not key then
+	if not key then
+		warn("[GameService] Nieznany produkt w zakupie:", receipt.ProductId)
+		return Enum.ProductPurchaseDecision.NotProcessedYet
+	end
+	-- Bez wczytanego zapisu nie dajemy nic (Roblox spróbuje przy następnym wejściu)
+	if not player or not session or not session.canSave then
 		return Enum.ProductPurchaseDecision.NotProcessedYet
 	end
 	local purchaseId = tostring(receipt.PurchaseId)
-	-- Ten sam zakup może przyjść drugi raz (np. po zerwanym połączeniu): wtedy nic nie dajemy drugi raz
-	if table.find(session.data.receipts, purchaseId) then
+	if not table.find(session.data.receipts, purchaseId) then
+		if not grantProduct(session, key) then
+			return Enum.ProductPurchaseDecision.NotProcessedYet
+		end
+		table.insert(session.data.receipts, purchaseId)
+		while #session.data.receipts > 50 do
+			table.remove(session.data.receipts, 1)
+		end
+	end
+	if DataService.confirmSaved(player, session.data, purchaseId) then
 		return Enum.ProductPurchaseDecision.PurchaseGranted
 	end
-	if not grantProduct(session, key) then
-		return Enum.ProductPurchaseDecision.NotProcessedYet
-	end
-	table.insert(session.data.receipts, purchaseId)
-	while #session.data.receipts > 50 do
-		table.remove(session.data.receipts, 1)
-	end
-	if session.canSave then
-		task.spawn(DataService.save, session.player, session.data)
-	end
-	return Enum.ProductPurchaseDecision.PurchaseGranted
+	return Enum.ProductPurchaseDecision.NotProcessedYet
 end
 
 -- Produkt bez numeru (id = 0) w Studio: dajemy go za darmo, żeby dało się testować przed utworzeniem

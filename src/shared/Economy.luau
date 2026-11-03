@@ -491,6 +491,27 @@ function Economy.offlineIncome(planted: { PlantItem }, fertilizer: number?, seco
 	return Economy.gardenIncome(planted, fertilizer) * Economy.offlineMinutes(seconds)
 end
 
+-- Produkt x2 skrzyni dla odbioru wartego tyle minut dochodu (Config.ChestX2). nil = za mało na ofertę.
+function Economy.x2Product(minutes: number): string?
+	local found: string? = nil
+	for _, tier in Config.ChestX2.tiers do
+		if minutes >= tier.fromMinutes then
+			found = tier.product
+		end
+	end
+	return found
+end
+
+-- Najmniej minut dochodu, za które jest produkt x2 (premia, gdy zakup przyjdzie bez zapisanej oferty)
+function Economy.x2MinMinutes(product: string): number?
+	for _, tier in Config.ChestX2.tiers do
+		if tier.product == product then
+			return tier.fromMinutes
+		end
+	end
+	return nil
+end
+
 -- Pojemność skrzyni w monetach: dochód z tylu godzin, ile daje ulepszenie Skrzynia (hours)
 function Economy.potCapacity(planted: { PlantItem }, fertilizer: number?, hours: number): number
 	return Economy.gardenIncome(planted, fertilizer) * hours * 60

@@ -22,9 +22,21 @@ function Purchases.available(key: string): boolean
 	return def ~= nil and (def.id ~= 0 or RunService:IsStudio())
 end
 
+-- Ikonka Robuxa z czcionki Robloxa (do napisów z ceną)
+Purchases.ROBUX = utf8.char(0xE002)
+
+-- Cena w Robuxach: z Robloxa (ceny regionalne), a zanim przyjdzie albo w Studio bez numeru: z Config
+function Purchases.price(key: string): number?
+	local def = Config.Products[key]
+	return prices[key] or (if def then def.price else nil)
+end
+
 -- Cena do pokazania na przycisku: "49" (R$) albo "TEST" w Studio bez numeru produktu
 function Purchases.priceText(key: string): string
 	local def = Config.Products[key]
+	if def and def.id == 0 and def.price then
+		return Purchases.ROBUX .. " " .. tostring(def.price)
+	end
 	if not def or def.id == 0 then
 		return "TEST"
 	end

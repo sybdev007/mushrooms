@@ -501,6 +501,25 @@ test("dochód offline: pełny przez 2 h, potem 25% do 8 h", function()
 	eq(Economy.offlineIncome(planted, 1, -100), 0, "czas z przyszłości")
 end)
 
+test("x2 skrzyni: próg ceny według minut dochodu w skrzyni", function()
+	eq(Economy.x2Product(14.9), nil, "za mało na ofertę")
+	eq(Economy.x2Product(15), "x2s", "15 min")
+	eq(Economy.x2Product(39.9), "x2s", "do 40 min")
+	eq(Economy.x2Product(40), "x2m", "40 min")
+	eq(Economy.x2Product(120), "x2l", "2 h")
+	eq(Economy.x2Product(210), "x2l", "noc offline (3,5 h)")
+	eq(Economy.x2Product(480), "x2xl", "8 h")
+	eq(Economy.x2MinMinutes("x2m"), 40, "minimum progu")
+	eq(Economy.x2MinMinutes("luck"), nil, "nie x2")
+	local last = 0
+	for _, tier in Config.ChestX2.tiers do
+		local def = Config.Products[tier.product]
+		check(def ~= nil, "produkt " .. tier.product)
+		check(def.price ~= nil and def.price > last, "cena rośnie: " .. tier.product)
+		last = def.price
+	end
+end)
+
 test("skrzynia: pojemność w godzinach dochodu, pełna nic nie przyjmuje", function()
 	local planted = { { s = "porcini", t = 0 } }
 	local perMinute = Economy.gardenIncome(planted)

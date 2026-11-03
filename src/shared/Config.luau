@@ -548,14 +548,36 @@ Config.PortalPlaza = {
 -- id: numer produktu z Creator Hub (Monetization → Developer Products). 0 = jeszcze nie utworzony:
 -- w Studio przycisk i tak działa (serwer daje rzecz za darmo, żeby dało się testować),
 -- w prawdziwej grze przycisk jest ukryty.
-export type ProductDef = { id: number, key: string, icon: string }
+export type ProductDef = { id: number, key: string, icon: string, price: number? } -- price: cena do pokazania, zanim przyjdzie z Robloxa (i w Studio)
 Config.Products = {
 	rescue = { id = 3724758636, key = "PRODUCT_RESCUE", icon = "💾" }, -- uratuj koszyk po zgaśnięciu latarni / złapaniu
 	boom = { id = 3724757048, key = "PRODUCT_BOOM", icon = "🍄" }, -- Wysyp dla całego serwera
 	oil = { id = 3724758135, key = "PRODUCT_OIL", icon = "🛢️" }, -- pełna latarnia od razu, w dowolnym miejscu
 	harvest = { id = 3724757863, key = "PRODUCT_HARVEST", icon = "⚡" }, -- od razu dochód ogródka z Config.Garden.harvestMinutes
 	luck = { id = 3724757551, key = "PRODUCT_LUCK", icon = "🍀" }, -- mikstura szczęścia: więcej mutacji
+	-- x2 skrzyni w ogródku (Config.ChestX2): podwaja jeden odbiór. W Creator Hub ustaw je jako Unlisted
+	-- (kupione poza grą nie miałyby czego podwoić) i z tymi cenami.
+	x2s = { id = 0, key = "PRODUCT_X2", icon = "x2", price = 19 },
+	x2m = { id = 0, key = "PRODUCT_X2", icon = "x2", price = 39 },
+	x2l = { id = 0, key = "PRODUCT_X2", icon = "x2", price = 79 },
+	x2xl = { id = 0, key = "PRODUCT_X2", icon = "x2", price = 149 },
 } :: { [string]: ProductDef }
+
+-- x2 skrzyni: po odbiorze monet ze skrzyni (albo w oknie „Witaj z powrotem”) gracz może za Robuxy dostać
+-- drugi raz tyle samo. Cena zależy od tego, ile minut dochodu ogródka było w skrzyni (liczone przy
+-- napełnianiu, więc nie da się tanio podwoić dużej skrzyni, sadząc drogi grzyb tuż przed odbiorem).
+Config.ChestX2 = {
+	minMinutes = 15, -- mniej minut w skrzyni = bez oferty
+	tiers = {
+		{ product = "x2s", fromMinutes = 15 },
+		{ product = "x2m", fromMinutes = 40 },
+		{ product = "x2l", fromMinutes = 120 },
+		{ product = "x2xl", fromMinutes = 240 },
+	},
+	cardCooldown = 600, -- karta z ofertą po odbiorze przy skrzyni najwyżej co tyle sekund
+	cardDeclines = 3, -- po tylu odmowach z rzędu karta nie wraca do końca sesji
+	welcomeDelay = 2.5, -- okno „Witaj z powrotem” tyle sekund po pojawieniu się postaci
+}
 -- Kolejność kart w sklepie (ratunek ma własny przycisk na czarnym ekranie)
 Config.ShopOrder = { "boom", "luck", "oil", "harvest" }
 

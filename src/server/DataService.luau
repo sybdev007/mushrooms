@@ -30,11 +30,16 @@ export type Data = {
 	badges: { string }, -- przyznane odznaki Robloxa (id z Config.Badges)
 	invited: { number }, -- UserId graczy, którzy weszli z zaproszenia tego gracza (już zaliczeni, Social)
 	-- muzyka i dźwięki włączone oraz głośność z suwaków (0..1); wyłączone = głośność 0
-	settings: { music: boolean, sfx: boolean, musicVolume: number, sfxVolume: number },
+	-- x2Card: karta z ofertą x2 po odbiorze przy skrzyni (gracz może ją wyłączyć)
+	settings: { music: boolean, sfx: boolean, musicVolume: number, sfxVolume: number, x2Card: boolean },
 	basket: { Economy.BasketItem },
 	planted: { Economy.PlantItem }, -- grzyby na grządkach w ogródku
 	pot: number, -- monety z grządek czekające w skrzyni (z ułamkiem)
 	incomeAt: number, -- os.time() ostatniego naliczenia dochodu (do dochodu offline)
+	potMinutes: number, -- ile minut dochodu ogródka leży w skrzyni (cena x2 skrzyni, Config.ChestX2)
+	-- Oferty x2 skrzyni czekające na zakup: produkt -> premia (b) i kiedy powstała (t). Zostają w zapisie,
+	-- żeby zakup, który przyjdzie później (np. przy następnym wejściu), i tak wypłacił właściwą kwotę.
+	x2Offers: { [string]: { b: number, t: number } },
 	pity: number, -- odrosty od ostatniego Złota (albo lepszego), do gwarancji mutacji
 	caveUnlocked: boolean, -- portal do jaskini raz otwarty zostaje otwarty
 	swampUnlocked: boolean, -- to samo dla bagien
@@ -105,11 +110,13 @@ function DataService.defaultData(): Data
 		titles = {},
 		badges = {},
 		invited = {},
-		settings = { music = true, sfx = true, musicVolume = 1, sfxVolume = 1 },
+		settings = { music = true, sfx = true, musicVolume = 1, sfxVolume = 1, x2Card = true },
 		basket = {},
 		planted = {},
 		pot = 0,
 		incomeAt = 0,
+		potMinutes = 0,
+		x2Offers = {},
 		pity = 0,
 		caveUnlocked = false,
 		swampUnlocked = false,
@@ -288,6 +295,7 @@ local function reconcile(raw: any): Data
 		data.settings.sfx = raw.settings.sfx ~= false
 		data.settings.musicVolume = Progress.normalizeVolume(raw.settings.musicVolume) or 1
 		data.settings.sfxVolume = Progress.normalizeVolume(raw.settings.sfxVolume) or 1
+		data.settings.x2Card = raw.settings.x2Card ~= false
 	end
 	if typeof(raw.basket) == "table" then
 		for _, item in raw.basket do
@@ -329,6 +337,16 @@ local function reconcile(raw: any): Data
 	end
 	if typeof(raw.pot) == "number" and raw.pot >= 0 then
 		data.pot = raw.pot
+	end
+	if finite(raw.potMinutes) and raw.potMinutes >= 0 then
+		data.potMinutes = math.min(raw.potMinutes, 24 * 60)
+	end
+	if typeof(raw.x2Offers) == "table" then
+		for product, offer in raw.x2Offers do
+			if Config.Products[product] and typeof(offer) == "table" and finite(offer.b) and offer.b > 0 and finite(offer.t) then
+				data.x2Offers[product] = { b = math.floor(offer.b), t = offer.t }
+			end
+		end
 	end
 	if typeof(raw.incomeAt) == "number" then
 		data.incomeAt = math.clamp(math.floor(raw.incomeAt), 0, now)
@@ -408,6 +426,10 @@ local function reconcile(raw: any): Data
 		local capacity = Economy.potCapacity(data.planted, fertilizer, Economy.upgradeStat("chest", data.upgrades.chest))
 		if capacity > 0 and data.pot > capacity then
 			data.pot = capacity
+		end
+		local perMinute = Economy.gardenIncome(data.planted, fertilizer)
+		if perMinute > 0 then
+			data.potMinutes = data.pot / perMinute
 		end
 	end
 	return data
@@ -519,6 +541,37 @@ function DataService.save(player: Player, data: Data): boolean
 	profile.Data = data
 	profile:Save()
 	return true
+end
+
+-- Zapisuje dane i czeka (do 20 s), aż zapis z tym numerem zakupu trafi do DataStore. true = jest zapisany.
+function DataService.confirmSaved(player: Player, data: Data, purchaseId: string): boolean
+	local profile = profiles[player]
+	if not profile then
+		return false
+	end
+	local function savedHas(saved: any): boolean
+		return typeof(saved) == "table" and typeof(saved.receipts) == "table" and table.find(saved.receipts, purchaseId) ~= nil
+	end
+	if savedHas(profile.LastSavedData) then
+		return true
+	end
+	if not profile:IsActive() then
+		return false
+	end
+	local done = false
+	local connection = profile.OnAfterSave:Connect(function(saved)
+		if savedHas(saved) then
+			done = true
+		end
+	end)
+	profile.Data = data
+	profile:Save()
+	local started = os.clock()
+	while not done and os.clock() - started < 20 and profile:IsActive() do
+		task.wait(0.25)
+	end
+	connection:Disconnect()
+	return done or savedHas(profile.LastSavedData)
 end
 
 -- Gracz wyszedł: ostatni zapis i zwolnienie blokady sesji

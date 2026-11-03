@@ -26,7 +26,10 @@ type Data = {
 	planted: { Economy.PlantItem },
 	pot: number,
 	incomeAt: number,
+	potMinutes: number,
+	x2Offers: { [string]: { b: number, t: number } },
 	upgrades: { [string]: number },
+	tutorial: number,
 }
 
 type MutationInfo = { variant: string?, tags: { string }? }
@@ -123,6 +126,22 @@ local function stat(player: Player?, id: string): number
 	local data = player and api.getData(player)
 	local level = if data then data.upgrades[id] or 0 else 0
 	return Economy.upgradeStat(id, level)
+end
+
+-- ===== x2 skrzyni (Config.ChestX2) =====
+-- Okno „Witaj z powrotem” czeka, aż klient będzie gotowy (ChestClaim "ready")
+type Welcome = { away: number, earned: number, minutes: number, product: string }
+local welcome: { [Player]: Welcome } = {}
+local ChestOffer = Remotes.get("ChestOffer")
+
+-- Zapamiętuje ofertę x2 dla odbioru wartego `minutes` minut dochodu; zwraca produkt albo nil
+local function recordOffer(data: Data, minutes: number, amount: number): string?
+	local product = Economy.x2Product(minutes)
+	if product and amount >= 1 then
+		data.x2Offers[product] = { b = math.floor(amount), t = os.time() }
+		return product
+	end
+	return nil
 end
 
 -- Ile monet mieści skrzynia gracza (dochód z kilku godzin, ulepszenie Skrzynia)
@@ -433,6 +452,8 @@ local function refreshGarden(garden: GardenState)
 			RATE_COLOR,
 			formatRate(Economy.gardenIncome(planted, fertilizer))
 		)
+		-- Klient pokazuje nad skrzynią „x2 [G]” i włącza przycisk G, gdy w skrzyni jest dość na ofertę
+		garden.model:SetAttribute("X2Product", Economy.x2Product(data.potMinutes) or "")
 		if garden.potLabel then
 			-- Ile jest w skrzyni i ile się zmieści; pełna = czerwone MAX (grządki stoją, trzeba odebrać)
 			local capacity = Economy.potCapacity(planted, fertilizer, stat(owner, "chest"))
@@ -447,6 +468,7 @@ local function refreshGarden(garden: GardenState)
 		end
 	else
 		garden.label.Text = ""
+		garden.model:SetAttribute("X2Product", "")
 		if garden.potLabel then
 			garden.potLabel.Text = ""
 		end
@@ -731,7 +753,25 @@ local function onPlant(garden: GardenState, player: Player)
 	sendView(garden, player, false)
 end
 
-local function onCollect(garden: GardenState, player: Player)
+-- Przenosi monety ze skrzyni do portfela. Zwraca odebraną kwotę i ile to było minut dochodu.
+local function takePot(player: Player, data: Data): (number, number)
+	local amount = math.floor(data.pot)
+	if amount < 1 then
+		return 0, 0
+	end
+	local minutes = data.potMinutes
+	data.pot -= amount
+	data.potMinutes = 0
+	data.coins += amount
+	if api.onEvent then
+		api.onEvent(player, "collect", 1)
+	end
+	api.notify(player, "MSG_COLLECTED", { amount })
+	return amount, minutes
+end
+
+-- Odbiór przy skrzyni: F (x2 = false) albo G (x2 = true: od razu okno zakupu podwojenia)
+local function onCollect(garden: GardenState, player: Player, x2: boolean?)
 	if garden.owner ~= player then
 		return
 	end
@@ -739,17 +779,15 @@ local function onCollect(garden: GardenState, player: Player)
 	if not data then
 		return
 	end
-	local amount = math.floor(data.pot)
+	local amount, minutes = takePot(player, data)
 	if amount < 1 then
 		api.notify(player, "MSG_POT_EMPTY")
 		return
 	end
-	data.pot -= amount
-	data.coins += amount
-	if api.onEvent then
-		api.onEvent(player, "collect", 1)
+	local product = recordOffer(data, minutes, amount)
+	if product then
+		ChestOffer:FireClient(player, { kind = "collect", amount = amount, minutes = minutes, product = product, buy = x2 == true })
 	end
-	api.notify(player, "MSG_COLLECTED", { amount })
 	refreshGarden(garden)
 	api.pushState(player)
 end
@@ -808,6 +846,32 @@ end
 
 -- ===== Przydział ogródków =====
 
+-- Dochód za czas offline (Economy.offlineMinutes), ile zmieści się w skrzyni. Dość na ofertę x2 (i po
+-- samouczku) = okno „Witaj z powrotem”, inaczej zwykły komunikat.
+local function applyOffline(player: Player, data: Data, now: number)
+	if data.incomeAt > 0 then
+		local capacity = capacityOf(player, data)
+		local before = data.pot
+		local perMinute = Economy.gardenIncome(data.planted, stat(player, "fertilizer"))
+		local earned = Economy.offlineIncome(data.planted, stat(player, "fertilizer"), now - data.incomeAt)
+		data.pot = Economy.fillPot(data.pot, earned, capacity)
+		local fitted = data.pot - before
+		local minutes = if perMinute > 0 then fitted / perMinute else 0
+		data.potMinutes += minutes
+		-- Dość na ofertę (i po samouczku): okno „Witaj z powrotem” z x2; inaczej zwykły komunikat
+		local product = if data.tutorial >= Config.Tutorial.done then recordOffer(data, minutes, fitted) else nil
+		if product then
+			welcome[player] = { away = now - data.incomeAt, earned = math.floor(fitted), minutes = minutes, product = product }
+		elseif fitted >= 1 then
+			api.notify(player, "MSG_OFFLINE_INCOME", { math.floor(fitted) })
+		end
+		if capacity > 0 and data.pot >= capacity then
+			api.notify(player, "MSG_POT_FULL")
+		end
+	end
+	data.incomeAt = now
+end
+
 function GardenService.assign(player: Player)
 	if gardenOf[player] then
 		return
@@ -836,21 +900,7 @@ function GardenService.assign(player: Player)
 					local weakest = Economy.weakestIndex(data.planted) :: number
 					data.pot += Economy.itemValue(table.remove(data.planted, weakest) :: Economy.PlantItem)
 				end
-				-- Dochód za czas offline (Economy.offlineMinutes), ile zmieści się w skrzyni
-				local now = os.time()
-				if data.incomeAt > 0 then
-					local capacity = capacityOf(player, data)
-					local before = data.pot
-					local earned = Economy.offlineIncome(data.planted, stat(player, "fertilizer"), now - data.incomeAt)
-					data.pot = Economy.fillPot(data.pot, earned, capacity)
-					if data.pot - before >= 1 then
-						api.notify(player, "MSG_OFFLINE_INCOME", { math.floor(data.pot - before) })
-					end
-					if capacity > 0 and data.pot >= capacity then
-						api.notify(player, "MSG_POT_FULL")
-					end
-				end
-				data.incomeAt = now
+				applyOffline(player, data, os.time())
 			end
 			refreshGarden(garden)
 			return
@@ -860,6 +910,7 @@ function GardenService.assign(player: Player)
 end
 
 function GardenService.release(player: Player)
+	welcome[player] = nil
 	endCarry(player, "dropped")
 	-- Złodzieje, którzy niosą grzyb tego gracza, dostają go na własność dopiero po doniesieniu
 	local garden = gardenOf[player]
@@ -889,6 +940,59 @@ end
 
 function GardenService.isCarrying(player: Player): boolean
 	return carries[player] ~= nil
+end
+
+-- Panel DEV: udaj, że gracza nie było `seconds` sekund (dochód offline i okno „Witaj z powrotem” od razu)
+function GardenService.devAway(player: Player, seconds: number)
+	local data = api.getData(player)
+	if not data then
+		return
+	end
+	local now = os.time()
+	data.incomeAt = now - seconds
+	applyOffline(player, data, now)
+	local garden = gardenOf[player]
+	if garden then
+		refreshGarden(garden)
+	end
+	local pending = welcome[player]
+	if pending then
+		ChestOffer:FireClient(player, { kind = "welcome", away = pending.away, earned = pending.earned, minutes = pending.minutes, product = pending.product, pot = math.floor(data.pot) })
+	end
+end
+
+-- Panel DEV: dosyp do skrzyni `minutes` minut dochodu (test karty x2 po odbiorze i klawisza G)
+function GardenService.devFill(player: Player, minutes: number)
+	local data = api.getData(player)
+	if not data then
+		return
+	end
+	local perMinute = Economy.gardenIncome(data.planted, stat(player, "fertilizer"))
+	data.pot += perMinute * minutes
+	data.potMinutes += minutes
+	local garden = gardenOf[player]
+	if garden then
+		refreshGarden(garden)
+	end
+end
+
+-- Zakup x2 skrzyni: wypłaca premię z zapisanej oferty (bez oferty: dochód z najmniejszej liczby minut
+-- tego progu, bo gracz zapłacił). Monety idą od razu do portfela, z pominięciem limitu skrzyni.
+function GardenService.grantX2(player: Player, product: string): boolean
+	local data = api.getData(player)
+	local minMinutes = Economy.x2MinMinutes(product)
+	if not data or not minMinutes then
+		return false
+	end
+	local offer = data.x2Offers[product]
+	data.x2Offers[product] = nil
+	local bonus = if offer then offer.b else math.floor(Economy.gardenIncome(data.planted, stat(player, "fertilizer")) * minMinutes)
+	bonus = math.max(bonus, 1)
+	data.coins += bonus
+	api.notify(player, "MSG_X2_DONE", { bonus })
+	ChestOffer:FireClient(player, { kind = "paid", product = product, bonus = bonus })
+	api.pushState(player)
+	return true
 end
 
 -- Produkt za Robuxy: od razu dochód z kilkudziesięciu minut. false = nic nie rośnie.
@@ -958,9 +1062,17 @@ function GardenService.start(gardenInfos: { { id: number, model: Model } }, serv
 		steal:SetAttribute("Thief", true)
 		plant:SetAttribute("Owner", true)
 		local collect: ProximityPrompt? = nil
+		local collectX2: ProximityPrompt? = nil
 		if chest then
 			collect = makePrompt(chest, "Collect", "GARDEN_COLLECT", Enum.KeyCode.F, 0)
 			;(collect :: ProximityPrompt):SetAttribute("Owner", true)
+			-- G: odbierz i od razu kup x2 (klient włącza go, gdy w skrzyni jest dość na ofertę).
+			-- Przytrzymanie chroni przed przypadkowym wciśnięciem przy spamowaniu F.
+			local x2 = makePrompt(chest, "CollectX2", "GARDEN_COLLECT_X2", Enum.KeyCode.G, 1)
+			x2.GamepadKeyCode = Enum.KeyCode.ButtonR1
+			x2.HoldDuration = 0.4
+			x2:SetAttribute("X2", true)
+			collectX2 = x2
 		end
 
 		local garden: GardenState = {
@@ -1007,6 +1119,11 @@ function GardenService.start(gardenInfos: { { id: number, model: Model } }, serv
 				onCollect(garden, player)
 			end)
 		end
+		if collectX2 then
+			collectX2.Triggered:Connect(function(player)
+				onCollect(garden, player, true)
+			end)
+		end
 		steal.PromptButtonHoldBegan:Connect(function(player)
 			holdStarted[player] = os.clock()
 			-- Właściciel dostaje ostrzeżenie od razu, żeby mógł przybiec i przegonić złodzieja
@@ -1023,6 +1140,34 @@ function GardenService.start(gardenInfos: { { id: number, model: Model } }, serv
 
 	Players.PlayerRemoving:Connect(GardenService.release)
 	Remotes.get("GardenPlant").OnServerEvent:Connect(onPlantOne)
+	-- Okno „Witaj z powrotem”: klient gotowy (pokaż) albo gracz odebrał (x2 = chce też kupić podwojenie).
+	-- Odbiór z okna zabiera całą skrzynię zdalnie; x2 podwaja tylko zarobek z nieobecności.
+	Remotes.get("ChestClaim").OnServerEvent:Connect(function(player: Player, action: unknown, x2: unknown)
+		local pending = welcome[player]
+		local data = api.getData(player)
+		if not pending or not data then
+			return
+		end
+		if action == "ready" then
+			ChestOffer:FireClient(player, {
+				kind = "welcome",
+				away = pending.away,
+				earned = pending.earned,
+				minutes = pending.minutes,
+				product = pending.product,
+				pot = math.floor(data.pot),
+			})
+		elseif action == "claim" then
+			welcome[player] = nil
+			takePot(player, data)
+			local garden = gardenOf[player]
+			if garden then
+				refreshGarden(garden)
+			end
+			api.pushState(player)
+			ChestOffer:FireClient(player, { kind = "claimed", product = pending.product, buy = x2 == true })
+		end
+	end)
 	Remotes.get("GardenAuto").OnServerEvent:Connect(function(player)
 		local garden = nearOwnGarden(player)
 		if garden then
@@ -1058,8 +1203,11 @@ function GardenService.start(gardenInfos: { { id: number, model: Model } }, serv
 					-- Do pełna skrzyni; zapełniła się właśnie teraz = jedno powiadomienie
 					local capacity = capacityOf(owner, data)
 					local before = data.pot
-					local income = Economy.gardenIncome(data.planted, stat(owner, "fertilizer")) * INCOME_TICK / 60
-					data.pot = Economy.fillPot(data.pot, income, capacity)
+					local perMinute = Economy.gardenIncome(data.planted, stat(owner, "fertilizer"))
+					data.pot = Economy.fillPot(data.pot, perMinute * INCOME_TICK / 60, capacity)
+					if perMinute > 0 and data.pot > before then
+						data.potMinutes += (data.pot - before) / perMinute
+					end
 					data.incomeAt = now
 					if capacity > 0 and before < capacity and data.pot >= capacity then
 						api.notify(owner, "MSG_POT_FULL")

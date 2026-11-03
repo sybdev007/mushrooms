@@ -9,6 +9,7 @@ local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 
 local Localize = require(script.Parent.Localize)
+local Purchases = require(script.Parent.Purchases)
 
 local GardenPrompts = {}
 
@@ -37,7 +38,13 @@ local function refresh(rack: Model)
 		if typeof(key) == "string" then
 			prompt.ActionText = Localize.t(key)
 		end
-		if prompt:GetAttribute("Owner") == true then
+		if prompt:GetAttribute("X2") == true then
+			-- G: odbierz x2, tylko we własnym ogródku i gdy w skrzyni jest dość na ofertę (ChestOffers)
+			local product = rack:GetAttribute("X2Product")
+			local ready = typeof(product) == "string" and product ~= "" and Purchases.available(product)
+			prompt.Enabled = mine and ready
+			prompt.ObjectText = if ready then Purchases.priceText(product :: string) else ""
+		elseif prompt:GetAttribute("Owner") == true then
 			prompt.Enabled = mine
 			prompt.ObjectText = Localize.t("GARDEN_YOURS")
 		elseif prompt:GetAttribute("Thief") == true then
@@ -52,7 +59,7 @@ local function track(rack: Instance)
 		return
 	end
 	tracked[rack] = true
-	for _, name in { "OwnerUserId", "OwnerName", "Count" } do
+	for _, name in { "OwnerUserId", "OwnerName", "Count", "X2Product" } do
 		rack:GetAttributeChangedSignal(name):Connect(function()
 			refresh(rack)
 		end)
@@ -76,6 +83,12 @@ function GardenPrompts.start()
 	end
 	CollectionService:GetInstanceAddedSignal("GardenPlot"):Connect(track)
 	Localize.onChanged(function()
+		for rack in tracked do
+			refresh(rack)
+		end
+	end)
+	-- Ceny produktów przychodzą z Robloxa po chwili: wtedy napis przy „Odbierz x2” się poprawia
+	task.delay(8, function()
 		for rack in tracked do
 			refresh(rack)
 		end
