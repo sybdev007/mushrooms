@@ -1934,7 +1934,8 @@ function GameService.start(mapInfo: MapBuilder.MapInfo)
 			local session = sessions[player]
 			if session then
 				local oilMax = stat(session, "oil")
-				session.oil = math.clamp(session.oil + oilMax * fraction, 1, oilMax)
+				-- Osuwisko nie zbija oleju poniżej 25% pełnej latarni (nie może samo zgasić latarni)
+				session.oil = math.clamp(session.oil + oilMax * fraction, math.min(session.oil, oilMax * 0.25), oilMax)
 				pushState(session)
 			end
 		end,

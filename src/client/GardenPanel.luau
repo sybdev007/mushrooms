@@ -37,7 +37,6 @@ local SOIL_DARK = Color3.fromRGB(84, 56, 38)
 local SOIL_LOCKED = Color3.fromRGB(70, 62, 58)
 local GREEN = Color3.fromRGB(54, 190, 92)
 local ORANGE = Color3.fromRGB(246, 150, 40)
-local GOLD = Color3.fromRGB(255, 214, 70)
 local WINDOW_W, WINDOW_H = 760, 520
 local BED = 112
 local CARD_W, CARD_H = 104, 128
