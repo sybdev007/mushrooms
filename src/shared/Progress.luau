@@ -18,7 +18,7 @@ local Progress = {}
 -- ===== Grzybopedia =====
 
 -- Strony księgi: po jednej na świat
-Progress.PAGES = { "forest", "cave", "swamp" }
+Progress.PAGES = { "forest", "cave", "swamp", "mountain" }
 
 -- Progi każdej strony: wszystkie gatunki co najmniej w danej randze wariantu.
 -- bonus = stały dodatek do ceny przy sprzedaży; każdy próg daje lepszy tytuł nad głową
@@ -197,6 +197,7 @@ Progress.GUARDIANS = {
 	{ id = "leszy", world = "forest", key = "BOSS_LESZY", chase = Config.Leszy, lair = Config.Grove },
 	{ id = "skarbnik", world = "cave", key = "BOSS_SKARBNIK", chase = Config.Skarbnik, lair = Config.Lair },
 	{ id = "utopiec", world = "swamp", key = "BOSS_UTOPIEC", chase = Config.Utopiec, lair = Config.UtopiecLair },
+	{ id = "jaga", world = "mountain", key = "BOSS_JAGA", chase = Config.Jaga, lair = Config.JagaLair },
 } :: { GuardianDef }
 
 -- Zapis: bestiary[strażnik] = { found, stolen, escaped, caught }
@@ -304,8 +305,8 @@ end
 -- Monety za zadanie / logowanie rosną z najdalszym odblokowanym światem:
 -- dziesięciokrotność najcenniejszego zwykłego grzyba w tym świecie (ok. 2-4 minuty zbierania;
 -- przy dwukrotności zadanie było warte mniej niż minutę gry, tools/economy_sim.luau).
-function Progress.rewardScale(caveUnlocked: boolean, swampUnlocked: boolean): number
-	local page = if swampUnlocked then "swamp" elseif caveUnlocked then "cave" else "forest"
+function Progress.rewardScale(caveUnlocked: boolean, swampUnlocked: boolean, mountainUnlocked: boolean?): number
+	local page = if mountainUnlocked then "mountain" elseif swampUnlocked then "swamp" elseif caveUnlocked then "cave" else "forest"
 	local best = 0
 	for _, species in Progress.pageSpecies(page) do
 		if not species.grove and not species.lair and not species.guardian then
@@ -316,8 +317,8 @@ function Progress.rewardScale(caveUnlocked: boolean, swampUnlocked: boolean): nu
 end
 
 -- Monety w paczce powitalnej za dołączenie do grupy (Config.Community.giftReward jednostek nagród)
-function Progress.communityGift(caveUnlocked: boolean, swampUnlocked: boolean): number
-	return math.floor(Config.Community.giftReward * Progress.rewardScale(caveUnlocked, swampUnlocked))
+function Progress.communityGift(caveUnlocked: boolean, swampUnlocked: boolean, mountainUnlocked: boolean?): number
+	return math.floor(Config.Community.giftReward * Progress.rewardScale(caveUnlocked, swampUnlocked, mountainUnlocked))
 end
 
 -- ===== Codzienne zadania =====

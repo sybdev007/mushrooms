@@ -31,6 +31,7 @@ export type State = {
 	upgrades: { [string]: number },
 	caveUnlocked: boolean?,
 	swampUnlocked: boolean?,
+	mountainUnlocked: boolean?,
 }
 
 local Hud = {}
@@ -74,7 +75,7 @@ local UPGRADE_ICONS = {
 
 -- Karty w panelu: najpierw sklep w chatce, potem w obozowisku. Panel pokazuje tylko karty bieżącego sklepu.
 local ALL_UPGRADES: { string } = {}
-for _, order in { Config.UpgradeOrder, Config.CaveUpgradeOrder, Config.SwampUpgradeOrder } do
+for _, order in { Config.UpgradeOrder, Config.CaveUpgradeOrder, Config.SwampUpgradeOrder, Config.MountainUpgradeOrder } do
 	for _, id in order do
 		if not table.find(ALL_UPGRADES, id) then
 			table.insert(ALL_UPGRADES, id)
@@ -530,6 +531,7 @@ local TABS = {
 	{ world = "forest", key = "UPG_TAB_FOREST", icon = "🌲" },
 	{ world = "cave", key = "UPG_TAB_CAVE", icon = "💎" },
 	{ world = "swamp", key = "UPG_TAB_SWAMP", icon = "🐸" },
+	{ world = "mountain", key = "UPG_TAB_MOUNTAIN", icon = "🧹" },
 }
 local tabBar = Instance.new("Frame")
 tabBar.Name = "Tabs"
@@ -549,7 +551,7 @@ local selectedTab = "forest"
 for order, tab in TABS do
 	local button = Instance.new("TextButton")
 	button.Name = "Tab_" .. tab.world
-	button.Size = UDim2.new(0, 150, 1, 0)
+	button.Size = UDim2.new(0, 140, 1, 0) -- cztery zakładki mieszczą się w panelu
 	button.LayoutOrder = order
 	button.Font = TITLE_FONT
 	button.TextScaled = true
@@ -842,6 +844,7 @@ local TAB_HINTS: { [string]: string } = {
 	forest = "UPG_HINT_FOREST",
 	cave = "UPG_HINT_CAVE",
 	swamp = "UPG_HINT_SWAMP",
+	mountain = "UPG_HINT_MOUNTAIN",
 }
 
 local function tabUnlocked(world: string): boolean
@@ -850,6 +853,8 @@ local function tabUnlocked(world: string): boolean
 		return true
 	elseif world == "cave" then
 		return state ~= nil and state.caveUnlocked == true
+	elseif world == "mountain" then
+		return state ~= nil and state.mountainUnlocked == true
 	end
 	return state ~= nil and state.swampUnlocked == true
 end
@@ -866,7 +871,11 @@ end
 
 applyTab = function()
 	local count = 0
-	local order = if selectedTab == "cave" then Config.CaveUpgradeOrder elseif selectedTab == "swamp" then Config.SwampUpgradeOrder else Config.UpgradeOrder
+	local order = if selectedTab == "cave"
+		then Config.CaveUpgradeOrder
+		elseif selectedTab == "swamp" then Config.SwampUpgradeOrder
+		elseif selectedTab == "mountain" then Config.MountainUpgradeOrder
+		else Config.UpgradeOrder
 	for id, card in cards do
 		local visible = table.find(order, id) ~= nil
 		card.holder.Visible = visible
@@ -990,7 +999,7 @@ local function renderUpgradePanel(state: State)
 
 	local affordable = 0
 	for _, id in ALL_UPGRADES do
-		if Economy.upgradeLockedWorld(id, state.upgrades[id] or 0, state.caveUnlocked, state.swampUnlocked) == nil then
+		if Economy.upgradeLockedWorld(id, state.upgrades[id] or 0, state.caveUnlocked, state.swampUnlocked, state.mountainUnlocked) == nil then
 			local cost = Economy.upgradeCost(id, state.upgrades[id] or 0)
 			if cost and state.coins >= cost then
 				affordable += 1
@@ -1108,13 +1117,15 @@ render = function()
 		local def = Config.Upgrades[id]
 		local level = state.upgrades[id] or 0
 		local cost = Economy.upgradeCost(id, level)
-		local locked = if cost then Economy.upgradeLockedWorld(id, level, state.caveUnlocked, state.swampUnlocked) else nil
+		local locked = if cost then Economy.upgradeLockedWorld(id, level, state.caveUnlocked, state.swampUnlocked, state.mountainUnlocked) else nil
 		card.title.Text = Localize.t(def.key)
-		card.desc.Text = if locked then Localize.t(if locked == "cave" then "UPG_UNLOCK_CAVE" else "UPG_UNLOCK_SWAMP") else Localize.t(def.key .. "_DESC")
+		card.desc.Text = if locked
+			then Localize.t(if locked == "cave" then "UPG_UNLOCK_CAVE" elseif locked == "mountain" then "UPG_UNLOCK_MOUNTAIN" else "UPG_UNLOCK_SWAMP")
+			else Localize.t(def.key .. "_DESC")
 		if cost and not locked and not Economy.upgradeCanBuyInWorld(id, level, Economy.zoneWorld(state.zone)) then
 			local required = Economy.upgradeRequiredWorld(id, level)
 			if required ~= "forest" then
-				card.desc.Text = Localize.t(if required == "cave" then "UPG_BUY_CAVE" else "UPG_BUY_SWAMP")
+				card.desc.Text = Localize.t(if required == "cave" then "UPG_BUY_CAVE" elseif required == "mountain" then "UPG_BUY_MOUNTAIN" else "UPG_BUY_SWAMP")
 			end
 		end
 		card.value.Text = valueText(id, level)
@@ -1141,7 +1152,7 @@ end
 function Hud.update(state: State)
 	local previous = lastState
 	lastState = state
-	if previous and (previous.caveUnlocked ~= state.caveUnlocked or previous.swampUnlocked ~= state.swampUnlocked) then
+	if previous and (previous.caveUnlocked ~= state.caveUnlocked or previous.swampUnlocked ~= state.swampUnlocked or previous.mountainUnlocked ~= state.mountainUnlocked) then
 		applyTab()
 	end
 	if previous then

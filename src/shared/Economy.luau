@@ -369,6 +369,8 @@ function Economy.homePoint(world: string): (number, number)
 		return Config.Cave.camp.x, Config.Cave.camp.z
 	elseif world == "swamp" then
 		return Config.Swamp.camp.x, Config.Swamp.camp.z
+	elseif world == "mountain" then
+		return Config.Mountain.camp.x, Config.Mountain.camp.z
 	end
 	return 0, -10
 end
@@ -387,14 +389,35 @@ function Economy.upgradeCost(id: string, level: number): number?
 	if level >= def.maxLevel then
 		return nil
 	end
+	local lateFrom, lateGrowth = def.lateFrom, def.lateGrowth
+	if lateFrom and lateGrowth and level >= lateFrom then
+		-- Poziomy kolejnego świata: od ceny ostatniego poziomu przed progiem rośnie wolniej
+		return math.floor(def.costBase * def.costGrowth ^ (lateFrom - 1) * lateGrowth ^ (level - lateFrom + 1) + 0.5)
+	end
 	return math.floor(def.costBase * def.costGrowth ^ level + 0.5)
 end
 
-local WORLD_RANK: { [string]: number } = { forest = 1, cave = 2, swamp = 3 }
-local WORLDS = { "forest", "cave", "swamp" }
+local WORLD_RANK: { [string]: number } = { forest = 1, cave = 2, swamp = 3, mountain = 4 }
+local WORLDS = { "forest", "cave", "swamp", "mountain" }
+Economy.WORLDS = WORLDS
 
-function Economy.worldUnlocked(world: string, caveUnlocked: boolean?, swampUnlocked: boolean?): boolean
-	return world == "forest" or (world == "cave" and caveUnlocked == true) or (world == "swamp" and swampUnlocked == true)
+function Economy.worldUnlocked(world: string, caveUnlocked: boolean?, swampUnlocked: boolean?, mountainUnlocked: boolean?): boolean
+	return world == "forest"
+		or (world == "cave" and caveUnlocked == true)
+		or (world == "swamp" and swampUnlocked == true)
+		or (world == "mountain" and mountainUnlocked == true)
+end
+
+-- Pół szerokości świata (studs od środka mapy do ściany)
+function Economy.worldHalfWidth(world: string): number
+	if world == "cave" then
+		return Config.Cave.halfWidth
+	elseif world == "swamp" then
+		return Config.Swamp.halfWidth
+	elseif world == "mountain" then
+		return Config.Mountain.halfWidth
+	end
+	return Config.ForestHalfWidth
 end
 
 -- Następny zakup zależy od poziomu; już kupionych poziomów nigdy nie odbieramy.
@@ -403,11 +426,11 @@ function Economy.upgradeRequiredWorld(id: string, level: number): string
 	assert(def, "Nieznane ulepszenie: " .. id)
 	if def.worldCaps then
 		for _, world in WORLDS do
-			if level < def.worldCaps[world] then
+			if level < (def.worldCaps[world] or 0) then
 				return world
 			end
 		end
-		return "swamp"
+		return WORLDS[#WORLDS]
 	end
 	return def.shop or "forest"
 end
@@ -423,9 +446,9 @@ function Economy.upgradeCap(id: string, world: string): number
 	return if WORLD_RANK[world] >= WORLD_RANK[def.shop or "forest"] then def.maxLevel else 0
 end
 
-function Economy.upgradeLockedWorld(id: string, level: number, caveUnlocked: boolean?, swampUnlocked: boolean?): string?
+function Economy.upgradeLockedWorld(id: string, level: number, caveUnlocked: boolean?, swampUnlocked: boolean?, mountainUnlocked: boolean?): string?
 	local world = Economy.upgradeRequiredWorld(id, level)
-	return if Economy.worldUnlocked(world, caveUnlocked, swampUnlocked) then nil else world
+	return if Economy.worldUnlocked(world, caveUnlocked, swampUnlocked, mountainUnlocked) then nil else world
 end
 
 function Economy.upgradeCanBuyInWorld(id: string, level: number, world: string): boolean
@@ -444,8 +467,7 @@ function Economy.upgradeCampAt(x: number, y: number, z: number): string?
 	end
 	for _, zone in Config.Zones do
 		if zone.safe and z >= zone.startZ and z < zone.endZ then
-			local width = if zone.world == "cave" then Config.Cave.halfWidth elseif zone.world == "swamp" then Config.Swamp.halfWidth else Config.ForestHalfWidth
-			if math.abs(x) <= width then
+			if math.abs(x) <= Economy.worldHalfWidth(zone.world) then
 				return zone.world
 			end
 		end
@@ -458,6 +480,7 @@ export type UpgradeBuyer = {
 	upgrades: { [string]: number },
 	caveUnlocked: boolean?,
 	swampUnlocked: boolean?,
+	mountainUnlocked: boolean?,
 }
 
 -- Używane przez serwer. Wszystkie odmowy następują przed modyfikacją; operacja nie yield-uje.
@@ -474,11 +497,11 @@ function Economy.buyUpgrade(data: UpgradeBuyer, id: string, world: string): (boo
 	if not cost then
 		return false, "max"
 	end
-	local locked = Economy.upgradeLockedWorld(id, level, data.caveUnlocked, data.swampUnlocked)
+	local locked = Economy.upgradeLockedWorld(id, level, data.caveUnlocked, data.swampUnlocked, data.mountainUnlocked)
 	if locked then
 		return false, "locked", locked
 	end
-	if not Economy.worldUnlocked(world, data.caveUnlocked, data.swampUnlocked) or not Economy.upgradeCanBuyInWorld(id, level, world) then
+	if not Economy.worldUnlocked(world, data.caveUnlocked, data.swampUnlocked, data.mountainUnlocked) or not Economy.upgradeCanBuyInWorld(id, level, world) then
 		return false, "location", Economy.upgradeRequiredWorld(id, level)
 	end
 	if data.coins < cost then
@@ -816,6 +839,11 @@ end
 -- Bagna: tak samo, tylko z wyższym progiem
 function Economy.canEnterSwamp(coins: number, unlocked: boolean?): boolean
 	return unlocked == true or coins >= Config.Swamp.unlockCoins
+end
+
+-- Łysa Góra: tak samo, próg z Config.Mountain
+function Economy.canEnterMountain(coins: number, unlocked: boolean?): boolean
+	return unlocked == true or coins >= Config.Mountain.unlockCoins
 end
 
 -- Czy przedmiot z koszyka to korona z Gniazda Leszego (Leszy odbiera je, gdy złapie gracza)

@@ -137,7 +137,7 @@ Remotes.get("StateUpdate").OnClientEvent:Connect(function(state)
 	chased = state.chased == true
 	chaser = state.chaser
 	upgrades = state.upgrades
-	PortalView.setUnlocked({ cave = state.caveUnlocked == true, swamp = state.swampUnlocked == true })
+	PortalView.setUnlocked({ cave = state.caveUnlocked == true, swamp = state.swampUnlocked == true, mountain = state.mountainUnlocked == true })
 	DevPanel.setEnabled(state.dev == true)
 	DevPanel.update(state)
 	Hud.setDev(state.dev == true)

@@ -36,17 +36,21 @@ end
 if process.args[2] then
 	Config.Swamp.unlockCoins = tonumber(process.args[2])
 end
+if process.args[3] then
+	Config.Mountain.unlockCoins = tonumber(process.args[3])
+end
 
-local WIDTH = { forest = Config.ForestHalfWidth * 2, cave = Config.Cave.halfWidth * 2, swamp = Config.Swamp.halfWidth * 2 }
+local WIDTH = { forest = Config.ForestHalfWidth * 2, cave = Config.Cave.halfWidth * 2, swamp = Config.Swamp.halfWidth * 2, mountain = Config.Mountain.halfWidth * 2 }
 local PICK_SECONDS = 0.6 -- schylenie sie i zerwanie
 local SELL_SECONDS = 8 -- rozmowa ze skupem / kramik
 local ROI_MINUTES = 12 -- kupuje ulepszenie, gdy zwroci sie w tylu minutach
-local ECON = { "oil", "basket", "boots", "knife", "crystal", "pack", "rushwick", "creel", "beds", "fertilizer" }
+local ECON = { "oil", "basket", "boots", "knife", "crystal", "pack", "rushwick", "creel", "herbwick", "witchbag", "beds", "fertilizer" }
 
 type State = {
 	levels: { [string]: number },
 	cave: boolean,
 	swamp: boolean,
+	mountain: boolean?,
 	coins: number,
 	minutes: number,
 	earned: number,
@@ -57,7 +61,7 @@ local function stat(s: State, id: string): number
 end
 
 local function basket(s: State): number
-	return stat(s, "basket") + stat(s, "pack") + stat(s, "creel")
+	return stat(s, "basket") + stat(s, "pack") + stat(s, "creel") + stat(s, "witchbag")
 end
 
 -- Srednia wartosc zerwanego grzyba w strefie (z mutacjami przy szczesciu z nozyka i glebokosci)
@@ -96,7 +100,7 @@ local function trip(s: State, target: number): Trip?
 		return nil
 	end
 	local world = def.world
-	if (world == "cave" and not s.cave) or (world == "swamp" and not s.swamp) then
+	if not Economy.worldUnlocked(world, s.cave, s.swamp, s.mountain) then
 		return nil
 	end
 	local speed = stat(s, "boots")
@@ -159,8 +163,8 @@ end
 
 local function shopOpen(s: State, id: string): boolean
 	local shop = Economy.upgradeShop(id)
-	return Economy.worldUnlocked(shop, s.cave, s.swamp)
-		and Economy.upgradeLockedWorld(id, s.levels[id] or 0, s.cave, s.swamp) == nil
+	return Economy.worldUnlocked(shop, s.cave, s.swamp, s.mountain)
+		and Economy.upgradeLockedWorld(id, s.levels[id] or 0, s.cave, s.swamp, s.mountain) == nil
 end
 
 local function fmtTime(minutes: number): string
@@ -208,6 +212,10 @@ for _ = 1, 200000 do
 		s.swamp = true
 		mark("bagna otwarte (" .. fmt(Config.Swamp.unlockCoins) .. ")")
 	end
+	if s.swamp and not s.mountain and s.coins >= Config.Mountain.unlockCoins then
+		s.mountain = true
+		mark("Łysa Góra otwarta (" .. fmt(Config.Mountain.unlockCoins) .. ")")
+	end
 
 	-- Zakupy: najszybciej zwracajace sie ulepszenie
 	while true do
@@ -243,7 +251,7 @@ for _ = 1, 200000 do
 			pick = nil
 			for _, id in ECON do
 				local cost = Economy.upgradeCost(id, s.levels[id])
-				-- Na bagnach nie ma już na co odkładać: kupuje wszystko, na co stać
+				-- Od bagien gracz kupuje wszystko, na co stać (nie odkłada na kolejny świat)
 				if cost and shopOpen(s, id) and cost <= s.coins and (cost < base * 2 or s.swamp) then
 					pick = id
 					break
@@ -287,13 +295,17 @@ for _ = 1, 200000 do
 		flags.swampEcon = true
 		mark("ulepszenia bagien na maks.")
 	end
+	if not flags.mountainEcon and s.mountain and allMax({ "herbwick", "witchbag" }) then
+		flags.mountainEcon = true
+		mark("ulepszenia Łysej Góry na maks.")
+	end
 	if not flags.allEcon and allMax(ECON) then
 		flags.allEcon = true
 		mark("wszystkie ulepszenia dochodowe na maks.")
 		break
 	end
-	if s.minutes > 12 * 60 then
-		mark("koniec symulacji (12 h)")
+	if s.minutes > 16 * 60 then
+		mark("koniec symulacji (16 h)")
 		break
 	end
 end
@@ -319,8 +331,10 @@ for _, stage in {
 	{ name = "las max", levels = { oil = Economy.upgradeCap("oil", "forest"), basket = Economy.upgradeCap("basket", "forest"), boots = Economy.upgradeCap("boots", "forest"), knife = 3 } },
 	{ name = "jaskinia+", levels = { oil = Economy.upgradeCap("oil", "cave"), basket = Economy.upgradeCap("basket", "cave"), boots = Economy.upgradeCap("boots", "cave"), knife = 6, crystal = 5, pack = 6 } },
 	{ name = "bagna max", levels = { oil = Economy.upgradeCap("oil", "swamp"), basket = Economy.upgradeCap("basket", "swamp"), boots = Economy.upgradeCap("boots", "swamp"), knife = 6, crystal = 5, pack = 6, rushwick = 6, creel = 5 } },
+	{ name = "gora start", levels = { oil = Economy.upgradeCap("oil", "swamp"), basket = Economy.upgradeCap("basket", "swamp"), boots = Economy.upgradeCap("boots", "swamp"), knife = 6, crystal = 5, pack = 6, rushwick = 6, creel = 5 } },
+	{ name = "gora max", levels = { oil = Economy.upgradeCap("oil", "mountain"), basket = Economy.upgradeCap("basket", "mountain"), boots = Economy.upgradeCap("boots", "mountain"), knife = 6, crystal = 5, pack = 6, rushwick = 6, creel = 5, herbwick = 6, witchbag = 5 } },
 } do
-	local probe: State = { levels = {}, cave = true, swamp = true, coins = 0, minutes = 0, earned = 0 }
+	local probe: State = { levels = {}, cave = true, swamp = true, mountain = string.sub(stage.name, 1, 4) == "gora", coins = 0, minutes = 0, earned = 0 }
 	for id in Config.Upgrades do
 		probe.levels[id] = (stage.levels :: any)[id] or 0
 	end
@@ -342,12 +356,13 @@ for _, stage in {
 	{ name = "las", cave = false, swamp = false, levels = { oil = 4, basket = 4, boots = 3 } },
 	{ name = "jaskinia", cave = true, swamp = false, levels = { oil = 10, basket = 10, boots = 8, crystal = 3, pack = 3, knife = 3 } },
 	{ name = "bagna", cave = true, swamp = true, levels = { oil = 10, basket = 10, boots = 8, crystal = 5, pack = 6, knife = 6, rushwick = 3, creel = 2 } },
+	{ name = "gora", cave = true, swamp = true, mountain = true, levels = { oil = 14, basket = 14, boots = 12, crystal = 5, pack = 6, knife = 6, rushwick = 6, creel = 5, herbwick = 2, witchbag = 2 } },
 } do
-	local probe: State = { levels = {}, cave = stage.cave, swamp = stage.swamp, coins = 0, minutes = 0, earned = 0 }
+	local probe: State = { levels = {}, cave = stage.cave, swamp = stage.swamp, mountain = (stage :: any).mountain, coins = 0, minutes = 0, earned = 0 }
 	for id in Config.Upgrades do
 		probe.levels[id] = (stage.levels :: any)[id] or 0
 	end
-	local scale = Progress.rewardScale(stage.cave, stage.swamp)
+	local scale = Progress.rewardScale(stage.cave, stage.swamp, (stage :: any).mountain)
 	local perMinute = income(probe)
 	print(string.format("  %-9s dochod %8s/min | zadanie %7s (= %.1f min gry) | komplet %7s | dzien 7: %7s",
 		stage.name, fmt(perMinute), fmt(scale), scale / perMinute, fmt(scale * Progress.DAILY_BONUS.reward), fmt(scale * 3)))
@@ -355,7 +370,7 @@ end
 
 -- Ceny ulepszen: suma do maksimum
 print("\nKoszt wszystkich poziomow:")
-for _, id in { "lantern", "oil", "basket", "boots", "knife", "beds", "fertilizer", "lock", "crystal", "pack", "rushwick", "creel" } do
+for _, id in { "lantern", "oil", "basket", "boots", "knife", "beds", "fertilizer", "lock", "crystal", "pack", "rushwick", "creel", "herbwick", "witchbag" } do
 	local total, level = 0, 0
 	while true do
 		local cost = Economy.upgradeCost(id, level)

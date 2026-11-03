@@ -13,6 +13,7 @@ export type Source = {
 	stats: { [string]: number },
 	caveUnlocked: boolean,
 	swampUnlocked: boolean,
+	mountainUnlocked: boolean?,
 }
 
 -- Kolejność = kolejność w Creator Hub (i w docs/Odznaki.md)
@@ -30,6 +31,9 @@ Achievements.IDS = {
 	"lifesaver",
 	"streak7",
 	"halloween2026",
+	"mountain",
+	"jaga",
+	"cosmic",
 }
 
 local function anyForm(atlas: { [string]: any }, rank: number): boolean
@@ -66,8 +70,10 @@ function Achievements.check(source: Source): { [string]: boolean }
 	done.first_mushroom = (stats.picked or 0) >= 1 or next(source.atlas) ~= nil
 	done.cave = source.caveUnlocked
 	done.swamp = source.swampUnlocked
+	done.mountain = source.mountainUnlocked == true
 	done.gold = anyForm(source.atlas, 2)
 	done.rainbow = anyForm(source.atlas, 3)
+	done.cosmic = anyForm(source.atlas, 4)
 	for _, def in Progress.GUARDIANS do
 		done[def.id] = Progress.guardianRecord(source.bestiary :: any, def.id).found
 	end

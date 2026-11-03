@@ -44,6 +44,7 @@ export type Data = {
 	pity: number, -- odrosty od ostatniego Złota (albo lepszego), do gwarancji mutacji
 	caveUnlocked: boolean, -- portal do jaskini raz otwarty zostaje otwarty
 	swampUnlocked: boolean, -- to samo dla bagien
+	mountainUnlocked: boolean, -- to samo dla Łysej Góry
 	luckUntil: number, -- os.time(), do kiedy działa mikstura szczęścia
 	soloBoomUntil: number, -- os.time(), do kiedy działa Twój Wysyp (produkt boomSolo)
 	receipts: { string }, -- ostatnie obsłużone zakupy (Roblox może przysłać ten sam drugi raz)
@@ -63,7 +64,7 @@ export type Forest = { g: number, s: { [string]: ForestSpot } }
 
 local LEGACY_STORE_NAME = "LanternForager_Prototype_v1" -- stary zapis bez blokady sesji (tylko do przeniesienia)
 local PROFILE_STORE_NAME = "LanternForager_Profiles_v1"
-local DATA_VERSION = 6
+local DATA_VERSION = 7 -- 7: Łysa Góra (mountainUnlocked, nowe poziomy ulepszeń)
 local MAX_ATTEMPTS = 3
 
 local DataService = {}
@@ -123,6 +124,7 @@ function DataService.defaultData(): Data
 		pity = 0,
 		caveUnlocked = false,
 		swampUnlocked = false,
+		mountainUnlocked = false,
 		luckUntil = 0,
 		soloBoomUntil = 0,
 		receipts = {},
@@ -366,6 +368,7 @@ local function reconcile(raw: any): Data
 	end
 	data.caveUnlocked = raw.caveUnlocked == true
 	data.swampUnlocked = raw.swampUnlocked == true
+	data.mountainUnlocked = raw.mountainUnlocked == true
 	if finite(raw.luckUntil) then
 		data.luckUntil = math.floor(raw.luckUntil)
 	end

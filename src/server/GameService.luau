@@ -195,6 +195,15 @@ local WORLD_GATES: { [string]: WorldGate } = {
 		find = "MSG_PORTAL_FIND_SWAMP",
 		engulfed = "MSG_ENGULFED_SWAMP",
 	},
+	mountain = {
+		flag = "mountainUnlocked",
+		canEnter = Economy.canEnterMountain,
+		unlockCoins = Config.Mountain.unlockCoins,
+		unlocked = "MSG_MOUNTAIN_UNLOCKED",
+		enter = "MSG_MOUNTAIN_ENTER",
+		find = "MSG_PORTAL_FIND_MOUNTAIN",
+		engulfed = "MSG_ENGULFED_MOUNTAIN",
+	},
 }
 local map: MapBuilder.MapInfo
 
@@ -216,7 +225,7 @@ end
 -- Koszyk + plecak górnika (ulepszenie z obozowiska w jaskini)
 local function basketMax(session: Session): number
 	-- Znalezisko i trofeum z ekspedycji zajmują po jednym miejscu, dopóki ich nie zabezpieczysz
-	return stat(session, "basket") + stat(session, "pack") + stat(session, "creel") - DelveService.reserved(session.player)
+	return stat(session, "basket") + stat(session, "pack") + stat(session, "creel") + stat(session, "witchbag") - DelveService.reserved(session.player)
 end
 
 -- Mnożnik spalania oleju w świecie strefy (knot z jaskini albo z bagien)
@@ -315,6 +324,7 @@ local function pushState(session: Session)
 		chaser = chasedBy(session.player),
 		caveUnlocked = data.caveUnlocked,
 		swampUnlocked = data.swampUnlocked,
+		mountainUnlocked = data.mountainUnlocked,
 		luckUntil = data.luckUntil,
 		boomUntil = boomUntil,
 		soloBoomUntil = data.soloBoomUntil,
@@ -1349,6 +1359,17 @@ local DEV_TELEPORTS: { [string]: () -> CFrame? } = {
 		local lair = Config.UtopiecLair
 		return CFrame.new(lair.centerX + 4, 4, lair.centerZ - lair.radius - 10) * CFrame.Angles(0, math.pi, 0)
 	end,
+	tpMountain = function()
+		local info = map.worlds.mountain
+		return info and info.camp
+	end,
+	tpCauldrons = function()
+		return CFrame.new(0, 4, Config.Zones[16].startZ + 8)
+	end,
+	tpSummit = function()
+		local lair = Config.JagaLair
+		return CFrame.new(lair.centerX + 10, 4, lair.hutZ - 24)
+	end,
 	tpDelve = function()
 		-- Przed szczeliną do Głębokich Komór (ściana Otchłani), twarzą do niej
 		return CFrame.lookAt(Vector3.new(32, 4, 1398), Vector3.new(44, 4, 1398))
@@ -1413,17 +1434,24 @@ local function onDevAction(player: Player, action: unknown)
 		data.swampUnlocked = true
 	elseif action == "swampLock" then
 		data.swampUnlocked = false
+	elseif action == "mountainUnlock" then
+		data.mountainUnlocked = true
+	elseif action == "mountainLock" then
+		data.mountainUnlocked = false
+	elseif action == "coins10m" then
+		data.coins += 10000000
 	elseif action == "coins1m" then
 		data.coins += 1000000
 	elseif action == "oilFull" then
 		session.oil = stat(session, "oil")
 	elseif action == "oilLow" then
 		session.oil = stat(session, "oil") * 0.1
-	elseif action == "upgradeGatesForest" or action == "upgradeGatesCave" or action == "upgradeGatesSwamp" or action == "upgradeGatesLegacy" then
+	elseif action == "upgradeGatesForest" or action == "upgradeGatesCave" or action == "upgradeGatesSwamp" or action == "upgradeGatesMountain" or action == "upgradeGatesLegacy" then
 		-- devActionAllowed nie dopuszcza tych scenariuszy poza Studio.
-		local world = if action == "upgradeGatesSwamp" then "swamp" elseif action == "upgradeGatesCave" then "cave" else "forest"
+		local world = if action == "upgradeGatesMountain" then "mountain" elseif action == "upgradeGatesSwamp" then "swamp" elseif action == "upgradeGatesCave" then "cave" else "forest"
 		data.caveUnlocked = world ~= "forest"
-		data.swampUnlocked = world == "swamp"
+		data.swampUnlocked = world == "swamp" or world == "mountain"
+		data.mountainUnlocked = world == "mountain"
 		data.coins = 100000000
 		for _, id in { "boots", "oil", "basket" } do
 			data.upgrades[id] = Economy.upgradeCap(id, world)
@@ -1717,9 +1745,9 @@ local function onBuy(player: Player, upgradeId: unknown)
 	local bought, reason, lockedWorld = Economy.buyUpgrade(session.data, upgradeId, world)
 	if not bought then
 		if reason == "locked" then
-			notify(session, if lockedWorld == "cave" then "UPG_UNLOCK_CAVE" else "UPG_UNLOCK_SWAMP")
+			notify(session, if lockedWorld == "cave" then "UPG_UNLOCK_CAVE" elseif lockedWorld == "mountain" then "UPG_UNLOCK_MOUNTAIN" else "UPG_UNLOCK_SWAMP")
 		elseif reason == "location" then
-			notify(session, if lockedWorld == "cave" then "UPG_BUY_CAVE" elseif lockedWorld == "swamp" then "UPG_BUY_SWAMP" else "MSG_UPGRADE_WHERE")
+			notify(session, if lockedWorld == "cave" then "UPG_BUY_CAVE" elseif lockedWorld == "swamp" then "UPG_BUY_SWAMP" elseif lockedWorld == "mountain" then "UPG_BUY_MOUNTAIN" else "MSG_UPGRADE_WHERE")
 		elseif reason == "coins" then
 			notify(session, "MSG_NOT_ENOUGH")
 		end

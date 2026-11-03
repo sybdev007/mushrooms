@@ -800,3 +800,62 @@ MSG_ANNOUNCE_SENT,📢 Announcement sent to all servers.,,,📢 Ogłoszenie wys�
 MSG_ANNOUNCE_LOCAL,📢 Shown on this server only (cross-server messages are unavailable here).,,,📢 Pokazane tylko na tym serwerze (wiadomości między serwerami tu nie działają).
 MSG_ANNOUNCE_FAILED,📢 The text filter did not let this message through.,,,📢 Filtr tekstu Robloxa nie przepuścił tej wiadomości.
 MSG_ANNOUNCE_WAIT,📢 Wait {1} s between announcements.,,,📢 Odczekaj {1} s między ogłoszeniami.
+ZONE_GLADE,Herbalist's Glade,,,Polana Zielarki
+ZONE_WITCHWOOD,Witch Wood,,,Wiedźmi Las
+ZONE_CAULDRONS,Sabbath Cauldrons,,,Kotły Sabatu
+ZONE_SUMMIT,Bald Mountain Summit,,,Szczyt Łysej Góry
+MUSH_WITCH_HAT,Witch's Hat,,,Kołpak Wiedźmy
+MUSH_DEVIL_MOREL,Devil's Morel,,,Czarci Smardz
+MUSH_RAVEN_BRACKET,Raven's Bracket,,,Huba Kruków
+MUSH_SABBATH_PUFFBALL,Sabbath Puffball,,,Purchawka Sabatu
+MUSH_DEVIL_FINGERS,Devil's Fingers,,,Czarcie Palce
+MUSH_HEX_CLUSTER,Hex Cluster,,,Wiedźmia Kępka
+MUSH_EARTHSTAR,Earthstar,,,Gwiazdosz
+MUSH_MOON_HAT,Moon Hat,,,Księżycowy Kołpak
+MUSH_NIGHT_EYE,Night's Eye,,,Oko Nocy
+MUSH_JAGA_TOADSTOOL,Baba Jaga's Toadstool,,,Ziele Baby Jagi
+MUT_COSMIC,Cosmic,,,Kosmiczny
+MUT_CURSED,Cursed,,,Przeklęty
+MUT_HEXED,Hexed,,,Zaklęty
+MUT_MOONLIT,Moonlit,,,Księżycowy
+UPG_HERBWICK,Herb Wick,,,Ziołowy knot
+UPG_HERBWICK_DESC,Less oil burned on Bald Mountain,,,Mniej oleju na Łysej Górze
+UPG_WITCHBAG,Witch's Bag,,,Torba Wiedźmy
+UPG_WITCHBAG_DESC,The most room for mushrooms,,,Najwięcej miejsca na grzyby
+SIGN_PORTAL_MOUNTAIN,Bald Mountain - 10 000 000 💰,,,Łysa Góra - 10 000 000 💰
+SIGN_PORTAL_SHORTCUT_MOUNTAIN,To Bald Mountain,,,Na Łysą Górę
+MSG_MOUNTAIN_UNLOCKED,Bald Mountain is open! Welcome to the Herbalist's Glade,,,Łysa Góra otwarta! Witaj na Polanie Zielarki
+MSG_MOUNTAIN_ENTER,Herbalist's Glade,,,Polana Zielarki
+MSG_PORTAL_FIND_MOUNTAIN,Find the portal behind the Utopiec's pond first,,,Najpierw znajdź portal za stawem Utopca
+MSG_ENGULFED_MOUNTAIN,Mushrooms lost: {1},,,Utracone grzyby: {1}
+ENGULF_TITLE_MOUNTAIN,The night on Bald Mountain swallowed you...,,,Noc na Łysej Górze cię pochłonęła...
+MSG_JAGA_WOKE,Baba Jaga woke up! Run to the glade!,,,Baba Jaga się obudziła! Uciekaj na polanę!
+MSG_JAGA_WOKE_WATCHED,The hut saw you! Baba Jaga is already flying!,,,Chatka cię widziała! Baba Jaga już leci!
+HUD_JAGA_CHASE,Baba Jaga is chasing you!,,,Baba Jaga cię goni!
+MSG_JAGA_GAVE_UP,Baba Jaga flew back to her hut... for now.,,,Baba Jaga wróciła do chatki... na razie.
+MSG_CAUGHT_JAGA,Mushrooms taken by Baba Jaga: {1},,,Baba Jaga zabrała grzyby: {1}
+CAUGHT_TITLE_JAGA,Baba Jaga caught you!,,,Baba Jaga cię złapała!
+MSG_HOARD_DROP_JAGA,Baba Jaga caught {1}! Toadstools back in her garden: {2},,,Baba Jaga dopadła gracza {1}! Ziele wróciło do ogródka: {2}
+MSG_ESCAPED_JAGA,You escaped Baba Jaga! Basket: {1} coins,,,Uciekłeś Babie Jadze! W koszyku: {1} monet
+MSG_RAVEN_HIT,A raven snatched a mushroom and dropped it nearby!,,,Kruk porwał grzyb i upuścił go niedaleko!
+MSG_RAVEN_DROP_GONE,The raven's mushroom crumbled to dust,,,Grzyb upuszczony przez kruka rozsypał się w proch
+MSG_FUMES,Poison fumes! Your lantern burns oil faster here,,,Trujące opary! Latarnia pali tu więcej oleju
+MSG_HUT_WATCHING,The hut is watching! Wait until its door turns away,,,Chatka patrzy! Poczekaj aż jej drzwi się odwrócą
+UPG_TAB_MOUNTAIN,Bald Mountain,,,Łysa Góra
+UPG_HINT_MOUNTAIN,Bald Mountain upgrades: buy them at the Herbalist's Glade.,,,Ulepszenia Łysej Góry kupisz na Polanie Zielarki.
+UPG_UNLOCK_MOUNTAIN,Unlock Bald Mountain to buy the next level,,,Odblokuj Łysą Górę aby kupić kolejny poziom
+UPG_BUY_MOUNTAIN,Buy this level at the Herbalist's Glade,,,Kup ten poziom na Polanie Zielarki
+DEV_UPGRADE_GATES_MOUNTAIN,Gates: Bald Mountain limit,,,Bramki: limit Łysej Góry
+ATLAS_PAGE_MOUNTAIN,Bald Mountain,,,Łysa Góra
+TITLE_EXPLORER_MOUNTAIN,Mountain Explorer,,,Odkrywca Łysej Góry
+TITLE_TRACKER_MOUNTAIN,Mountain Tracker,,,Tropiciel Łysej Góry
+TITLE_EXPERT_MOUNTAIN,Mountain Expert,,,Znawca Łysej Góry
+TITLE_MASTER_MOUNTAIN,Mountain Master,,,Mistrz Łysej Góry
+TITLE_EXPLORER_MOUNTAIN_HOW,Atlas · Bald Mountain: find every mushroom,,,Grzybopedia · Łysa Góra: znajdź każdy grzyb
+TITLE_TRACKER_MOUNTAIN_HOW,Atlas · Bald Mountain: every mushroom Silver,,,Grzybopedia · Łysa Góra: każdy grzyb srebrny
+TITLE_EXPERT_MOUNTAIN_HOW,Atlas · Bald Mountain: every mushroom Gold,,,Grzybopedia · Łysa Góra: każdy grzyb złoty
+TITLE_MASTER_MOUNTAIN_HOW,Atlas · Bald Mountain: every mushroom Rainbow,,,Grzybopedia · Łysa Góra: każdy grzyb tęczowy
+BOSS_JAGA,Baba Jaga,,,Baba Jaga
+BOSS_JAGA_TITLE,Witch of Bald Mountain,,,Wiedźma z Łysej Góry
+BOSS_JAGA_LORE,An old witch with an iron nose. She flies in a mortar and sweeps her tracks away with a broom. Her hut stands on a chicken leg and turns by itself. The toadstools from her garden go into her brews - she never forgives a thief.,,,Stara wiedźma z żelaznym nosem. Lata w moździerzu i miotłą zamiata za sobą ślady. Jej chatka stoi na kurzej stopce i sama się obraca. Ziele z ogródka idzie do jej wywarów - złodziejowi nie wybacza.
+BOSS_JAGA_TIP,Watch the hut door. Turned away = a head start. Looking at you = she flies out at once. Either way you need very fast boots.,,,Patrz na drzwi chatki. Odwrócone = masz przewagę na start. Patrzą na ciebie = Jaga wylatuje od razu. I tak potrzebujesz bardzo szybkich butów.

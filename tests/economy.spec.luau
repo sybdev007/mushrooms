@@ -128,6 +128,7 @@ test("zakładki zawierają własne ulepszenia i po jednej karcie wspólnych ulep
 		{ order = Config.UpgradeOrder, shop = "forest" },
 		{ order = Config.CaveUpgradeOrder, shop = "cave" },
 		{ order = Config.SwampUpgradeOrder, shop = "swamp" },
+		{ order = Config.MountainUpgradeOrder, shop = "mountain" },
 	} do
 		local inTab = {}
 		for _, id in list.order do
@@ -151,14 +152,21 @@ test("zakładki zawierają własne ulepszenia i po jednej karcie wspólnych ulep
 end)
 
 print("Bramki ulepszeń")
-for _, world in { "forest", "cave", "swamp" } do
+local NEXT_WORLD = { forest = "cave", cave = "swamp", swamp = "mountain" }
+for _, world in { "forest", "cave", "swamp", "mountain" } do
 	for id, def in Config.Upgrades do
 		if not def.worldCaps then
 			continue
 		end
 		test("bramka " .. id .. " w " .. world, function()
 			local cap = Economy.upgradeCap(id, world)
-			local data = { coins = 1e12, upgrades = { [id] = cap - 1 }, caveUnlocked = world ~= "forest", swampUnlocked = world == "swamp" }
+			local data = {
+				coins = 1e12,
+				upgrades = { [id] = cap - 1 },
+				caveUnlocked = world ~= "forest",
+				swampUnlocked = world == "swamp" or world == "mountain",
+				mountainUnlocked = world == "mountain",
+			}
 			local price = Economy.upgradeCost(id, cap - 1)
 			check(Economy.buyUpgrade(data, id, world), "ostatni poziom świata do kupienia")
 			eq(data.upgrades[id], cap)
@@ -166,9 +174,9 @@ for _, world in { "forest", "cave", "swamp" } do
 			local before = data.coins
 			local ok, reason, required = Economy.buyUpgrade(data, id, world)
 			check(not ok, "następny poziom odrzucony mimo monet")
-			eq(reason, if world == "swamp" then "max" else "locked")
-			if world ~= "swamp" then
-				eq(required, if world == "forest" then "cave" else "swamp")
+			eq(reason, if world == "mountain" then "max" else "locked")
+			if world ~= "mountain" then
+				eq(required, NEXT_WORLD[world])
 			end
 			eq(data.coins, before, "odmowa nic nie kosztuje")
 			eq(data.upgrades[id], cap, "odmowa nie zmienia poziomu")
@@ -181,7 +189,8 @@ test("bramki mają rosnące limity i ostatni limit równy maksimum", function()
 		if def.worldCaps then
 			check(def.worldCaps.forest > 0 and def.worldCaps.forest < def.worldCaps.cave, id)
 			check(def.worldCaps.cave < def.worldCaps.swamp, id)
-			eq(def.worldCaps.swamp, def.maxLevel, id)
+			check(def.worldCaps.swamp < def.worldCaps.mountain, id)
+			eq(def.worldCaps.mountain, def.maxLevel, id)
 		end
 	end
 end)
@@ -238,7 +247,7 @@ test("migracja poziomów nie odbiera starego maksimum i nie daje nowych poziomó
 	eq(Economy.upgradeLevelsFromSave({ boots = 12 }, 6).boots, 12, "v6 zachowuje nowe poziomy")
 end)
 
-test("DataService ładuje v5 jako v6 bez utraty ekwipunku i kupionych poziomów", function()
+test("DataService ładuje v5 jako v7 bez utraty ekwipunku i kupionych poziomów", function()
 	local players = {}
 	local signal = { Connect = function() return { Disconnect = function() end } end }
 	local profile = {
@@ -267,7 +276,7 @@ test("DataService ładuje v5 jako v6 bez utraty ekwipunku i kupionych poziomów"
 	})
 	local migrated, canSave = DataService.load({ UserId = 1234, Parent = players })
 	check(canSave, "profil otwarty")
-	eq(migrated.version, 6)
+	eq(migrated.version, 7)
 	eq(migrated.coins, 43210)
 	eq(migrated.upgrades.boots, 8)
 	eq(migrated.upgrades.oil, 10)
@@ -283,7 +292,7 @@ test("DataService ładuje v5 jako v6 bez utraty ekwipunku i kupionych poziomów"
 	eq(migrated.potMinutes, 240)
 	eq(migrated.luckUntil, profile.Data.luckUntil)
 	local again = DataService.load({ UserId = 1234, Parent = players })
-	eq(again.version, 6)
+	eq(again.version, 7)
 	eq(again.upgrades.boots, 8, "migracja idempotentna")
 	eq(again.coins, 43210)
 end)
@@ -365,22 +374,26 @@ end)
 
 print("Mutacje")
 test("wariant: progi od najrzadszego, bez wariantu powyżej sumy szans", function()
+	local cosmic = Config.Variants[4].chance
 	local rainbow = Config.Variants[3].chance
 	local gold = Config.Variants[2].chance
 	local silver = Config.Variants[1].chance
-	eq(Economy.rollVariant(0), "rainbow", "r=0")
-	eq(Economy.rollVariant(rainbow - 1e-6), "rainbow", "koniec tęczy")
-	eq(Economy.rollVariant(rainbow), "gold", "początek złota")
-	eq(Economy.rollVariant(rainbow + gold - 1e-6), "gold", "koniec złota")
-	eq(Economy.rollVariant(rainbow + gold), "silver", "początek srebra")
-	eq(Economy.rollVariant(rainbow + gold + silver), nil, "zwykły")
+	eq(Economy.rollVariant(0), "cosmic", "r=0")
+	eq(Economy.rollVariant(cosmic - 1e-6), "cosmic", "koniec kosmicznego")
+	eq(Economy.rollVariant(cosmic), "rainbow", "początek tęczy")
+	eq(Economy.rollVariant(cosmic + rainbow - 1e-6), "rainbow", "koniec tęczy")
+	eq(Economy.rollVariant(cosmic + rainbow), "gold", "początek złota")
+	eq(Economy.rollVariant(cosmic + rainbow + gold - 1e-6), "gold", "koniec złota")
+	eq(Economy.rollVariant(cosmic + rainbow + gold), "silver", "początek srebra")
+	eq(Economy.rollVariant(cosmic + rainbow + gold + silver), nil, "zwykły")
 	eq(Economy.rollVariant(0.99), nil, "zwykły (r~1)")
 end)
 
 test("gwarancja: wymuszona ranga daje co najmniej złoto", function()
 	eq(Economy.rollVariant(0.99, 2), "gold", "zwykły -> złoto")
-	eq(Economy.rollVariant(Config.Variants[3].chance + Config.Variants[2].chance + 0.001, 2), "gold", "srebro -> złoto")
-	eq(Economy.rollVariant(0, 2), "rainbow", "tęcza zostaje tęczą")
+	eq(Economy.rollVariant(Config.Variants[4].chance + Config.Variants[3].chance + Config.Variants[2].chance + 0.001, 2), "gold", "srebro -> złoto")
+	eq(Economy.rollVariant(Config.Variants[4].chance, 2), "rainbow", "tęcza zostaje tęczą")
+	eq(Economy.rollVariant(0, 2), "cosmic", "kosmiczny zostaje kosmicznym")
 	check(Config.PityRolls >= 20 and Config.PityRolls <= 120, "gwarancja za częsta albo za rzadka")
 end)
 

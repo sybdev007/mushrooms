@@ -12,7 +12,7 @@ export type ZoneDef = {
 	darkness: number, -- 0 = jasno, 1 = całkowity mrok
 	spotCount: number, -- ile miejsc na grzyby jest w strefie
 	treeCount: number,
-	world: string, -- "forest" albo "cave": osobne światy połączone portalem
+	world: string, -- "forest", "cave", "swamp" albo "mountain": osobne światy połączone portalem
 	safe: boolean?, -- chatka / obozowisko: olej się nie pali, można tankować i handlować
 	fog: { number }?, -- kolor mgły w mroku (domyślnie nocny granat lasu)
 	fireflies: number?, -- świetliki (w jaskini: pyłki) na sekundę wokół gracza
@@ -30,6 +30,7 @@ export type SpeciesDef = {
 	lair: boolean?, -- rośnie tylko w Skarbcu Skarbnika (koniec jaskini)
 	guardian: string?, -- rośnie tylko w legowisku tego strażnika (np. "utopiec"); zerwanie go budzi
 	mimic: boolean?, -- błędny ognik udający grzyb: zerwanie kradnie olej, nic nie trafia do koszyka
+	puff: boolean?, -- purchawka: przy zerwaniu wypuszcza chmurę zarodników (tylko wygląd)
 }
 
 export type UpgradeDef = {
@@ -41,6 +42,10 @@ export type UpgradeDef = {
 	costGrowth: number, -- mnożnik kosztu na każdy kolejny poziom
 	shop: string?, -- gdzie się kupuje: "forest" (chatka, domyślnie) albo "cave" (obozowisko)
 	worldCaps: { [string]: number }?, -- maks. kupiony poziom po odblokowaniu danego świata
+	-- Łagodniejsza krzywa dla poziomów kolejnego świata: od poziomu lateFrom koszt rośnie o lateGrowth
+	-- (zamiast costGrowth), licząc od ceny ostatniego poziomu przed progiem. Bez tego buty 16 kosztowałyby 178 mln.
+	lateFrom: number?,
+	lateGrowth: number?,
 }
 
 local Config = {}
@@ -233,12 +238,73 @@ Config.Zones = {
 		fireflies = 8,
 		mist = 12,
 	},
+	-- ===== Łysa Góra =====
+	-- Sabat czarownic w świetle pełni: krzywy czarny las z krukami, polana kotłów z trującymi oparami
+	-- i łysy szczyt z kręgiem kamieni, gdzie na kurzej stopce kręci się chatka Baby Jagi.
+	{
+		id = "glade",
+		key = "ZONE_GLADE",
+		startZ = 3000,
+		endZ = 3040,
+		oilDrain = 0,
+		darkness = 0.5,
+		spotCount = 0,
+		treeCount = 0,
+		world = "mountain",
+		safe = true,
+		fog = { 40, 26, 52 },
+		fireflies = 8,
+		mist = 2,
+	},
+	{
+		id = "witchwood",
+		key = "ZONE_WITCHWOOD",
+		startZ = 3040,
+		endZ = 3170,
+		oilDrain = 8,
+		darkness = 0.75,
+		spotCount = 16,
+		treeCount = 42,
+		world = "mountain",
+		fog = { 34, 18, 46 },
+		fireflies = 10,
+		mist = 6,
+	},
+	{
+		id = "cauldrons",
+		key = "ZONE_CAULDRONS",
+		startZ = 3170,
+		endZ = 3300,
+		oilDrain = 11,
+		darkness = 0.9,
+		spotCount = 16,
+		treeCount = 20,
+		world = "mountain",
+		fog = { 22, 40, 16 },
+		fireflies = 6,
+		mist = 9,
+	},
+	{
+		id = "summit",
+		key = "ZONE_SUMMIT",
+		startZ = 3300,
+		endZ = 3480,
+		oilDrain = 14,
+		darkness = 1.0,
+		spotCount = 12,
+		treeCount = 10,
+		world = "mountain",
+		fog = { 26, 22, 48 },
+		fireflies = 4,
+		mist = 8,
+	},
 } :: { ZoneDef }
 
 -- Ulepszenie, które w danym świecie zmniejsza spalanie oleju (mnożnik 1 = bez zmian)
 Config.WorldOilUpgrade = {
 	cave = "crystal",
 	swamp = "rushwick",
+	mountain = "herbwick",
 } :: { [string]: string }
 
 -- Jaskinia: portal za Gniazdem Leszego, otwiera się graczom z co najmniej unlockCoins monet.
@@ -307,6 +373,8 @@ Config.Variants = {
 	{ id = "silver", key = "MUT_SILVER", icon = "🥈", chance = 0.06, mult = 1.5, rank = 1, color = { 214, 224, 238 } },
 	{ id = "gold", key = "MUT_GOLD", icon = "⭐", chance = 0.025, mult = 3, rank = 2, color = { 255, 205, 50 } },
 	{ id = "rainbow", key = "MUT_RAINBOW", icon = "🌈", chance = 0.004, mult = 8, rank = 3, color = { 255, 110, 210 } },
+	-- Ponad tęczowym, na wszystkich mapach: granatowy kapelusz w gwiazdach (cel do polowania, ok. +1,5% dochodu)
+	{ id = "cosmic", key = "MUT_COSMIC", icon = "🌌", chance = 0.0008, mult = 20, rank = 4, color = { 70, 50, 170 } },
 } :: { VariantDef }
 
 Config.Tags = {
@@ -314,6 +382,10 @@ Config.Tags = {
 	{ id = "glowing", key = "MUT_GLOWING", icon = "✨", zone = 4, chance = 0.1, mult = 2, color = { 110, 255, 214 } },
 	{ id = "crystal", key = "MUT_CRYSTAL", icon = "💎", zone = 7, chance = 0.1, mult = 2, color = { 120, 200, 255 } },
 	{ id = "abyssal", key = "MUT_ABYSSAL", icon = "🔥", zone = 8, chance = 0.08, mult = 2.5, color = { 255, 90, 60 } },
+	-- Łysa Góra: każda strefa ma swoją cechę
+	{ id = "cursed", key = "MUT_CURSED", icon = "💀", zone = 15, chance = 0.09, mult = 2, color = { 160, 70, 220 } },
+	{ id = "hexed", key = "MUT_HEXED", icon = "🔮", zone = 16, chance = 0.08, mult = 2.5, color = { 120, 240, 90 } },
+	{ id = "moonlit", key = "MUT_MOONLIT", icon = "🌙", zone = 17, chance = 0.07, mult = 3, color = { 190, 210, 255 } },
 } :: { TagDef }
 
 -- Cechy z eventów: nie losują się według strefy (Economy.tagsForZone), tylko w czasie eventu
@@ -427,13 +499,27 @@ Config.Species = {
 	{ id = "will_o_wisp", key = "MUSH_WILL_O_WISP", zone = 13, value = 16000, weight = 15, cap = { 180, 255, 120 } },
 	-- Kielich Utopca (legowisko na stawie): zerwanie budzi Utopca
 	{ id = "utopiec_chalice", key = "MUSH_UTOPIEC_CHALICE", zone = 13, value = 35000, weight = 0, cap = { 255, 90, 70 }, guardian = "utopiec" },
+	-- Wiedźmi Las
+	{ id = "witch_hat", key = "MUSH_WITCH_HAT", zone = 15, value = 9500, weight = 50, cap = { 236, 120, 40 } },
+	{ id = "devil_morel", key = "MUSH_DEVIL_MOREL", zone = 15, value = 13000, weight = 35, cap = { 92, 58, 44 } },
+	{ id = "raven_bracket", key = "MUSH_RAVEN_BRACKET", zone = 15, value = 19000, weight = 15, cap = { 70, 52, 96 } },
+	-- Kotły Sabatu
+	{ id = "sabbath_puffball", key = "MUSH_SABBATH_PUFFBALL", zone = 16, value = 15000, weight = 45, cap = { 196, 214, 150 }, puff = true },
+	{ id = "devil_fingers", key = "MUSH_DEVIL_FINGERS", zone = 16, value = 21500, weight = 35, cap = { 226, 52, 60 } },
+	{ id = "hex_cluster", key = "MUSH_HEX_CLUSTER", zone = 16, value = 31000, weight = 20, cap = { 120, 230, 70 } },
+	-- Szczyt Łysej Góry
+	{ id = "earthstar", key = "MUSH_EARTHSTAR", zone = 17, value = 26000, weight = 50, cap = { 176, 140, 104 } },
+	{ id = "moon_hat", key = "MUSH_MOON_HAT", zone = 17, value = 36000, weight = 35, cap = { 196, 210, 240 } },
+	{ id = "night_eye", key = "MUSH_NIGHT_EYE", zone = 17, value = 52000, weight = 15, cap = { 60, 40, 110 } },
+	-- Ogródek Baby Jagi za chatką na kurzej stopce: zerwanie budzi Babę Jagę
+	{ id = "jaga_toadstool", key = "MUSH_JAGA_TOADSTOOL", zone = 17, value = 115000, weight = 0, cap = { 150, 60, 210 }, guardian = "jaga" },
 } :: { SpeciesDef }
 
 Config.Upgrades = {
 	lantern = { key = "UPG_LANTERN", base = 14, step = 4, maxLevel = 8, costBase = 30, costGrowth = 1.9 },
-	oil = { key = "UPG_OIL", base = 30, step = 12, maxLevel = 14, costBase = 20, costGrowth = 2.5, worldCaps = { forest = 8, cave = 11, swamp = 14 } },
-	basket = { key = "UPG_BASKET", base = 5, step = 3, maxLevel = 14, costBase = 15, costGrowth = 2.5, worldCaps = { forest = 6, cave = 10, swamp = 14 } },
-	boots = { key = "UPG_BOOTS", base = 16, step = 1.5, maxLevel = 12, costBase = 35, costGrowth = 2.8, worldCaps = { forest = 4, cave = 8, swamp = 12 } },
+	oil = { key = "UPG_OIL", base = 30, step = 12, maxLevel = 17, costBase = 20, costGrowth = 2.5, worldCaps = { forest = 8, cave = 11, swamp = 14, mountain = 17 }, lateFrom = 14, lateGrowth = 1.55 },
+	basket = { key = "UPG_BASKET", base = 5, step = 3, maxLevel = 18, costBase = 15, costGrowth = 2.5, worldCaps = { forest = 6, cave = 10, swamp = 14, mountain = 18 }, lateFrom = 14, lateGrowth = 1.5 },
+	boots = { key = "UPG_BOOTS", base = 16, step = 1.5, maxLevel = 16, costBase = 35, costGrowth = 2.8, worldCaps = { forest = 4, cave = 8, swamp = 12, mountain = 16 }, lateFrom = 12, lateGrowth = 1.55 },
 	-- Kłódka ogródka: ile sekund złodziej musi trzymać przycisk, żeby wyrwać grzyb
 	lock = { key = "UPG_LOCK", base = 2, step = 1, maxLevel = 6, costBase = 60, costGrowth = 1.7 },
 	-- Grządki: ile grzybów można mieć posadzonych naraz (siatka 3 x 3 w ogródku)
@@ -452,6 +538,10 @@ Config.Upgrades = {
 	rushwick = { key = "UPG_RUSHWICK", base = 1, step = -0.1, maxLevel = 6, costBase = 200000, costGrowth = 1.75, shop = "swamp" },
 	-- Wiklinowy kosz: jeszcze więcej miejsca w koszyku
 	creel = { key = "UPG_CREEL", base = 0, step = 5, maxLevel = 5, costBase = 160000, costGrowth = 1.7, shop = "swamp" },
+	-- Polana Zielarki na Łysej Górze. Ziołowy knot: mnożnik spalania oleju na Łysej Górze
+	herbwick = { key = "UPG_HERBWICK", base = 1, step = -0.1, maxLevel = 6, costBase = 1200000, costGrowth = 1.6, shop = "mountain" },
+	-- Torba Wiedźmy: jeszcze więcej miejsca w koszyku
+	witchbag = { key = "UPG_WITCHBAG", base = 0, step = 5, maxLevel = 5, costBase = 1000000, costGrowth = 1.6, shop = "mountain" },
 } :: { [string]: UpgradeDef }
 
 -- Kolejność przycisków ulepszeń: w chatce i w obozowisku w jaskini
@@ -469,6 +559,7 @@ Config.KnifeColors = {
 }
 Config.CaveUpgradeOrder = { "boots", "oil", "basket", "crystal", "pack" }
 Config.SwampUpgradeOrder = { "boots", "oil", "basket", "rushwick", "creel" }
+Config.MountainUpgradeOrder = { "boots", "oil", "basket", "herbwick", "witchbag" }
 
 -- ===== Gniazdo Leszego =====
 -- Polana na końcu Mrocznego Jaru z kręgiem kamieni i grzybami „Korona Leszego”.
@@ -503,6 +594,9 @@ Config.Stations = {
 	-- Przystań na bagnach: skup po lewej, olej po prawej (patrząc w głąb bagien)
 	{ kind = "shop", world = "swamp", x = 15, z = 2022, radius = 4 },
 	{ kind = "oil", world = "swamp", x = -15, z = 2022, radius = 3.6 },
+	-- Polana Zielarki na Łysej Górze: skup po lewej, olej po prawej (patrząc w górę)
+	{ kind = "shop", world = "mountain", x = 15, z = 3022, radius = 4 },
+	{ kind = "oil", world = "mountain", x = -15, z = 3022, radius = 3.6 },
 } :: { StationDef }
 Config.StationTolerance = 2 -- serwer jest łagodniejszy przez opóźnienie sieci
 
@@ -567,6 +661,18 @@ Config.Swamp = {
 	mimicOilLoss = 0.35,
 }
 
+-- Łysa Góra: portal za Stawem Utopca, otwiera się graczom z co najmniej unlockCoins monet
+-- (tylko z bagien, więc trzeba też mieć otwarte bagna). Symulator (tools/economy_sim.luau, 4.11):
+-- bagna na maks. 5 h 42 min, góra otwarta 6 h 39 min, ulepszenia góry na maks. 9 h 12 min.
+Config.Mountain = {
+	unlockCoins = 10000000,
+	halfWidth = 56,
+	portal = { x = 0, z = 2432 }, -- na końcu Stawu Utopca, za wysepką
+	returnPortal = { x = 0, z = 3008 }, -- na Polanie Zielarki, prowadzi do chatki
+	camp = { x = 0, z = 3024 }, -- tu ląduje gracz po przejściu i po zgaśnięciu latarni na górze
+	path = 3.5, -- pół szerokości kamiennej ścieżki środkiem góry
+}
+
 -- Plac Portali za chatką: kamienny plac z miejscami na portale do kolejnych światów.
 -- Środkowe miejsce zajmuje skrót do jaskini, boczne czekają na następne światy („Wkrótce”).
 Config.PortalPlaza = {
@@ -574,7 +680,7 @@ Config.PortalPlaza = {
 	radius = 30,
 	slots = { -24, 0, 24 }, -- x kolejnych portali; wszystkie stoją na z = Config.Cave.shortcut.z
 	-- Który świat ma portal na którym miejscu (reszta to fundamenty „Wkrótce...”)
-	worlds = { [0] = "cave", [-24] = "swamp" } :: { [number]: string },
+	worlds = { [0] = "cave", [-24] = "swamp", [24] = "mountain" } :: { [number]: string },
 }
 
 -- ===== Zakupy za Robuxy (developer products) =====
@@ -643,6 +749,9 @@ Config.Badges = {
 	lifesaver = 0, -- podniesiony kumpel
 	streak7 = 0, -- 7 dni logowania z rzędu
 	halloween2026 = 1589520696458272, -- Halloween 2026: 100 cukierków w czasie eventu
+	mountain = 0, -- otwarta Łysa Góra
+	jaga = 0, -- okradziona Baba Jaga
+	cosmic = 0, -- pierwszy kosmiczny grzyb
 } :: { [string]: number }
 -- ===== Halloween: Noc Dziadów (event) =====
 -- Włącza się sam według daty (os.time, UTC). W tym czasie:
@@ -789,6 +898,15 @@ Config.Audio = {
 			"rbxassetid://88402307111260", -- Dark Woods
 			"rbxassetid://128108081922306", -- The Cryptids are Close
 		},
+		-- Łysa Góra: wiedźmie i mroczne utwory, które już grają w innych światach (licencje sprawdzone)
+		mountain = {
+			"rbxassetid://120013530647101", -- Baba Yaga's Witch House Part 6
+			"rbxassetid://1843408841", -- Tableau 7 – Ensorcellement
+			"rbxassetid://88402307111260", -- Dark Woods
+			"rbxassetid://71207032544256", -- Catacombs
+			"rbxassetid://9125603091", -- coś się budzi (eerie)
+			"rbxassetid://128108081922306", -- The Cryptids are Close
+		},
 	},
 	playlistVolume = 0.45,
 	playlistGap = { 6, 16 }, -- sekundy ciszy (samo otoczenie) między utworami
@@ -900,6 +1018,47 @@ Config.UtopiecLair = {
 	respawnSeconds = 360,
 }
 
+-- ===== Chatka Baby Jagi =====
+-- Wiedźma z polskich i słowiańskich baśni: lata w moździerzu, miotłą zamiata za sobą ślady, a jej
+-- chatka stoi na kurzej stopce i sama się obraca. Ogródek z Zielem Baby Jagi jest za chatką na szczycie.
+Config.JagaLair = {
+	centerX = 0,
+	centerZ = 3440, -- środek ogródka (chatka stoi bliżej, na hutZ)
+	hutZ = 3418,
+	radius = 16,
+	spots = 3,
+	spotRadius = 5,
+	respawnSeconds = 420,
+	turnSeconds = 14, -- chatka robi pełny obrót w tyle sekund (z przerwami, patrz Mountain.hutFacing)
+	watchCone = 0.55, -- iloczyn skalarny: chatka „patrzy” na gracza, gdy jest przed jej drzwiami
+}
+
+Config.Jaga = {
+	speed = 43, -- lata w moździerzu: przy chatce odwróconej ucieka się od butów 13 (droga 400 studs do polany)
+	wakeDelay = 2.5, -- chatka odwrócona: Jaga potrzebuje chwili, żeby wylecieć
+	wakeDelayWatched = 0.3, -- chatka patrzy na gracza: Jaga wylatuje od razu
+	catchRadius = 4,
+	giveUpSeconds = 55,
+}
+
+-- Kruki Baby Jagi (Wiedźmi Las i Kotły): kruk wybiera gracza, nad nim cień, po chwili nurkuje.
+-- Trafiony gubi najtańszy grzyb z koszyka; kruk upuszcza go kawałek dalej (można podnieść).
+Config.Ravens = {
+	zones = { witchwood = true, cauldrons = true },
+	every = 9, -- co tyle sekund (średnio) kruk wybiera gracza w tych strefach
+	warn = 1.5, -- tyle sekund widać cień przed nurkowaniem
+	radius = 4, -- promień cienia (trafienie, gdy gracz jest w środku)
+	dropDistance = 10, -- tak daleko kruk upuszcza grzyb
+	dropSeconds = 45, -- tyle leży na ziemi, potem znika
+}
+
+-- Kotły Sabatu: trujące opary wokół kotłów. W chmurze olej pali się szybciej.
+Config.Cauldrons = {
+	count = 7,
+	fumeRadius = 9,
+	fumeDrain = 2, -- mnożnik spalania oleju w oparach
+}
+
 Config.Utopiec = {
 	speed = 27.5, -- próg butów 8 (28); nowe poziomy bagienne dają dalszą przewagę
 	wakeDelay = 0.6, -- wyskakuje ze stawu prawie od razu
@@ -936,7 +1095,7 @@ Config.Garden = {
 	promptDistance = 10,
 	carry = {
 		-- Prędkość złodzieja z łupem względem zwykłej, według rangi wariantu (0 = bez wariantu)
-		speedByRank = { [0] = 0.85, [1] = 0.8, [2] = 0.7, [3] = 0.6 },
+		speedByRank = { [0] = 0.85, [1] = 0.8, [2] = 0.7, [3] = 0.6, [4] = 0.55 },
 		guardianSpeed = 0.6, -- korony, trufle i kielichy strażników są najcięższe
 		tagRadius = 6, -- właściciel bliżej złodzieja = odbiera łup
 		timeout = 60, -- po tylu sekundach łup wraca do właściciela

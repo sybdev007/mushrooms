@@ -52,7 +52,7 @@ local api: Api
 local lastSent: { [Player]: string } = {}
 
 local function scaleOf(data: Data): number
-	return Progress.rewardScale(data.caveUnlocked, data.swampUnlocked)
+	return Progress.rewardScale(data.caveUnlocked, data.swampUnlocked, data.mountainUnlocked)
 end
 
 local function grantLuck(data: Data, seconds: number)
@@ -86,6 +86,7 @@ local function checkBadges(player: Player, data: Data)
 		stats = data.stats :: any,
 		caveUnlocked = data.caveUnlocked,
 		swampUnlocked = data.swampUnlocked,
+		mountainUnlocked = data.mountainUnlocked,
 	})
 	local busy = awarding[player]
 	if not busy then

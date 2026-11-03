@@ -225,7 +225,7 @@ local function useCauldron(player: Player)
 	data.candyBag -= cauldron.cost
 
 	local outcome = Halloween.rollCauldron(math.random())
-	local scale = Progress.rewardScale(data.caveUnlocked, data.swampUnlocked)
+	local scale = Progress.rewardScale(data.caveUnlocked, data.swampUnlocked, data.mountainUnlocked)
 	local result: { [string]: any } = { id = outcome.id, seconds = outcome.seconds }
 	if outcome.id == "coins" then
 		local coins = math.floor((outcome.scale or 1) * scale)
