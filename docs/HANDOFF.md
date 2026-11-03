@@ -105,5 +105,5 @@ trafiają na tablice rankingów (magazyny `LanternForager_Top_v2_*`).
    sklep i Szanse jako okna PanelKit, karta ratunku, progi x2, nowy panel DEV. Lista akcji DEV na żywo jest
    w `Config.DevLiveActions` (czyta ją serwer i panel). Typy sprawdza `luau-lsp analyze` z definicjami Robloxa.
    Przyciski z boku (SideButtons) i „Ulepszenia” mają błysk i promienie jak sklep; `setAttention` = migający
-   przycisk, gdy coś czeka. **Zadania, premia za komplet i seria logowań odbiera się ręcznie** (pilot `QuestClaim`,
+   przycisk, gdy coś czeka. **Zadania, premia za komplet i seria logowań odbiera się ręcznie** (RemoteEvent `QuestClaim`,
    `claimed` / `bonusClaimed` w zapisie; stare zapisy: zrobione = już wypłacone).
