@@ -1029,8 +1029,16 @@ end
 -- Panel DEV: wymuszona pora na chwilę (do sprawdzania świtu bez czekania 18 minut)
 local debugPhase: string? = nil
 local debugUntil = 0
--- Panel DEV (admin abuse): Noc Dziadów przywołana do tej chwili (os.time)
+-- Panel DEV (admin abuse): zdarzenie nocy przywołane do tej chwili (os.time) — Noc Dziadów, pełnia,
+-- krwawy księżyc, mgła, deszcz (Config.Cycle.events)
 local summonUntil = 0
+local summonEvent = Halloween.SPIRIT_NIGHT
+-- Admin abuse dla całego serwera: id -> do kiedy (os.time). Klienci widzą je jako atrybuty Workspace
+-- "Abuse_<id>" (baner z odliczaniem, AdminEvents). Żaden nie daje darmowego Wysypu ani mikstury.
+local abuseUntil: { [string]: number } = {}
+local function abuseActive(id: string): boolean
+	return os.time() < (abuseUntil[id] or 0)
+end
 
 -- Komunikat na początek nocy, osobny dla każdego zdarzenia
 local NIGHT_MESSAGES: { [string]: string } = {
@@ -1167,9 +1175,9 @@ local function onPick(player: Player, spotId: unknown)
 	end
 
 	regrow()
-	-- Grzyb z legowiska budzi jego strażnika
+	-- Grzyb z legowiska budzi jego strażnika (chyba że admin uśpił strażników)
 	local chaser = guardian and chasers[guardian]
-	if guardian and chaser and chaser.startChase(player, spot.position) then
+	if guardian and chaser and not abuseActive("sleep") and chaser.startChase(player, spot.position) then
 		notify(session, GUARDIANS[guardian].woke)
 	end
 	pushState(session)
@@ -1244,6 +1252,10 @@ local function onSell(player: Player, indices: unknown, key: unknown)
 	-- Ukończone strony Grzybopedii podnoszą cenę na stałe
 	local bonus = ProgressService.sellBonus(player)
 	value = math.floor(value * (1 + bonus))
+	-- Admin abuse: podwójna sprzedaż na tym serwerze
+	if abuseActive("sell") then
+		value *= 2
+	end
 	session.data.coins += value
 	if bonus > 0 then
 		notify(session, "MSG_SOLD_BONUS", { value, math.floor(bonus * 100 + 0.5) })
@@ -1442,8 +1454,52 @@ local function onDevAction(player: Player, action: unknown)
 	elseif action == "spiritNight" then
 		-- Admin abuse: Noc Dziadów na tym serwerze, z ogłoszeniem dla wszystkich
 		summonUntil = os.time() + Config.Halloween.summonSeconds
+		summonEvent = Halloween.SPIRIT_NIGHT
+		Workspace:SetAttribute("Abuse_spirit_night", summonUntil)
 		for _, other in sessions do
 			notify(other, "MSG_SPIRIT_SUMMONED", { player.DisplayName, math.floor(Config.Halloween.summonSeconds / 60) })
+		end
+	elseif string.match(action, "^abuse") then
+		-- Admin abuse (Config.AdminAbuse): ogłoszenie dla wszystkich i baner z odliczaniem u każdego
+		local def = Config.AdminAbuse[action]
+		if not def then
+			return
+		end
+		local now = os.time()
+		if def.kind == "stop" then
+			-- Koniec wszystkich wydarzeń z panelu (też przywołanej nocy)
+			table.clear(abuseUntil)
+			summonUntil = 0
+			for name in Workspace:GetAttributes() do
+				if string.sub(name, 1, 6) == "Abuse_" then
+					Workspace:SetAttribute(name, nil)
+				end
+			end
+			for _, other in sessions do
+				notify(other, "MSG_ABUSE_STOP", { player.DisplayName })
+			end
+			return
+		elseif def.kind == "night" and def.event then
+			summonEvent = def.event
+			summonUntil = now + def.seconds
+		elseif def.kind == "regrow" then
+			for _, other in sessions do
+				regrowForest(other, os.clock())
+			end
+		elseif def.kind == "sleep" then
+			-- Strażnicy zasypiają: trwające pościgi się kończą, nowe nie ruszają
+			for _, other in sessions do
+				stopChases(other.player)
+			end
+		elseif def.kind == "shards" then
+			DelveService.setShardBoost(now + def.seconds)
+		end
+		if def.seconds > 0 then
+			abuseUntil[def.id] = now + def.seconds
+			Workspace:SetAttribute("Abuse_" .. def.id, now + def.seconds)
+		end
+		for _, other in sessions do
+			notify(other, "MSG_ABUSE_START", { player.DisplayName, math.ceil(def.seconds / 60) }, def.key)
 		end
 	elseif action == "pumpkinBoom" then
 		-- Admin abuse: las wszystkich odrasta od nowa, co drugi grzyb dyniowy (jednorazowo)
@@ -1710,7 +1766,7 @@ function GameService.start(mapInfo: MapBuilder.MapInfo)
 				table.insert(basket, { s = item.s, v = item.v, x = item.x })
 				ProgressService.found(player, item, "hoard")
 				local chaser = chasers[name]
-				if chaser and chaser.startChase(player, place.origin) then
+				if chaser and not abuseActive("sleep") and chaser.startChase(player, place.origin) then
 					notify(session, def.woke)
 				end
 				pushState(session)
@@ -1985,7 +2041,7 @@ function GameService.start(mapInfo: MapBuilder.MapInfo)
 				phase.phase = debugPhase
 				phase.endsAt = debugUntil
 			end
-			local summoned = Cycle.getEvent(Halloween.SPIRIT_NIGHT)
+			local summoned = Cycle.getEvent(summonEvent)
 			if now < summonUntil and summoned then
 				phase = table.clone(phase)
 				phase.phase = "night"
@@ -1993,6 +2049,12 @@ function GameService.start(mapInfo: MapBuilder.MapInfo)
 				phase.endsAt = summonUntil
 			end
 			liveEvent = if phase.phase == "night" then phase.event else nil
+			-- Wygasłe wydarzenia z panelu DEV znikają z banera
+			for name, value in Workspace:GetAttributes() do
+				if string.sub(name, 1, 6) == "Abuse_" and (typeof(value) ~= "number" or value <= now) then
+					Workspace:SetAttribute(name, nil)
+				end
+			end
 			Workspace:SetAttribute("Halloween", Halloween.active(now))
 			Workspace:SetAttribute("HalloweenEndsAt", Config.Halloween.endsAt)
 			Workspace:SetAttribute("CyclePhase", phase.phase)

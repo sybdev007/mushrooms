@@ -531,6 +531,27 @@ Config.DevLiveActions = {
 	pumpkinBoom = true,
 } :: { [string]: boolean }
 
+-- Admin abuse z panelu DEV: wydarzenia dla całego serwera, ogłaszane wszystkim, z banerem i odliczaniem.
+-- Działają też na żywej grze. Celowo bez darmowego Wysypu i mikstury szczęścia (to płatne produkty).
+-- kind: night = przywołane zdarzenie nocy (event z Config.Cycle.events), regrow = las odrasta wszystkim
+-- teraz, sleep = strażnicy nie gonią, sell = podwójna sprzedaż, shards = podwójne odłamki w ekspedycji,
+-- stop = koniec wszystkich.
+export type AdminAbuseDef = { id: string, key: string, kind: string, seconds: number, event: string? }
+Config.AdminAbuse = {
+	abuseFullMoon = { id = "full_moon", key = "ABUSE_FULL_MOON", kind = "night", event = "full_moon", seconds = 600 },
+	abuseBloodMoon = { id = "blood_moon", key = "ABUSE_BLOOD_MOON", kind = "night", event = "blood_moon", seconds = 600 },
+	abuseMist = { id = "mist", key = "ABUSE_MIST", kind = "night", event = "mist", seconds = 600 },
+	abuseRain = { id = "rain", key = "ABUSE_RAIN", kind = "night", event = "rain", seconds = 600 },
+	abuseRegrow = { id = "regrow", key = "ABUSE_REGROW", kind = "regrow", seconds = 0 },
+	abuseSleep = { id = "sleep", key = "ABUSE_SLEEP", kind = "sleep", seconds = 300 },
+	abuseSell = { id = "sell", key = "ABUSE_SELL", kind = "sell", seconds = 600 },
+	abuseShards = { id = "shards", key = "ABUSE_SHARDS", kind = "shards", seconds = 900 },
+	abuseStop = { id = "stop", key = "ABUSE_STOP", kind = "stop", seconds = 0 },
+} :: { [string]: AdminAbuseDef }
+for action in Config.AdminAbuse do
+	Config.DevLiveActions[action] = true
+end
+
 -- Bagna: portal za Skarbcem Skarbnika na końcu Sztolni, otwiera się graczom z co najmniej
 -- unlockCoins monet (i tylko z jaskini, więc trzeba też mieć otwartą jaskinię).
 Config.Swamp = {

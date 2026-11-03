@@ -55,6 +55,7 @@ local MutationText = require(script.Parent.MutationText)
 local FontFix = require(script.Parent.FontFix)
 local DelvePanel = require(script.Parent.DelvePanel)
 local DelveHud = require(script.Parent.DelveHud)
+local _AdminEvents = require(script.Parent.AdminEvents)
 local Delve = require(Shared:WaitForChild("Delve"))
 
 local player = Players.LocalPlayer
@@ -283,6 +284,8 @@ local TOAST_KIND: { [string]: string } = {
 	MSG_QUESTS_ALL_DONE = "gold",
 	MSG_QUESTS_NEW = "info",
 	MSG_QUEST_READY = "gold",
+	MSG_ABUSE_START = "gold",
+	MSG_ABUSE_STOP = "info",
 	MSG_QUESTS_ALL_READY = "gold",
 	MSG_LOGIN_READY = "gold",
 	MSG_LOGIN_REWARD = "gold",

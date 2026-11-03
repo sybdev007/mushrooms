@@ -145,11 +145,30 @@ local CATEGORIES: { Category } = {
 		},
 	},
 	{
+		id = "abuse",
+		name = "⚡ Admin abuse",
+		sections = {
+			{ name = "Noc (ogłaszane, cały serwer)", actions = {
+				{ id = "abuseFullMoon", label = "🌕 Pełnia (10 min)" },
+				{ id = "abuseBloodMoon", label = "🩸 Krwawy księżyc (10 min)" },
+				{ id = "abuseMist", label = "🌫️ Mgła (10 min)" },
+				{ id = "abuseRain", label = "🌧️ Deszcz (10 min)" },
+			} },
+			{ name = "Bonusy (ogłaszane, cały serwer)", actions = {
+				{ id = "abuseRegrow", label = "🌱 Las odrasta teraz" },
+				{ id = "abuseSleep", label = "😴 Strażnicy śpią (5 min)" },
+				{ id = "abuseSell", label = "💰 Podwójna sprzedaż (10 min)" },
+				{ id = "abuseShards", label = "💠 Podwójne odłamki (15 min)" },
+				{ id = "abuseStop", label = "⏹ Zakończ wszystkie" },
+			} },
+		},
+	},
+	{
 		id = "halloween",
 		name = "🎃 Halloween",
 		sections = {
 			{ name = "Wydarzenia (ogłaszane)", actions = {
-				{ id = "spiritNight", label = "🎃 Noc Dziadów (10 min)" },
+				{ id = "spiritNight", label = "👻 Noc Dziadów (10 min)" },
 				{ id = "pumpkinBoom", label = "🎃 Dyniowy wysyp" },
 			} },
 			{ name = "Cukierki i kocioł", actions = {

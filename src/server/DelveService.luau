@@ -495,6 +495,12 @@ end
 
 -- ===== Nagrody =====
 
+-- Admin abuse: podwójne odłamki do tej chwili (os.time)
+local shardBoostUntil = 0
+function DelveService.setShardBoost(untilTime: number)
+	shardBoostUntil = untilTime
+end
+
 local function grantRelic(player: Player, relicId: string, bonusShards: number)
 	local save = saveOf(player)
 	local def = Delve.relic(relicId)
@@ -502,6 +508,12 @@ local function grantRelic(player: Player, relicId: string, bonusShards: number)
 		return
 	end
 	local new, shards = Delve.grant(save, relicId)
+	if os.time() < shardBoostUntil then
+		-- Podwójne: drugi raz tyle samo za duplikat i premię
+		save.shards += shards + bonusShards
+		shards *= 2
+		bonusShards *= 2
+	end
 	save.shards += bonusShards
 	if new then
 		api.notify(player, "MSG_DELVE_RELIC_NEW", nil, def.key)

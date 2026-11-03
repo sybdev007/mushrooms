@@ -772,3 +772,15 @@ QUESTS_CLAIMED,Claimed ✔,,,Odebrane ✔
 QUESTS_CLAIM_SHORT,CLAIM!,,,ODBIERZ!
 QUESTS_BONUS_CLAIM,🎁 Claim the bonus: +{1} coins + Luck Potion {2} min,,,🎁 Odbierz premię: +{1} monet + mikstura szczęścia {2} min
 QUESTS_STREAK_READY,Today's reward is waiting - click the green tile!,,,Dzisiejsza nagroda czeka - kliknij zielony kafelek!
+ABUSE_FULL_MOON,🌕 Full Moon,,,🌕 Pełnia
+ABUSE_BLOOD_MOON,🩸 Blood Moon,,,🩸 Krwawy księżyc
+ABUSE_MIST,🌫️ Mist Night,,,🌫️ Noc mgły
+ABUSE_RAIN,🌧️ Rain Night,,,🌧️ Deszczowa noc
+ABUSE_SPIRIT,👻 Spirit Night,,,👻 Noc Dziadów
+ABUSE_REGROW,🌱 The forest regrows for everyone,,,🌱 Las odrasta wszystkim
+ABUSE_SLEEP,😴 Guardians are asleep,,,😴 Strażnicy śpią
+ABUSE_SELL,💰 Double sell price,,,💰 Podwójna sprzedaż
+ABUSE_SHARDS,💠 Double expedition shards,,,💠 Podwójne odłamki z ekspedycji
+ABUSE_STOP,⏹ End all events,,,⏹ Koniec wydarzeń
+MSG_ABUSE_START,⚡ ADMIN ABUSE! {2} turned on: {1}!,,,⚡ ADMIN ABUSE! {2} włącza: {1}!
+MSG_ABUSE_STOP,⚡ {1} ended the admin events.,,,⚡ {1} kończy wydarzenia admina.
