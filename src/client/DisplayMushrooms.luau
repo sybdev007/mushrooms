@@ -11,6 +11,10 @@
 -- Atrybut "Ground" (Vector3) = punkt na ziemi pod grzybem, gdy Root stoi wyżej (np. przycisk zabrania).
 -- Atrybut "Fresh" = świeżo położony: wyrasta z ziemi; inaczej stoi od razu.
 -- Napisy siedzą w PlayerGui z Adornee na znaczniku (jak tytuły graczy w TitleView).
+-- StreamingEnabled: gdy gracz odejdzie daleko, Root znacznika wypada z klienta, a sam Model zostaje
+-- (tag się nie zdejmuje). BillboardGui z Adornee poza światem Roblox rysuje w (0, 0, 0), czyli przed
+-- chatką — stąd wisiały tam tabliczki grządek. Dlatego tabliczka żyje tylko razem ze swoim Root:
+-- znika, gdy Root wypadnie, i wraca na nowym Root, gdy ten dojdzie z powrotem.
 
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
@@ -46,9 +50,25 @@ type Label = {
 
 local ids: { [Instance]: string } = {}
 local labels: { [Instance]: Label } = {}
-local connections: { [Instance]: RBXScriptConnection } = {}
+-- Połączenia tabliczki (atrybuty, pilnowanie Root) — rozłączane razem z nią
+local connections: { [Instance]: { RBXScriptConnection } } = {}
 local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
 local counter = 0
+
+local function track(marker: Instance, connection: RBXScriptConnection)
+	local list = connections[marker]
+	if not list then
+		list = {}
+		connections[marker] = list
+	end
+	table.insert(list, connection)
+end
+
+-- Root znacznika (przy streamingu może go chwilowo nie być)
+local function rootOf(marker: Instance): BasePart?
+	local root = marker:FindFirstChild("Root")
+	return if root and root:IsA("BasePart") then root else nil
+end
 
 local function formatRate(rate: number): string
 	return if rate < 10 then string.format("%.1f", rate) else tostring(math.floor(rate + 0.5))
@@ -145,11 +165,14 @@ local function gardenLabel(marker: Model, root: BasePart, info: MushroomView.Mus
 	end
 	local entry: Label = { gui = gui, mutations = mutations, value = value, info = info, refresh = refresh }
 	refresh()
-	connections[marker] = marker.AttributeChanged:Connect(function(name)
-		if name == "Value" or name == "Rate" then
-			refresh()
-		end
-	end)
+	track(
+		marker,
+		marker.AttributeChanged:Connect(function(name)
+			if name == "Value" or name == "Rate" then
+				refresh()
+			end
+		end)
+	)
 	gui.Parent = playerGui
 	return entry
 end
@@ -175,20 +198,68 @@ local function hoardLabel(root: BasePart, info: MushroomView.MushroomInfo): Labe
 	return entry
 end
 
+local function dropLabel(marker: Instance)
+	local entry = labels[marker]
+	if entry then
+		labels[marker] = nil
+		entry.gui:Destroy()
+	end
+	local list = connections[marker]
+	if list then
+		connections[marker] = nil
+		for _, connection in list do
+			connection:Disconnect()
+		end
+	end
+end
+
+-- Tabliczka przypięta do bieżącego Root. Gdy Root wypadnie (streaming), tabliczka znika, zanim Roblox
+-- zdąży narysować ją w (0, 0, 0); gdy dojdzie nowy Root, tabliczka wraca na nim.
+local function attachLabel(marker: Model, kind: Kind, info: MushroomView.MushroomInfo)
+	local root = rootOf(marker)
+	if not root or not root:IsDescendantOf(workspace) then
+		track(
+			marker,
+			marker.ChildAdded:Connect(function(child)
+				if child.Name == "Root" and child:IsA("BasePart") and ids[marker] then
+					dropLabel(marker)
+					attachLabel(marker, kind, info)
+				end
+			end)
+		)
+		return
+	end
+	local label = if kind.garden then gardenLabel(marker, root, info) else hoardLabel(root, info)
+	if label then
+		labels[marker] = label
+	end
+	track(
+		marker,
+		root.AncestryChanged:Connect(function()
+			if root:IsDescendantOf(workspace) then
+				return
+			end
+			dropLabel(marker)
+			if ids[marker] and marker.Parent then
+				attachLabel(marker, kind, info)
+			end
+		end)
+	)
+end
+
 local function added(marker: Instance, kind: Kind)
 	if not marker:IsA("Model") or ids[marker] then
 		return
 	end
 	-- Przy StreamingEnabled część znacznika może dojść chwilę później
-	if not (marker.PrimaryPart or marker:FindFirstChildWhichIsA("BasePart")) then
+	if not rootOf(marker) then
 		marker:WaitForChild("Root", 10)
 		if not marker.Parent or ids[marker] then
 			return
 		end
 	end
 	local info = infoOf(marker)
-	local root = marker.PrimaryPart or marker:FindFirstChildWhichIsA("BasePart")
-	if not info or not root then
+	if not info or not rootOf(marker) then
 		return
 	end
 	ids[marker] = info.id
@@ -198,23 +269,11 @@ local function added(marker: Instance, kind: Kind)
 		grow = marker:GetAttribute("Fresh") == true,
 		fit = kind.fit,
 	})
-	local label = if kind.garden then gardenLabel(marker, root, info) else hoardLabel(root, info)
-	if label then
-		labels[marker] = label
-	end
+	attachLabel(marker, kind, info)
 end
 
 local function removed(marker: Instance)
-	local entry = labels[marker]
-	if entry then
-		labels[marker] = nil
-		entry.gui:Destroy()
-	end
-	local connection = connections[marker]
-	if connection then
-		connections[marker] = nil
-		connection:Disconnect()
-	end
+	dropLabel(marker)
 	local id = ids[marker]
 	if id then
 		ids[marker] = nil
