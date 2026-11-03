@@ -17,6 +17,7 @@ local Localize = require(script.Parent.Localize)
 local UiKit = require(script.Parent.UiKit)
 local PanelKit = require(script.Parent.PanelKit)
 local UiScale = require(script.Parent.UiScale)
+local UiFx = require(script.Parent.UiFx)
 
 export type State = {
 	coins: number,
@@ -329,10 +330,22 @@ upgradeButton.ClipsDescendants = true
 upgradeButton.Parent = upgradeRoot
 local upgradeStroke = UiKit.button(upgradeButton, VIOLET, { stroke = 3, radius = UDim.new(0, 16), gloss = true })
 upgradeStroke.Color = OUTLINE
+UiFx.shine(upgradeButton, 3.2) -- błysk jak na przyciskach sklepu i okien
 local upgradeCaption = label("Caption", upgradeButton, UDim2.new(1, -72, 0.7, 0), UDim2.new(0, 64, 0.15, 0), TITLE_FONT, 26)
 upgradeCaption.TextXAlignment = Enum.TextXAlignment.Left
 upgradeCaption.ZIndex = 3
 UiKit.outline(upgradeCaption, 2.5)
+
+-- Za strzałką wolne promienie (jak przy przyciskach okien, SideButtons)
+UiFx.rays(upgradeRoot, {
+	size = 104,
+	color = Color3.fromRGB(210, 180, 255),
+	count = 6,
+	speed = 14,
+	transparency = 0.7,
+	zIndex = 4,
+	position = UDim2.new(0, 23, 0.5, -4),
+})
 
 -- Duża strzałka wystaje w lewo poza przycisk
 local upgradeIcon = UiKit.icon("upgrade", upgradeRoot, UDim2.fromOffset(74, 74), UDim2.new(0, -14, 0.5, -4), Vector2.new(0, 0.5))

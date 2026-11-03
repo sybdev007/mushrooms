@@ -625,3 +625,11 @@ MSG_FRIEND_BONUS,👥 {1} is playing with you: +10% luck for both of you!,,,👥
 MSG_INVITE_CREDIT,👥 {1} joined from your invite! Invites: {2},,,👥 {1} wszedł z twojego zaproszenia! Zaproszeni: {2}
 TITLE_GUIDE,Guide,,,Przewodnik
 TITLE_GUIDE_HOW,Invite {1} friends who join the game,,,Zaproś {1} znajomych którzy wejdą do gry
+MSG_QUEST_READY,📜 Quest done! Claim your reward in Quests (Q),,,📜 Zadanie zrobione! Odbierz nagrodę w Zadaniach (Q)
+MSG_QUESTS_ALL_READY,📜 All daily quests done! Claim your rewards and the bonus in Quests (Q),,,📜 Wszystkie zadania zrobione! Odbierz nagrody i premię w Zadaniach (Q)
+MSG_LOGIN_READY,🎁 Login reward for day {1} is waiting - claim it in Quests (Q),,,🎁 Nagroda za dzień {1} logowania czeka - odbierz ją w Zadaniach (Q)
+QUESTS_CLAIM,CLAIM {1},,,ODBIERZ {1}
+QUESTS_CLAIMED,Claimed ✔,,,Odebrane ✔
+QUESTS_CLAIM_SHORT,CLAIM!,,,ODBIERZ!
+QUESTS_BONUS_CLAIM,🎁 Claim the bonus: +{1} coins + Luck Potion {2} min,,,🎁 Odbierz premię: +{1} monet + mikstura szczęścia {2} min
+QUESTS_STREAK_READY,Today's reward is waiting - click the green tile!,,,Dzisiejsza nagroda czeka - kliknij zielony kafelek!

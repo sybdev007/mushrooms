@@ -391,16 +391,18 @@ local function pickQuests(seed: number, count: number, exclude: { [string]: bool
 	return chosen
 end
 
-export type QuestState = { id: string, n: number, done: boolean }
-export type Daily = { day: number, quests: { QuestState }, rerolled: boolean, bonusDone: boolean }
+-- done = cel osiągnięty, claimed = gracz odebrał nagrodę (przyciskiem w oknie Zadań)
+export type QuestState = { id: string, n: number, done: boolean, claimed: boolean }
+-- bonusDone = wszystkie trzy zrobione (premia czeka), bonusClaimed = premia odebrana
+export type Daily = { day: number, quests: { QuestState }, rerolled: boolean, bonusDone: boolean, bonusClaimed: boolean }
 
 -- Każdy gracz ma swój zestaw na dany dzień (nie wszyscy naraz muszą kraść)
 function Progress.newDaily(day: number, userId: number): Daily
 	local quests = {}
 	for _, id in pickQuests(day * 7919 + userId, Progress.QUESTS_PER_DAY, {}) do
-		table.insert(quests, { id = id, n = 0, done = false })
+		table.insert(quests, { id = id, n = 0, done = false, claimed = false })
 	end
-	return { day = day, quests = quests, rerolled = false, bonusDone = false }
+	return { day = day, quests = quests, rerolled = false, bonusDone = false, bonusClaimed = false }
 end
 
 -- Nowy dzień = nowe zadania. Zwraca true, gdy zestaw się zmienił.
@@ -413,6 +415,7 @@ function Progress.ensureDaily(data: { daily: Daily }, day: number, userId: numbe
 end
 
 -- Zdarzenie z gry. Zwraca ukończone teraz zadania i czy właśnie skończyły się wszystkie.
+-- Nagrody nie przychodzą same: gracz odbiera je przyciskiem (claimQuest / claimBonus).
 function Progress.questEvent(daily: Daily, kind: string, amount: number?): ({ QuestDef }, boolean)
 	local completed = {}
 	for _, state in daily.quests do
@@ -454,13 +457,32 @@ function Progress.reroll(daily: Daily, index: number, userId: number): boolean
 	if not replacement then
 		return false
 	end
-	daily.quests[index] = { id = replacement, n = 0, done = false }
+	daily.quests[index] = { id = replacement, n = 0, done = false, claimed = false }
 	daily.rerolled = true
 	return true
 end
 
 function Progress.questReward(def: QuestDef, scale: number): number
 	return math.floor(def.reward * scale)
+end
+
+-- Odbiór nagrody za zrobione zadanie (raz). Zwraca zadanie albo nil, gdy nie ma czego odebrać.
+function Progress.claimQuest(daily: Daily, index: number): QuestDef?
+	local state = daily.quests[index]
+	if not state or not state.done or state.claimed then
+		return nil
+	end
+	state.claimed = true
+	return questById[state.id]
+end
+
+-- Odbiór premii za komplet (raz dziennie)
+function Progress.claimBonus(daily: Daily): boolean
+	if not daily.bonusDone or daily.bonusClaimed then
+		return false
+	end
+	daily.bonusClaimed = true
+	return true
 end
 
 -- ===== Seria logowań =====
@@ -480,6 +502,35 @@ function Progress.claimLogin(streak: Streak, today: number): number?
 	streak.count = if streak.day == today - 1 then streak.count + 1 else 1
 	streak.day = today
 	return (streak.count - 1) % #Progress.LOGIN_REWARDS + 1
+end
+
+-- Czy dzisiejsza nagroda za logowanie czeka na odbiór
+function Progress.loginReady(streak: Streak, today: number): boolean
+	return streak.day ~= today
+end
+
+-- Co da odbiór dzisiaj (bez zmiany serii): dzień w cyklu 1..7 i długość serii po odbiorze
+function Progress.loginPreview(streak: Streak, today: number): (number, number)
+	local count = if streak.day == today then streak.count elseif streak.day == today - 1 then streak.count + 1 else 1
+	count = math.max(count, 1)
+	return (count - 1) % #Progress.LOGIN_REWARDS + 1, count
+end
+
+-- Ile nagród czeka na odbiór (plakietka na przycisku Zadania)
+function Progress.claimable(daily: Daily, streak: Streak, today: number): number
+	local count = 0
+	for _, state in daily.quests do
+		if state.done and not state.claimed then
+			count += 1
+		end
+	end
+	if daily.bonusDone and not daily.bonusClaimed then
+		count += 1
+	end
+	if Progress.loginReady(streak, today) then
+		count += 1
+	end
+	return count
 end
 
 -- ===== Tydzień (rankingi) =====
