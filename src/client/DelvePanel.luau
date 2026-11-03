@@ -14,6 +14,7 @@ local Delve = require(Shared:WaitForChild("Delve"))
 local Remotes = require(Shared:WaitForChild("Remotes"))
 local Localize = require(script.Parent.Localize)
 local PanelKit = require(script.Parent.PanelKit)
+local ShopLook = require(script.Parent.ShopLook)
 local UiFx = require(script.Parent.UiFx)
 local UiKit = require(script.Parent.UiKit)
 
@@ -130,6 +131,7 @@ for i = 1, 3 do
 	root.Size = UDim2.fromOffset(CARD_W, CARD_H)
 	root.Position = UDim2.fromOffset(8 + (i - 1) * (CARD_W + 14), 40)
 	root.Parent = bc
+	ShopLook.hover(root)
 	local body = Instance.new("Frame")
 	body.Name = "Body"
 	body.Size = UDim2.fromScale(1, 1)
@@ -143,7 +145,7 @@ for i = 1, 3 do
 	shade.Rotation = 90
 	shade.Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.fromRGB(170, 160, 150))
 	shade.Parent = body
-	UiFx.rays(body, { size = 220, color = Color3.fromRGB(255, 220, 160), count = 7, speed = 10, transparency = 0.75, position = UDim2.new(0.5, 0, 0, 52) })
+	ShopLook.halo(body, UDim2.new(0, CARD_W / 2, 0, 52), Color3.fromRGB(255, 220, 160), 140, false, 1)
 	local icon = UiKit.icon("chest", body, UDim2.fromOffset(66, 66), UDim2.new(0.5, 0, 0, 52), Vector2.new(0.5, 0.5))
 	icon.Name = "Icon"
 	icon.ZIndex = 3
@@ -151,6 +153,7 @@ for i = 1, 3 do
 	local title = PanelKit.label(body, "Title", UDim2.new(1, -16, 0, 30), UDim2.fromOffset(8, 92), 23, TEXT, TITLE_FONT)
 	title.ZIndex = 3
 	UiKit.outline(title, 2.5)
+	ShopLook.title(title)
 	local desc = PanelKit.label(body, "Desc", UDim2.new(1, -20, 0, 52), UDim2.fromOffset(10, 124), 14, MUTED, BODY_FONT)
 	desc.TextWrapped = true
 	desc.ZIndex = 3
@@ -351,6 +354,7 @@ type Tile = {
 	body: Frame,
 	stroke: UIStroke,
 	icon: TextLabel,
+	halo: Frame,
 	name: TextLabel,
 	status: TextLabel,
 	action: TextButton,
@@ -373,6 +377,10 @@ for row, set in Delve.SETS do
 		body.Position = UDim2.fromOffset(8 + (col - 1) * (TILE_W + 12), y + 32)
 		body.BackgroundColor3 = PanelKit.CARD
 		body.Parent = cc
+		body.ClipsDescendants = true
+		ShopLook.hover(body)
+		local halo = ShopLook.halo(body, UDim2.new(0.5, 0, 0, 38), Color3.fromRGB(def.color[1], def.color[2], def.color[3]), 110, def.rare, 1)
+		halo.Visible = false
 		PanelKit.corner(body, UDim.new(0, 16))
 		local stroke = PanelKit.stroke(body, OUTLINE, 3)
 		local shade = Instance.new("UIGradient")
@@ -382,19 +390,23 @@ for row, set in Delve.SETS do
 		local icon = PanelKit.label(body, "Icon", UDim2.fromOffset(70, 60), UDim2.new(0.5, -35, 0, 8), 52, TEXT, TITLE_FONT)
 		icon.Text = def.icon
 		icon.ZIndex = 4
+		ShopLook.bob(icon, 3, 2.2 + col * 0.15)
 		local name = PanelKit.label(body, "Name", UDim2.new(1, -14, 0, 42), UDim2.fromOffset(7, 70), 17, TEXT, TITLE_FONT)
 		name.TextWrapped = true
 		name.ZIndex = 4
 		UiKit.outline(name, 2)
+		ShopLook.title(name)
 		local status = PanelKit.label(body, "Status", UDim2.new(1, -14, 0, 22), UDim2.fromOffset(7, 112), 13, MUTED, BODY_FONT)
 		status.ZIndex = 4
 		local action, actionLabel = button(body, "Action", GREEN, UDim2.new(1, -16, 0, 44), UDim2.new(0, 8, 1, -52), 14)
 		actionLabel.TextWrapped = true
+		ShopLook.button(action, 2.6 + col * 0.4)
 		local tile: Tile = {
 			def = def,
 			body = body,
 			stroke = stroke,
 			icon = icon,
+			halo = halo,
 			name = name,
 			status = status,
 			action = action,
@@ -439,6 +451,7 @@ local function renderCollection()
 		local relic = save.relics[def.id]
 		tile.name.Text = Localize.t(def.key) .. (if def.rare then " ★" else "")
 		tile.icon.TextTransparency = if relic then 0 else 0.75
+		tile.halo.Visible = relic ~= nil and relic.r
 		tile.body.BackgroundColor3 = if relic and relic.r then Color3.fromRGB(def.color[1], def.color[2], def.color[3]):Lerp(PanelKit.CARD, 0.55) else PanelKit.CARD
 		tile.stroke.Color = if relic and relic.f > 0 then FRAME_COLOR[relic.f] else OUTLINE
 		tile.stroke.Thickness = if relic and relic.f > 0 then 4 else 3
@@ -470,9 +483,19 @@ local function renderCollection()
 	colFooter.Text = Localize.t("DELVE_COLLECTION_FOOTER")
 end
 
+local function cascadeTiles()
+	local list: { GuiObject } = {}
+	for _, tile in tiles do
+		table.insert(list, tile.body)
+	end
+	ShopLook.openSound()
+	ShopLook.cascade(list, 0.03)
+end
+
 collectionButton.Activated:Connect(function()
 	renderCollection()
 	collection.setOpen(true)
+	cascadeTiles()
 end)
 
 -- ===================== Wejście =====================
@@ -491,6 +514,7 @@ function DelvePanel.setState(payload: any)
 	if payload.open == "board" then
 		renderBoard()
 		board.setOpen(true)
+		ShopLook.openSound()
 		for i, card in offerCards do
 			local existing = card.root:FindFirstChildOfClass("UIScale")
 			local scale = if existing then existing else Instance.new("UIScale")
@@ -500,6 +524,7 @@ function DelvePanel.setState(payload: any)
 	elseif payload.open == "collection" then
 		renderCollection()
 		collection.setOpen(true)
+		cascadeTiles()
 	else
 		render()
 	end
