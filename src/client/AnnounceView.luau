@@ -33,6 +33,7 @@ gui.Enabled = false
 gui.Parent = playerGui
 
 local CARD_Y = 0.36
+local CARD_SCALE = 0.5 -- cała karta o połowę mniejsza niż projekt 640×150 (Tom, 3.11)
 local card = Instance.new("CanvasGroup")
 card.Name = "Card"
 card.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -113,10 +114,10 @@ local function showNext()
 	portrait.Image = portraitOf(item.userId)
 	name.Text = Localize.t("ANNOUNCE_HEADER", { item.from })
 	message.Text = item.text
-	scale.Scale = UiScale.get()
+	scale.Scale = UiScale.get() * CARD_SCALE
 	gui.Enabled = true
 	-- Wjazd: z lekkim przesunięciem w górę i rozjaśnieniem
-	card.Position = UDim2.new(0.5, 0, CARD_Y, 24)
+	card.Position = UDim2.new(0.5, 0, CARD_Y, 12)
 	card.GroupTransparency = 1
 	local info = TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 	TweenService:Create(card, info, { GroupTransparency = 0, Position = UDim2.fromScale(0.5, CARD_Y) }):Play()
