@@ -1235,9 +1235,16 @@ local function stepRocks(run: Run, now: number)
 	if #targets == 0 then
 		return
 	end
-	-- Kamień pada tam, gdzie gracz właśnie stoi (albo kawałek dalej, gdy idzie): trzeba odskoczyć
+	-- Kamień spada obok gracza (2–6 studs): stojąc w miejscu (np. przy odgruzowywaniu) oberwiesz tylko
+	-- czasem, a widząc czerwony krąg zdążysz odskoczyć. Bezpośrednio w gracza celowało zbyt mocno (test 3.11).
 	local target = targets[rng:NextInteger(1, #targets)]
-	dropRock(run, target + Vector3.new(rng:NextNumber(-1.2, 1.2), 0, rng:NextNumber(-1.2, 1.2)))
+	local angle = rng:NextNumber(0, math.pi * 2)
+	local distance = rng:NextNumber(2, 6)
+	local spot = target + Vector3.new(math.cos(angle) * distance, 0, math.sin(angle) * distance)
+	local _, z0 = Delve.slotOrigin(run.slot)
+	local half = 6.5 -- Chodnik ma pół szerokości 7
+	spot = Vector3.new(spot.X, spot.Y, math.clamp(spot.Z, z0 - half, z0 + half))
+	dropRock(run, spot)
 end
 
 local function stepGuard(run: Run, dt: number)

@@ -11,7 +11,6 @@ local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Economy = require(ReplicatedStorage.Shared.Economy)
-local ClassColor = require(script.Parent.ClassColor)
 local Localize = require(script.Parent.Localize)
 local MutationText = require(script.Parent.MutationText)
 
