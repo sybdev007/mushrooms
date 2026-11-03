@@ -142,11 +142,21 @@ local function newPortrait(parent: GuiObject, guardian: string): Portrait
 		height = 8,
 		ready = false,
 	}
-	-- Modele buduje serwer w tle (siatki z sieci), więc czekamy bez blokowania okna
+	-- Modele buduje serwer w tle, po zbudowaniu mapy, więc czekamy bez blokowania okna — i BEZ limitu
+	-- czasu: w Studio start serwera trwa czasem ponad minutę, a wcześniej po 60 s portret zostawał
+	-- pusty do końca sesji (strażnicy „znikali” z Grzybopedii)
 	task.spawn(function()
-		local folder = ReplicatedStorage:WaitForChild("GuardianPortraits", 60)
-		local source = folder and folder:WaitForChild(guardian, 10)
-		if source and source:IsA("Model") then
+		local folder = ReplicatedStorage:FindFirstChild("GuardianPortraits")
+		while not folder do
+			ReplicatedStorage.ChildAdded:Wait()
+			folder = ReplicatedStorage:FindFirstChild("GuardianPortraits")
+		end
+		local source = folder:FindFirstChild(guardian)
+		while not source do
+			folder.ChildAdded:Wait()
+			source = folder:FindFirstChild(guardian)
+		end
+		if source:IsA("Model") then
 			fillPortrait(portrait, source)
 		end
 	end)
