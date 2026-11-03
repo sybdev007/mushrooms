@@ -15,7 +15,9 @@ local Halloween = require(Shared.Halloween)
 local Remotes = require(Shared.Remotes)
 local Localize = require(script.Parent.Localize)
 local PanelKit = require(script.Parent.PanelKit)
+local ShopLook = require(script.Parent.ShopLook)
 local SideButtons = require(script.Parent.SideButtons)
+local UiFx = require(script.Parent.UiFx)
 local UiKit = require(script.Parent.UiKit)
 
 local HalloweenPanel = {}
@@ -56,7 +58,7 @@ local timer = PanelKit.label(content, "Timer", UDim2.new(1, -40, 0, 20), UDim2.f
 
 -- ===== Ścieżka nagród =====
 
-type Tile = { frame: Frame, stroke: UIStroke, need: TextLabel, reward: TextLabel, check: GuiObject, icon: TextLabel }
+type Tile = { frame: Frame, stroke: UIStroke, need: TextLabel, reward: TextLabel, check: GuiObject, icon: TextLabel, halo: Frame }
 local tiles: { Tile } = {}
 local track = Halloween.TRACK
 local rowWidth = #track * TILE_W + (#track - 1) * TILE_GAP
@@ -77,9 +79,14 @@ for index, step in track do
 	shade.Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.fromRGB(180, 180, 180))
 	shade.Parent = frame
 
+	ShopLook.hover(frame, 0.04)
+	-- Następna nagroda: promienie za ikoną (render włącza je tylko na tym kafelku)
+	local halo = ShopLook.halo(frame, UDim2.new(0.5, 0, 0, 28), PanelKit.GOLD, 64, true, 5)
+	halo.Visible = false
 	local icon = PanelKit.label(frame, "Icon", UDim2.new(1, 0, 0, 44), UDim2.fromOffset(0, 6), 38)
 	icon.Text = step.icon
 	icon.ZIndex = 6
+	ShopLook.bob(icon, 2.5, 2 + index * 0.12)
 	local need = PanelKit.label(frame, "Need", UDim2.new(1, -8, 0, 22), UDim2.fromOffset(4, 50), 20, PanelKit.GOLD)
 	need.ZIndex = 6
 	UiKit.outline(need, 2)
@@ -90,7 +97,7 @@ for index, step in track do
 	local check = UiKit.icon("check", frame, UDim2.fromOffset(30, 30), UDim2.new(1, 6, 0, -6), Vector2.new(1, 0))
 	check.ZIndex = 8
 	check.Visible = false
-	tiles[index] = { frame = frame, stroke = tileStroke, need = need, reward = reward, check = check, icon = icon }
+	tiles[index] = { frame = frame, stroke = tileStroke, need = need, reward = reward, check = check, icon = icon, halo = halo }
 end
 
 -- Pasek pod kafelkami: każdy odcinek między progami ma tę samą długość (progi rosną nierówno)
@@ -111,9 +118,11 @@ end
 -- ===== Jak zdobyć cukierki =====
 
 local HOW_Y = 32 + TILE_H + 14 + 30 + 16
+local SECTION_TOP = Color3.fromRGB(255, 246, 200)
 local howTitle = PanelKit.label(content, "HowTitle", UDim2.new(1, -40, 0, 24), UDim2.fromOffset(20, HOW_Y), 21, PanelKit.GOLD)
 howTitle.TextXAlignment = Enum.TextXAlignment.Left
 UiKit.outline(howTitle, 2)
+ShopLook.title(howTitle, SECTION_TOP, PanelKit.GOLD)
 
 local HOW_KEYS = { "HW_HOW_PUMPKIN", "HW_HOW_QUEST", "HW_HOW_CAULDRON", "HW_HOW_RISK" }
 local howLines: { TextLabel } = {}
@@ -133,6 +142,7 @@ local SKINS_Y = HOW_Y + 28 + #HOW_KEYS * 38 + 4
 local skinsTitle = PanelKit.label(content, "SkinsTitle", UDim2.new(1, -40, 0, 24), UDim2.fromOffset(20, SKINS_Y), 21, PanelKit.GOLD)
 skinsTitle.TextXAlignment = Enum.TextXAlignment.Left
 UiKit.outline(skinsTitle, 2)
+ShopLook.title(skinsTitle, SECTION_TOP, PanelKit.GOLD)
 
 type SkinCard = { id: string, slot: string, frame: Frame, name: TextLabel, button: TextButton }
 local skinCards: { SkinCard } = {}
@@ -156,9 +166,12 @@ for index, id in skinIds do
 	frame.Parent = content
 	PanelKit.corner(frame, UDim.new(0, 16))
 	PanelKit.stroke(frame, OUTLINE, 3)
+	ShopLook.shade(frame)
+	ShopLook.hover(frame, 0.03)
 	local skinIcon = PanelKit.label(frame, "Icon", UDim2.fromOffset(46, 46), UDim2.fromOffset(8, 7), 38)
 	skinIcon.Text = def.icon
 	skinIcon.ZIndex = 6
+	ShopLook.bob(skinIcon, 3, 2.4 + index * 0.3)
 	local name = PanelKit.label(frame, "Name", UDim2.new(1, -170, 1, -12), UDim2.fromOffset(58, 6), 18)
 	name.TextXAlignment = Enum.TextXAlignment.Left
 	name.TextWrapped = true
@@ -175,6 +188,7 @@ for index, id in skinIds do
 	button.Parent = frame
 	local buttonStroke = UiKit.button(button, UiKit.COLORS.green, { stroke = 2.5, radius = UDim.new(0, 12) })
 	buttonStroke.Color = OUTLINE
+	ShopLook.button(button, 3 + index * 0.5)
 	local constraint = Instance.new("UITextSizeConstraint")
 	constraint.MaxTextSize = 17
 	constraint.Parent = button
@@ -199,6 +213,7 @@ local GOAL_Y = SKINS_Y + 28 + 60 + 10
 local goalTitle = PanelKit.label(content, "GoalTitle", UDim2.new(0.5, -20, 0, 22), UDim2.fromOffset(20, GOAL_Y), 19, PanelKit.GOLD)
 goalTitle.TextXAlignment = Enum.TextXAlignment.Left
 UiKit.outline(goalTitle, 2)
+ShopLook.title(goalTitle, SECTION_TOP, PanelKit.GOLD)
 local goalMine = PanelKit.label(content, "GoalMine", UDim2.new(0.5, -20, 0, 20), UDim2.new(0.5, 0, 0, GOAL_Y + 1), 15, PanelKit.MUTED, PanelKit.BODY_FONT)
 goalMine.TextXAlignment = Enum.TextXAlignment.Right
 local _, goalFill, goalText = PanelKit.bar(content, UDim2.new(1, -40, 0, 26), UDim2.fromOffset(20, GOAL_Y + 26), Color3.fromRGB(120, 220, 100))
@@ -212,6 +227,9 @@ spiritCard.ZIndex = 4
 spiritCard.Parent = content
 PanelKit.corner(spiritCard, UDim.new(0, 16))
 local spiritStroke = PanelKit.stroke(spiritCard, OUTLINE, 3)
+ShopLook.shade(spiritCard)
+spiritCard.ClipsDescendants = true
+UiFx.stripes(spiritCard, Color3.fromRGB(220, 190, 255), 0.88, 4)
 local spiritText = PanelKit.label(spiritCard, "Text", UDim2.new(1, -24, 1, -10), UDim2.fromOffset(12, 5), 19)
 spiritText.TextWrapped = true
 spiritText.ZIndex = 6
@@ -361,6 +379,7 @@ local function render()
 		tile.frame.BackgroundColor3 = if done then Color3.fromRGB(72, 150, 70) elseif nextOne then Color3.fromRGB(150, 70, 190) else PURPLE
 		tile.stroke.Color = if nextOne then PanelKit.GOLD else OUTLINE
 		tile.stroke.Thickness = if nextOne then 4 else 3
+		tile.halo.Visible = nextOne
 	end
 	fill.Size = UDim2.fromScale(math.clamp(trackFraction(candy), 0, 1), 1)
 	local nextStep = track[reached + 1]
@@ -398,6 +417,17 @@ end
 window.onToggle(function(open: boolean)
 	if open then
 		render()
+		-- Kafelki i karty wskakują po kolei (jak karty w sklepie)
+		ShopLook.openSound()
+		local items: { GuiObject } = {}
+		for _, tile in tiles do
+			table.insert(items, tile.frame)
+		end
+		for _, card in skinCards do
+			table.insert(items, card.frame)
+		end
+		table.insert(items, spiritCard)
+		ShopLook.cascade(items, 0.03)
 	elseif spiritPulse then
 		spiritPulse:Cancel()
 		spiritPulse = nil

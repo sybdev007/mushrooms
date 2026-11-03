@@ -18,6 +18,7 @@ local ClassMark = require(script.Parent.ClassMark)
 local Localize = require(script.Parent.Localize)
 local MushroomArt = require(script.Parent.MushroomArt)
 local PanelKit = require(script.Parent.PanelKit)
+local ShopLook = require(script.Parent.ShopLook)
 local SideButtons = require(script.Parent.SideButtons)
 local UiKit = require(script.Parent.UiKit)
 
@@ -145,6 +146,8 @@ for index = 1, #Progress.TIERS do
 	local label = PanelKit.label(frame, "Label", UDim2.new(1, -16, 0, 34), UDim2.fromOffset(8, 5), 16)
 	label.ZIndex = 6
 	UiKit.outline(label, 2)
+	ShopLook.title(label)
+	ShopLook.hover(frame, 0.03)
 	local _, fill, barText = PanelKit.bar(frame, UDim2.new(1, -16, 0, 22), UDim2.fromOffset(8, 42), PanelKit.GOLD)
 	local reward = PanelKit.label(frame, "Reward", UDim2.new(1, -16, 0, 22), UDim2.fromOffset(8, 68), 15, PanelKit.GOLD)
 	reward.ZIndex = 6
@@ -226,6 +229,11 @@ local function formTile(parent: Instance, species: Config.SpeciesDef, rank: numb
 			tileStroke.Color = rgb(variant.color)
 		end
 	end
+	-- Znaleziona tęcza: małe promienie za grzybkiem (jak za ikoną w sklepie); tylko ona, żeby lista nie migała
+	local variant = VARIANT_BY_RANK[rank]
+	if found and rank == 3 then
+		ShopLook.halo(tile, UDim2.fromScale(0.5, 0.5), if variant then rgb(variant.color) else Color3.new(1, 1, 1), 44, false, 6)
+	end
 	local box = Instance.new("Frame")
 	box.Name = "Art"
 	box.BackgroundTransparency = 1
@@ -234,7 +242,6 @@ local function formTile(parent: Instance, species: Config.SpeciesDef, rank: numb
 	box.Position = UDim2.fromScale(0.5, 0.5)
 	box.ZIndex = 7
 	box.Parent = tile
-	local variant = VARIANT_BY_RANK[rank]
 	local item: any = { s = species.id, v = if rank > 0 and variant then variant.id else nil }
 	local art = MushroomArt.build(box, item, {
 		active = if found then isActive else function()
@@ -318,6 +325,8 @@ local function render()
 		row.Parent = list
 		PanelKit.corner(row, UDim.new(0, 14))
 		PanelKit.stroke(row, OUTLINE, 2.5)
+		ShopLook.shade(row)
+		ShopLook.hover(row, 0.015)
 		-- Pasek w kolorze klasy po lewej
 		local stripe = Instance.new("Frame")
 		stripe.Name = "Stripe"
@@ -339,7 +348,8 @@ local function render()
 		local zone = Config.Zones[species.zone]
 		if known then
 			name.Text = Localize.t(species.key)
-			name.TextColor3 = rgb(class.color):Lerp(Color3.new(1, 1, 1), 0.25)
+			-- Nazwa w gradiencie koloru klasy (jak tytuły kart w sklepie)
+			ShopLook.title(name, rgb(class.color):Lerp(Color3.new(1, 1, 1), 0.6), rgb(class.color):Lerp(Color3.new(1, 1, 1), 0.1))
 			info.Text = string.format("%s %s · %s · 💰 %s", ClassMark.rich(species.id), Localize.t(class.key), if zone then Localize.t(zone.key) else "", formatCoins(species.value))
 		else
 			name.Text = "???"
@@ -369,6 +379,30 @@ local function render()
 		card.check.Visible = done
 		card.stroke.Color = if done then PanelKit.GREEN else OUTLINE
 	end
+end
+
+-- Karty wskakują po kolei (otwarcie okna, zmiana strony)
+local function cascade(step: number?)
+	if current == GUARDIANS_TAB then
+		return
+	end
+	local items: { GuiObject } = {}
+	for _, card in tierCards do
+		table.insert(items, card.frame)
+	end
+	local rows: { Frame } = {}
+	for _, child in list:GetChildren() do
+		if child:IsA("Frame") then
+			table.insert(rows, child)
+		end
+	end
+	table.sort(rows, function(a, b)
+		return a.LayoutOrder < b.LayoutOrder
+	end)
+	for _, row in rows do
+		table.insert(items, row)
+	end
+	ShopLook.cascade(items, step or 0.035)
 end
 
 local function refreshBadge()
@@ -404,6 +438,8 @@ end
 window.onToggle(function(open: boolean)
 	if open then
 		render()
+		ShopLook.openSound()
+		cascade()
 	else
 		guardiansPage.setActive(false)
 	end
@@ -415,6 +451,7 @@ for page, tab in tabs do
 			current = page
 			list.CanvasPosition = Vector2.zero
 			render()
+			cascade(0.02)
 		end
 	end)
 end
