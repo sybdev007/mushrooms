@@ -3,7 +3,8 @@
 -- Logika jest w Shared/Progress (testy), tu tylko podpięcie pod grę:
 --   GameService woła ProgressService.found (grzyb trafił do koszyka) i ProgressService.event
 --   (sprzedaż, ucieczka strażnikowi, kradzież, sadzenie, skrzynia, ulepszenie).
--- Nagrody za zadania i logowanie przychodzą same, bez klikania „odbierz”.
+-- Nagrody za zadania, premię za komplet i serię logowań gracz odbiera sam (przycisk w oknie Zadań,
+-- przycisk Zadania miga, gdy coś czeka). Zrobione zadanie nie przepada do końca dnia.
 
 local BadgeService = game:GetService("BadgeService")
 local HttpService = game:GetService("HttpService")
@@ -34,6 +35,7 @@ local ProgressService = {}
 
 local ProgressUpdate = Remotes.get("ProgressUpdate")
 local QuestReroll = Remotes.get("QuestReroll")
+local QuestClaim = Remotes.get("QuestClaim")
 local SelectTitle = Remotes.get("SelectTitle")
 local SaveSettings = Remotes.get("SaveSettings")
 
@@ -156,12 +158,21 @@ local function send(player: Player, force: boolean?)
 		return
 	end
 	local now = os.time()
+	local today = Progress.dayIndex(now)
+	local loginNextDay, loginNextCount = Progress.loginPreview(data.streak, today)
 	local scale = scaleOf(data)
 	local quests = {}
 	for _, state in data.daily.quests do
 		local def = Progress.getQuest(state.id)
 		if def then
-			table.insert(quests, { id = state.id, n = state.n, goal = def.goal, done = state.done, reward = Progress.questReward(def, scale) })
+			table.insert(quests, {
+				id = state.id,
+				n = state.n,
+				goal = def.goal,
+				done = state.done,
+				claimed = state.claimed,
+				reward = Progress.questReward(def, scale),
+			})
 		end
 	end
 	local payload = {
@@ -172,9 +183,15 @@ local function send(player: Player, force: boolean?)
 		quests = quests,
 		rerolled = data.daily.rerolled,
 		bonusDone = data.daily.bonusDone,
+		bonusClaimed = data.daily.bonusClaimed,
 		dailyBonus = math.floor(Progress.DAILY_BONUS.reward * scale),
 		streak = data.streak.count,
 		loginDay = (math.max(data.streak.count, 1) - 1) % #Progress.LOGIN_REWARDS + 1,
+		-- Nagroda za dzisiejsze wejście czeka na odbiór: który to dzień cyklu i seria po odbiorze
+		loginReady = Progress.loginReady(data.streak, today),
+		loginNextDay = loginNextDay,
+		loginNextCount = loginNextCount,
+		claimable = Progress.claimable(data.daily, data.streak, today),
 		scale = scale,
 		day = data.daily.day,
 		resetAt = now + Progress.secondsToNextDay(now),
@@ -192,6 +209,9 @@ local function send(player: Player, force: boolean?)
 		payload.bestiary,
 		payload.quests,
 		payload.rerolled,
+		payload.bonusDone,
+		payload.bonusClaimed,
+		payload.loginReady,
 		payload.streak,
 		payload.day,
 		scale,
@@ -243,7 +263,7 @@ local function grantTrack(player: Player, data: Data)
 	end
 end
 
--- Nagroda za dzisiejsze wejście (też o północy, gdy gracz akurat gra)
+-- Nagroda za dzisiejsze wejście: gracz odbiera ją przyciskiem w oknie Zadań
 local function claimLogin(player: Player, data: Data)
 	local today = Progress.dayIndex(os.time())
 	local cycleDay = Progress.claimLogin(data.streak, today)
@@ -271,7 +291,10 @@ local function newDay(player: Player, data: Data)
 	if Progress.ensureDaily(data, Progress.dayIndex(now), player.UserId) then
 		api.notify(player, "MSG_QUESTS_NEW")
 	end
-	claimLogin(player, data)
+	if Progress.loginReady(data.streak, Progress.dayIndex(now)) then
+		local cycleDay = Progress.loginPreview(data.streak, Progress.dayIndex(now))
+		api.notify(player, "MSG_LOGIN_READY", { cycleDay })
+	end
 end
 
 function ProgressService.join(player: Player)
@@ -308,24 +331,11 @@ function ProgressService.event(player: Player, kind: string, amount: number?)
 		return
 	end
 	local completed, allDone = Progress.questEvent(data.daily, kind, amount)
-	if #completed > 0 then
-		local scale = scaleOf(data)
-		for _, def in completed do
-			local reward = Progress.questReward(def, scale)
-			data.coins += reward
-			api.notify(player, "MSG_QUEST_DONE", { reward })
-		end
-		if allDone then
-			local bonus = math.floor(Progress.DAILY_BONUS.reward * scale)
-			data.coins += bonus
-			grantLuck(data, Progress.DAILY_BONUS.luckSeconds)
-			api.notify(player, "MSG_QUESTS_ALL_DONE", { bonus, math.floor(Progress.DAILY_BONUS.luckSeconds / 60) })
-		end
-		api.pushState(player)
-		-- Halloween: każde zadanie dnia daje też cukierki
-		if Halloween.active(os.time()) then
-			ProgressService.addCandy(player, #completed * Config.Halloween.questCandy, "MSG_CANDY_QUEST")
-		end
+	-- Nagroda czeka na odbiór w oknie Zadań (przycisk miga)
+	if allDone then
+		api.notify(player, "MSG_QUESTS_ALL_READY")
+	elseif #completed > 0 then
+		api.notify(player, "MSG_QUEST_READY")
 	end
 	if kind == "steal" then
 		data.weekly.steals += amount or 1
@@ -515,6 +525,56 @@ local function onReroll(player: Player, index: unknown)
 	end
 end
 
+-- Odbiór nagrody z okna Zadań: numer zadania, "bonus" (premia za komplet) albo "login" (seria logowań)
+local lastClaim: { [Player]: number } = {}
+local function onClaim(player: Player, what: unknown)
+	local data = api.getData(player)
+	if not data then
+		return
+	end
+	local now = os.clock()
+	if now - (lastClaim[player] or 0) < 0.25 then
+		return
+	end
+	lastClaim[player] = now
+	-- Po północy najpierw nowy dzień (stare zadania i tak przepadają razem z dniem)
+	if data.daily.day ~= Progress.dayIndex(os.time()) then
+		newDay(player, data)
+	end
+	local scale = scaleOf(data)
+	if typeof(what) == "number" then
+		local def = Progress.claimQuest(data.daily, math.floor(what))
+		if not def then
+			return
+		end
+		local reward = Progress.questReward(def, scale)
+		data.coins += reward
+		api.notify(player, "MSG_QUEST_DONE", { reward })
+		-- Halloween: każde zadanie dnia daje też cukierki
+		if Halloween.active(os.time()) then
+			ProgressService.addCandy(player, Config.Halloween.questCandy, "MSG_CANDY_QUEST")
+		end
+	elseif what == "bonus" then
+		if not Progress.claimBonus(data.daily) then
+			return
+		end
+		local bonus = math.floor(Progress.DAILY_BONUS.reward * scale)
+		data.coins += bonus
+		grantLuck(data, Progress.DAILY_BONUS.luckSeconds)
+		api.notify(player, "MSG_QUESTS_ALL_DONE", { bonus, math.floor(Progress.DAILY_BONUS.luckSeconds / 60) })
+	elseif what == "login" then
+		if not Progress.loginReady(data.streak, Progress.dayIndex(os.time())) then
+			return
+		end
+		claimLogin(player, data)
+		refreshTitle(player, data)
+	else
+		return
+	end
+	api.pushState(player)
+	send(player)
+end
+
 -- Wybór tytułu z okna Tytuły: tylko zdobyty, "" = najlepszy automatycznie, "none" = bez tytułu
 local function onSelectTitle(player: Player, id: unknown)
 	local data = api.getData(player)
@@ -532,6 +592,10 @@ end
 function ProgressService.start(serviceApi: Api)
 	api = serviceApi
 	QuestReroll.OnServerEvent:Connect(onReroll)
+	QuestClaim.OnServerEvent:Connect(onClaim)
+	Players.PlayerRemoving:Connect(function(player)
+		lastClaim[player] = nil
+	end)
 	SelectTitle.OnServerEvent:Connect(onSelectTitle)
 	SaveSettings.OnServerEvent:Connect(function(player: Player, key: unknown, value: unknown)
 		local data = api.getData(player)

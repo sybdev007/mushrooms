@@ -170,7 +170,6 @@ local shopSide = SideButtons.add({
 	color = ROBUX_GREEN,
 	caption = "SHOP_TITLE",
 })
-UiFx.shine(shopSide.button, 4.5)
 
 local oilButton = Instance.new("TextButton")
 oilButton.Name = "QuickOil"

@@ -1,7 +1,9 @@
 --!strict
 -- Zadania na dziś w stylu okna ulepszeń (PanelKit): trzy kolorowe karty z dużą ikoną, grubym paskiem
 -- postępu i nagrodą jak przycisk; kostka do wymiany jednego zadania dziennie; premia za komplet
--- i siedem kafelków serii logowań (7. dzień z miksturą szczęścia). Nagrody przychodzą same.
+-- i siedem kafelków serii logowań (7. dzień z miksturą szczęścia).
+-- Nagrody gracz odbiera sam: zrobione zadanie, premia i dzisiejszy kafelek logowania zamieniają się
+-- w pulsujący przycisk „ODBIERZ”, a przycisk Zadania z boku ekranu miga, dopóki coś czeka.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -13,6 +15,7 @@ local Remotes = require(Shared.Remotes)
 local Localize = require(script.Parent.Localize)
 local PanelKit = require(script.Parent.PanelKit)
 local SideButtons = require(script.Parent.SideButtons)
+local UiFx = require(script.Parent.UiFx)
 local UiKit = require(script.Parent.UiKit)
 
 local QuestPanel = {}
@@ -22,6 +25,37 @@ local WIDTH, HEIGHT = 640, 552
 local CARD_H = 86
 
 local QuestReroll = Remotes.get("QuestReroll")
+local QuestClaim = Remotes.get("QuestClaim")
+local CLAIM_GREEN = Color3.fromRGB(64, 196, 78)
+
+-- Przycisk „ODBIERZ” na elemencie: przezroczysty przycisk na całości, błysk i pulsowanie (tylko gdy widoczny)
+local function claimOverlay(target: GuiObject, zIndex: number, onClaim: () -> ()): TextButton
+	local scale = target:FindFirstChildOfClass("UIScale") or Instance.new("UIScale")
+	scale.Parent = target
+	local button = Instance.new("TextButton")
+	button.Name = "Claim"
+	button.Text = ""
+	button.BackgroundTransparency = 1
+	button.Size = UDim2.fromScale(1, 1)
+	button.ZIndex = zIndex
+	button.Visible = false
+	button.Parent = target
+	UiFx.shine(button, 1.6)
+	UiFx.animate(button, button, function(t)
+		scale.Scale = 1 + math.abs(math.sin(t * 4)) * 0.07
+	end)
+	button:GetPropertyChangedSignal("Visible"):Connect(function()
+		if not button.Visible then
+			scale.Scale = 1
+		end
+	end)
+	button.Activated:Connect(function()
+		UiFx.sound("ping", 0.6, 1.2)
+		UiKit.burst(target:FindFirstAncestorOfClass("ScreenGui") or target, button.AbsolutePosition + button.AbsoluteSize / 2, 16)
+		onClaim()
+	end)
+	return button
+end
 
 -- Kolor i ikona karty według rodzaju zadania
 local QUEST_LOOK: { [string]: { color: Color3, icon: string } } = {
@@ -67,6 +101,7 @@ type Card = {
 	reward: TextLabel,
 	rewardPill: Frame,
 	swap: TextButton,
+	claim: TextButton,
 	done: boolean,
 }
 local cards: { Card } = {}
@@ -158,6 +193,10 @@ for index = 1, Progress.QUESTS_PER_DAY do
 		UiKit.shake(holder)
 	end)
 
+	local claim = claimOverlay(rewardPill, 9, function()
+		QuestClaim:FireServer(index)
+	end)
+
 	cards[index] = {
 		holder = holder,
 		body = body,
@@ -170,6 +209,7 @@ for index = 1, Progress.QUESTS_PER_DAY do
 		reward = reward,
 		rewardPill = rewardPill,
 		swap = swap,
+		claim = claim,
 		done = false,
 	}
 end
@@ -206,6 +246,9 @@ for i = 1, Progress.QUESTS_PER_DAY do
 	PanelKit.stroke(dot, OUTLINE, 2.5)
 	bonusDots[i] = dot
 end
+local bonusClaim = claimOverlay(bonus, 9, function()
+	QuestClaim:FireServer("bonus")
+end)
 
 -- ===== Seria logowań =====
 
@@ -224,7 +267,7 @@ streakGrid.CellPadding = UDim2.fromOffset(8, 0)
 streakGrid.SortOrder = Enum.SortOrder.LayoutOrder
 streakGrid.Parent = streakRow
 
-type Day = { frame: Frame, stroke: UIStroke, day: TextLabel, amount: TextLabel, check: GuiObject, icon: GuiObject }
+type Day = { frame: Frame, stroke: UIStroke, day: TextLabel, amount: TextLabel, check: GuiObject, icon: GuiObject, claim: TextButton }
 local days: { Day } = {}
 for index = 1, #Progress.LOGIN_REWARDS do
 	local frame = Instance.new("Frame")
@@ -244,7 +287,10 @@ for index = 1, #Progress.LOGIN_REWARDS do
 	local check = UiKit.icon("check", frame, UDim2.fromOffset(28, 28), UDim2.new(1, 4, 0, -4), Vector2.new(1, 0))
 	check.ZIndex = 8
 	check.Visible = false
-	days[index] = { frame = frame, stroke = tileStroke, day = day, amount = amount, check = check, icon = tileIcon }
+	local claim = claimOverlay(frame, 9, function()
+		QuestClaim:FireServer("login")
+	end)
+	days[index] = { frame = frame, stroke = tileStroke, day = day, amount = amount, check = check, icon = tileIcon, claim = claim }
 end
 local streakHint = PanelKit.label(content, "StreakHint", UDim2.new(1, -40, 0, 18), UDim2.fromOffset(20, BONUS_Y + 162), 15, PanelKit.MUTED)
 
@@ -284,6 +330,14 @@ end
 local function refreshBadge()
 	if not state then
 		side.setBadge("")
+		side.setAttention(false)
+		return
+	end
+	-- Coś czeka na odbiór: czerwona plakietka z liczbą i migający przycisk
+	local waiting = tonumber(state.claimable) or 0
+	side.setAttention(waiting > 0)
+	if waiting > 0 then
+		side.setBadge(tostring(waiting), "alert")
 		return
 	end
 	local done = 0
@@ -292,7 +346,7 @@ local function refreshBadge()
 			done += 1
 		end
 	end
-	side.setBadge(string.format("%d/%d", done, #state.quests), if done >= #state.quests then "done" else "alert")
+	side.setBadge(string.format("%d/%d", done, #state.quests), if done >= #state.quests then "done" else "info")
 end
 
 local function render()
@@ -314,14 +368,19 @@ local function render()
 			if quest.done then
 				doneCount += 1
 			end
-			card.body.BackgroundColor3 = if quest.done then Color3.fromRGB(72, 168, 80) else look.color
+			local claimable = quest.done and not quest.claimed
+			card.body.BackgroundColor3 = if quest.claimed then Color3.fromRGB(70, 120, 74) elseif quest.done then Color3.fromRGB(72, 168, 80) else look.color
 			UiKit.setIcon(card.icon, look.icon)
 			card.label.Text = Localize.t("QUEST_" .. string.upper(quest.id), { quest.goal })
 			card.fill.Size = UDim2.fromScale(math.clamp(quest.n / quest.goal, 0, 1), 1)
 			card.fill.BackgroundColor3 = if quest.done then PanelKit.GREEN else PanelKit.GOLD
 			card.barText.Text = string.format("%d/%d", quest.n, quest.goal)
-			card.reward.Text = if quest.done then Localize.t("QUESTS_DONE") else shortCoins(quest.reward)
-			card.rewardPill.BackgroundColor3 = if quest.done then PanelKit.GREEN else Color3.fromRGB(246, 182, 40)
+			card.reward.Text = if claimable
+				then Localize.t("QUESTS_CLAIM", { shortCoins(quest.reward) })
+				elseif quest.claimed then Localize.t("QUESTS_CLAIMED")
+				else shortCoins(quest.reward)
+			card.rewardPill.BackgroundColor3 = if claimable then CLAIM_GREEN elseif quest.claimed then Color3.fromRGB(90, 110, 90) else Color3.fromRGB(246, 182, 40)
+			card.claim.Visible = claimable
 			card.swap.Visible = not quest.done and not state.rerolled
 			-- Właśnie ukończone przy otwartym oknie: karta podskakuje i sypią się iskry
 			if quest.done and not wasDone and window.isOpen() then
@@ -332,35 +391,45 @@ local function render()
 	for i, dot in bonusDots do
 		dot.BackgroundColor3 = if i <= doneCount then PanelKit.GREEN else OUTLINE
 	end
-	bonusText.Text = if state.bonusDone
-		then Localize.t("QUESTS_BONUS_DONE")
+	local bonusReady = state.bonusDone and not state.bonusClaimed
+	bonusText.Text = if bonusReady
+		then Localize.t("QUESTS_BONUS_CLAIM", { shortCoins(state.dailyBonus), math.floor(Progress.DAILY_BONUS.luckSeconds / 60) })
+		elseif state.bonusDone then Localize.t("QUESTS_BONUS_DONE")
 		else Localize.t("QUESTS_BONUS", { shortCoins(state.dailyBonus), math.floor(Progress.DAILY_BONUS.luckSeconds / 60) })
-	bonusText.TextColor3 = if state.bonusDone then PanelKit.GREEN else PanelKit.GOLD
+	bonusText.TextColor3 = if bonusReady then Color3.new(1, 1, 1) elseif state.bonusDone then PanelKit.GREEN else PanelKit.GOLD
+	bonus.BackgroundColor3 = if bonusReady then CLAIM_GREEN else Color3.fromRGB(70, 44, 92)
+	bonusClaim.Visible = bonusReady
 
-	streakTitle.Text = Localize.t("QUESTS_STREAK", { state.streak })
+	-- Dzisiejsza nagroda czeka: kafelek dnia, który da odbiór, jest przyciskiem „ODBIERZ”
+	local ready = state.loginReady == true
+	local todayIndex = if ready then (tonumber(state.loginNextDay) or 1) else state.loginDay
+	streakTitle.Text = Localize.t("QUESTS_STREAK", { if ready then state.loginNextCount else state.streak })
 	for index, day in days do
-		local isToday = index == state.loginDay
-		local claimed = index < state.loginDay
-		day.day.Text = Localize.t("QUESTS_DAY", { index })
+		local isToday = index == todayIndex
+		local claimed = index < todayIndex or (isToday and not ready)
+		day.day.Text = if isToday and ready then Localize.t("QUESTS_CLAIM_SHORT") else Localize.t("QUESTS_DAY", { index })
 		day.amount.Text = shortCoins(Progress.LOGIN_REWARDS[index] * state.scale)
-		day.frame.BackgroundColor3 = if isToday then PanelKit.VIOLET elseif claimed then Color3.fromRGB(60, 120, 64) else PanelKit.TAB
+		day.frame.BackgroundColor3 = if isToday and ready then CLAIM_GREEN elseif isToday then PanelKit.VIOLET elseif claimed then Color3.fromRGB(60, 120, 64) else PanelKit.TAB
 		day.stroke.Color = if isToday then PanelKit.GOLD else OUTLINE
-		day.check.Visible = claimed or isToday
+		day.check.Visible = claimed
+		day.claim.Visible = isToday and ready
 	end
 	-- Dzisiejszy kafelek pulsuje obwódką
 	if todayPulse then
 		todayPulse:Cancel()
 		todayPulse = nil
 	end
-	local today = days[state.loginDay]
+	local today = days[todayIndex]
 	if today and window.isOpen() then
 		today.stroke.Thickness = 3
 		local tween = TweenService:Create(today.stroke, TweenInfo.new(0.6, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), { Thickness = 5 })
 		tween:Play()
 		todayPulse = tween
 	end
-	local nextDay = state.loginDay % #Progress.LOGIN_REWARDS + 1
-	streakHint.Text = Localize.t("QUESTS_STREAK_HINT", { nextDay, formatCoins(Progress.LOGIN_REWARDS[nextDay] * state.scale) })
+	local nextDay = todayIndex % #Progress.LOGIN_REWARDS + 1
+	streakHint.Text = if ready
+		then Localize.t("QUESTS_STREAK_READY")
+		else Localize.t("QUESTS_STREAK_HINT", { nextDay, formatCoins(Progress.LOGIN_REWARDS[nextDay] * state.scale) })
 end
 
 function QuestPanel.toggle()

@@ -764,3 +764,11 @@ DELVE_STEP_ESCAPE,Run out of the Crypt with the trophy!,,,Uciekaj z trofeum za d
 DELVE_STEP_CRYPT_DONE,Trophy carried out,,,Trofeum wyniesione
 DELVE_STEP_EXIT,Climb the rope back to camp,,,Wróć liną do obozu
 DELVE_WHERE_PASSAGE,📍 The crack is in the Abyss wall past the lava,,,📍 Szczelina jest w ścianie Otchłani za lawą
+MSG_QUEST_READY,📜 Quest done! Claim your reward in Quests (Q),,,📜 Zadanie zrobione! Odbierz nagrodę w Zadaniach (Q)
+MSG_QUESTS_ALL_READY,📜 All daily quests done! Claim your rewards and the bonus in Quests (Q),,,📜 Wszystkie zadania zrobione! Odbierz nagrody i premię w Zadaniach (Q)
+MSG_LOGIN_READY,🎁 Login reward for day {1} is waiting - claim it in Quests (Q),,,🎁 Nagroda za dzień {1} logowania czeka - odbierz ją w Zadaniach (Q)
+QUESTS_CLAIM,CLAIM {1},,,ODBIERZ {1}
+QUESTS_CLAIMED,Claimed ✔,,,Odebrane ✔
+QUESTS_CLAIM_SHORT,CLAIM!,,,ODBIERZ!
+QUESTS_BONUS_CLAIM,🎁 Claim the bonus: +{1} coins + Luck Potion {2} min,,,🎁 Odbierz premię: +{1} monet + mikstura szczęścia {2} min
+QUESTS_STREAK_READY,Today's reward is waiting - click the green tile!,,,Dzisiejsza nagroda czeka - kliknij zielony kafelek!

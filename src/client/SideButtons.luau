@@ -1,6 +1,8 @@
 --!strict
 -- Duże przyciski okien pod przyciskiem „Ulepszenia” (prawa krawędź), w tym samym stylu:
 -- kolorowy przycisk z napisem, duża ikona wystająca w lewo, klawisz w rogu i plakietka z liczbą.
+-- Wszystkie żyją jak przycisk sklepu: przebiegający błysk, wolne promienie za ikoną, kołysanie.
+-- setAttention(true): coś czeka na odbiór — złote promienie, poświata, migająca obwódka i podskoki.
 -- Kolejność: 📜 Zadania, 📖 Grzybopedia, 🏷️ Tytuły (każde okno dodaje swój przycisk).
 
 local ContextActionService = game:GetService("ContextActionService")
@@ -9,6 +11,7 @@ local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 
 local Localize = require(script.Parent.Localize)
+local UiFx = require(script.Parent.UiFx)
 local UiKit = require(script.Parent.UiKit)
 local UiScale = require(script.Parent.UiScale)
 
@@ -41,6 +44,7 @@ export type Side = {
 	root: Frame,
 	button: TextButton,
 	setBadge: (text: string, style: BadgeStyle?) -> (),
+	setAttention: (on: boolean) -> (),
 	onActivated: (callback: () -> ()) -> (),
 }
 export type Options = {
@@ -61,7 +65,7 @@ local count = 0
 -- Na telefonie (mały ekran) przyciski są kwadratami z samą ikoną, w rzędzie pod „Ulepszeniami”,
 -- żeby nie wchodziły na ZBIERZ i przycisk skoku
 local SQUARE = 56
-type Laid = { root: Frame, caption: TextLabel, icon: GuiObject, index: number }
+type Laid = { root: Frame, caption: TextLabel, icon: GuiObject, halo: Frame, index: number }
 local laid: { Laid } = {}
 
 local function layout()
@@ -76,12 +80,14 @@ local function layout()
 			entry.icon.Size = UDim2.fromOffset(SQUARE - 8, SQUARE - 8)
 			entry.icon.AnchorPoint = Vector2.new(0.5, 0.5)
 			entry.icon.Position = UDim2.fromScale(0.5, 0.5)
+			entry.halo.Position = UDim2.fromScale(0.5, 0.5)
 		else
 			entry.root.Size = UDim2.fromOffset(WIDTH, HEIGHT)
 			entry.root.Position = UDim2.fromOffset(0, (entry.index - 1) * (HEIGHT + GAP))
 			entry.icon.Size = UDim2.fromOffset(64, 64)
 			entry.icon.AnchorPoint = Vector2.new(0, 0.5)
 			entry.icon.Position = UDim2.new(0, -12, 0.5, -3)
+			entry.halo.Position = UDim2.new(0, 20, 0.5, -3) -- środek ikony
 		end
 	end
 	column.Size = if small
@@ -138,10 +144,42 @@ function SideButtons.add(options: Options): Side
 	button.Parent = root
 	local buttonStroke = UiKit.button(button, options.color, { stroke = 3, radius = UDim.new(0, 14), gloss = true })
 	buttonStroke.Color = OUTLINE
+	-- Błysk przebiega po przycisku co kilka sekund (każdy przycisk w innym rytmie)
+	UiFx.shine(button, 3.6 + count * 0.55)
 	local caption = text(button, "Caption", UDim2.new(1, -66, 0.68, 0), UDim2.new(0, 58, 0.16, 0), 23)
 	caption.TextXAlignment = Enum.TextXAlignment.Left
 	caption.ZIndex = 3
 	UiKit.outline(caption, 2.5)
+
+	-- Za ikoną: wolne, ledwo widoczne promienie w kolorze przycisku; przy „czeka na odbiór” złote,
+	-- szybsze, z poświatą (warstwa attention rusza się tylko, gdy jest widoczna)
+	local halo = Instance.new("Frame")
+	halo.Name = "Halo"
+	halo.BackgroundTransparency = 1
+	halo.AnchorPoint = Vector2.new(0.5, 0.5)
+	halo.Position = UDim2.new(0, 20, 0.5, -3)
+	halo.Size = UDim2.fromOffset(1, 1)
+	halo.ZIndex = 4
+	halo.Parent = root
+	UiFx.rays(halo, {
+		size = 92,
+		color = options.color:Lerp(Color3.new(1, 1, 1), 0.55),
+		count = 6,
+		speed = 12 + count * 2,
+		transparency = 0.72,
+		zIndex = 4,
+	})
+	local attention = Instance.new("Frame")
+	attention.Name = "Attention"
+	attention.BackgroundTransparency = 1
+	attention.AnchorPoint = Vector2.new(0.5, 0.5)
+	attention.Position = UDim2.fromScale(0.5, 0.5)
+	attention.Size = UDim2.fromOffset(1, 1)
+	attention.ZIndex = 4
+	attention.Visible = false
+	attention.Parent = halo
+	UiFx.glow(attention, 120, Color3.fromRGB(255, 214, 90), 0.45, 4)
+	UiFx.rays(attention, { size = 130, color = Color3.fromRGB(255, 226, 120), count = 8, speed = 70, transparency = 0.25, zIndex = 4 })
 
 	-- Duża ikona wystaje w lewo poza przycisk i lekko się kołysze
 	local icon = UiKit.icon(options.icon, root, UDim2.fromOffset(64, 64), UDim2.new(0, -12, 0.5, -3), Vector2.new(0, 0.5))
@@ -235,7 +273,18 @@ function SideButtons.add(options: Options): Side
 	renderCaption()
 	Localize.onChanged(renderCaption)
 
-	table.insert(laid, { root = root, caption = caption, icon = icon, index = count })
+	-- Czeka na odbiór: przycisk podskakuje i przechyla się, obwódka miga na złoto, ikona rośnie
+	local attentionOn = false
+	local baseStroke = buttonStroke.Thickness
+	UiFx.animate(attention, attention, function(t)
+		local wave = math.sin(t * 7)
+		root.Rotation = math.sin(t * 3.4) * 3
+		buttonStroke.Color = OUTLINE:Lerp(Color3.fromRGB(255, 222, 80), 0.5 + wave * 0.5)
+		buttonStroke.Thickness = baseStroke + 1.5 + wave * 1.5
+		iconScale.Scale = 1.08 + math.abs(math.sin(t * 3.4)) * 0.14
+	end)
+
+	table.insert(laid, { root = root, caption = caption, icon = icon, halo = halo, index = count })
 	side = {
 		root = root,
 		button = button,
@@ -255,6 +304,19 @@ function SideButtons.add(options: Options): Side
 				pulse:Cancel()
 				pulse = nil
 				badgeScale.Scale = 1
+			end
+		end,
+		setAttention = function(on: boolean)
+			if on == attentionOn then
+				return
+			end
+			attentionOn = on
+			attention.Visible = on
+			if not on then
+				root.Rotation = 0
+				buttonStroke.Color = OUTLINE
+				buttonStroke.Thickness = baseStroke
+				iconScale.Scale = 1
 			end
 		end,
 		onActivated = function(callback: () -> ())

@@ -23,6 +23,7 @@ local NAMES = {
 	"DevAction", -- panel DEV (serwer sprawdza, czy gracz jest deweloperem)
 	"StudioPurchase", -- zakup produktu bez numeru (id = 0), działa tylko w Studio
 	"QuestReroll", -- wymiana jednego zadania dziennie
+	"QuestClaim", -- odbierz nagrodę: numer zadania, "bonus" (komplet) albo "login" (seria logowań)
 	"SaveSettings", -- przyciski wyciszenia muzyki i dźwięków (zapisywane w danych gracza)
 	"SelectTitle", -- wybór tytułu nad głową ("" = najlepszy automatycznie, "none" = bez tytułu)
 	"TutorialStep", -- klient: skończyłem krok samouczka (serwer sprawdza, czy może przejść dalej)

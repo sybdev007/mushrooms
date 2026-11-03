@@ -104,6 +104,9 @@ trafiają na tablice rankingów (magazyny `LanternForager_Top_v2_*`).
    kołysanie — jedna pętla RenderStepped, stoi gdy element niewidoczny), `ClassMark` (znak klasy ● ▲ ■ ◆ ★),
    sklep i Szanse jako okna PanelKit, karta ratunku, progi x2, nowy panel DEV. Lista akcji DEV na żywo jest
    w `Config.DevLiveActions` (czyta ją serwer i panel). Typy sprawdza `luau-lsp analyze` z definicjami Robloxa.
+   Przyciski z boku (SideButtons) i „Ulepszenia” mają błysk i promienie jak sklep; `setAttention` = migający
+   przycisk, gdy coś czeka. **Zadania, premia za komplet i seria logowań odbiera się ręcznie** (RemoteEvent `QuestClaim`,
+   `claimed` / `bonusClaimed` w zapisie; stare zapisy: zrobione = już wypłacone).
 7. **Ekspedycja do Głębokich Komór** (gałąź `ekspedycja`, z `ui-v2`) — plan i liczby w `docs/plans/cave-expedition.md`.
    Tablica zleceń w Obozie, szczelina w Otchłani, własna kopia trzech komór na ekipę (Chodnik, Zalana Komora
    z ogniskiem, Krypta ze strażnikiem), relikty z odłamkami, renowacją i oprawą (zlew monet), regał w ogródku,

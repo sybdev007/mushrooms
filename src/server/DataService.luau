@@ -105,7 +105,7 @@ function DataService.defaultData(): Data
 		atlas = {},
 		atlasDone = {},
 		bestiary = {},
-		daily = { day = -1, quests = {}, rerolled = false, bonusDone = false },
+		daily = { day = -1, quests = {}, rerolled = false, bonusDone = false, bonusClaimed = false },
 		streak = { day = -1, count = 0 },
 		weekly = { week = -1, steals = 0, best = 0 },
 		stats = Titles.emptyStats(),
@@ -233,10 +233,20 @@ local function reconcile(raw: any): Data
 			if typeof(q) == "table" and typeof(q.id) == "string" and Progress.getQuest(q.id) and #quests < Progress.QUESTS_PER_DAY then
 				local goal = (Progress.getQuest(q.id) :: Progress.QuestDef).goal
 				local n = if typeof(q.n) == "number" then math.clamp(math.floor(q.n), 0, goal) else 0
-				table.insert(quests, { id = q.id, n = n, done = q.done == true or n >= goal })
+				local done = q.done == true or n >= goal
+				-- Zapisy sprzed ręcznego odbioru: zrobione zadanie było już wypłacone
+				local claimed = if q.claimed == nil then done else (q.claimed == true and done)
+				table.insert(quests, { id = q.id, n = n, done = done, claimed = claimed })
 			end
 		end
-		data.daily = { day = math.floor(daily.day), quests = quests, rerolled = daily.rerolled == true, bonusDone = daily.bonusDone == true }
+		local bonusDone = daily.bonusDone == true
+		data.daily = {
+			day = math.floor(daily.day),
+			quests = quests,
+			rerolled = daily.rerolled == true,
+			bonusDone = bonusDone,
+			bonusClaimed = if daily.bonusClaimed == nil then bonusDone else (daily.bonusClaimed == true and bonusDone),
+		}
 	end
 	local streak = raw.streak
 	if typeof(streak) == "table" and typeof(streak.day) == "number" and typeof(streak.count) == "number" then
