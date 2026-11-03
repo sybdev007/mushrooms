@@ -53,6 +53,9 @@ local DisplayMushrooms = require(script.Parent.DisplayMushrooms)
 local HalloweenFx = require(script.Parent.HalloweenFx)
 local MutationText = require(script.Parent.MutationText)
 local FontFix = require(script.Parent.FontFix)
+local DelvePanel = require(script.Parent.DelvePanel)
+local DelveHud = require(script.Parent.DelveHud)
+local Delve = require(Shared:WaitForChild("Delve"))
 
 local player = Players.LocalPlayer
 
@@ -137,6 +140,7 @@ Remotes.get("StateUpdate").OnClientEvent:Connect(function(state)
 	Hud.setDev(state.dev == true)
 	SettingsButtons.setDev(state.dev == true)
 	ShopPanel.update(state, Economy.isSafeZone(state.zone))
+	DelvePanel.setCoins(state.coins)
 	-- Lista grzybów przychodzi tylko po zmianie koszyka
 	if state.basket then
 		SellPanel.setBasket(state.basket, state.basketKey)
@@ -163,6 +167,13 @@ Remotes.get("StateUpdate").OnClientEvent:Connect(function(state)
 	end
 	Tutorial.update(state)
 end)
+
+-- Ekspedycja: tablica, kolekcja i karta celu dostają ten sam stan
+Remotes.get("DelveState").OnClientEvent:Connect(function(payload)
+	DelvePanel.setState(payload)
+	DelveHud.setState(payload)
+end)
+Remotes.get("DelveAction"):FireServer("state")
 
 Remotes.get("MushroomSync").OnClientEvent:Connect(function(list)
 	MushroomView.add(list)
@@ -280,6 +291,43 @@ local TOAST_KIND: { [string]: string } = {
 	MSG_REVIVED = "gold",
 	MSG_REVIVE_DONE = "gold",
 	MSG_TITLE_NEW = "gold",
+	MSG_DELVE_TAKEN = "gold",
+	MSG_DELVE_JOINED = "gold",
+	MSG_DELVE_ENTER = "info",
+	MSG_DELVE_CLEARED = "gold",
+	MSG_DELVE_PROGRESS = "gold",
+	MSG_DELVE_FOUND = "gold",
+	MSG_DELVE_FOUND_TEAM = "gold",
+	MSG_DELVE_SECURED = "gold",
+	MSG_DELVE_RELIC_NEW = "gold",
+	MSG_DELVE_RELIC_DUP = "gold",
+	MSG_DELVE_SHARDS = "gold",
+	MSG_DELVE_CRYPT_OPEN = "warn",
+	MSG_DELVE_TROPHY = "warn",
+	MSG_DELVE_SPOTTED = "warn",
+	MSG_DELVE_CRYPT_DONE = "gold",
+	MSG_DELVE_BACK = "info",
+	MSG_DELVE_ROCK = "warn",
+	MSG_DELVE_EMPTY = "warn",
+	MSG_DELVE_NO_ROOM = "warn",
+	MSG_DELVE_NEED_FIND = "warn",
+	MSG_DELVE_CARRIER_NEEDED = "warn",
+	MSG_DELVE_NEED_CONTRACT = "warn",
+	MSG_DELVE_CHASED = "warn",
+	MSG_DELVE_TOO_LATE = "warn",
+	MSG_DELVE_ALREADY = "warn",
+	MSG_DELVE_BUSY = "warn",
+	MSG_DELVE_JOIN_FAILED = "warn",
+	MSG_DELVE_FAILED = "warn",
+	MSG_DELVE_CANCELLED = "warn",
+	MSG_DELVE_EXPIRED = "warn",
+	MSG_DELVE_TIMEOUT = "warn",
+	MSG_DELVE_CLOSED = "info",
+	MSG_DELVE_TROPHY_FIRST = "warn",
+	MSG_DELVE_RESTORED = "gold",
+	MSG_DELVE_FRAMED = "gold",
+	MSG_DELVE_CRAFTED = "gold",
+	MSG_DELVE_SHELF_OTHER = "info",
 }
 
 -- Komunikaty, po których gracz ląduje w chatce z czarnym ekranem: klucz -> tytuł
@@ -290,6 +338,7 @@ local BLACKOUT_TITLE: { [string]: string } = {
 	MSG_CAUGHT_SKARBNIK = "CAUGHT_TITLE_SKARBNIK",
 	MSG_CAUGHT_UTOPIEC = "CAUGHT_TITLE_UTOPIEC",
 	MSG_ENGULFED_SWAMP = "ENGULF_TITLE_SWAMP",
+	MSG_DELVE_CAUGHT = "CAUGHT_TITLE_SKARBNIK",
 }
 
 Remotes.get("Notify").OnClientEvent:Connect(function(payload)
@@ -443,7 +492,8 @@ RunService.RenderStepped:Connect(function(dt)
 	-- Knot ze świata i wspólna wyprawa zmniejszają spalanie (baner „Wracaj!” liczy z tym samym)
 	local worldScale = (if oilUpgrade then Economy.upgradeStat(oilUpgrade, upgrades[oilUpgrade] or 0) else 1)
 		* Expedition.drain(ExpeditionView.group())
-	local turnBack = Economy.shouldTurnBack(position.Z, speed, oil, worldScale)
+	-- W Głębokich Komorach droga do obozu to lina przy ognisku, a nie oś Z: bez banera „Wracaj!”
+	local turnBack = Economy.shouldTurnBack(position.Z, speed, oil, worldScale) and not Delve.isInside(position)
 	Warnings.update(dt, position, oilFraction, turnBack, zone, lanternRange, chased, chaser)
 	local heartbeat = if not safe and oilFraction < Config.OilLowFraction then 1 - oilFraction / Config.OilLowFraction * 0.6 else 0
 	Effects.setHeartbeat(if chased then 1 else heartbeat)

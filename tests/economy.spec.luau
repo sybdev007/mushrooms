@@ -2068,6 +2068,183 @@ test("ranking: kolejka wyników z jednym workerem", function()
 	eq(queue.waiting(8), nil, "moderacja czyści kolejkę")
 end)
 
+
+-- ===== Ekspedycja do Głębokich Komór (Delve) =====
+local Delve = loadModule("src/shared/Delve.luau", {})
+
+test("ekspedycja: losowanie reliktu z zestawu trafia tylko w ten zestaw, rzadki ~1/10", function()
+	local counts: { [string]: number } = {}
+	for i = 0, 999 do
+		local id = Delve.rollRelic("miner", (i + 0.5) / 1000)
+		check(id ~= nil and Delve.relic(id).set == "miner", "z innego zestawu: " .. tostring(id))
+		counts[id] = (counts[id] or 0) + 1
+	end
+	eq(counts.miner_map, 100, "rzadki 1 na 10")
+	eq(counts.miner_pick, 300)
+	eq(Delve.rollRelic("miner", 1), "miner_map", "skrajna liczba nie wypada poza listę")
+	eq(Delve.rollRelic("nope", 0.5), nil)
+end)
+
+test("ekspedycja: duplikat daje odłamki, z odłamków składa się brakujący relikt", function()
+	local save = Delve.emptySave()
+	local new, shards = Delve.grant(save, "miner_pick")
+	check(new and shards == 0, "pierwszy jest nowy")
+	new, shards = Delve.grant(save, "miner_pick")
+	check(not new and shards == 3, "zwykły duplikat = 3")
+	new, shards = Delve.grant(save, "deep_fossil")
+	new, shards = Delve.grant(save, "deep_fossil")
+	eq(shards, 8, "rzadki duplikat = 8")
+	eq(save.shards, 11)
+	check(not Delve.craft(save, "miner_lamp"), "za mało odłamków (12)")
+	save.shards = 12
+	check(Delve.craft(save, "miner_lamp"), "składanie")
+	eq(save.shards, 0)
+	check(not Delve.craft(save, "miner_lamp"), "posiadanego nie składa się drugi raz")
+	local _, none = Delve.grant(save, "nie_ma")
+	eq(none, 0, "nieznany relikt nic nie daje")
+end)
+
+test("ekspedycja: renowacja i trzy oprawy kosztują monety i odłamki po kolei", function()
+	local save = Delve.emptySave()
+	Delve.grant(save, "deep_fossil")
+	eq(Delve.canRestore(save, "deep_fossil", 149999), nil, "za mało monet")
+	eq(Delve.canRestore(save, "deep_fossil", 150000), 150000)
+	eq(Delve.canRestore(save, "miner_pick", 1e9), nil, "nieposiadany")
+	eq(Delve.canFrame(save, "deep_fossil", 1e9), nil, "oprawa dopiero po renowacji")
+	save.relics.deep_fossil.r = true
+	eq(Delve.canRestore(save, "deep_fossil", 1e9), nil, "drugi raz się nie odnawia")
+	save.shards = 4
+	eq(Delve.canFrame(save, "deep_fossil", 1e9), nil, "brąz: 5 odłamków")
+	save.shards = 100
+	eq(Delve.canFrame(save, "deep_fossil", 1e9), 500000)
+	save.relics.deep_fossil.f = 3
+	eq(Delve.canFrame(save, "deep_fossil", 1e12), nil, "po złotej oprawie koniec")
+	local total = 0
+	for _, def in Delve.RELICS do
+		total += Delve.restoreCost(def.id)
+		for _, frame in Delve.FRAMES do
+			total += frame.coins
+		end
+	end
+	check(total > 50e6 and total < 100e6, "cała kolekcja to zlew rzędu 70 mln monet: " .. total)
+end)
+
+test("ekspedycja: zapis z DataStore przyjmuje tylko znane relikty i rozsądne liczby", function()
+	local save = Delve.readSave({
+		relics = { miner_pick = { r = true, f = 9 }, deep_pearl = { r = false, f = 2 }, hacked = { r = true, f = 3 }, [5] = {} },
+		shards = -5,
+		daily = 0 / 0,
+	})
+	eq(save.relics.miner_pick.f, 3, "oprawa przycięta")
+	eq(save.relics.deep_pearl.f, 0, "bez renowacji bez oprawy")
+	eq(save.relics.hacked, nil)
+	eq(save.shards, 0)
+	eq(save.daily, -1)
+	eq(next(Delve.readSave(nil).relics), nil)
+end)
+
+test("ekspedycja: tablica ma trzy różne zlecenia, zlecenie dnia daje relikt dnia z właściwego zestawu", function()
+	local seq = { 0.1, 0.9, 0.5, 0.2, 0.7, 0.99, 0.4 }
+	local i = 0
+	local function rand()
+		i += 1
+		return seq[(i - 1) % #seq + 1]
+	end
+	local offers = Delve.makeOffers(rand, 0, 100, false)
+	eq(#offers, 3)
+	local kinds, daily = {}, nil
+	for _, offer in offers do
+		kinds[offer.kind] = true
+		check(Delve.modifier(offer.modifier).minRank <= 0, "trudny stan komór przy randze 0")
+		if offer.daily then
+			daily = offer
+		end
+	end
+	check(kinds.rubble and kinds.chest and kinds.samples, "po jednym rodzaju")
+	check(daily ~= nil and daily.relic == Delve.dailyRelic(100), "relikt dnia")
+	eq(daily.set, Delve.relic(daily.relic).set)
+	for _, offer in Delve.makeOffers(rand, 5, 100, true) do
+		check(not offer.daily, "odebrane dziś = bez zlecenia dnia")
+	end
+	eq(Delve.dailyRelic(100), Delve.dailyRelic(100 + #Delve.RELICS), "relikt dnia krąży po całej liście")
+end)
+
+test("ekspedycja: olej w komorach starcza na kilka minut przy każdym poziomie ulepszeń", function()
+	for _, oilMax in { 30, 90, 150 } do
+		local perSecond = Delve.drain(oilMax, 1, false)
+		eq(math.floor(oilMax / perSecond + 0.5), Delve.LANTERN_SECONDS, "pełna latarnia bez knota")
+	end
+	-- Maksymalny Kryształowy wkład (×0,5) podwaja czas; brodzenie w wodzie skraca
+	eq(Delve.lanternSeconds(0.5), 480)
+	check(Delve.drain(150, 1, true) > Delve.drain(150, 1, false) * 2, "woda pali szybciej")
+	-- Dla porównania: w zwykłej Otchłani max latarnia z max wkładem to ~46 s (review Codexa)
+	local abyss = Config.Zones[Economy.zoneIndexAt(1300)]
+	check(150 / (abyss.oilDrain * 0.5) < 60, "Otchłań bez zmian")
+	check(Delve.LANTERN_SECONDS >= 180, "odcinek między hakami to kilka minut")
+end)
+
+test("ekspedycja: komory leżą w Otchłani (świat jaskini), kopie nie nachodzą na siebie", function()
+	for slot = 1, Delve.SLOTS do
+		local x0, z0 = Delve.slotOrigin(slot)
+		for _, section in Delve.SECTIONS do
+			for _, z in { z0 - section.half, z0 + section.half } do
+				local zone = Config.Zones[Economy.zoneIndexAt(z)]
+				eq(zone.id, "abyss", "komory poza Otchłanią")
+				check(Delve.isInside(roblox.Vector3.new(x0 + section.x1 + 1, 0, z)), "isInside")
+			end
+		end
+		local found, lx = Delve.locate(roblox.Vector3.new(x0 + 100, 3, z0))
+		eq(found, slot)
+		eq(lx, 100)
+		if slot > 1 then
+			local prevX = Delve.slotOrigin(slot - 1)
+			check(x0 - (prevX + 250) > 150, "odstęp większy niż zasięg pomocy (Expedition.HELP_RADIUS)")
+		end
+	end
+	check(not Delve.isInside(roblox.Vector3.new(40, 3, 1395)), "zwykła Otchłań to nie komory")
+	check(Delve.SLOT_X - 20 > Config.Cave.halfWidth + 60, "daleko od ścian jaskini")
+	eq(Delve.sectionAt(Delve.SPOTS.blockage).id, "tunnel")
+	eq(Delve.sectionAt(Delve.SPOTS.bonfire.x).id, "camp")
+	eq(Delve.sectionAt(Delve.SPOTS.altar.x).id, "crypt")
+	for _, hide in Delve.SPOTS.hides do
+		eq(Delve.sectionAt(hide.x).id, "flooded")
+	end
+	check(Delve.wet(120, 0, false) and not Delve.wet(120, Delve.WALK_Y, true), "woda i kładki")
+	check(Delve.wet(120, 2, true) and not Delve.wet(120, 2, false), "wysoka woda zalewa niższe miejsca")
+	check(not Delve.wet(40, 0, true), "w Chodniku nie ma wody")
+end)
+
+test("ekspedycja: ranga z liczników, napisy reliktów i zleceń są w CSV", function()
+	eq(Delve.rank(0), 0)
+	local rank, nextGoal = Delve.rank(8)
+	eq(rank, 2)
+	eq(nextGoal, 15)
+	eq(Delve.rank(1000), #Delve.RANKS)
+	local csv = fs.readFile("src/localization/GameStrings.csv")
+	local function has(key: string)
+		check(string.find(csv, "\n" .. key .. ",", 1, true) ~= nil, "brak w CSV: " .. key)
+	end
+	for _, def in Delve.RELICS do
+		has(def.key)
+	end
+	for _, def in Delve.KINDS do
+		has(def.key)
+		has(def.desc)
+	end
+	for _, def in Delve.MODIFIERS do
+		has(def.key)
+	end
+	for _, key in Delve.SET_KEYS do
+		has(key)
+	end
+	for _, section in Delve.SECTIONS do
+		has(section.key)
+	end
+	for _, frame in Delve.FRAMES do
+		has(frame.key)
+	end
+end)
+
 print(string.format("\n%d ok, %d błędów", passed, failed))
 if failed > 0 then
 	process.exit(1)

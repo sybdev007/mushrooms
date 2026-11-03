@@ -165,6 +165,30 @@ local function chest(parent: Instance, cf: CFrame): Part
 	return body
 end
 
+-- Regał na relikty z ekspedycji (DelveService stawia na nim odnowione relikty właściciela)
+local function relicShelf(parent: Instance, cf: CFrame)
+	local m = Instance.new("Model")
+	m.Name = "RelicShelf"
+	local wood = Palette.plankDark
+	for _, side in { -1, 1 } do
+		make(m, { Name = "ShelfSide", Size = Vector3.new(0.3, 4.4, 1.4), CFrame = cf * CFrame.new(side * 2.6, 2.2, 0), Color = wood })
+	end
+	make(m, { Name = "ShelfBack", Size = Vector3.new(5.5, 4.4, 0.2), CFrame = cf * CFrame.new(0, 2.2, 0.6), Color = Palette.plank })
+	for i, y in { 0.3, 2.3, 4.3 } do
+		local board = make(m, { Name = "ShelfBoard", Size = Vector3.new(5.5, 0.25, 1.4), CFrame = cf * CFrame.new(0, y, 0), Color = wood })
+		if i < 3 then
+			-- Po 4 miejsca na półkę (dolna: zestaw Górników, górna: Dary Głębin)
+			for slot = 1, 4 do
+				local a = Instance.new("Attachment")
+				a.Name = "RelicSlot" .. ((i - 1) * 4 + slot)
+				a.CFrame = CFrame.new(-1.95 + (slot - 1) * 1.3, 0.13, -0.1)
+				a.Parent = board
+			end
+		end
+	end
+	m.Parent = parent
+end
+
 -- cf: środek ogródka na ziemi, -Z w stronę furtki. size: bok kwadratu. beds: ile grządek zbudować.
 function Garden.build(parent: Instance, cf: CFrame, size: number, beds: number, rng: Random): Model
 	local m = Instance.new("Model")
@@ -243,6 +267,8 @@ function Garden.build(parent: Instance, cf: CFrame, size: number, beds: number, 
 
 	-- Skrzynia na monety po lewej od furtki (patrząc od wejścia), latarnia nad nią
 	chest(m, cf * CFrame.new(-(half - 3.2), 0, -half + 3.2) * CFrame.Angles(0, math.rad(20), 0))
+
+	relicShelf(m, cf * CFrame.new(half - 3.2, 0, -half + 3.2) * CFrame.Angles(0, math.rad(-20), 0))
 
 	-- Niewidoczny punkt między furtką a grządkami: przyciski sadzenia i kradzieży, tabliczka z dochodem
 	local hub = make(m, {

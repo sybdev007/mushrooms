@@ -18,6 +18,7 @@ local Cabin = require(World:WaitForChild("Cabin"))
 local Grove = require(World:WaitForChild("Grove"))
 local Garden = require(World:WaitForChild("Garden"))
 local Cave = require(World:WaitForChild("Cave"))
+local DelveMap = require(World:WaitForChild("DelveMap"))
 local Swamp = require(World:WaitForChild("Swamp"))
 local Leszy = require(World:WaitForChild("Leszy"))
 local Backdrop = require(World:WaitForChild("Backdrop"))
@@ -812,6 +813,10 @@ function MapBuilder.build(): MapInfo
 		table.insert(reserved, rect)
 	end
 	for _, rect in Swamp.reservedRects() do
+		table.insert(reserved, rect)
+	end
+	-- Ekspedycja: szczelina w ścianie Otchłani (komory i tablicę stawia DelveService)
+	for _, rect in DelveMap.reservedRects() do
 		table.insert(reserved, rect)
 	end
 	-- Portal na bagna w Sztolni, za skarbcem Skarbnika

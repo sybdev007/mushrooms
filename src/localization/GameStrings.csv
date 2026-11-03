@@ -625,3 +625,142 @@ MSG_FRIEND_BONUS,👥 {1} is playing with you: +10% luck for both of you!,,,👥
 MSG_INVITE_CREDIT,👥 {1} joined from your invite! Invites: {2},,,👥 {1} wszedł z twojego zaproszenia! Zaproszeni: {2}
 TITLE_GUIDE,Guide,,,Przewodnik
 TITLE_GUIDE_HOW,Invite {1} friends who join the game,,,Zaproś {1} znajomych którzy wejdą do gry
+TITLE_DELVER,Delver,,,Ekspedytor
+TITLE_DELVER_HOW,Secure {1} finds in the Deep Chambers,,,Zabezpiecz {1} znalezisk w Głębokich Komorach
+TITLE_CRYPT_RAIDER,Crypt Raider,,,Łupieżca Krypty
+TITLE_CRYPT_RAIDER_HOW,Carry {1} trophies out of the Crypt,,,Wynieś {1} trofeów z Krypty
+RELIC_MINER_PICK,Old Pickaxe,,,Stary kilof
+RELIC_MINER_LAMP,Carbide Lamp,,,Lampa karbidowa
+RELIC_MINER_HELMET,Foreman's Helmet,,,Hełm sztygara
+RELIC_MINER_MAP,Map of the Flooded Mine,,,Mapa zalanej sztolni
+RELIC_DEEP_GEODE,Fire Geode,,,Ognista geoda
+RELIC_DEEP_PEARL,Cave Pearl,,,Jaskiniowa perła
+RELIC_DEEP_BELL,Skarbnik's Bell,,,Dzwonek Skarbnika
+RELIC_DEEP_FOSSIL,Fossil Mushroom,,,Skamieniały grzyb
+DELVE_SET_MINER,Miners' Keepsakes,,,Pamiątki górników
+DELVE_SET_DEEP,Gifts of the Deep,,,Dary głębin
+DELVE_FRAME_1,Bronze frame,,,Brązowa oprawa
+DELVE_FRAME_2,Silver frame,,,Srebrna oprawa
+DELVE_FRAME_3,Gold frame,,,Złota oprawa
+DELVE_KIND_RUBBLE,Collapsed Shaft,,,Zawalony szyb
+DELVE_KIND_RUBBLE_DESC,Dig through 3 rubble piles in the Tunnel - the miners' cache is under the last one.,,,Odkop 3 zawały w Chodniku - pod ostatnim leży schowek górników.
+DELVE_KIND_CHEST,Lost Chest,,,Zaginiona skrzynia
+DELVE_KIND_CHEST_DESC,The chest sank in the Flooded Chamber. Search the hiding spots - only one is right.,,,Skrzynia zatonęła w Zalanej Komorze. Przeszukaj kryjówki - tylko jedna jest dobra.
+DELVE_KIND_SAMPLES,Glowing Samples,,,Świecące próbki
+DELVE_KIND_SAMPLES_DESC,Gather 3 glowing samples scattered across the chambers.,,,Zbierz 3 świecące próbki rozrzucone po komorach.
+DELVE_MOD_CALM,Calm chambers,,,Spokojne komory
+DELVE_MOD_FLOOD,High water,,,Wysoka woda
+DELVE_MOD_COLLAPSE,Falling rocks,,,Osuwiska
+DELVE_MOD_WATCH,Skarbnik is watching,,,Czuwający Skarbnik
+DELVE_HALL,Entrance Hall,,,Sala wejściowa
+DELVE_TUNNEL,Collapsed Tunnel,,,Zawalony Chodnik
+DELVE_FLOODED,Flooded Chamber,,,Zalana Komora
+DELVE_BONFIRE,Miners' Bonfire,,,Ognisko górników
+DELVE_CRYPT,Skarbnik's Crypt,,,Krypta Skarbnika
+SIGN_DELVE_BOARD,Expeditions,,,Ekspedycje
+SIGN_DELVE,Deep Chambers,,,Głębokie Komory
+DELVE_PROMPT_BOARD,Expeditions,,,Zlecenia
+DELVE_BOARD_OBJECT,Miners' board,,,Tablica górników
+DELVE_PROMPT_ENTER,Go down,,,Zejdź w głąb
+DELVE_PROMPT_CLEAR,Clear the way,,,Odgruzuj przejście
+DELVE_BLOCKAGE,Cave-in,,,Zawał
+DELVE_PROMPT_DIG,Dig,,,Odkop
+DELVE_ALCOVE,Rubble,,,Gruz
+DELVE_PROMPT_SEARCH,Search,,,Przeszukaj
+DELVE_HIDE,Hiding spot,,,Kryjówka
+DELVE_PROMPT_SAMPLE,Take sample,,,Weź próbkę
+DELVE_SAMPLE,Glowing sample,,,Świecąca próbka
+DELVE_PROMPT_TAKE,Pick up,,,Podnieś
+DELVE_FIND,Find,,,Znalezisko
+DELVE_PROMPT_SECURE,Secure the find,,,Zabezpiecz znalezisko
+DELVE_PROMPT_EXIT,Climb to camp,,,Wróć do obozu
+DELVE_EXIT,Rope,,,Lina
+DELVE_PROMPT_DOOR,Open the Crypt,,,Otwórz Kryptę
+DELVE_PROMPT_ALTAR,Take the trophy,,,Zabierz trofeum
+DELVE_TROPHY,Skarbnik's trophy,,,Trofeum Skarbnika
+DELVE_PROMPT_SHELF,Relic collection,,,Kolekcja reliktów
+DELVE_SHELF_OBJECT,Relic shelf,,,Regał na relikty
+MSG_DELVE_TAKEN,📜 Contract taken! Find the glowing crack in the Abyss wall and go down.,,,📜 Zlecenie przyjęte! Znajdź świecącą szczelinę w ścianie Otchłani i zejdź w głąb.
+MSG_DELVE_JOINED,👥 {1} joined the expedition!,,,👥 {1} dołącza do ekspedycji!
+MSG_DELVE_ENTER,⛏️ Deep Chambers. Oil hooks refill your lantern - water burns it faster.,,,⛏️ Głębokie Komory. Haki z olejem tankują latarnię - woda pali ją szybciej.
+MSG_DELVE_CLEARED,🪨 The way is clear!,,,🪨 Przejście odgruzowane!
+MSG_DELVE_PROGRESS,⛏️ Progress: {1}/{2},,,⛏️ Postęp: {1}/{2}
+MSG_DELVE_FOUND,🧰 You have the find! Carry it to the bonfire (it takes 1 basket slot).,,,🧰 Masz znalezisko! Zanieś je do ogniska (zajmuje 1 miejsce w koszyku).
+MSG_DELVE_FOUND_TEAM,🧰 {1} has the find - head to the bonfire!,,,🧰 {1} ma znalezisko - wszyscy do ogniska!
+MSG_DELVE_NO_ROOM,🧺 No room in your basket - the find stays here. Make room and pick it up.,,,🧺 Brak miejsca w koszyku - znalezisko zostaje na miejscu. Zrób miejsce i je podnieś.
+MSG_DELVE_EMPTY,Nothing here... try another hiding spot.,,,Pusto... spróbuj innej kryjówki.
+MSG_DELVE_NEED_FIND,🔥 Bring the find here first.,,,🔥 Najpierw przynieś tu znalezisko.
+MSG_DELVE_CARRIER_NEEDED,🔥 {1} carries the find - they must secure it.,,,🔥 Znalezisko niesie {1} - to on musi je zabezpieczyć.
+MSG_DELVE_SECURED,🔥 Find secured! Climb back to camp or risk the Crypt for a trophy.,,,🔥 Znalezisko zabezpieczone! Wróć liną do obozu albo zaryzykuj Kryptę po trofeum.
+MSG_DELVE_RELIC_NEW,🏺 New relic: {1}! Restore it to put it on your garden shelf.,,,🏺 Nowy relikt: {1}! Odnów go - stanie na regale w ogródku.
+MSG_DELVE_RELIC_DUP,🏺 {1} again - turned into {2} 💠 shards.,,,🏺 Znowu {1} - zamienia się w {2} 💠 odłamków.
+MSG_DELVE_SHARDS,💠 Bonus: +{1} shards.,,,💠 Premia: +{1} odłamków.
+MSG_DELVE_CRYPT_OPEN,👁️ The Crypt is open. Hide in the dark niches when the guard looks your way!,,,👁️ Krypta otwarta. Chowaj się we wnękach - strażnik widzi przed sobą!
+MSG_DELVE_TROPHY,🏆 Trophy taken! Get out of the Crypt before the guard catches you!,,,🏆 Masz trofeum! Uciekaj za drzwi Krypty - strażnik czuje łup!
+MSG_DELVE_SPOTTED,👁️ The guard saw you! Run or hide in a niche!,,,👁️ Strażnik cię widzi! Uciekaj albo schowaj się we wnęce!
+MSG_DELVE_CRYPT_DONE,🏆 Trophy carried out of the Crypt!,,,🏆 Trofeum wyniesione z Krypty!
+MSG_DELVE_TROPHY_FIRST,🏆 Carry the trophy out of the Crypt first!,,,🏆 Najpierw wynieś trofeum z Krypty!
+MSG_DELVE_BACK,⛏️ Back at camp. Well done!,,,⛏️ Z powrotem w obozie. Dobra robota!
+MSG_DELVE_ROCK,🪨 A rock hit your lantern! -{1}% oil,,,🪨 Kamień trafił w latarnię! -{1}% oleju
+MSG_DELVE_NEED_CONTRACT,📜 Take a contract from the board in the miners' camp first.,,,📜 Najpierw weź zlecenie z tablicy w obozie górników.
+MSG_DELVE_CHASED,The guardian is chasing you - shake him off first!,,,Strażnik cię goni - najpierw go zgub!
+MSG_DELVE_TOO_LATE,Your team already secured the find - this expedition is closed to you.,,,Ekipa już zabezpieczyła znalezisko - na tę ekspedycję już nie zejdziesz.
+MSG_DELVE_ALREADY,You already have an expedition.,,,Masz już ekspedycję.
+MSG_DELVE_BUSY,All the chambers are busy - try again in a moment.,,,Wszystkie komory zajęte - spróbuj za chwilę.
+MSG_DELVE_JOIN_FAILED,That team is no longer recruiting.,,,Ta ekipa już nie przyjmuje.
+MSG_DELVE_FAILED,⛏️ Expedition failed - the find was not secured.,,,⛏️ Ekspedycja nieudana - znalezisko nie zostało zabezpieczone.
+MSG_DELVE_CANCELLED,📜 The leader cancelled the expedition.,,,📜 Prowadzący odwołał ekspedycję.
+MSG_DELVE_EXPIRED,📜 The contract expired - nobody went down in time.,,,📜 Zlecenie wygasło - nikt nie zszedł na czas.
+MSG_DELVE_TIMEOUT,⏳ The chambers are collapsing - everyone back to camp!,,,⏳ Komory się sypią - wszyscy wracają do obozu!
+MSG_DELVE_CLOSED,⛏️ Back at the miners' camp.,,,⛏️ Z powrotem w obozie górników.
+MSG_DELVE_CAUGHT,The Crypt guard dragged you out. Mushrooms lost: {1},,,Strażnik Krypty cię wywlókł. Stracone grzyby: {1}
+MSG_DELVE_RESTORED,✨ {1} restored - it's on your garden shelf!,,,✨ {1} odnowiony - stoi na regale w ogródku!
+MSG_DELVE_FRAMED,✨ New frame for {1}!,,,✨ Nowa oprawa: {1}!
+MSG_DELVE_CRAFTED,💠 {1} assembled from shards!,,,💠 {1} złożony z odłamków!
+MSG_DELVE_SHELF_OTHER,🏺 This shelf belongs to another forager.,,,🏺 Ten regał należy do innego grzybiarza.
+DELVE_BOARD_TITLE,Expeditions,,,Ekspedycje
+DELVE_RANK_PILL,Rank {1},,,Ranga {1}
+DELVE_RANK_LINE,Delver rank {1} · {2}/{3} · full lantern in the chambers: {4},,,Ranga ekspedytora {1} · {2}/{3} · pełna latarnia w komorach: {4}
+DELVE_RANK_MAX,Delver rank {1} (max) · full lantern in the chambers: {2},,,Ranga ekspedytora {1} (max) · pełna latarnia w komorach: {2}
+DELVE_COLLECTION_BUTTON,🏺 Relics,,,🏺 Relikty
+DELVE_DAILY_BADGE,⭐ DAILY CONTRACT,,,⭐ ZLECENIE DNIA
+DELVE_REWARD_DAILY,Reward: {1},,,Nagroda: {1}
+DELVE_REWARD_SET,Reward: relic · {1},,,Nagroda: relikt · {1}
+DELVE_TAKE,Take contract,,,Weź zlecenie
+DELVE_TAKE_BUSY,You have one already,,,Masz już zlecenie
+DELVE_YOUR_RUN,Your expedition: {1},,,Twoja ekspedycja: {1}
+DELVE_PARTY_PREPARE,Team: {1} ({2}/{3}). Go down through the glowing crack in the Abyss wall. Others can join from this board. Time left: {4},,,Ekipa: {1} ({2}/{3}). Zejdź przez świecącą szczelinę w ścianie Otchłani. Inni mogą dołączyć przy tej tablicy. Zostało: {4}
+DELVE_PARTY_ACTIVE,Team: {1}. The expedition is under way · time left: {2},,,Ekipa: {1}. Ekspedycja trwa · zostało: {2}
+DELVE_CANCEL,Cancel contract,,,Odwołaj zlecenie
+DELVE_LEAVE,Leave team,,,Opuść ekipę
+DELVE_OPEN_RUNS,Teams looking for help,,,Ekipy szukające pomocy
+DELVE_NO_OPEN_RUNS,Nobody is recruiting right now. Take a contract and others can join you from this board.,,,Nikt teraz nie zbiera ekipy. Weź zlecenie - inni dołączą do ciebie przy tej tablicy.
+DELVE_OPEN_RUN_ROW,{1}: {2} {3} ({4}/{5}),,,{1}: {2} {3} ({4}/{5})
+DELVE_JOIN,Join,,,Dołącz
+DELVE_BOARD_FOOTER,Each team gets its own chambers. Rewards are personal. Keep 1 basket slot free for the find. Losing your lantern works like everywhere else.,,,Każda ekipa ma własne komory. Nagrody są osobiste. Zostaw 1 wolne miejsce w koszyku na znalezisko. Zgaśnięcie latarni działa jak wszędzie.
+DELVE_COLLECTION_TITLE,Relic collection,,,Kolekcja reliktów
+DELVE_SHARDS_PILL,{1} 💠,,,{1} 💠
+DELVE_SET_LINE,{1} · {2}/{3},,,{1} · {2}/{3}
+DELVE_STATUS_MISSING,Not found yet,,,Jeszcze nie znaleziony
+DELVE_STATUS_DUSTY,Dusty,,,Zakurzony
+DELVE_STATUS_RESTORED,Restored,,,Odnowiony
+DELVE_CRAFT,Assemble · {1} 💠,,,Złóż · {1} 💠
+DELVE_RESTORE,Restore · {1} 💰,,,Odnów · {1} 💰
+DELVE_FRAME,{1} · {2} 💰 + {3} 💠,,,{1} · {2} 💰 + {3} 💠
+DELVE_DONE,Complete ✓,,,Komplet ✓
+DELVE_COLLECTION_FOOTER,Duplicates turn into 💠 shards. Restored relics stand on the shelf in your garden. Relics give no coins - they are for show.,,,Duplikaty zamieniają się w 💠 odłamki. Odnowione relikty stoją na regale w twoim ogródku. Relikty nie dają monet - są do pokazania.
+DELVE_STEP_GO,Go down through the crack in the Abyss,,,Zejdź przez szczelinę w Otchłani
+DELVE_STEP_TOO_LATE,The team already secured the find,,,Ekipa już zabezpieczyła znalezisko
+DELVE_STEP_CLEAR,Clear the cave-in in the Tunnel,,,Odgruzuj zawał w Chodniku
+DELVE_STEP_CHEST,Find the chest in the Flooded Chamber,,,Znajdź skrzynię w Zalanej Komorze
+DELVE_STEP_RUBBLE,Dig through rubble {1}/{2},,,Odkop zawały {1}/{2}
+DELVE_STEP_SAMPLES,Glowing samples {1}/{2},,,Świecące próbki {1}/{2}
+DELVE_STEP_PICKUP,Pick up the find (make room in your basket),,,Podnieś znalezisko (zrób miejsce w koszyku)
+DELVE_STEP_CARRIER,{1} carries the find to the bonfire,,,{1} niesie znalezisko do ogniska
+DELVE_STEP_BONFIRE,Secure the find at the bonfire,,,Zabezpiecz znalezisko przy ognisku
+DELVE_STEP_CHOICE,Risk the Crypt for a trophy?,,,Zaryzykujesz Kryptę po trofeum?
+DELVE_STEP_ALTAR,Take the trophy from the altar,,,Zabierz trofeum z ołtarza
+DELVE_STEP_ESCAPE,Run out of the Crypt with the trophy!,,,Uciekaj z trofeum za drzwi Krypty!
+DELVE_STEP_CRYPT_DONE,Trophy carried out,,,Trofeum wyniesione
+DELVE_STEP_EXIT,Climb the rope back to camp,,,Wróć liną do obozu
+DELVE_WHERE_PASSAGE,📍 The crack is in the Abyss wall past the lava,,,📍 Szczelina jest w ścianie Otchłani za lawą

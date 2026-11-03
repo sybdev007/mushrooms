@@ -1,7 +1,8 @@
 # Ekspedycja do Głębokich Komór (jaskinia) — projekt pilotażu
 
-Stan: 3.11.2026. Projekt, nie gotowa funkcja. Powstał z rozmowy Tom + Claude + uwagi Codexa
-(`economy-sinks-and-offers-research.md`). Do review przez Codexa przed budową.
+Stan: 3.11.2026. Powstał z rozmowy Tom + Claude + uwagi Codexa (`economy-sinks-and-offers-research.md`).
+Decyzje zatwierdzone przez Toma 3.11. **Pierwsza wersja zbudowana na gałęzi `ekspedycja`** (sekcja „Wdrożenie”
+na końcu) — do sprawdzenia w Studio przed scaleniem.
 
 ## Po co
 
@@ -80,7 +81,7 @@ Przed ogniskiem: przepada zlecenie (bez kary w monetach), relikt nie wypada na z
    cenę złożenia brakującego reliktu i zastosowanie odłamków po skompletowaniu. 8 reliktów wystarczy do
    sprawdzenia zabawy, ale **nie jest to jeszcze trwałe rozwiązanie nadwyżek**.
 
-## Do ustalenia (decyzje Toma) — z propozycjami Codexa
+## Decyzje (zatwierdzone przez Toma 3.11, propozycje Codexa)
 1. Zlecenia: **prywatne podejście solo albo dla zaproszonej grupy**, bez wspólnego łupu na serwer.
 2. Limit: **bez limitu** zwykłych ekspedycji (limit 3 nagród kończyłby zabawę po 30–45 min);
    zlecenie dnia rozliczane raz dziennie.
@@ -105,3 +106,41 @@ Przed ogniskiem: przepada zlecenie (bez kary w monetach), relikt nie wypada na z
 
 Jeśli gracze wracają: kolejne komory i zlecenia w jaskini, potem bagna (mgła i woda otwierające różne przejścia,
 tropy Utopca, zatopione skrytki — zawsze z jakimś osiągalnym celem przy zamkniętej ścieżce).
+
+## Wdrożenie (gałąź `ekspedycja`, 3.11)
+
+Kod: `src/shared/Delve.luau` (liczby i czysta logika, testy w `tests/economy.spec.luau`),
+`src/server/DelveService.luau` (przebieg, nagrody, zagrożenia, regał), `src/server/World/DelveMap.luau`
+(tablica, szczelina, kopie komór), `src/client/DelvePanel.luau` (tablica i kolekcja), `src/client/DelveHud.luau`
+(karta celu). Panel DEV: „TP: szczelina” (też na żywo) i „Ekspedycja: od razu do komór” (Studio).
+
+- **Wejście:** tablica w Obozie (x 30, z 1028), szczelina w ścianie Otchłani za lawą (x 42, z 1398).
+  Bez zlecenia szczelina mówi, żeby wziąć zlecenie. W pościgu strażnika nie da się zejść.
+- **Kopie komór:** 6 (tyle graczy mieści serwer), budowane przy pierwszym użyciu, w bok od jaskini
+  (x od 400 co 450, z 1338–1382 = Otchłań, więc świat jaskini: budzi w obozie, mrok jaskini). Odstęp między
+  kopiami ~200 studs > zasięg pomocy kumpla (150), więc różne ekipy się nie łączą.
+- **Ekipa:** solo albo do 4 osób, dołączenie tylko przy tablicy przed zejściem. Zlecenie czeka 10 min,
+  ekspedycja trwa najwyżej 25 min. W komorach nie da się zrezygnować (to byłby darmowy powrót do obozu z koszykiem).
+- **Olej:** w komorach pełna latarnia starcza na 240 s bez względu na poziom oleju (Kryształowy wkład wydłuża
+  do 480 s), brodzenie w wodzie ×2,5, wspólne latarnie działają. Haki z olejem: sala wejściowa, wejście do
+  Zalanej Komory, ognisko. Osuwisko w Chodniku: −15% oleju (nigdy do zera), co ~3,5 s (przy „Osuwiskach” ~2 s).
+- **Zlecenia:** Zawalony szyb (3 kupki gruzu), Zaginiona skrzynia (1 z 4 kryjówek), Świecące próbki (3 z 6 miejsc,
+  co najmniej jedna za zawałem). Zawał w Chodniku do odgruzowania zawsze (4 s, przy „Osuwiskach” 6 s).
+- **Stan komór:** spokojne / wysoka woda (od rangi 0), osuwiska (ranga 1+), czuwający Skarbnik (ranga 2+);
+  dwa ostatnie dają +2 odłamki.
+- **Znalezisko i trofeum:** zajmują 1 miejsce w koszyku (bez miejsca znalezisko zostaje na ziemi). Ognisko przyznaje
+  nagrodę każdemu z ekipy w komorach od razu do zapisu (raz na osobę). Zgaśnięcie / złapanie = zwykłe pochłonięcie
+  (koszyk jak wszędzie); niesione znalezisko i trofeum wracają na miejsce dla reszty ekipy.
+- **Krypta:** drzwi otwierają się po zabezpieczeniu. Strażnik (model Skarbnika) chodzi po trasie, widzi z bliska
+  (4,5) i w stożku przed sobą (11, czuwający 15), we wnękach nie widzi. Zauważony = pościg, złapany = pochłonięcie.
+  Trofeum wyniesione za drzwi: każdy z ekipy dostaje relikt z losowego zestawu i +4 odłamki.
+- **Relikty:** 2 zestawy po 4 (3 zwykłe, 1 rzadki 1/10). Duplikat: 3 / 8 odłamków. Składanie: 12 / 30 odłamków.
+  Renowacja: 50 000 / 150 000 monet. Oprawy: brąz 500 000 + 5, srebro 1,5 mln + 10, złoto 5 mln + 20 odłamków.
+  Cała kolekcja to ~57 mln monet zlewu. Zlecenie dnia: ten sam relikt dla wszystkich danego dnia (raz dziennie).
+- **Ranga i tytuły:** punkty = zabezpieczone ekspedycje + trofea z Krypty (progi 3/8/15/25/40). Tytuły:
+  Ekspedytor (5 ekspedycji, rzadki), Łupieżca Krypty (10 trofeów, epicki).
+- **Regał:** w każdym ogródku (prawy przedni róg), odnowione relikty stoją na nim z kolorem oprawy; przycisk
+  przy regale otwiera kolekcję (tylko właścicielowi).
+
+Do sprawdzenia w Studio: czas jednej ekspedycji (cel 10–15 min), czy 240 s oleju na odcinek nie jest za dużo /
+za mało, czy strażnik nie jest za ostry, wygląd komór i karty celu, obciążenie przy kilku kopiach naraz.

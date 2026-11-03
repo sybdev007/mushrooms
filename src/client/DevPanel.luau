@@ -67,6 +67,8 @@ local CATEGORIES: { Category } = {
 				{ id = "tpCamp", label = "TP: obozowisko" },
 				{ id = "tpAbyss", label = "TP: Otchłań" },
 				{ id = "tpLair", label = "TP: skarbiec Skarbnika" },
+				{ id = "tpDelve", label = "TP: szczelina (ekspedycja)" },
+				{ id = "delveStart", label = "Ekspedycja: od razu do komór" },
 			} },
 			{ name = "Bagna", actions = {
 				{ id = "tpSwamp", label = "TP: przystań (bagna)" },

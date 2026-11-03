@@ -34,6 +34,7 @@ local TutorialService = require(script.Parent.TutorialService)
 local LeaderboardService = require(script.Parent.LeaderboardService)
 local HalloweenService = require(script.Parent.HalloweenService)
 local CommunityService = require(script.Parent.CommunityService)
+local DelveService = require(script.Parent.DelveService)
 
 type SpotState = {
 	speciesId: string,
@@ -213,7 +214,8 @@ end
 
 -- Koszyk + plecak górnika (ulepszenie z obozowiska w jaskini)
 local function basketMax(session: Session): number
-	return stat(session, "basket") + stat(session, "pack") + stat(session, "creel")
+	-- Znalezisko i trofeum z ekspedycji zajmują po jednym miejscu, dopóki ich nie zabezpieczysz
+	return stat(session, "basket") + stat(session, "pack") + stat(session, "creel") - DelveService.reserved(session.player)
 end
 
 -- Mnożnik spalania oleju w świecie strefy (knot z jaskini albo z bagien)
@@ -539,6 +541,8 @@ local clearDowned: (Session) -> ()
 
 local function engulf(session: Session, messageKey: string?, guardian: string?)
 	clearDowned(session)
+	-- W Głębokich Komorach: koniec ekspedycji dla gracza (zabezpieczone nagrody zostają)
+	DelveService.onEngulf(session.player)
 	stopChases(session.player)
 	local basket = session.data.basket
 
@@ -847,8 +851,22 @@ local function tick(step: number)
 					session.oilWarned = false
 				end
 			else
-				-- Wspólna wyprawa: połączone latarnie palą mniej
-				session.oil -= Economy.oilDrain(zone, oilScale(session, zone)) * Expedition.drain(session.group) * step
+				-- Głębokie Komory (ekspedycja): własne spalanie, woda i haki z olejem (DelveService)
+				local delveDelta = DelveService.oilDelta(session.player, root.Position, oilMax, oilScale(session, zone), Expedition.drain(session.group))
+				if delveDelta then
+					session.oil = math.min(oilMax, session.oil + delveDelta * step)
+					if delveDelta > 0 then
+						if session.oil > oilMax * Config.OilWarnFraction then
+							session.oilHalfWarned = false
+						end
+						if session.oil > oilMax * Config.OilLowFraction then
+							session.oilWarned = false
+						end
+					end
+				else
+					-- Wspólna wyprawa: połączone latarnie palą mniej
+					session.oil -= Economy.oilDrain(zone, oilScale(session, zone)) * Expedition.drain(session.group) * step
+				end
 				-- W samouczku latarnia nigdy nie gaśnie do końca (ostrzeżenia działają, Leszy nie łapie)
 				if session.data.tutorial < Config.Tutorial.done then
 					session.oil = math.max(session.oil, 1)
@@ -1318,6 +1336,10 @@ local DEV_TELEPORTS: { [string]: () -> CFrame? } = {
 		local lair = Config.UtopiecLair
 		return CFrame.new(lair.centerX + 4, 4, lair.centerZ - lair.radius - 10) * CFrame.Angles(0, math.pi, 0)
 	end,
+	tpDelve = function()
+		-- Przed szczeliną do Głębokich Komór (ściana Otchłani), twarzą do niej
+		return CFrame.lookAt(Vector3.new(32, 4, 1398), Vector3.new(44, 4, 1398))
+	end,
 }
 
 -- Na opublikowanej grze (nie w Studio) deweloper może tylko się teleportować, wyzerować własny zapis, odświeżyć rankingi,
@@ -1346,6 +1368,9 @@ local function onDevAction(player: Player, action: unknown)
 			character:PivotTo(target)
 			session.zone = Economy.zoneIndexAt(target.Position.Z)
 		end
+	elseif action == "delveStart" then
+		-- Studio: od razu do komór z pierwszym zleceniem z tablicy
+		DelveService.devStart(player)
 	elseif action == "resetSave" then
 		-- Cały zapis od zera (jak nowy gracz) i wyrzucenie z gry: po ponownym wejściu wszystko
 		-- (ogródek, las, samouczek, okna) startuje czysto. Zostają tylko obsłużone zakupy (żeby Roblox
@@ -1802,6 +1827,74 @@ function GameService.start(mapInfo: MapBuilder.MapInfo)
 			return session ~= nil and session.canSave
 		end,
 		isDeveloper = isDeveloper,
+	})
+
+	local gardenModels = {}
+	for _, garden in map.gardens do
+		table.insert(gardenModels, garden.model)
+	end
+	DelveService.start(gardenModels, {
+		getData = function(player: Player)
+			local session = sessions[player]
+			return if session then session.data else nil
+		end,
+		notify = function(player: Player, key: string, args: { any }?, nameKey: string?)
+			local session = sessions[player]
+			if session then
+				notify(session, key, args, nameKey)
+			end
+		end,
+		pushState = function(player: Player)
+			local session = sessions[player]
+			if session then
+				pushState(session)
+			end
+		end,
+		travel = function(player: Player, target: CFrame, message: string?)
+			local session = sessions[player]
+			local character = player.Character
+			if not (session and character) then
+				return
+			end
+			stopChases(player)
+			character:PivotTo(target)
+			session.zone = Economy.zoneIndexAt(target.Position.Z)
+			if message then
+				notify(session, message)
+			end
+		end,
+		campCFrame = function(): CFrame
+			local cave = map.worlds.cave
+			return if cave and cave.camp then cave.camp else map.spawnCFrame
+		end,
+		engulf = function(player: Player, key: string)
+			local session = sessions[player]
+			if session then
+				engulf(session, key)
+			end
+		end,
+		addOil = function(player: Player, fraction: number)
+			local session = sessions[player]
+			if session then
+				local oilMax = stat(session, "oil")
+				session.oil = math.clamp(session.oil + oilMax * fraction, 1, oilMax)
+				pushState(session)
+			end
+		end,
+		isChased = function(player: Player): boolean
+			return chasedBy(player) ~= nil
+		end,
+		basketFree = function(player: Player): number
+			local session = sessions[player]
+			return if session then basketMax(session) - #session.data.basket else 0
+		end,
+		event = function(player: Player, kind: string, amount: number?)
+			ProgressService.event(player, kind, amount)
+		end,
+		wick = function(player: Player): number
+			local session = sessions[player]
+			return if session then stat(session, "crystal") else 1
+		end,
 	})
 
 	GardenService.start(map.gardens, {

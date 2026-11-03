@@ -23,6 +23,8 @@ export type Stats = {
 	graveyard: number, -- Halloween 2026: zapalony znicz na sekretnym cmentarzyku grzybiarzy
 	owl: number, -- 1 = dołączył do grupy Old Owl Studios (i dostał paczkę powitalną, CommunityService)
 	invites: number, -- gracze, którzy weszli z zaproszenia tego gracza (każdy raz, Social.creditInvite)
+	delves: number, -- ekspedycje do Głębokich Komór z zabezpieczonym znaleziskiem
+	crypts: number, -- trofea wyniesione z Krypty Skarbnika
 }
 
 -- Liczniki z całej gry: rodzaj zdarzenia (jak w ProgressService.event) -> pole w Stats
@@ -38,10 +40,12 @@ Titles.EVENT_STAT = {
 	graveyard = "graveyard",
 	owl = "owl",
 	invite = "invites",
+	delve = "delves",
+	crypt = "crypts",
 } :: { [string]: string }
 
 function Titles.emptyStats(): Stats
-	return { picked = 0, sold = 0, steals = 0, escapes = 0, revives = 0, planted = 0, deaths = 0, bestStreak = 0, candy = 0, graveyard = 0, owl = 0, invites = 0 }
+	return { picked = 0, sold = 0, steals = 0, escapes = 0, revives = 0, planted = 0, deaths = 0, bestStreak = 0, candy = 0, graveyard = 0, owl = 0, invites = 0, delves = 0, crypts = 0 }
 end
 
 -- Rzadkości od najsłabszej: kolor napisu nad głową i ramki w oknie (mityczny = tęcza)
@@ -87,8 +91,10 @@ local LIST: { TitleDef } = {
 	{ id = "TITLE_LIFESAVER", rarity = "rare", stat = "revives", goal = 5 },
 	{ id = "TITLE_GUIDE", rarity = "rare", stat = "invites", goal = Config.Community.guideInvites },
 	{ id = "TITLE_REGULAR", rarity = "rare", stat = "bestStreak", goal = 7 },
+	{ id = "TITLE_DELVER", rarity = "rare", stat = "delves", goal = 5 }, -- ekspedycje do Głębokich Komór
 	{ id = "TITLE_FORAGER", rarity = "epic", stat = "picked", goal = 2500 },
 	{ id = "TITLE_ELUSIVE", rarity = "epic", stat = "escapes", goal = 10 },
+	{ id = "TITLE_CRYPT_RAIDER", rarity = "epic", stat = "crypts", goal = 10 }, -- trofea z Krypty Skarbnika
 	{ id = "TITLE_RAINBOW_HUNTER", rarity = "epic", special = "rainbow" },
 	{ id = "TITLE_GUARDIAN_BANE", rarity = "legendary", special = "guardians" },
 	{ id = "TITLE_MAGNATE", rarity = "legendary", stat = "sold", goal = 10000 },

@@ -13,6 +13,7 @@ local Economy = require(ReplicatedStorage.Shared.Economy)
 local Progress = require(ReplicatedStorage.Shared.Progress)
 local Titles = require(ReplicatedStorage.Shared.Titles)
 local Social = require(ReplicatedStorage.Shared.Social)
+local Delve = require(ReplicatedStorage.Shared.Delve)
 
 export type Data = {
 	version: number,
@@ -53,6 +54,7 @@ export type Data = {
 	equipped: { lantern: string, knife: string }, -- założone skórki ("" = zwykła latarnia / nożyk)
 	eventGoals: { day: number, seconds: number }, -- Halloween: sekundy mikstury z celów serwera dziś (limit dzienny)
 	forest: Forest?, -- las gracza z ostatniej sesji (szybki powrót nie losuje lasu od nowa)
+	delve: Delve.Save, -- ekspedycja: relikty (odnowione, oprawa), odłamki, dzień zlecenia dnia
 }
 
 -- Las gracza: g = pokolenie lasu (numer świtu, Cycle), s = miejsce -> grzyb i kiedy jest gotowy (os.time)
@@ -131,6 +133,7 @@ function DataService.defaultData(): Data
 		equipped = { lantern = "", knife = "" },
 		eventGoals = { day = -1, seconds = 0 },
 		forest = nil,
+		delve = Delve.emptySave(),
 	}
 end
 
@@ -415,6 +418,7 @@ local function reconcile(raw: any): Data
 		end
 		data.forest = { g = math.floor(forest.g), s = spots }
 	end
+	data.delve = Delve.readSave(raw.delve)
 	if typeof(raw.receipts) == "table" then
 		for _, id in raw.receipts do
 			if typeof(id) == "string" and #data.receipts < 50 then
