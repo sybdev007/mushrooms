@@ -399,12 +399,11 @@ local function reconcile(raw: any): Data
 			end
 		end
 	end
-	-- Wersja 5: skrzynia w ogródku dostała limit. Stare zapisy dostają za darmo Skrzynię na maksymalnym
-	-- poziomie (8 h dochodu), a monety w skrzyni ponad te 8 h przepadają (wcześniej limitu nie było,
-	-- więc AFK nazbierało tam miliony). Pusty ogródek (pojemność 0) zostawia skrzynię w spokoju.
+	-- Wersja 5: skrzynia w ogródku dostała limit. Stare zapisy mają Skrzynię na pierwszym poziomie,
+	-- jak nowi gracze (2 h dochodu), a monety w skrzyni ponad ten limit przepadają (wcześniej limitu
+	-- nie było, więc AFK nazbierało tam miliony). Pusty ogródek (pojemność 0) zostawia skrzynię w spokoju.
 	local oldVersion = if typeof(raw.version) == "number" then raw.version else 0
 	if oldVersion < 5 then
-		data.upgrades.chest = Config.Upgrades.chest.maxLevel
 		local fertilizer = Economy.upgradeStat("fertilizer", data.upgrades.fertilizer or 0)
 		local capacity = Economy.potCapacity(data.planted, fertilizer, Economy.upgradeStat("chest", data.upgrades.chest))
 		if capacity > 0 and data.pot > capacity then
