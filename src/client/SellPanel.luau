@@ -13,7 +13,7 @@ local TweenService = game:GetService("TweenService")
 local Economy = require(ReplicatedStorage.Shared.Economy)
 local Localize = require(script.Parent.Localize)
 local MerchantLook = require(script.Parent.MerchantLook)
-local ClassMark = require(script.Parent.ClassMark)
+local ClassColor = require(script.Parent.ClassColor)
 local MushroomArt = require(script.Parent.MushroomArt)
 local ShopLook = require(script.Parent.ShopLook)
 local UiKit = require(script.Parent.UiKit)
@@ -500,7 +500,6 @@ local function buildCard(index: number, item: Item): Card
 	shade(button)
 	local scale = Instance.new("UIScale")
 	scale.Parent = button
-	ClassMark.new(button, item.s, 24, UDim2.fromOffset(8, 7))
 
 	-- Złote i tęczowe: promienie i poświata za grzybkiem (jak za ikoną w sklepie)
 	if Economy.variantRank(item.v) >= 2 then
@@ -589,7 +588,8 @@ local function buildCard(index: number, item: Item): Card
 	local name = label(button, "Name", UDim2.new(1, -10, 0, 20), UDim2.new(0, 5, 0, 76), TITLE_FONT, 18)
 	name.Text = if species then Localize.t(species.key) else "?"
 	UiKit.outline(name, 2)
-	ShopLook.title(name)
+	-- Kolor nazwy = klasa grzyba
+	ClassColor.paint(name, item.s)
 	-- Klasa na ciemnej plakietce
 	local classPill = Instance.new("Frame")
 	classPill.Name = "ClassPill"

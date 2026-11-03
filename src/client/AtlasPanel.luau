@@ -14,7 +14,7 @@ local Economy = require(Shared.Economy)
 local Progress = require(Shared.Progress)
 local Remotes = require(Shared.Remotes)
 local BestiaryPage = require(script.Parent.BestiaryPage)
-local ClassMark = require(script.Parent.ClassMark)
+local ClassColor = require(script.Parent.ClassColor)
 local Localize = require(script.Parent.Localize)
 local MushroomArt = require(script.Parent.MushroomArt)
 local PanelKit = require(script.Parent.PanelKit)
@@ -350,7 +350,7 @@ local function render()
 			name.Text = Localize.t(species.key)
 			-- Nazwa w gradiencie koloru klasy (jak tytuły kart w sklepie)
 			ShopLook.title(name, rgb(class.color):Lerp(Color3.new(1, 1, 1), 0.6), rgb(class.color):Lerp(Color3.new(1, 1, 1), 0.1))
-			info.Text = string.format("%s %s · %s · 💰 %s", ClassMark.rich(species.id), Localize.t(class.key), if zone then Localize.t(zone.key) else "", formatCoins(species.value))
+			info.Text = string.format("%s · %s · 💰 %s", ClassColor.rich(species.id, Localize.t(class.key)), if zone then Localize.t(zone.key) else "", formatCoins(species.value))
 		else
 			name.Text = "???"
 			name.TextColor3 = PanelKit.MUTED

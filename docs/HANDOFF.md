@@ -101,7 +101,7 @@ trafiają na tablice rankingów (magazyny `LanternForager_Top_v2_*`).
    https://www.figma.com/design/nWef7rc8ymwxygFWwJ3LKp (sklep, szanse, klasy kolor + kształt, ratunek,
    karta x2, panel DEV Studio / na żywo). Tytuły w Nunito Black, bo tak wygląda gra po polsku (`FontFix`).
    Kod na gałęzi `ui-v2` (do sprawdzenia w Studio przed scaleniem): nowy `UiFx` (promienie, gradienty, błysk,
-   kołysanie — jedna pętla RenderStepped, stoi gdy element niewidoczny), `ClassMark` (znak klasy ● ▲ ■ ◆ ★),
+   kołysanie — jedna pętla RenderStepped, stoi gdy element niewidoczny), `ClassColor` (klasa grzyba = kolor nazwy; znaki ● ▲ ■ ◆ ★ usunięte 3.11),
    sklep i Szanse jako okna PanelKit, karta ratunku, progi x2, nowy panel DEV. Lista akcji DEV na żywo jest
    w `Config.DevLiveActions` (czyta ją serwer i panel). Typy sprawdza `luau-lsp analyze` z definicjami Robloxa.
    Przyciski z boku (SideButtons) i „Ulepszenia” mają błysk i promienie jak sklep; `setAttention` = migający
