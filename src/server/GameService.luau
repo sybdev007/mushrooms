@@ -1376,6 +1376,31 @@ local function onDevAction(player: Player, action: unknown)
 		session.oil = stat(session, "oil")
 	elseif action == "oilLow" then
 		session.oil = stat(session, "oil") * 0.1
+	elseif action == "upgradeGatesForest" or action == "upgradeGatesCave" or action == "upgradeGatesSwamp" or action == "upgradeGatesLegacy" then
+		-- devActionAllowed nie dopuszcza tych scenariuszy poza Studio.
+		local world = if action == "upgradeGatesSwamp" then "swamp" elseif action == "upgradeGatesCave" then "cave" else "forest"
+		data.caveUnlocked = world ~= "forest"
+		data.swampUnlocked = world == "swamp"
+		data.coins = 100000000
+		for _, id in { "boots", "oil", "basket" } do
+			data.upgrades[id] = Economy.upgradeCap(id, world)
+		end
+		if action == "upgradeGatesLegacy" then
+			data.upgrades.boots = 8
+			data.upgrades.oil = 10
+			data.upgrades.basket = 10
+		end
+		TutorialService.setStep(session :: any, Config.Tutorial.done)
+		local info = map.worlds[world]
+		local target = if info and info.camp then info.camp else map.spawnCFrame
+		local character = player.Character
+		if character then
+			stopChases(player)
+			character:PivotTo(target)
+			session.zone = Economy.zoneIndexAt(target.Position.Z)
+		end
+		session.oil = stat(session, "oil")
+		applyCharacterStats(session)
 	elseif action == "upgradesMax" or action == "upgradesReset" then
 		for id, def in Config.Upgrades do
 			data.upgrades[id] = if action == "upgradesMax" then def.maxLevel else 0
@@ -1570,25 +1595,25 @@ local function onBuy(player: Player, upgradeId: unknown)
 		notify(session, "TUT_ONLY_OIL")
 		return
 	end
-	-- Ulepszenia kupuje się w bezpiecznej strefie świata, do którego należą (leśne w chatce i na polanie,
-	-- jaskiniowe w obozowisku). W lesie się nie da, bo ulepszenie oleju napełnia latarnię.
+	-- Sprawdzamy obszar obozu w trzech wymiarach i odblokowanie mapy. Nowy poziom
+	-- globalnego ulepszenia wymaga obozu odpowiedniego świata lub późniejszego.
 	local root = getRoot(player)
-	local zone = if root then Economy.zoneIndexAt(root.Position.Z) else 0
-	if not Economy.isSafeZone(zone) or Economy.zoneWorld(zone) ~= Economy.upgradeShop(upgradeId) then
+	local world = if root then Economy.upgradeCampAt(root.Position.X, root.Position.Y, root.Position.Z) else nil
+	if not world then
 		notify(session, "MSG_UPGRADE_WHERE")
 		return
 	end
-	local level = session.data.upgrades[upgradeId] or 0
-	local cost = Economy.upgradeCost(upgradeId, level)
-	if not cost then
+	local bought, reason, lockedWorld = Economy.buyUpgrade(session.data, upgradeId, world)
+	if not bought then
+		if reason == "locked" then
+			notify(session, if lockedWorld == "cave" then "UPG_UNLOCK_CAVE" else "UPG_UNLOCK_SWAMP")
+		elseif reason == "location" then
+			notify(session, if lockedWorld == "cave" then "UPG_BUY_CAVE" elseif lockedWorld == "swamp" then "UPG_BUY_SWAMP" else "MSG_UPGRADE_WHERE")
+		elseif reason == "coins" then
+			notify(session, "MSG_NOT_ENOUGH")
+		end
 		return
 	end
-	if session.data.coins < cost then
-		notify(session, "MSG_NOT_ENOUGH")
-		return
-	end
-	session.data.coins -= cost
-	session.data.upgrades[upgradeId] = level + 1
 	if upgradeId == "oil" then
 		session.oil = stat(session, "oil")
 	elseif upgradeId == "lock" or upgradeId == "chest" then

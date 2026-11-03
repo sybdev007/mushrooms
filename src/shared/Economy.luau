@@ -388,6 +388,119 @@ function Economy.upgradeCost(id: string, level: number): number?
 	return math.floor(def.costBase * def.costGrowth ^ level + 0.5)
 end
 
+local WORLD_RANK: { [string]: number } = { forest = 1, cave = 2, swamp = 3 }
+local WORLDS = { "forest", "cave", "swamp" }
+
+function Economy.worldUnlocked(world: string, caveUnlocked: boolean?, swampUnlocked: boolean?): boolean
+	return world == "forest" or (world == "cave" and caveUnlocked == true) or (world == "swamp" and swampUnlocked == true)
+end
+
+-- Następny zakup zależy od poziomu; już kupionych poziomów nigdy nie odbieramy.
+function Economy.upgradeRequiredWorld(id: string, level: number): string
+	local def = Config.Upgrades[id]
+	assert(def, "Nieznane ulepszenie: " .. id)
+	if def.worldCaps then
+		for _, world in WORLDS do
+			if level < def.worldCaps[world] then
+				return world
+			end
+		end
+		return "swamp"
+	end
+	return def.shop or "forest"
+end
+
+function Economy.upgradeCap(id: string, world: string): number
+	local def = Config.Upgrades[id]
+	if not def or not WORLD_RANK[world] then
+		return 0
+	end
+	if def.worldCaps then
+		return def.worldCaps[world] or 0
+	end
+	return if WORLD_RANK[world] >= WORLD_RANK[def.shop or "forest"] then def.maxLevel else 0
+end
+
+function Economy.upgradeLockedWorld(id: string, level: number, caveUnlocked: boolean?, swampUnlocked: boolean?): string?
+	local world = Economy.upgradeRequiredWorld(id, level)
+	return if Economy.worldUnlocked(world, caveUnlocked, swampUnlocked) then nil else world
+end
+
+function Economy.upgradeCanBuyInWorld(id: string, level: number, world: string): boolean
+	local def = Config.Upgrades[id]
+	if not def or not WORLD_RANK[world] then
+		return false
+	end
+	local required = Economy.upgradeRequiredWorld(id, level)
+	return if def.worldCaps then WORLD_RANK[world] >= WORLD_RANK[required] else world == required
+end
+
+-- Rzeczywisty obszar obozu: nie kupujemy przez wysłanie RemoteEvent spoza mapy albo wysoko nad nią.
+function Economy.upgradeCampAt(x: number, y: number, z: number): string?
+	if x ~= x or y ~= y or z ~= z or y < -6 or y > 25 then
+		return nil
+	end
+	for _, zone in Config.Zones do
+		if zone.safe and z >= zone.startZ and z < zone.endZ then
+			local width = if zone.world == "cave" then Config.Cave.halfWidth elseif zone.world == "swamp" then Config.Swamp.halfWidth else Config.ForestHalfWidth
+			if math.abs(x) <= width then
+				return zone.world
+			end
+		end
+	end
+	return nil
+end
+
+export type UpgradeBuyer = {
+	coins: number,
+	upgrades: { [string]: number },
+	caveUnlocked: boolean?,
+	swampUnlocked: boolean?,
+}
+
+-- Używane przez serwer. Wszystkie odmowy następują przed modyfikacją; operacja nie yield-uje.
+function Economy.buyUpgrade(data: UpgradeBuyer, id: string, world: string): (boolean, string?, string?)
+	local def = Config.Upgrades[id]
+	if not def then
+		return false, "invalid"
+	end
+	local level = data.upgrades[id] or 0
+	if level ~= level or level < 0 or level % 1 ~= 0 or level > def.maxLevel or data.coins ~= data.coins or data.coins == math.huge then
+		return false, "invalid"
+	end
+	local cost = Economy.upgradeCost(id, level)
+	if not cost then
+		return false, "max"
+	end
+	local locked = Economy.upgradeLockedWorld(id, level, data.caveUnlocked, data.swampUnlocked)
+	if locked then
+		return false, "locked", locked
+	end
+	if not Economy.worldUnlocked(world, data.caveUnlocked, data.swampUnlocked) or not Economy.upgradeCanBuyInWorld(id, level, world) then
+		return false, "location", Economy.upgradeRequiredWorld(id, level)
+	end
+	if data.coins < cost then
+		return false, "coins"
+	end
+	data.coins -= cost
+	data.upgrades[id] = level + 1
+	return true
+end
+
+-- Migracja v5 → v6 zachowuje kupione poziomy także powyżej nowych progów map.
+function Economy.upgradeLevelsFromSave(raw: any, version: number?): { [string]: number }
+	local levels = {}
+	local oldMax: { [string]: number } = { boots = 8, oil = 10, basket = 10 }
+	for id, def in Config.Upgrades do
+		local value = if typeof(raw) == "table" then raw[id] else nil
+		local cap = if version and version < 6 and oldMax[id] then oldMax[id] else def.maxLevel
+		levels[id] = if typeof(value) == "number" and value == value and math.abs(value) < math.huge
+			then math.clamp(math.floor(value), 0, cap)
+			else 0
+	end
+	return levels
+end
+
 -- Losowanie gatunku w strefie. r to liczba z przedziału [0, 1).
 function Economy.rollSpecies(zone: number, r: number): Config.SpeciesDef?
 	local list = speciesByZone[zone]

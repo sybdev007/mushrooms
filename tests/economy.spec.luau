@@ -122,24 +122,189 @@ test("latarnia nie przekracza limitu PointLight (60)", function()
 	check(Economy.upgradeStat("lantern", def.maxLevel) <= 60, "zasięg ponad 60")
 end)
 
-test("UpgradeOrder + CaveUpgradeOrder zawierają każde ulepszenie dokładnie raz, każde w swoim sklepie", function()
+test("zakładki zawierają własne ulepszenia i po jednej karcie wspólnych ulepszeń", function()
 	local seen = {}
 	for _, list in {
 		{ order = Config.UpgradeOrder, shop = "forest" },
 		{ order = Config.CaveUpgradeOrder, shop = "cave" },
 		{ order = Config.SwampUpgradeOrder, shop = "swamp" },
 	} do
+		local inTab = {}
 		for _, id in list.order do
 			check(Config.Upgrades[id] ~= nil, "nieznane " .. id)
-			check(not seen[id], "duplikat " .. id)
-			eq(Economy.upgradeShop(id), list.shop, "sklep " .. id)
+			check(not inTab[id], "duplikat w zakładce " .. id)
+			inTab[id] = true
+			if not Config.Upgrades[id].worldCaps then
+				eq(Economy.upgradeShop(id), list.shop, "sklep " .. id)
+			end
 			seen[id] = true
+		end
+		for id, def in Config.Upgrades do
+			if def.worldCaps then
+				check(inTab[id] == true, "brak wspólnego ulepszenia " .. id .. " w " .. list.shop)
+			end
 		end
 	end
 	for id in Config.Upgrades do
 		check(seen[id] == true, "brak w kolejności: " .. id)
 	end
 end)
+
+print("Bramki ulepszeń")
+for _, world in { "forest", "cave", "swamp" } do
+	for id, def in Config.Upgrades do
+		if not def.worldCaps then
+			continue
+		end
+		test("bramka " .. id .. " w " .. world, function()
+			local cap = Economy.upgradeCap(id, world)
+			local data = { coins = 1e12, upgrades = { [id] = cap - 1 }, caveUnlocked = world ~= "forest", swampUnlocked = world == "swamp" }
+			local price = Economy.upgradeCost(id, cap - 1)
+			check(Economy.buyUpgrade(data, id, world), "ostatni poziom świata do kupienia")
+			eq(data.upgrades[id], cap)
+			eq(data.coins, 1e12 - price, "odjęta dokładna cena")
+			local before = data.coins
+			local ok, reason, required = Economy.buyUpgrade(data, id, world)
+			check(not ok, "następny poziom odrzucony mimo monet")
+			eq(reason, if world == "swamp" then "max" else "locked")
+			if world ~= "swamp" then
+				eq(required, if world == "forest" then "cave" else "swamp")
+			end
+			eq(data.coins, before, "odmowa nic nie kosztuje")
+			eq(data.upgrades[id], cap, "odmowa nie zmienia poziomu")
+		end)
+	end
+end
+
+test("bramki mają rosnące limity i ostatni limit równy maksimum", function()
+	for id, def in Config.Upgrades do
+		if def.worldCaps then
+			check(def.worldCaps.forest > 0 and def.worldCaps.forest < def.worldCaps.cave, id)
+			check(def.worldCaps.cave < def.worldCaps.swamp, id)
+			eq(def.worldCaps.swamp, def.maxLevel, id)
+		end
+	end
+end)
+
+test("zakup odrzuca nieodblokowany lub niewłaściwy obóz i zachowuje saldo", function()
+	local data = { coins = 1e9, upgrades = { boots = 4, crystal = 0 }, caveUnlocked = false, swampUnlocked = false }
+	local ok, reason = Economy.buyUpgrade(data, "boots", "cave")
+	check(not ok and reason == "locked", "teleport do jaskini nie odblokowuje poziomu")
+	data.caveUnlocked = true
+	ok, reason = Economy.buyUpgrade(data, "boots", "forest")
+	check(not ok and reason == "location", "nowy poziom wymaga nowego obozu")
+	ok, reason = Economy.buyUpgrade(data, "boots", "swamp")
+	check(not ok and reason == "location", "teleport do zamkniętych bagien")
+	ok, reason = Economy.buyUpgrade(data, "crystal", "forest")
+	check(not ok and reason == "location", "wkład pozostaje w jaskini")
+	eq(data.coins, 1e9)
+	check(Economy.buyUpgrade(data, "boots", "cave"), "zakup w jaskini")
+end)
+
+test("niższe globalne poziomy można dokupić w późniejszym obozie", function()
+	local data = { coins = 1000, upgrades = { boots = 0 }, caveUnlocked = true, swampUnlocked = true }
+	check(Economy.buyUpgrade(data, "boots", "swamp"), "pierwszy poziom na bagnach")
+	eq(data.upgrades.boots, 1)
+	eq(data.coins, 1000 - Config.Upgrades.boots.costBase)
+end)
+
+test("brak pieniędzy i błędne dane nie zmieniają stanu zakupu", function()
+	local data = { coins = 0, upgrades = { boots = 0 } }
+	local ok, reason = Economy.buyUpgrade(data, "boots", "forest")
+	check(not ok and reason == "coins", "brak monet")
+	check(not Economy.buyUpgrade(data, "unknown", "forest"), "nieznane ID")
+	data.coins = 1e9
+	data.upgrades.boots = 0.5
+	check(not Economy.buyUpgrade(data, "boots", "forest"), "poziom ułamkowy")
+	eq(data.coins, 1e9)
+	eq(data.upgrades.boots, 0.5)
+end)
+
+test("migracja poziomów nie odbiera starego maksimum i nie daje nowych poziomów", function()
+	local levels = Economy.upgradeLevelsFromSave({ boots = 8, oil = 10, basket = 10 })
+	eq(levels.boots, 8)
+	eq(levels.oil, 10)
+	eq(levels.basket, 10)
+	local data = { coins = 1e9, upgrades = levels, caveUnlocked = false, swampUnlocked = false }
+	check(not Economy.buyUpgrade(data, "boots", "forest"), "stary poziom nie omija nowej bramki")
+	eq(levels.boots, 8, "kupione 28 studs/s zostaje")
+	for _, value in { math.huge, -math.huge, 0 / 0, "12" } do
+		eq(Economy.upgradeLevelsFromSave({ boots = value }).boots, 0, "brak darmowego maksa ze śmieci")
+	end
+	eq(Economy.upgradeLevelsFromSave(nil).boots, 0)
+	eq(Economy.upgradeLevelsFromSave({ boots = -2 }).boots, 0)
+	eq(Economy.upgradeLevelsFromSave({ boots = 2.8 }).boots, 2)
+	eq(Economy.upgradeLevelsFromSave({ boots = 999 }, 5).boots, 8, "v5 nie przyznaje nowych poziomów nawet ze śmieci")
+	eq(Economy.upgradeLevelsFromSave({ boots = 12 }, 6).boots, 12, "v6 zachowuje nowe poziomy")
+end)
+
+test("DataService ładuje v5 jako v6 bez utraty ekwipunku i kupionych poziomów", function()
+	local players = {}
+	local signal = { Connect = function() return { Disconnect = function() end } end }
+	local profile = {
+		Data = {
+			version = 5, coins = 43210, upgrades = { boots = 8, oil = 10, basket = 10 },
+			caveUnlocked = false, swampUnlocked = false,
+			basket = { { s = "honey", v = "gold" } },
+			planted = { { s = "porcini", t = os.time() } },
+			atlas = { honey = 7 }, receipts = { "paid-before-migration" },
+			pot = 123456, potMinutes = 240, luckUntil = os.time() + 1000,
+		},
+		OnSessionEnd = signal, OnAfterSave = signal,
+		AddUserId = function() end,
+	}
+	local profileStore = { New = function() return { StartSessionAsync = function() return profile end } end }
+	local packages = { WaitForChild = function() return profileStore end }
+	local services = {
+		Players = players,
+		DataStoreService = { GetDataStore = function() return {} end },
+		ReplicatedStorage = { Shared = { Config = Config, Economy = Economy, Progress = Progress, Titles = Titles, Social = Social } },
+	}
+	local DataService = loadModule("src/server/DataService.luau", {
+		game = { GetService = function(_, name) return services[name] end },
+		script = { Parent = { WaitForChild = function() return packages end } },
+		require = function(module) return module end,
+	})
+	local migrated, canSave = DataService.load({ UserId = 1234, Parent = players })
+	check(canSave, "profil otwarty")
+	eq(migrated.version, 6)
+	eq(migrated.coins, 43210)
+	eq(migrated.upgrades.boots, 8)
+	eq(migrated.upgrades.oil, 10)
+	eq(migrated.upgrades.basket, 10)
+	eq(migrated.caveUnlocked, false, "bez darmowego odblokowania")
+	eq(migrated.swampUnlocked, false)
+	eq(migrated.basket[1].s, "honey")
+	eq(migrated.basket[1].v, "gold")
+	eq(migrated.planted[1].s, "porcini")
+	eq(migrated.atlas.honey, 7)
+	eq(migrated.receipts[1], "paid-before-migration")
+	eq(migrated.pot, 123456, "ponowna migracja nie obcina skrzyni v5")
+	eq(migrated.potMinutes, 240)
+	eq(migrated.luckUntil, profile.Data.luckUntil)
+	local again = DataService.load({ UserId = 1234, Parent = players })
+	eq(again.version, 6)
+	eq(again.upgrades.boots, 8, "migracja idempotentna")
+	eq(again.coins, 43210)
+end)
+
+test("obszar sklepu uwzględnia granice mapy i wysokość", function()
+	eq(Economy.upgradeCampAt(0, 3, -10), "forest")
+	eq(Economy.upgradeCampAt(0, 3, 1025), "cave")
+	eq(Economy.upgradeCampAt(0, 3, 2024), "swamp")
+	for _, pos in { { 500, 3, 1025 }, { 0, 500, 1025 }, { 0, 3, 1200 }, { 0, 3, -500 }, { math.huge, 3, 1025 } } do
+		eq(Economy.upgradeCampAt(pos[1], pos[2], pos[3]), nil, "poza obozem")
+	end
+end)
+
+for _, guardian in Progress.GUARDIANS do
+	test("boss " .. guardian.id .. " daje się uciec bez odblokowania następnego świata", function()
+		local cap = Economy.upgradeCap("boots", guardian.world)
+		local first = Progress.bootsToEscape(guardian)
+		check(first ~= nil and first <= cap, "brak dostępnego poziomu ucieczki")
+		check(Economy.escapes(Progress.escapeDistance(guardian), Economy.upgradeStat("boots", cap), guardian.chase), "prędkość na limicie świata")
+	end)
+end
 
 print("Grzyby")
 test("każda strefa poza chatką i obozowiskiem ma grzyby", function()
@@ -673,8 +838,8 @@ local function caveRoundTrip(deepest: number, speed: number, crystalLevel: numbe
 end
 
 test("jaskinia: z maks. leśnymi ulepszeniami do Jeziora tak, do końca Otchłani dopiero z knotem", function()
-	local oil = Economy.upgradeStat("oil", Config.Upgrades.oil.maxLevel)
-	local speed = Economy.upgradeStat("boots", Config.Upgrades.boots.maxLevel)
+	local oil = Economy.upgradeStat("oil", Economy.upgradeCap("oil", "forest"))
+	local speed = Economy.upgradeStat("boots", Economy.upgradeCap("boots", "forest"))
 	check(caveRoundTrip(7, speed, 0) < oil, "jezioro nieosiągalne po otwarciu jaskini")
 	check(caveRoundTrip(8, speed, 0) > oil, "otchłań dostępna bez knota, brak progresu")
 	check(caveRoundTrip(8, speed, Config.Upgrades.crystal.maxLevel) < oil, "otchłań nieosiągalna nawet z knotem")
@@ -782,7 +947,7 @@ print("Bagna")
 
 -- Wyprawa z przystani do końca strefy bagien i powrót, z knotem z sitowia
 local function swampRoundTrip(deepest: number, wickLevel: number): number
-	local speed = Economy.upgradeStat("boots", Config.Upgrades.boots.maxLevel)
+	local speed = Economy.upgradeStat("boots", Economy.upgradeCap("boots", "cave"))
 	local scale = Economy.upgradeStat("rushwick", wickLevel)
 	local oil = 0
 	for zone = 11, deepest do
@@ -792,10 +957,10 @@ local function swampRoundTrip(deepest: number, wickLevel: number): number
 	return oil * Config.ReturnMargin
 end
 
-test("bagna: Trzęsawisko od razu, głębiej dopiero z knotem z sitowia, staw na maks.", function()
-	local oil = Economy.upgradeStat("oil", Config.Upgrades.oil.maxLevel)
+test("bagna: Trzęsawisko od razu, Staw dopiero z knotem z sitowia", function()
+	local oil = Economy.upgradeStat("oil", Economy.upgradeCap("oil", "cave"))
 	check(swampRoundTrip(11, 0) < oil, "trzęsawisko nieosiągalne po otwarciu bagien")
-	check(swampRoundTrip(12, 0) > oil, "mokradła dostępne bez knota, brak progresu")
+	check(swampRoundTrip(13, 0) > oil, "staw dostępny bez knota, brak progresu")
 	check(swampRoundTrip(13, Config.Upgrades.rushwick.maxLevel) < oil, "staw nieosiągalny nawet z knotem")
 end)
 
@@ -828,13 +993,13 @@ test("błędne ogniki: wyglądają jak Ognik, nic nie są warte i nie budzą str
 	check(Config.Swamp.mimicOilLoss > 0 and Config.Swamp.mimicOilLoss < 0.5, "kara za ognik")
 end)
 
-test("Utopiec: Kielichy tylko na wyspie, ucieczka tylko na maks. butach", function()
+test("Utopiec: Kielichy tylko na wyspie, próg ucieczki pozostaje na butach 8", function()
 	local lair = Config.UtopiecLair
 	eq(Config.Zones[Economy.zoneIndexAt(lair.centerZ)].id, "pond", "wyspa poza stawem")
 	check(lair.centerZ + lair.radius + 6 < Config.Zones[13].endZ, "posąg Utopca za ścianą bagien")
 	local distance = lair.centerZ - Config.Zones[10].endZ
-	check(not Economy.escapes(distance, Economy.upgradeStat("boots", Config.Upgrades.boots.maxLevel - 1), Config.Utopiec), "ucieczka za łatwa")
-	check(Economy.escapes(distance, Economy.upgradeStat("boots", Config.Upgrades.boots.maxLevel), Config.Utopiec), "brak ucieczki na maks.")
+	check(not Economy.escapes(distance, Economy.upgradeStat("boots", 7), Config.Utopiec), "ucieczka za łatwa")
+	check(Economy.escapes(distance, Economy.upgradeStat("boots", 8), Config.Utopiec), "brak ucieczki na dotychczasowej prędkości 28")
 	for _, species in Economy.guardianSpecies("utopiec") do
 		eq(Economy.guardianOf(species.id), "utopiec", species.id)
 		-- Kielich wart ponad dwa razy więcej niż najlepszy zwykły grzyb bagien (inaczej nie warto ryzykować)
@@ -1453,7 +1618,7 @@ test("próg butów do ucieczki rośnie ze światem i zgadza się z testami pośc
 		check((level :: number) > previous, def.id .. ": łatwiejszy niż poprzedni strażnik")
 		previous = level :: number
 	end
-	eq(Progress.bootsToEscape(Progress.getGuardian("utopiec") :: any), Config.Upgrades.boots.maxLevel, "Utopiec tylko na maks.")
+	eq(Progress.bootsToEscape(Progress.getGuardian("utopiec") :: any), 8, "Utopiec dostępny na dotychczasowym poziomie 8")
 	eq(Progress.escapeDistance(Progress.getGuardian("leszy") :: any), groveDistance, "droga ucieczki przed Leszym")
 end)
 

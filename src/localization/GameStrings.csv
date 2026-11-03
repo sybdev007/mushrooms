@@ -252,6 +252,14 @@ UPG_HINT_FOREST,Forest upgrades: buy them at the cabin or the clearing.,,,Leśne
 UPG_HINT_CAVE,Cave upgrades: buy them in the miners' camp.,,,Ulepszenia jaskini kupisz w obozowisku górników.
 UPG_HINT_SWAMP,Swamp upgrades: buy them at the fishermen's jetty.,,,Ulepszenia bagien kupisz na przystani rybaków.
 MSG_UPGRADE_WHERE,You can't upgrade here. Go back to a safe camp!,,,Tu nie ulepszysz. Wróć do bezpiecznego obozu!
+UPG_UNLOCK_CAVE,Unlock the Cave to buy the next level,,,Odblokuj jaskinię aby kupić kolejny poziom
+UPG_UNLOCK_SWAMP,Unlock the Swamp to buy the next level,,,Odblokuj bagna aby kupić kolejny poziom
+UPG_BUY_CAVE,Buy this level in the Cave camp,,,Kup ten poziom w obozie jaskini
+UPG_BUY_SWAMP,Buy this level at the Swamp jetty,,,Kup ten poziom na przystani bagien
+DEV_UPGRADE_GATES_FOREST,Gates: Forest limit,,,Bramki: limit lasu
+DEV_UPGRADE_GATES_CAVE,Gates: Cave limit,,,Bramki: limit jaskini
+DEV_UPGRADE_GATES_SWAMP,Gates: Swamp limit,,,Bramki: limit bagien
+DEV_UPGRADE_GATES_LEGACY,Gates: old max save,,,Bramki: stary maksymalny zapis
 SHOP_ODDS,Odds,,,Szanse
 ODDS_TITLE,Mutation odds,,,Szanse na mutacje
 ODDS_YOUR_LUCK,Your luck now: {1},,,Twoje szczęście teraz: {1}
