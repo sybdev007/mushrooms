@@ -3319,6 +3319,104 @@ test("kuźnia: tytuły, odznaki i napisy w CSV", function()
 	eq(earned.TITLE_VELES, nil)
 end)
 
+-- ===== Znalezisko Nocy =====
+print("Znalezisko Nocy (NightFind.luau)")
+local NightFind = loadModule("src/shared/NightFind.luau", {
+	script = { Parent = { Config = Config, Cycle = Cycle, Economy = Economy } },
+	require = function(module)
+		return module
+	end,
+})
+
+test("znalezisko: wyrasta raz na noc w przedziale, nie pod sam świt", function()
+	local length = Cycle.length()
+	local index = 7000
+	local nightStart = index * length
+	local delay = Config.NightFind.delay
+	for _, r in { 0, 0.25, 0.5, 0.999 } do
+		local at = NightFind.spawnTime(index, r, nightStart)
+		check(at ~= nil, "jest czas")
+		check(at >= nightStart + delay[1] and at <= nightStart + delay[2], "w przedziale: " .. tostring(at))
+	end
+	-- Serwer wstał w środku nocy: od razu, jeśli zostało dość czasu
+	local late = nightStart + delay[2] + 60
+	eq(NightFind.spawnTime(index, 0, late), late, "od razu")
+	-- Pod sam świt: nie wyrasta (nie zdążyłby nikt donieść)
+	local nightEnd = nightStart + Config.Cycle.nightSeconds
+	eq(NightFind.spawnTime(index, 0.5, nightEnd - Config.NightFind.minLeft + 1), nil, "za późno")
+	check(Config.NightFind.carrySeconds < Config.NightFind.minLeft, "czas niesienia mieści się w nocy")
+	check(Config.NightFind.delay[2] + Config.NightFind.minLeft <= Config.Cycle.nightSeconds, "zawsze zdąży wyrosnąć")
+end)
+
+test("znalezisko: tylko w głębi lasu, bez legowisk i Gniazda", function()
+	local spots = {}
+	for zone = 1, #Config.Zones do
+		table.insert(spots, { id = "s" .. zone, zone = zone, position = roblox.Vector3.new(0, 0, Config.Zones[zone].startZ + 5) })
+	end
+	table.insert(spots, { id = "grove", zone = 4, position = roblox.Vector3.new(0, 0, 0), grove = true })
+	table.insert(spots, { id = "lair", zone = 4, position = roblox.Vector3.new(0, 0, 0), lair = true })
+	table.insert(spots, { id = "guard", zone = 4, position = roblox.Vector3.new(0, 0, 0), guardian = "leszy" })
+	local list = NightFind.candidates(spots)
+	check(#list > 0, "są miejsca")
+	for _, spot in list do
+		check(spot.zone >= Config.NightFind.minZone, "płytko: " .. spot.id)
+		eq(Economy.zoneWorld(spot.zone), "forest", "poza lasem: " .. spot.id)
+		check(not Economy.isSafeZone(spot.zone), "bezpieczna strefa: " .. spot.id)
+		check(not spot.grove and not spot.lair and not spot.guardian, "specjalne: " .. spot.id)
+	end
+end)
+
+test("znalezisko: dostawa na polanie, poza lasem przepada, nagroda ze skali", function()
+	check(NightFind.delivered(Config.Zones[1].startZ + 20), "polana przy chatce")
+	check(not NightFind.delivered(Config.Zones[Config.NightFind.minZone].startZ + 5), "w lesie jeszcze nie")
+	check(NightFind.inForest(Config.Zones[3].startZ + 5), "las")
+	local caveZone = nil
+	for zone = 1, #Config.Zones do
+		if Economy.zoneWorld(zone) == "cave" then
+			caveZone = zone
+			break
+		end
+	end
+	check(caveZone ~= nil and not NightFind.inForest(Config.Zones[caveZone :: number].startZ + 5), "jaskinia to nie las")
+	local forest = Progress.rewardScale(false, false, false)
+	local mountain = Progress.rewardScale(true, true, true)
+	eq(NightFind.reward(forest), math.floor(Config.NightFind.coinsScale * forest))
+	check(NightFind.reward(mountain) > NightFind.reward(forest), "dalej więcej")
+	-- Jak kilka zadań dziennych naraz (zadanie = 1 jednostka), nie jak cały dzień gry
+	check(Config.NightFind.coinsScale >= 2 and Config.NightFind.coinsScale <= 10, "skala nagrody")
+end)
+
+test("znalezisko: trofea, tytuły i tłumaczenia", function()
+	eq(Titles.EVENT_STAT.nightFind, "nightFinds")
+	eq(Titles.emptyStats().nightFinds, 0)
+	for _, step in Config.NightFind.titles do
+		local def = Titles.get(step.id)
+		check(def ~= nil, "tytuł " .. step.id)
+		eq((def :: any).stat, "nightFinds")
+		check(csvHas(step.id) and csvHas(step.id .. "_HOW"), "tłumaczenie " .. step.id)
+	end
+	local stats = Titles.emptyStats()
+	stats.nightFinds = 3
+	local earned = Titles.earned({ atlas = {}, stats = stats, bestiary = {} } :: any)
+	eq(earned.TITLE_NIGHT_FINDER, true)
+	eq(earned.TITLE_NIGHT_COURIER, true)
+	eq(earned.TITLE_NIGHT_HUNTER, nil)
+	for _, key in {
+		"NIGHTFIND_NAME",
+		"NIGHTFIND_ACTION",
+		"NIGHTFIND_HUD",
+		"MSG_NIGHTFIND_SPAWN",
+		"MSG_NIGHTFIND_RUN",
+		"MSG_NIGHTFIND_TAKEN",
+		"MSG_NIGHTFIND_DELIVERED",
+		"MSG_NIGHTFIND_LOST",
+		"MSG_NIGHTFIND_DONE",
+	} do
+		check(csvHas(key), "tłumaczenie " .. key)
+	end
+	check(Economy.getVariant(Config.NightFind.variant) ~= nil, "wariant " .. Config.NightFind.variant)
+end)
+
 print(string.format("\n%d ok, %d błędów", passed, failed))
 if failed > 0 then
 	process.exit(1)

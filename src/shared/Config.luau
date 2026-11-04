@@ -410,6 +410,28 @@ Config.GardenWeather = {
 	} :: { [string]: { tag: string, chance: number } },
 }
 
+-- Znalezisko Nocy (Shared/NightFind, NightFindService): raz na noc na każdym serwerze w głębi lasu wyrasta
+-- jeden kosmiczny grzyb, widoczny dla wszystkich. Kto pierwszy go zerwie, musi go donieść na polanę przy
+-- chatce w carrySeconds, idąc wolniej i świecąc (inni widzą go i odliczanie nad głową). Na start bez
+-- odbierania przez innych. Nagroda: monety (coinsScale × skala nagród gracza) i trofeum (stats.nightFinds),
+-- tytuły za 1, 3, 7 i 15 dostaw. Nie doniesie (czas, śmierć, portal, wyjście z gry) = przepada do jutra.
+Config.NightFind = {
+	delay = { 90, 360 }, -- tyle sekund po zapadnięciu nocy wyrasta (losowo z tego przedziału)
+	minLeft = 300, -- nie wyrasta, gdy do świtu zostało mniej niż tyle sekund
+	minZone = 3, -- najpłycej w tej strefie lasu (Config.Zones), żeby był kawałek drogi
+	carrySeconds = 180,
+	speed = 0.75, -- prędkość z Znaleziskiem względem zwykłej
+	pickHold = 1.5, -- sekundy trzymania przycisku
+	coinsScale = 5, -- nagroda w monetach: tyle × Progress.rewardScale gracza
+	variant = "cosmic", -- jak wygląda (kosmiczny grzyb gatunku z miejsca, gdzie wyrósł)
+	titles = {
+		{ id = "TITLE_NIGHT_FINDER", goal = 1, rarity = "rare" },
+		{ id = "TITLE_NIGHT_COURIER", goal = 3, rarity = "epic" },
+		{ id = "TITLE_NIGHT_HUNTER", goal = 7, rarity = "legendary" },
+		{ id = "TITLE_NIGHT_LEGEND", goal = 15, rarity = "mythic" },
+	},
+}
+
 -- Cechy tylko z pogody w ogródku (nie losują się w lesie). Liczą się w wartości i zapisie (Economy.getTag).
 Config.WeatherTags = {
 	{ id = "bloody", key = "MUT_BLOODY", icon = "🩸", zone = 0, chance = 0, mult = 3, color = { 230, 50, 70 } },

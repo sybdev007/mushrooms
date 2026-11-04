@@ -133,6 +133,10 @@ local CATEGORIES: { Category } = {
 				{ id = "gardenWeather:blood_moon", label = "🩸 Krwawy księżyc: Krwawy" },
 				{ id = "gardenWeatherUndo", label = "↩️ Cofnij cechy z tych testów" },
 			} },
+			{ name = "Znalezisko Nocy (Studio)", actions = {
+				{ id = "nightFindSpawn", label = "✨ Znalezisko przed tobą" },
+				{ id = "nightFindReset", label = "↩️ Trofea Znalezisk na 0" },
+			} },
 		},
 	},
 	{

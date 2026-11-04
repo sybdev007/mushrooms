@@ -53,6 +53,7 @@ local Tutorial = require(script.Parent.Tutorial)
 local LeszyAnimator = require(script.Parent.LeszyAnimator)
 local GardenPanel = require(script.Parent.GardenPanel)
 local DisplayMushrooms = require(script.Parent.DisplayMushrooms)
+local NightFindView = require(script.Parent.NightFindView)
 local HalloweenFx = require(script.Parent.HalloweenFx)
 local MutationText = require(script.Parent.MutationText)
 local FontFix = require(script.Parent.FontFix)
@@ -106,6 +107,7 @@ MerchantView.start()
 LeszyAnimator.start()
 GardenPanel.start()
 DisplayMushrooms.start()
+NightFindView.start()
 HalloweenFx.start()
 WinterFx.start()
 CommunityButton.start()
@@ -289,6 +291,12 @@ local TOAST_KIND: { [string]: string } = {
 	MSG_RACK_PROTECTED = "warn",
 	MSG_WEATHER_GROWN = "gold",
 	MSG_WEATHER_AWAY = "gold",
+	MSG_NIGHTFIND_SPAWN = "gold",
+	MSG_NIGHTFIND_RUN = "gold",
+	MSG_NIGHTFIND_DONE = "gold",
+	MSG_NIGHTFIND_DELIVERED = "info",
+	MSG_NIGHTFIND_TAKEN = "info",
+	MSG_NIGHTFIND_LOST = "warn",
 	MSG_STEAL_FOREST = "warn",
 	MSG_OWNER_GUARDING = "warn",
 	MSG_NO_RACK = "warn",

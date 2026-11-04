@@ -41,6 +41,7 @@ local TutorialService = require(script.Parent.TutorialService)
 local LeaderboardService = require(script.Parent.LeaderboardService)
 local HalloweenService = require(script.Parent.HalloweenService)
 local WinterService = require(script.Parent.WinterService)
+local NightFindService = require(script.Parent.NightFindService)
 local CommunityService = require(script.Parent.CommunityService)
 local DelveService = require(script.Parent.DelveService)
 local AnnounceService = require(script.Parent.AnnounceService)
@@ -542,8 +543,10 @@ local function applyCharacterStats(session: Session)
 	end
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
 	if humanoid then
-		-- Złodziej niosący grzyb idzie wolniej (GardenService.speedFactor)
-		humanoid.WalkSpeed = stat(session, "boots") * GardenService.speedFactor(session.player)
+		-- Złodziej niosący grzyb i gracz ze Znaleziskiem Nocy idą wolniej
+		humanoid.WalkSpeed = stat(session, "boots")
+			* GardenService.speedFactor(session.player)
+			* NightFindService.speedFactor(session.player)
 		-- Zgasła latarnia: gracz stoi w miejscu i czeka na kumpla
 		if session.downedUntil then
 			humanoid.WalkSpeed = 0
@@ -594,6 +597,8 @@ local clearDowned: (Session) -> ()
 
 local function engulf(session: Session, messageKey: string?, guardian: string?)
 	clearDowned(session)
+	-- Znalezisko Nocy przepada (inaczej śmierć byłaby najszybszą drogą do chatki)
+	NightFindService.drop(session.player)
 	-- W Głębokich Komorach: koniec ekspedycji dla gracza (zabezpieczone nagrody zostają)
 	DelveService.onEngulf(session.player)
 	stopChases(session.player)
@@ -689,8 +694,9 @@ local function near(root: BasePart, point: Vector3?): boolean
 end
 
 local function travel(session: Session, character: Model, target: CFrame, message: string)
-	-- Przejście przez portal kończy pościg (strażnicy nie opuszczają swojego świata)
+	-- Przejście przez portal kończy pościg (strażnicy nie opuszczają swojego świata) i Znalezisko Nocy
 	stopChases(session.player)
+	NightFindService.drop(session.player)
 	character:PivotTo(target)
 	session.zone = Economy.zoneIndexAt(target.Position.Z)
 	notify(session, message)
@@ -1507,6 +1513,7 @@ local function onDevAction(player: Player, action: unknown)
 		local character = player.Character
 		if target and character then
 			stopChases(player)
+			NightFindService.drop(player)
 			character:PivotTo(target)
 			session.zone = Economy.zoneIndexAt(target.Position.Z)
 		end
@@ -1595,6 +1602,12 @@ local function onDevAction(player: Player, action: unknown)
 		GardenService.devWeather(player, string.sub(action, 15))
 	elseif action == "gardenWeatherUndo" then
 		GardenService.devWeatherUndo(player)
+	elseif action == "nightFindSpawn" then
+		-- Studio: Znalezisko Nocy kilka kroków przed graczem (bez czekania na noc)
+		NightFindService.devSpawn(player)
+	elseif action == "nightFindReset" then
+		NightFindService.devReset(player)
+		ProgressService.refreshTitle(player)
 	elseif string.match(action, "^coinsSet:%d+$") then
 		-- Studio: przywrócenie salda po testach (devActionAllowed nie wpuszcza tego poza Studio)
 		data.coins = tonumber(string.sub(action, 10)) or data.coins
@@ -1664,6 +1677,7 @@ local function onDevAction(player: Player, action: unknown)
 		local character = player.Character
 		if character then
 			stopChases(player)
+			NightFindService.drop(player)
 			character:PivotTo(target)
 			session.zone = Economy.zoneIndexAt(target.Position.Z)
 		end
@@ -2311,6 +2325,7 @@ function GameService.start(mapInfo: MapBuilder.MapInfo)
 				return
 			end
 			stopChases(player)
+			NightFindService.drop(player)
 			character:PivotTo(target)
 			session.zone = Economy.zoneIndexAt(target.Position.Z)
 			if message then
@@ -2386,6 +2401,39 @@ function GameService.start(mapInfo: MapBuilder.MapInfo)
 				TutorialService.event(session :: any, kind)
 			end
 		end,
+	})
+	NightFindService.start({
+		getData = function(player: Player)
+			local session = sessions[player]
+			return if session then session.data else nil
+		end,
+		notify = function(player: Player, key: string, args: { any }?, nameKey: string?, mutation: MutationInfo?)
+			local session = sessions[player]
+			if session then
+				notify(session, key, args, nameKey, mutation)
+			end
+		end,
+		pushState = function(player: Player)
+			local session = sessions[player]
+			if session then
+				pushState(session)
+			end
+		end,
+		applyStats = function(player: Player)
+			local session = sessions[player]
+			if session then
+				applyCharacterStats(session)
+			end
+		end,
+		event = function(player: Player, kind: string, amount: number?)
+			ProgressService.event(player, kind, amount)
+		end,
+		rootOf = getRoot,
+		busy = function(player: Player): boolean
+			local session = sessions[player]
+			return not session or session.downedUntil ~= nil or GardenService.isCarrying(player)
+		end,
+		spots = map.spots,
 	})
 	TutorialService.start({
 		pushState = function(session: any)

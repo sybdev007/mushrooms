@@ -1010,3 +1010,20 @@ MUT_BLOODY,Bloody,,,Krwawy
 MSG_WEATHER_GROWN,{2} A night over your garden: your {1} got{3}!,,,{2} Noc nad ogródkiem: twój {1} dostał cechę{3}!
 MSG_WEATHER_AWAY,🌙 While you were away the night weather gave new traits to your garden mushrooms: {1},,,🌙 Gdy cię nie było nocna pogoda dała nowe cechy grzybom w ogródku: {1}
 MSG_WEATHER_NONE,No mushroom in your garden can get a weather trait.,,,Żaden grzyb w ogródku nie może dostać cechy od pogody.
+NIGHTFIND_NAME,Night Find,,,Znalezisko Nocy
+NIGHTFIND_ACTION,Pick,,,Zerwij
+NIGHTFIND_HUD,Carry it to the cabin! {1} · {2} m to go,,,Donieś do chatki! {1} · jeszcze {2} m
+MSG_NIGHTFIND_SPAWN,✨ A Night Find has sprouted deep in the forest ({1})! Pick it first and carry it to the cabin,,,✨ W głębi lasu wyrosło Znalezisko Nocy ({1})! Zerwij je pierwszy i donieś do chatki
+MSG_NIGHTFIND_RUN,✨ You have the Night Find! Carry it to the cabin within {1} min - you walk slower and everyone can see you,,,✨ Masz Znalezisko Nocy! Donieś je do chatki w {1} min - idziesz wolniej i wszyscy cię widzą
+MSG_NIGHTFIND_TAKEN,✨ {1} picked the Night Find and is carrying it to the cabin!,,,✨ {1} zerwał Znalezisko Nocy i niesie je do chatki!
+MSG_NIGHTFIND_DELIVERED,✨ {1} carried the Night Find to the cabin!,,,✨ {1} doniósł Znalezisko Nocy do chatki!
+MSG_NIGHTFIND_LOST,{1} lost the Night Find - a new one sprouts next night,,,{1} stracił Znalezisko Nocy - następne wyrośnie kolejnej nocy
+MSG_NIGHTFIND_DONE,✨ Delivered: {1}{4}! +{2} coins · Night Finds: {3},,,✨ Doniesione: {1}{4}! +{2} monet · trofea: {3}
+TITLE_NIGHT_FINDER,Night Finder,,,Znalazca Nocy
+TITLE_NIGHT_FINDER_HOW,Carry {1} Night Find to the cabin,,,Donieś {1} Znalezisko Nocy do chatki
+TITLE_NIGHT_COURIER,Night Courier,,,Nocny Kurier
+TITLE_NIGHT_COURIER_HOW,Carry {1} Night Finds to the cabin,,,Donieś {1} Znaleziska Nocy do chatki
+TITLE_NIGHT_HUNTER,Night Hunter,,,Łowca Nocy
+TITLE_NIGHT_HUNTER_HOW,Carry {1} Night Finds to the cabin,,,Donieś {1} Znalezisk Nocy do chatki
+TITLE_NIGHT_LEGEND,Legend of the Night,,,Legenda Nocy
+TITLE_NIGHT_LEGEND_HOW,Carry {1} Night Finds to the cabin,,,Donieś {1} Znalezisk Nocy do chatki

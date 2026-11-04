@@ -37,13 +37,15 @@ local DisplayMushrooms = {}
 -- Grzyb mieści się na grządce (skrzynia 3,4 studa) i pod tabliczką (4,4 studa nad ziemią)
 DisplayMushrooms.FIT = Vector2.new(3.2, 3.4)
 
-type Kind = { fit: Vector2?, garden: boolean }
+type Kind = { fit: Vector2?, garden: boolean, plain: boolean? } -- plain: bez tabliczki (ma własną)
 local KINDS: { [string]: Kind } = {
 	GardenMushroom = { fit = DisplayMushrooms.FIT, garden = true },
 	-- w kółku co ok. 3,3 studa (Config.Hoard.radius)
 	HoardMushroom = { fit = Vector2.new(3.4, 4.6), garden = false },
 	-- Grzyb upuszczony przez kruka Baby Jagi (RavenService): leży chwilę, właściciel go podnosi
 	RavenDrop = { fit = Vector2.new(3.4, 4.6), garden = false },
+	-- Znalezisko Nocy (NightFindService): większy kosmiczny grzyb w złotym kręgu
+	NightFind = { fit = Vector2.new(4.5, 6), garden = false, plain = true },
 }
 
 local VALUE_COLOR = Color3.fromRGB(255, 226, 140)
@@ -542,7 +544,7 @@ local function attachLabel(marker: Model, kind: Kind, info: MushroomView.Mushroo
 		)
 		return
 	end
-	local label = if kind.garden then gardenLabel(marker, root, info) else hoardLabel(root, info)
+	local label = if kind.plain then nil elseif kind.garden then gardenLabel(marker, root, info) else hoardLabel(root, info)
 	if label then
 		labels[marker] = label
 	end
