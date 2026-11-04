@@ -357,7 +357,7 @@ function Garden.build(parent: Instance, cf: CFrame, width: number, depth: number
 	local flowerLength = YARD - 3
 	for _, side in { -1, 1 } do
 		flowerBed(m, cf * CFrame.new(side * (halfW - 1.3), 0, -halfD + 1.5 + flowerLength / 2) * CFrame.Angles(0, math.rad(90), 0), flowerLength, rng)
-		Props.bush(m, at(side * (halfW - 1.6), halfD - 1.9), rng:NextNumber(0.75, 0.95), rng, 0)
+		Props.bush(m, at(side * (halfW - 2.2), halfD - 1.9), rng:NextNumber(0.75, 0.95), rng, 0)
 	end
 
 	-- Kilka kamieni przed furtką, żeby było widać, którędy wejść
