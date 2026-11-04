@@ -1152,7 +1152,7 @@ do
 		UDim2 = roblox.UDim2,
 		Vector2 = roblox.Vector2,
 		Vector3 = roblox.Vector3,
-		script = { Parent = { ClassColor = ClassColor, Localize = Localize, MushroomView = {}, MutationText = MutationText, UiScale = {} } },
+		script = { Parent = { ClassColor = ClassColor, Localize = Localize, MushroomView = {}, MutationText = MutationText, UiKit = {}, UiScale = {} } },
 		require = req,
 	})
 	local function plain(text: string): string
@@ -1191,11 +1191,11 @@ do
 		local fertilizer = Economy.upgradeStat("fertilizer", 4)
 		local rate = Economy.plantIncome(item, fertilizer)
 		eq(rate, Economy.itemValue(item) * Config.Garden.incomeRate * fertilizer, "stawka ogródka")
-		eq(Display.incomeText(3648), "🪙 +3 648 / min")
-		eq(Display.incomeText(2.5), "🪙 +2.5 / min")
+		eq(Display.incomeText(3648), "+3 648 / min")
+		eq(Display.incomeText(2.5), "+2.5 / min")
 		locale = "pl"
-		eq(Display.incomeText(2.5), "🪙 +2,5 / min", "przecinek po polsku")
-		eq(Display.incomeText(1234567), "🪙 +1 234 567 / min")
+		eq(Display.incomeText(2.5), "+2,5 / min", "przecinek po polsku")
+		eq(Display.incomeText(1234567), "+1 234 567 / min")
 		locale = "en"
 	end)
 end

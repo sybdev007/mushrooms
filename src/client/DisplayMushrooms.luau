@@ -29,6 +29,7 @@ local ClassColor = require(script.Parent.ClassColor)
 local Localize = require(script.Parent.Localize)
 local MushroomView = require(script.Parent.MushroomView)
 local MutationText = require(script.Parent.MutationText)
+local UiKit = require(script.Parent.UiKit)
 local UiScale = require(script.Parent.UiScale)
 
 local DisplayMushrooms = {}
@@ -202,13 +203,14 @@ function DisplayMushrooms.badges(species: string, variant: string?): string
 	return table.concat(parts, DOT)
 end
 
--- Dochód na minutę: „+3 648 / min”, poniżej 10 z jednym miejscem po przecinku („+2,5 / min”)
+-- Dochód na minutę: „+3 648 / min”, poniżej 10 z jednym miejscem po przecinku („+2,5 / min”).
+-- Monetę rysuje obok ikona gry (UiKit „coin”): emoji 🪙 Roblox nie wyświetla.
 function DisplayMushrooms.incomeText(rate: number): string
 	local text = if rate < 10 then string.format("%.1f", rate) else formatCoins(rate)
 	if Localize.getLocale() == "pl" then
 		text = text:gsub("%.", ",")
 	end
-	return "🪙 +" .. text .. " / min"
+	return "+" .. text .. " / min"
 end
 
 local function gardenLabel(marker: Model, root: BasePart, info: MushroomView.MushroomInfo): Label
@@ -252,6 +254,8 @@ local function gardenLabel(marker: Model, root: BasePart, info: MushroomView.Mus
 	local name = textLabel(box, UDim2.new(), UDim2.new(), Color3.new(1, 1, 1))
 	name.Name = "Name"
 	ClassColor.paint(name, info.species)
+	local coin = UiKit.icon("coin", box, UDim2.new(), UDim2.new())
+	coin.ZIndex = 1
 	local income = textLabel(box, UDim2.new(), UDim2.new(), INCOME_COLOR)
 	income.Name = "Income"
 	local incomeStroke = income:FindFirstChildOfClass("UIStroke")
@@ -263,9 +267,11 @@ local function gardenLabel(marker: Model, root: BasePart, info: MushroomView.Mus
 	traits.Name = "Traits"
 	local price = textLabel(box, UDim2.new(), UDim2.new(), VALUE_COLOR)
 	price.Name = "Price"
-	-- Jeden wiersz na każdą rzecz: długa nazwa zmniejsza się, zamiast łamać i wychodzić poza kartę
+	-- Wiersze wyrównane do lewej. Uwaga: TextWrapped = false wyłącza w Robloxie TextScaled (napis
+	-- spada do 8 px), więc zostaje zawijanie; przy niskich wierszach długa nazwa i tak się zmniejsza
+	-- w jednej linii zamiast łamać.
 	for _, label in { badges, name, income, traits, price } do
-		label.TextWrapped = false
+		label.TextXAlignment = Enum.TextXAlignment.Left
 	end
 
 	local chip = Instance.new("Frame")
@@ -296,17 +302,22 @@ local function gardenLabel(marker: Model, root: BasePart, info: MushroomView.Mus
 	-- Układa wiersze karty od góry (puste wiersze znikają) i zwraca jej wysokość
 	local function stack(withPrice: boolean, k: number): number
 		local y = PAD * k
-		local function put(label: TextLabel, height: number, show: boolean)
+		local function put(label: TextLabel, height: number, show: boolean, indent: number?)
 			label.Visible = show
 			if show then
-				label.Size = UDim2.new(1, -math.floor(10 * k), 0, math.floor(height * k))
-				label.Position = UDim2.fromOffset(math.floor(5 * k), math.floor(y))
+				local left = math.floor((7 + (indent or 0)) * k)
+				label.Size = UDim2.new(1, -left - math.floor(6 * k), 0, math.floor(height * k))
+				label.Position = UDim2.fromOffset(left, math.floor(y))
 				y += height * k + GAP * k
 			end
 		end
 		put(badges, ROW.badges, badges.Text ~= "")
 		put(name, ROW.name, true)
-		put(income, ROW.income, true)
+		-- Moneta przed dochodem (kwadrat o boku wysokości wiersza, z małym marginesem)
+		local coinSize = math.floor((ROW.income - 4) * k)
+		coin.Size = UDim2.fromOffset(coinSize, coinSize)
+		coin.Position = UDim2.fromOffset(math.floor(6 * k), math.floor(y + 2 * k))
+		put(income, ROW.income, true, ROW.income - 1)
 		put(traits, ROW.traits, traits.Text ~= "")
 		put(price, ROW.price, withPrice)
 		return math.floor(y - GAP * k + PAD * k)
@@ -332,7 +343,7 @@ local function gardenLabel(marker: Model, root: BasePart, info: MushroomView.Mus
 		traits.Text = MutationText.traits(info.tags)
 		local amount = marker:GetAttribute("Value")
 		local rate = marker:GetAttribute("Rate")
-		income.Text = if typeof(rate) == "number" then DisplayMushrooms.incomeText(rate) else "🪙 …"
+		income.Text = if typeof(rate) == "number" then DisplayMushrooms.incomeText(rate) else "…"
 		price.Text = "💰 " .. (if typeof(amount) == "number" then formatCoins(amount) else "…")
 		chipRate.Text = "+" .. (if typeof(rate) == "number" then compact(rate) else "…") .. "/min"
 	end
