@@ -8,8 +8,8 @@
 --                      (updateGardenLabels): z daleka nic, bliżej plakietka z dochodem, a jedna grządka
 --                      naraz (najbliższa albo ta na środku ekranu) ma pełną kartę: nazwa, mutacje w ich
 --                      kolorach i w języku gracza, wartość i dochód (atrybuty Value / Rate od serwera).
---                      Rzadkie grzyby mają gwiazdki przy nazwie (★ epicki, ★★ legendarny, ★★★ mityczny)
---                      i plakietkę w kolorze rzadkości. Nad całym ogródkiem wisi szyld z jego
+--                      Karta ma u góry oznaczenia rzadkości (klasa i wariant), dochód na minutę
+--                      największym napisem i cechy pod spodem. Nad całym ogródkiem wisi szyld z jego
 --                      najrzadszymi grzybami („★★ LEGENDARNY ×4 · TĘCZOWY ×2”), widoczny z drugiej
 --                      strony polany: im rzadsze grzyby, tym z dalszej odległości (gardenBanner).
 --   "HoardMushroom"  — grzyby odebrane przez strażnika (Leszy, Skarbnik, Utopiec) w jego legowisku,
@@ -33,6 +33,7 @@ local ClassColor = require(script.Parent.ClassColor)
 local Localize = require(script.Parent.Localize)
 local MushroomView = require(script.Parent.MushroomView)
 local MutationText = require(script.Parent.MutationText)
+local UiScale = require(script.Parent.UiScale)
 
 local DisplayMushrooms = {}
 
@@ -48,7 +49,6 @@ local KINDS: { [string]: Kind } = {
 	RavenDrop = { fit = Vector2.new(3.4, 4.6), garden = false },
 }
 
-local RATE_COLOR = "#A6F06A"
 local VALUE_COLOR = Color3.fromRGB(255, 226, 140)
 local RATE_TEXT_COLOR = Color3.fromRGB(166, 240, 106)
 
@@ -59,7 +59,7 @@ local CHIP_RANGE = 22 -- dalej nie ma żadnej tabliczki (widać poświatę grzyb
 local AIM_ANGLE = math.rad(6) -- albo grządka na środku ekranu (kamera patrzy prawie prosto na nią)
 local CHIP_SIZE = UDim2.fromOffset(76, 22)
 
-type Mode = "card" | "chip" | "hidden"
+type Mode = "detail" | "card" | "chip" | "hidden" -- detail = karta z ceną (po wycelowaniu)
 
 type Label = {
 	gui: BillboardGui,
@@ -186,20 +186,7 @@ local function rarityTier(info: MushroomView.MushroomInfo): number
 	return math.max(byVariant, byClass)
 end
 
--- Kolor rzadkości (ramka plakietki): tęcza i kosmos wygrywają z klasą, potem epicki i wyżej, potem złoto
-local function rarityAccent(info: MushroomView.MushroomInfo): Color3
-	local variantColor = if Economy.variantRank(info.variant) >= 3 then MutationText.variantColor(info.variant) else nil
-	if variantColor then
-		return variantColor
-	end
-	if classRank(info.species) >= 3 then
-		local class = Economy.speciesClass(info.species)
-		return Color3.fromRGB(class.color[1], class.color[2], class.color[3])
-	end
-	return MutationText.variantColor(info.variant) or Color3.new(1, 1, 1)
-end
-
--- Gwiazdki przed nazwą według klasy (3 epicki, 4 legendarny, 5 mityczny / sekretny)
+-- Gwiazdki przy klasie na szyldzie (3 epicki, 4 legendarny, 5 mityczny / sekretny)
 local STARS: { [number]: string } = setmetatable({ [3] = "★ ", [4] = "★★ ", [5] = "★★★ " }, {
 	__index = function()
 		return ""
@@ -338,9 +325,55 @@ local function markBanner(garden: Instance?)
 	task.defer(refreshBanner, garden)
 end
 
--- Tabliczka nad grządką. Pełna karta: nazwa gatunku w kolorze klasy / [mutacje w kolorach] /
--- 💰 wartość  +dochód/min, obwódka w kolorze klasy (klasę mówi kolor nazwy, bez osobnych znaków).
--- Plakietka: kropka w kolorze wariantu (bez wariantu: klasy) i sam dochód.
+-- ===== Tabliczka nad grządką =====
+-- Pełna karta (od góry): oznaczenia rzadkości (klasa od rzadkiej wzwyż i wariant, osobno, np.
+-- „★★ LEGENDARNY · 🌈 TĘCZOWY”) / nazwa gatunku w kolorze klasy / największy wiersz: dochód tego
+-- okazu na minutę (atrybut Rate od serwera: Economy.plantIncome z nawozem, czyli dokładnie to, co
+-- wpada do skrzyni) / mniejsze cechy rozdzielone kropką / cena sprzedaży tylko po wycelowaniu
+-- (tryb "detail"). Ciemne, prawie nieprzezroczyste tło trzyma kontrast na jasnej poświacie grzybów.
+-- Plakietka (dalej): kropka w kolorze wariantu (bez wariantu: klasy) i sam dochód.
+-- Klasy pospolita i niepospolita nie mają oznaczenia (mówi o nich kolor nazwy).
+
+local CARD_BG = Color3.fromRGB(14, 10, 20)
+local CARD_WIDTH = 158
+local INCOME_COLOR = Color3.fromRGB(176, 255, 112)
+local DOT = '<font color="#AAA0BE"> · </font>'
+-- Wysokości wierszy karty w pikselach (przed skalą małego ekranu)
+local ROW = { badges = 15, name = 18, income = 25, traits = 13, price = 15 }
+local PAD, GAP = 5, 1
+-- Gwiazdki przy klasie: epicki ★, legendarny ★★, mityczny i sekretny ★★★ (rzadki bez gwiazdek)
+local CLASS_STARS: { [string]: string } = { epic = "★ ", legendary = "★★ ", mythic = "★★★ ", secret = "★★★ " }
+local CLASS_BADGE: { [string]: boolean } = { rare = true, epic = true, legendary = true, mythic = true, secret = true }
+
+-- Karta na telefonie mniejsza (jak reszta interfejsu), ale nie poniżej czytelnego minimum
+local function cardScale(): number
+	return math.clamp(UiScale.get(), 0.8, 1)
+end
+
+-- Oznaczenia rzadkości okazu: klasa gatunku (od rzadkiej) i wariant, "" gdy brak obu
+function DisplayMushrooms.badges(species: string, variant: string?): string
+	local parts = {}
+	local class = Economy.speciesClass(species)
+	if CLASS_BADGE[class.id] then
+		local text = (CLASS_STARS[class.id] or "") .. MutationText.upper(Localize.t(class.key))
+		table.insert(parts, ClassColor.rich(species, text))
+	end
+	local variantBadge = MutationText.variantBadge(variant)
+	if variantBadge ~= "" then
+		table.insert(parts, variantBadge)
+	end
+	return table.concat(parts, DOT)
+end
+
+-- Dochód na minutę: „+3 648 / min”, poniżej 10 z jednym miejscem po przecinku („+2,5 / min”)
+function DisplayMushrooms.incomeText(rate: number): string
+	local text = if rate < 10 then string.format("%.1f", rate) else formatCoins(rate)
+	if Localize.getLocale() == "pl" then
+		text = text:gsub("%.", ",")
+	end
+	return "🪙 +" .. text .. " / min"
+end
+
 local function gardenLabel(marker: Model, root: BasePart, info: MushroomView.MushroomInfo): Label
 	local gui = Instance.new("BillboardGui")
 	gui.Name = "GardenSlotTag"
@@ -353,45 +386,69 @@ local function gardenLabel(marker: Model, root: BasePart, info: MushroomView.Mus
 	gui.Size = CHIP_SIZE
 	gui.Enabled = false -- poziom ustawia updateGardenLabels
 	local classColor = ClassColor.of(info.species)
+	local variantDef = Economy.getVariant(info.variant)
+	-- Ramka karty: kolor wariantu (od złota), inaczej klasy
+	local accent = if variantDef and variantDef.rank >= 2
+		then Color3.fromRGB(variantDef.color[1], variantDef.color[2], variantDef.color[3])
+		else classColor
+	if variantDef and variantDef.id == "rainbow" then
+		accent = Color3.fromRGB(255, 150, 225)
+	end
 
 	local box = Instance.new("Frame")
+	box.Name = "Card"
 	box.Size = UDim2.fromScale(1, 1)
-	box.BackgroundColor3 = Color3.fromRGB(40, 28, 20)
-	box.BackgroundTransparency = 0.25
+	box.BackgroundColor3 = CARD_BG
+	box.BackgroundTransparency = 0.06
 	box.Visible = false
 	box.Parent = gui
 	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 8)
+	corner.CornerRadius = UDim.new(0, 9)
 	corner.Parent = box
 	local border = Instance.new("UIStroke")
-	border.Thickness = 1.5
-	border.Color = classColor
+	border.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	border.Thickness = 2
+	border.Color = accent
 	border.Parent = box
-	local name = textLabel(box, UDim2.new(1, -8, 0, 17), UDim2.fromOffset(4, 3), Color3.new(1, 1, 1))
+	local badges = textLabel(box, UDim2.new(), UDim2.new(), Color3.new(1, 1, 1))
+	badges.Name = "Badges"
+	local name = textLabel(box, UDim2.new(), UDim2.new(), Color3.new(1, 1, 1))
+	name.Name = "Name"
 	ClassColor.paint(name, info.species)
-	local mutations = textLabel(box, UDim2.new(1, -8, 0, 15), UDim2.fromOffset(4, 21), Color3.new(1, 1, 1))
-	local value = textLabel(box, UDim2.new(1, -8, 0, 16), UDim2.fromOffset(4, 21), VALUE_COLOR)
+	local income = textLabel(box, UDim2.new(), UDim2.new(), INCOME_COLOR)
+	income.Name = "Income"
+	local incomeStroke = income:FindFirstChildOfClass("UIStroke")
+	if incomeStroke then
+		incomeStroke.Thickness = 2.5
+		incomeStroke.Color = Color3.fromRGB(10, 24, 6)
+	end
+	local traits = textLabel(box, UDim2.new(), UDim2.new(), Color3.new(1, 1, 1))
+	traits.Name = "Traits"
+	local price = textLabel(box, UDim2.new(), UDim2.new(), VALUE_COLOR)
+	price.Name = "Price"
+	-- Jeden wiersz na każdą rzecz: długa nazwa zmniejsza się, zamiast łamać i wychodzić poza kartę
+	for _, label in { badges, name, income, traits, price } do
+		label.TextWrapped = false
+	end
 
 	local chip = Instance.new("Frame")
 	chip.Size = UDim2.fromScale(1, 1)
-	chip.BackgroundColor3 = Color3.fromRGB(40, 28, 20)
-	chip.BackgroundTransparency = 0.25
+	chip.BackgroundColor3 = CARD_BG
+	chip.BackgroundTransparency = 0.12
 	chip.Visible = false
 	chip.Parent = gui
 	local chipCorner = Instance.new("UICorner")
 	chipCorner.CornerRadius = UDim.new(0, 7)
 	chipCorner.Parent = chip
 	local chipBorder = Instance.new("UIStroke")
-	-- Rzadki grzyb (złoty i wyżej, epicki i wyżej): grubsza ramka w kolorze rzadkości
-	local rare = rarityTier(info) > 0
-	chipBorder.Thickness = if rare then 2.5 else 1.5
-	chipBorder.Color = if rare then rarityAccent(info) else classColor
+	chipBorder.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	chipBorder.Thickness = 1.5
+	chipBorder.Color = accent
 	chipBorder.Parent = chip
-	local variant = Economy.getVariant(info.variant)
 	local dot = Instance.new("Frame")
 	dot.Size = UDim2.fromOffset(9, 9)
 	dot.Position = UDim2.new(0, 7, 0.5, -4)
-	dot.BackgroundColor3 = if variant then Color3.fromRGB(variant.color[1], variant.color[2], variant.color[3]) else classColor
+	dot.BackgroundColor3 = if variantDef then Color3.fromRGB(variantDef.color[1], variantDef.color[2], variantDef.color[3]) else classColor
 	dot.BorderSizePixel = 0
 	dot.Parent = chip
 	local dotCorner = Instance.new("UICorner")
@@ -399,14 +456,33 @@ local function gardenLabel(marker: Model, root: BasePart, info: MushroomView.Mus
 	dotCorner.Parent = dot
 	local chipRate = textLabel(chip, UDim2.new(1, -24, 1, -6), UDim2.fromOffset(20, 3), RATE_TEXT_COLOR)
 
-	local hasMutations = false
+	-- Układa wiersze karty od góry (puste wiersze znikają) i zwraca jej wysokość
+	local function stack(withPrice: boolean, k: number): number
+		local y = PAD * k
+		local function put(label: TextLabel, height: number, show: boolean)
+			label.Visible = show
+			if show then
+				label.Size = UDim2.new(1, -math.floor(10 * k), 0, math.floor(height * k))
+				label.Position = UDim2.fromOffset(math.floor(5 * k), math.floor(y))
+				y += height * k + GAP * k
+			end
+		end
+		put(badges, ROW.badges, badges.Text ~= "")
+		put(name, ROW.name, true)
+		put(income, ROW.income, true)
+		put(traits, ROW.traits, traits.Text ~= "")
+		put(price, ROW.price, withPrice)
+		return math.floor(y - GAP * k + PAD * k)
+	end
+
 	local function layout(mode: Mode)
 		gui.Enabled = mode ~= "hidden"
-		box.Visible = mode == "card"
+		local card = mode == "card" or mode == "detail"
+		box.Visible = card
 		chip.Visible = mode == "chip"
-		if mode == "card" then
-			-- Z mutacjami karta jest wyższa (nazwa, mutacje w kolorach, wartość z dochodem)
-			gui.Size = if hasMutations then UDim2.fromOffset(136, 58) else UDim2.fromOffset(136, 42)
+		if card then
+			local k = cardScale()
+			gui.Size = UDim2.fromOffset(math.floor(CARD_WIDTH * k), stack(mode == "detail", k))
 		elseif mode == "chip" then
 			gui.Size = CHIP_SIZE
 		end
@@ -414,28 +490,21 @@ local function gardenLabel(marker: Model, root: BasePart, info: MushroomView.Mus
 
 	local function refresh()
 		local species = Economy.getSpecies(info.species)
-		name.Text = STARS[classRank(info.species)] .. (if species then Localize.t(species.key) else "?")
-		local text = MutationText.rich(info.variant, info.tags)
-		hasMutations = text ~= ""
-		mutations.Text = text
-		mutations.Visible = hasMutations
-		value.Position = UDim2.fromOffset(4, if hasMutations then 38 else 21)
+		badges.Text = DisplayMushrooms.badges(info.species, info.variant)
+		name.Text = if species then Localize.t(species.key) else "?"
+		traits.Text = MutationText.traits(info.tags)
 		local amount = marker:GetAttribute("Value")
 		local rate = marker:GetAttribute("Rate")
-		value.Text = string.format(
-			'💰 %s  <font color="%s">+%s/min</font>',
-			if typeof(amount) == "number" then formatCoins(amount) else "…",
-			RATE_COLOR,
-			if typeof(rate) == "number" then formatRate(rate) else "…"
-		)
+		income.Text = if typeof(rate) == "number" then DisplayMushrooms.incomeText(rate) else "🪙 …"
+		price.Text = "💰 " .. (if typeof(amount) == "number" then formatCoins(amount) else "…")
 		chipRate.Text = "+" .. (if typeof(rate) == "number" then compact(rate) else "…") .. "/min"
 	end
 
 	local mode: Mode = "hidden"
 	local entry: Label = {
 		gui = gui,
-		mutations = mutations,
-		value = value,
+		mutations = traits,
+		value = income,
 		info = info,
 		refresh = function()
 			refresh()
@@ -462,8 +531,9 @@ local function gardenLabel(marker: Model, root: BasePart, info: MushroomView.Mus
 	return entry
 end
 
--- Poziomy tabliczek grządek: jedna pełna karta (najbliższa grządka w CARD_RANGE, a bez takiej ta, na
--- którą patrzy kamera), plakietki do CHIP_RANGE, dalej nic
+-- Poziomy tabliczek grządek: jedna pełna karta naraz. Grządka, w którą celuje kamera, ma kartę z ceną
+-- sprzedaży ("detail"); bez celowania pełną kartę (bez ceny) ma tylko najbliższa grządka w CARD_RANGE.
+-- Reszta do CHIP_RANGE ma plakietki z dochodem, dalej nic.
 local function updateGardenLabels()
 	local camera = Workspace.CurrentCamera
 	local character = Players.LocalPlayer.Character
@@ -494,12 +564,16 @@ local function updateGardenLabels()
 			end
 		end
 	end
-	local focus = nearest or aimed
 	for _, entry in labels do
 		local setMode = entry.setMode
 		local distance = entry.distance
 		if setMode and distance then
-			setMode(if entry == focus then "card" elseif distance <= CHIP_RANGE then "chip" else "hidden")
+			local mode: Mode = if entry == aimed
+				then "detail"
+				elseif entry == nearest and aimed == nil then "card"
+				elseif distance <= CHIP_RANGE then "chip"
+				else "hidden"
+			setMode(mode)
 		end
 	end
 end

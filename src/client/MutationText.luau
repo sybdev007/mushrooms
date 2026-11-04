@@ -99,6 +99,27 @@ function MutationText.variantColor(variant: string?): Color3?
 	return rgb(def.color)
 end
 
+-- Oznaczenie wariantu z ikoną z Config („🌈 TĘCZOWY”); "" bez wariantu
+function MutationText.variantBadge(variant: string?): string
+	local def = Economy.getVariant(variant)
+	if not def then
+		return ""
+	end
+	return def.icon .. " " .. MutationText.variantTitle(variant)
+end
+
+-- Same cechy (bez wariantu), każda w swoim kolorze, rozdzielone kropką („Otchłanny · Zaklęty”)
+function MutationText.traits(tags: { string }?): string
+	local parts = {}
+	for _, id in (tags or {}) :: { string } do
+		local tag = Economy.getTag(id)
+		if tag then
+			table.insert(parts, colored(Localize.t(tag.key), rgb(tag.color)))
+		end
+	end
+	return table.concat(parts, colored(" · ", Color3.fromRGB(170, 160, 190)))
+end
+
 -- Napis nad grzybem (BillboardGui z jednym TextLabel z RichText i obwódką), bez rodzica
 function MutationText.billboard(name: string, size: UDim2, maxDistance: number): (BillboardGui, TextLabel)
 	local gui = Instance.new("BillboardGui")

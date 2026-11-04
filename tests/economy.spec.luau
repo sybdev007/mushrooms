@@ -1176,6 +1176,104 @@ test("rzadkie w ogródku: szyld ma z czego się liczyć", function()
 	eq(MutationText.upper("źdźbło ąćęńóśż"), "ŹDŹBŁO ĄĆĘŃÓŚŻ")
 end)
 
+print("Tabliczki grządek (DisplayMushrooms)")
+do
+	-- Tłumaczenia z CSV i przełącznik języka, jak w grze (Localize)
+	local strings: { [string]: { en: string, pl: string } } = {}
+	for line in string.gmatch(fs.readFile("src/localization/GameStrings.csv"), "[^\n]+") do
+		local cols = string.split(line, ",")
+		if #cols == 5 then
+			strings[cols[1]] = { en = cols[2], pl = cols[5] }
+		end
+	end
+	local locale = "en"
+	local Localize = {
+		t = function(key: string): string
+			local entry = strings[key]
+			return if entry then entry[locale] else key
+		end,
+		getLocale = function(): string
+			return locale
+		end,
+	}
+	local function req(module)
+		return module
+	end
+	local MutationText = loadModule("src/client/MutationText.luau", {
+		game = { GetService = function() return { Shared = { Economy = Economy } } end },
+		Color3 = roblox.Color3,
+		script = { Parent = { Localize = Localize } },
+		require = req,
+	})
+	local ClassColor = {
+		of = function(id: string)
+			local c = Economy.speciesClass(id).color
+			return roblox.Color3.fromRGB(c[1], c[2], c[3])
+		end,
+		rich = function(_id: string, text: string): string
+			return "<c>" .. text .. "</c>"
+		end,
+	}
+	local services = {
+		Players = { LocalPlayer = { WaitForChild = function() return {} end } },
+		ReplicatedStorage = { Shared = { Economy = Economy } },
+		CollectionService = {},
+		Workspace = {},
+	}
+	local Display = loadModule("src/client/DisplayMushrooms.luau", {
+		game = { GetService = function(_, name) return services[name] end },
+		Color3 = roblox.Color3,
+		UDim2 = roblox.UDim2,
+		Vector2 = roblox.Vector2,
+		Vector3 = roblox.Vector3,
+		script = { Parent = { ClassColor = ClassColor, Localize = Localize, MushroomView = {}, MutationText = MutationText, UiScale = {} } },
+		require = req,
+	})
+	local function plain(text: string): string
+		return (string.gsub(text, "<[^>]+>", ""))
+	end
+
+	test("tabliczka: okaz bez wariantu (klasa tylko od rzadkiej)", function()
+		eq(Display.badges("honey", nil), "", "pospolity bez oznaczeń")
+		eq(Display.badges("porcini", nil), "", "niepospolity bez oznaczeń")
+		local epic
+		for _, species in Config.Species do
+			if Economy.speciesClass(species.id).id == "epic" then
+				epic = species.id
+				break
+			end
+		end
+		eq(plain(Display.badges(epic, nil)), "★ EPIC")
+		eq(MutationText.traits(nil), "", "bez cech")
+	end)
+
+	test("tabliczka: tęczowy okaz z kilkoma cechami", function()
+		eq(Economy.speciesClass("obsidian").id, "uncommon")
+		eq(plain(Display.badges("obsidian", "rainbow")), "🌈 RAINBOW", "sam wariant, jak na przykładzie")
+		eq(plain(MutationText.traits({ "abyssal", "hexed" })), "Abyssal · Hexed")
+		locale = "pl"
+		eq(plain(Display.badges("obsidian", "rainbow")), "🌈 TĘCZA", "polskie wielkie litery")
+		eq(plain(MutationText.traits({ "abyssal", "hexed" })), "Żar Otchłani · Zaklęty")
+		locale = "en"
+	end)
+
+	test("tabliczka: legendarny z wariantem i dochód z premiami", function()
+		eq(plain(Display.badges("jaga_toadstool", "gold")), "★★ LEGENDARY · ⭐ GOLD")
+		eq(plain(Display.badges("fern_flower", nil)), "★★★ MYTHIC", "mityczny z kuźni")
+		-- Dochód na tabliczce to atrybut Rate od serwera: Economy.plantIncome z nawozem (bez zmian)
+		local item = { s = "obsidian", v = "rainbow", x = { "abyssal", "hexed" } }
+		local fertilizer = Economy.upgradeStat("fertilizer", 4)
+		local rate = Economy.plantIncome(item, fertilizer)
+		eq(rate, Economy.itemValue(item) * Config.Garden.incomeRate * fertilizer, "stawka ogródka")
+		eq(Display.incomeText(3648), "🪙 +3 648 / min")
+		eq(Display.incomeText(2.5), "🪙 +2.5 / min")
+		locale = "pl"
+		eq(Display.incomeText(2.5), "🪙 +2,5 / min", "przecinek po polsku")
+		eq(Display.incomeText(1234567), "🪙 +1 234 567 / min")
+		locale = "en"
+	end)
+end
+
 print("Tłumaczenia")
 local csvKeys: { [string]: boolean } = {}
 do
