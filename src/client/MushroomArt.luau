@@ -45,6 +45,10 @@ local SPECIES_SHAPE: { [string]: string } = {
 	lantern_shroom = "bell", wisp_cap = "bell", false_wisp = "bell", will_o_wisp = "bell",
 	pearl = "puffball", bog_pearl = "puffball", skarbnik_truffle = "puffball",
 	leszy_crown = "crown",
+	-- Łysa Góra: na razie najbliższe obrazki z arkusza (własne kształty są w 3D, MushroomView)
+	witch_hat = "bell", moon_hat = "bell", devil_morel = "bell", hex_cluster = "cluster",
+	raven_bracket = "oyster", sabbath_puffball = "puffball", earthstar = "puffball", night_eye = "puffball",
+	devil_fingers = "crown", jaga_toadstool = "amanita",
 }
 
 local RAINBOW = ColorSequence.new({
@@ -61,7 +65,18 @@ local TAG_PARTICLES: { [string]: { Color3 } } = {
 	crystal = { Color3.fromRGB(120, 200, 255), Color3.fromRGB(230, 245, 255) },
 	abyssal = { Color3.fromRGB(255, 90, 40), Color3.fromRGB(255, 190, 60) },
 	mossy = { Color3.fromRGB(110, 190, 72), Color3.fromRGB(180, 230, 120) },
+	cursed = { Color3.fromRGB(150, 80, 220), Color3.fromRGB(90, 40, 140) },
+	hexed = { Color3.fromRGB(120, 240, 90), Color3.fromRGB(200, 255, 150) },
+	moonlit = { Color3.fromRGB(200, 215, 255), Color3.fromRGB(255, 255, 255) },
 }
+
+-- Kosmiczny: granatowy kapelusz z przesuwającą się fioletową poświatą
+local COSMIC = ColorSequence.new({
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(40, 30, 120)),
+	ColorSequenceKeypoint.new(0.35, Color3.fromRGB(120, 80, 220)),
+	ColorSequenceKeypoint.new(0.6, Color3.fromRGB(60, 110, 230)),
+	ColorSequenceKeypoint.new(1, Color3.fromRGB(40, 30, 120)),
+})
 
 type SheetDef = { sheet: string, cell: number, columns: number }
 
@@ -115,6 +130,7 @@ export type Fx = {
 	bob: boolean,
 	rays: Color3?,
 	rainbow: boolean,
+	cosmic: boolean,
 	ring: boolean,
 	particles: { Color3 }?,
 	twinkle: Color3?,
@@ -124,7 +140,7 @@ export type Fx = {
 local CLASS_RANK: { [string]: number } = { common = 0, uncommon = 1, rare = 2, epic = 3, legendary = 4 }
 
 function MushroomArt.effects(item: Item): Fx
-	local fx: Fx = { pulse = false, bob = false, rainbow = false, ring = false }
+	local fx: Fx = { pulse = false, bob = false, rainbow = false, cosmic = false, ring = false }
 	local class = Economy.speciesClass(item.s)
 	local rank = CLASS_RANK[class.id] or 0
 	local classColor = rgb(class.color)
@@ -163,13 +179,21 @@ function MushroomArt.effects(item: Item): Fx
 		fx.bob = true
 		fx.particles = { Color3.fromRGB(255, 80, 80), Color3.fromRGB(255, 210, 60), Color3.fromRGB(110, 255, 110), Color3.fromRGB(80, 210, 255), Color3.fromRGB(190, 110, 255) }
 		fx.twinkle = Color3.new(1, 1, 1)
+	elseif variant == "cosmic" then
+		fx.cosmic = true
+		fx.rays = Color3.fromRGB(180, 150, 255)
+		fx.glow = Color3.fromRGB(130, 100, 255)
+		fx.pulse = true
+		fx.bob = true
+		fx.particles = { Color3.fromRGB(120, 80, 255), Color3.fromRGB(80, 140, 255), Color3.fromRGB(255, 120, 220), Color3.fromRGB(240, 240, 255) }
+		fx.twinkle = Color3.new(1, 1, 1)
 	end
 	for _, tag in item.x or {} do
 		local colors = TAG_PARTICLES[tag]
 		if colors and not fx.particles then
 			fx.particles = colors
 		end
-		if tag == "glowing" then
+		if tag == "glowing" or tag == "hexed" or tag == "moonlit" then
 			fx.glow = fx.glow or colors[1]
 			fx.pulse = true
 		end
@@ -363,10 +387,10 @@ function MushroomArt.build(parent: GuiObject, item: Item, options: Options?): Fr
 	local cap = image(sprite, "Cap", SHAPE_INDEX[shape], UDim2.fromScale(1, 1), true)
 	cap.ImageColor3 = capColor(item)
 	cap.ZIndex = root.ZIndex + 2
-	if fx.rainbow then
+	if fx.rainbow or fx.cosmic then
 		cap.ImageColor3 = Color3.new(1, 1, 1)
 		local g = Instance.new("UIGradient")
-		g.Color = RAINBOW
+		g.Color = if fx.cosmic then COSMIC else RAINBOW
 		g.Parent = cap
 		handle.capGradient = g
 	end
@@ -381,7 +405,7 @@ function MushroomArt.build(parent: GuiObject, item: Item, options: Options?): Fr
 		handle.strokeGradient = g
 	end
 
-	if fx.glow or fx.rays or fx.ring or fx.bob or fx.particles or fx.twinkle or fx.rainbow then
+	if fx.glow or fx.rays or fx.ring or fx.bob or fx.particles or fx.twinkle or fx.rainbow or fx.cosmic then
 		handles[handle] = true
 		if not loop then
 			loop = RunService.RenderStepped:Connect(step)

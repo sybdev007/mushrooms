@@ -14,7 +14,7 @@ local Sounds = require(ReplicatedStorage.Shared.Sounds)
 
 local Effects = {}
 
-local PARTICLES_BY_RANK = { 20, 32, 60 } -- iskry przy zbieraniu: Srebro, Złoto, Tęcza
+local PARTICLES_BY_RANK = { 20, 32, 60, 80 } -- iskry przy zbieraniu: Srebro, Złoto, Tęcza, Kosmiczny
 
 local SPARKLE = "rbxasset://textures/particles/sparkles_main.dds"
 local SMOKE = "rbxasset://textures/particles/smoke_main.dds"
@@ -300,7 +300,9 @@ function Effects.collect(position: Vector3, color: Color3, value: number, rank: 
 	local top = position + Vector3.new(0, 1.5, 0)
 	local particles = if rank > 0 then PARTICLES_BY_RANK[rank] or 14 else 14
 	burst(top, color, particles, 8 + rank * 2)
-	local textColor = if rank >= 3
+	local textColor = if rank >= 4
+		then Color3.fromRGB(170, 150, 255)
+		elseif rank >= 3
 		then Color3.fromRGB(255, 150, 230)
 		elseif rank == 2 then Color3.fromRGB(255, 214, 70)
 		elseif rank == 1 then Color3.fromRGB(220, 232, 250)
@@ -312,6 +314,9 @@ function Effects.collect(position: Vector3, color: Color3, value: number, rank: 
 	end
 	if rank >= 3 then
 		task.delay(0.15, Effects.play, "upgrade", 1.9, 0.8)
+	end
+	if rank >= 4 then
+		task.delay(0.3, Effects.play, "upgrade", 2.3, 0.7)
 	end
 end
 

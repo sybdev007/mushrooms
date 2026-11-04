@@ -137,6 +137,8 @@ do
 				r.dot.BackgroundColor3 = Color3.new(1, 1, 1)
 				UiFx.rainbow(r.name, 0.3)
 				UiFx.rainbow(r.dot, 0.3)
+			elseif def.id == "cosmic" then
+				UiFx.textGradient(r.name, Color3.fromRGB(190, 170, 255), Color3.fromRGB(90, 140, 255))
 			elseif def.id == "gold" then
 				UiFx.textGradient(r.name, Color3.fromRGB(255, 248, 200), Color3.fromRGB(255, 180, 30))
 			else

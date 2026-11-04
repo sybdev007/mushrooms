@@ -36,13 +36,25 @@ local function rgb(c: { number }): Color3
 	return Color3.fromRGB(c[1], c[2], c[3])
 end
 
+-- Kosmiczny: litery na zmianę w fiolecie, błękicie i różu
+local COSMIC = { Color3.fromRGB(150, 120, 255), Color3.fromRGB(110, 170, 255), Color3.fromRGB(220, 160, 255) }
+local function cosmic(text: string): string
+	local out = {}
+	local i = 0
+	for _, code in utf8.codes(text) do
+		i += 1
+		table.insert(out, colored(utf8.char(code), COSMIC[(i - 1) % #COSMIC + 1]))
+	end
+	return table.concat(out)
+end
+
 -- "" gdy grzyb nie ma mutacji
 function MutationText.rich(variant: string?, tags: { string }?): string
 	local parts = {}
 	local def = Economy.getVariant(variant)
 	if def then
 		local name = Localize.t(def.key)
-		table.insert(parts, if def.id == "rainbow" then rainbow(name) else colored(name, rgb(def.color)))
+		table.insert(parts, if def.id == "rainbow" then rainbow(name) elseif def.id == "cosmic" then cosmic(name) else colored(name, rgb(def.color)))
 	end
 	for _, id in (tags or {}) :: { string } do
 		local tag = Economy.getTag(id)
