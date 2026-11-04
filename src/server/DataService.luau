@@ -95,12 +95,6 @@ local DataService = {}
 
 local ProfileStore = require(script.Parent:WaitForChild("Packages"):WaitForChild("ProfileStore")) :: any
 local profileStore = ProfileStore.New(PROFILE_STORE_NAME, {})
--- Błędy DataStore (np. „Access forbidden” przy awarii Robloxa) widać w konsoli serwera (F9 → Server)
-if ProfileStore.OnError then -- (testowa podróbka ProfileStore go nie ma)
-	ProfileStore.OnError:Connect(function(message: string, storeName: string, profileKey: string)
-		warn(string.format("[DataService] DataStore %s/%s: %s", tostring(storeName), tostring(profileKey), tostring(message)))
-	end)
-end
 local profiles: { [Player]: any } = {}
 -- Ostatni potwierdzony zapis profilu (ProfileStore.LastSavedData) i kto chce o nim wiedzieć.
 -- Ranking cukierków publikuje tylko to, co już na pewno leży w profilu (awaria nie zostawi w rankingu
