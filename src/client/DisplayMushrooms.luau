@@ -59,11 +59,18 @@ local CARD_RANGE = 7 -- najbliższa grządka w tym promieniu ma pełną kartę
 local CHIP_RANGE = 22 -- dalej nie ma żadnej tabliczki (widać poświatę grzyba)
 local AIM_ANGLE = math.rad(6) -- albo grządka na środku ekranu (kamera patrzy prawie prosto na nią)
 local CHIP_SIZE = UDim2.fromOffset(76, 22)
+local CHIP_LIFT = 4.4 -- plakietka z dochodem: tyle studs nad grządką (środek)
+-- Pełna karta wisi wyżej: dolna krawędź tyle studs nad grządką. Niżej (4,4) zasłaniała grzyb na
+-- grządce za nią (pomiar w Studiu z domyślnej kamery: 40–70% grzyba sąsiada, na telefonie do 90%);
+-- przy 7 studs grzyby sąsiadów są odsłonięte, a kartę z grzybem łączy „ogonek” pod spodem.
+local CARD_LIFT = 7
+local TAIL = 8 -- wysokość ogonka pod kartą (px)
 
 type Mode = "detail" | "card" | "chip" | "hidden" -- detail = karta z ceną (po wycelowaniu)
 
 type Label = {
 	gui: BillboardGui,
+	mode: Mode?, -- obecny poziom tabliczki grządki
 	mutations: TextLabel,
 	value: TextLabel?,
 	info: MushroomView.MushroomInfo,
@@ -412,6 +419,23 @@ local function gardenLabel(marker: Model, root: BasePart, info: MushroomView.Mus
 	border.Thickness = 2
 	border.Color = accent
 	border.Parent = box
+	box.ZIndex = 2
+	-- Ogonek pod kartą (romb wystający spod dolnej krawędzi) wskazuje grzyb pod spodem
+	local tail = Instance.new("Frame")
+	tail.Name = "Tail"
+	tail.AnchorPoint = Vector2.new(0.5, 0.5)
+	tail.Rotation = 45
+	tail.BackgroundColor3 = CARD_BG
+	tail.BackgroundTransparency = 0.06
+	tail.BorderSizePixel = 0
+	tail.Visible = false
+	tail.ZIndex = 1
+	tail.Parent = gui
+	local tailStroke = Instance.new("UIStroke")
+	tailStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	tailStroke.Thickness = 2
+	tailStroke.Color = accent
+	tailStroke.Parent = tail
 	local badges = textLabel(box, UDim2.new(), UDim2.new(), Color3.new(1, 1, 1))
 	badges.Name = "Badges"
 	local name = textLabel(box, UDim2.new(), UDim2.new(), Color3.new(1, 1, 1))
@@ -490,12 +514,21 @@ local function gardenLabel(marker: Model, root: BasePart, info: MushroomView.Mus
 		gui.Enabled = mode ~= "hidden"
 		local card = mode == "card" or mode == "detail"
 		box.Visible = card
+		tail.Visible = card
 		chip.Visible = mode == "chip"
 		if card then
+			-- Karta u góry, pod nią ogonek; wysokość nad grządką ustawia updateGardenLabels (CARD_LIFT)
 			local k = cardScale()
-			gui.Size = UDim2.fromOffset(math.floor(CARD_WIDTH * k), stack(mode == "detail", k))
+			local width = math.floor(CARD_WIDTH * k)
+			local height = stack(mode == "detail", k)
+			local tailSize = math.floor(TAIL * 1.4 * k)
+			gui.Size = UDim2.fromOffset(width, height + math.floor(TAIL * k))
+			box.Size = UDim2.fromOffset(width, height)
+			tail.Size = UDim2.fromOffset(tailSize, tailSize)
+			tail.Position = UDim2.fromOffset(math.floor(width / 2), height)
 		elseif mode == "chip" then
 			gui.Size = CHIP_SIZE
+			gui.StudsOffset = Vector3.new(0, CHIP_LIFT, 0)
 		end
 	end
 
@@ -512,8 +545,10 @@ local function gardenLabel(marker: Model, root: BasePart, info: MushroomView.Mus
 	end
 
 	local mode: Mode = "hidden"
-	local entry: Label = {
+	local entry: Label
+	entry = {
 		gui = gui,
+		mode = mode,
 		mutations = traits,
 		value = income,
 		info = info,
@@ -525,6 +560,7 @@ local function gardenLabel(marker: Model, root: BasePart, info: MushroomView.Mus
 		setMode = function(next: Mode)
 			if next ~= mode then
 				mode = next
+				entry.mode = next
 				layout(mode)
 			end
 		end,
@@ -575,15 +611,41 @@ local function updateGardenLabels()
 			end
 		end
 	end
+	-- Najpierw karta (jej rozmiar zależy od wierszy), potem plakietki innych grządek
+	local focus = aimed or nearest
+	local cardRect: Rect? = nil
+	if focus and focus.setMode and focus.root then
+		focus.setMode(if focus == aimed then "detail" else "card")
+		if camera then
+			-- Dolna krawędź karty CARD_LIFT studs nad grządką: środek wyżej o pół wysokości karty,
+			-- przeliczonej z pikseli na studs w tej odległości od kamery
+			local anchor = focus.root.Position + Vector3.new(0, CARD_LIFT, 0)
+			local size = focus.gui.Size
+			local depth = math.max((anchor - eye).Magnitude, 1)
+			local pixelsPerStud = camera.ViewportSize.Y / (2 * depth * math.tan(math.rad(camera.FieldOfView) / 2))
+			focus.gui.StudsOffset = Vector3.new(0, CARD_LIFT + size.Y.Offset / 2 / pixelsPerStud, 0)
+			local point, visible = camera:WorldToViewportPoint(anchor)
+			if visible then
+				local half = size.X.Offset / 2 + 4
+				cardRect = Rect.new(point.X - half, point.Y - size.Y.Offset - 4, point.X + half, point.Y + 4)
+			end
+		end
+	end
 	for _, entry in labels do
 		local setMode = entry.setMode
 		local distance = entry.distance
-		if setMode and distance then
-			local mode: Mode = if entry == aimed
-				then "detail"
-				elseif entry == nearest and aimed == nil then "card"
-				elseif distance <= CHIP_RANGE then "chip"
-				else "hidden"
+		local root = entry.root
+		if setMode and distance and root and entry ~= focus then
+			local mode: Mode = if distance <= CHIP_RANGE then "chip" else "hidden"
+			-- Plakietka, którą zasłoniłaby karta, chowa się na ten czas (żadna nie leży pod kartą)
+			if mode == "chip" and cardRect and camera then
+				local point = camera:WorldToViewportPoint(root.Position + Vector3.new(0, CHIP_LIFT, 0))
+				local rect = cardRect :: Rect
+				local hw, hh = CHIP_SIZE.X.Offset / 2, CHIP_SIZE.Y.Offset / 2
+				if point.X + hw > rect.Min.X and point.X - hw < rect.Max.X and point.Y + hh > rect.Min.Y and point.Y - hh < rect.Max.Y then
+					mode = "hidden"
+				end
+			end
 			setMode(mode)
 		end
 	end
