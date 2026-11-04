@@ -188,7 +188,31 @@ def forge_collection():
     return img
 
 
+def snowflake(d, x, y, r, color, width):
+    for i in range(6):
+        a = math.radians(i * 60 - 90)
+        ex, ey = x + r * math.cos(a), y + r * math.sin(a)
+        d.line([p(x, y), p(ex, ey)], fill=color, width=width * K)
+        for t, b in ((0.55, 0.32), (0.8, 0.22)):
+            bx, by = x + r * t * math.cos(a), y + r * t * math.sin(a)
+            for side in (-1, 1):
+                ba = a + side * math.radians(40)
+                d.line([p(bx, by), p(bx + r * b * math.cos(ba), by + r * b * math.sin(ba))], fill=color, width=max(2, width - 4) * K)
+    d.ellipse([p(x - width, y - width)[0], p(x - width, y - width)[1], p(x + width, y + width)[0], p(x + width, y + width)[1]], fill=color)
+
+
+def winter2026():
+    img = base((58, 112, 176))
+    outlined(img, lambda d: snowflake(d, 256, 250, 150, (236, 246, 255, 255), 22), 8)
+    d = ImageDraw.Draw(img)
+    snowflake(d, 256, 250, 150, (188, 222, 250, 255), 8)
+    for x, y, r in [(120, 140, 16), (396, 132, 12), (402, 360, 18), (116, 368, 10)]:
+        star(d, x, y, r, (255, 248, 220, 255))
+    return img
+
+
 NEW = {
+    "winter2026": winter2026,
     "mountain": mountain,
     "jaga": jaga,
     "cosmic": cosmic,
