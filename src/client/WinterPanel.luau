@@ -14,6 +14,7 @@ local Config = require(Shared.Config)
 local Winter = require(Shared.Winter)
 local Skins = require(Shared.Skins)
 local Remotes = require(Shared.Remotes)
+local ProgressFeed = require(script.Parent.ProgressFeed)
 local Localize = require(script.Parent.Localize)
 local PanelKit = require(script.Parent.PanelKit)
 local ShopLook = require(script.Parent.ShopLook)
@@ -510,7 +511,7 @@ Workspace:GetAttributeChangedSignal("AdventDay"):Connect(function()
 	end
 end)
 
-Remotes.get("ProgressUpdate").OnClientEvent:Connect(function(payload)
+ProgressFeed.subscribe(function(payload)
 	if typeof(payload) ~= "table" then
 		return
 	end

@@ -13,6 +13,7 @@ local Config = require(Shared.Config)
 local Economy = require(Shared.Economy)
 local Progress = require(Shared.Progress)
 local Remotes = require(Shared.Remotes)
+local ProgressFeed = require(script.Parent.ProgressFeed)
 local BestiaryPage = require(script.Parent.BestiaryPage)
 local ClassColor = require(script.Parent.ClassColor)
 local Localize = require(script.Parent.Localize)
@@ -539,7 +540,7 @@ sideButton.onActivated(AtlasPanel.toggle)
 
 local knownEntries = -1
 local knownGuardians: { [string]: boolean }? = nil
-Remotes.get("ProgressUpdate").OnClientEvent:Connect(function(payload)
+ProgressFeed.subscribe(function(payload)
 	if typeof(payload) ~= "table" or typeof(payload.atlas) ~= "table" then
 		return
 	end

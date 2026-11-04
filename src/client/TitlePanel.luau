@@ -12,6 +12,7 @@ local Workspace = game:GetService("Workspace")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Remotes = require(Shared.Remotes)
 local Titles = require(Shared.Titles)
+local ProgressFeed = require(script.Parent.ProgressFeed)
 local Localize = require(script.Parent.Localize)
 local PanelKit = require(script.Parent.PanelKit)
 local ShopLook = require(script.Parent.ShopLook)
@@ -426,7 +427,7 @@ window.onToggle(function(open: boolean)
 end)
 side.onActivated(TitlePanel.toggle)
 
-Remotes.get("ProgressUpdate").OnClientEvent:Connect(function(payload)
+ProgressFeed.subscribe(function(payload)
 	if typeof(payload) ~= "table" or typeof(payload.atlas) ~= "table" then
 		return
 	end

@@ -12,6 +12,7 @@ local TweenService = game:GetService("TweenService")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Progress = require(Shared.Progress)
 local Remotes = require(Shared.Remotes)
+local ProgressFeed = require(script.Parent.ProgressFeed)
 local Localize = require(script.Parent.Localize)
 local PanelKit = require(script.Parent.PanelKit)
 local ShopLook = require(script.Parent.ShopLook)
@@ -485,7 +486,7 @@ window.onToggle(function(open: boolean)
 end)
 side.onActivated(QuestPanel.toggle)
 
-Remotes.get("ProgressUpdate").OnClientEvent:Connect(function(payload)
+ProgressFeed.subscribe(function(payload)
 	if typeof(payload) ~= "table" or typeof(payload.quests) ~= "table" then
 		return
 	end

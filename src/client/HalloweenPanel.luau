@@ -13,6 +13,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared.Config)
 local Halloween = require(Shared.Halloween)
 local Remotes = require(Shared.Remotes)
+local ProgressFeed = require(script.Parent.ProgressFeed)
 local Localize = require(script.Parent.Localize)
 local PanelKit = require(script.Parent.PanelKit)
 local ShopLook = require(script.Parent.ShopLook)
@@ -449,7 +450,7 @@ if eventOn() then
 	side = button
 end
 
-Remotes.get("ProgressUpdate").OnClientEvent:Connect(function(payload)
+ProgressFeed.subscribe(function(payload)
 	if typeof(payload) ~= "table" then
 		return
 	end

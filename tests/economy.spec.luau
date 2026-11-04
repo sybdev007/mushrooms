@@ -325,6 +325,36 @@ test("DataService ładuje v5 jako v8 bez utraty ekwipunku i kupionych poziomów"
 	check(profile.Data == newer and newer.futureField == true and newer.showcase.n == 7, "zapis nietknięty")
 end)
 
+test("ProgressFeed: stan z serwera, który przyszedł przed oknami, dostają wszystkie okna", function()
+	-- Roblox oddaje zdarzenie z kolejki tylko pierwszemu podłączonemu odbiornikowi, więc podłączenie jest jedno
+	local handlers: { (any) -> () } = {}
+	local remote = { OnClientEvent = { Connect = function(_, handler)
+		table.insert(handlers, handler)
+		return {}
+	end } }
+	local remotes = { get = function(name)
+		assert(name == "ProgressUpdate")
+		return remote
+	end }
+	local shared = { WaitForChild = function() return remotes end }
+	local ProgressFeed = loadModule("src/client/ProgressFeed.luau", {
+		game = { GetService = function() return { WaitForChild = function() return shared end } end },
+		require = function(module) return module end,
+		task = { spawn = function(fn, ...) fn(...) end },
+	})
+	eq(#handlers, 1, "jedno podłączenie do ProgressUpdate")
+	handlers[1]({ atlas = {}, n = 1 }) -- stan przyszedł, zanim okna się zapisały
+	local got: { number } = {}
+	for i = 1, 3 do
+		ProgressFeed.subscribe(function(payload)
+			got[i] = payload.n
+		end)
+	end
+	check(got[1] == 1 and got[2] == 1 and got[3] == 1, "każde okno dostaje stan z kolejki")
+	handlers[1]({ atlas = {}, n = 2 })
+	check(got[1] == 2 and got[2] == 2 and got[3] == 2, "i każdy następny")
+end)
+
 test("DataService: zapis, który się nie otwiera (awaria DataStore), kończy się wyrzuceniem, a nie grą bez danych", function()
 	local players = {}
 	local now = 1000
