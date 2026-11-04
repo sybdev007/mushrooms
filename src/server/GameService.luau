@@ -1553,9 +1553,14 @@ local function onDevAction(player: Player, action: unknown)
 		-- Studio: cofnięcie formy dodanej w teście (atlasForget:gatunek:ranga), bez ruszania innych form
 		local id, rank = string.match(action, "^atlasForget:([%w_]+):(%d)$")
 		local mask = data.atlas[id :: string]
+		local shift: number = tonumber(rank) or 0
 		if typeof(mask) == "number" then
-			local left = bit32.band(mask, bit32.bnot(2 ^ (tonumber(rank) :: number)))
-			data.atlas[id :: string] = if left > 0 then left else nil
+			local left = bit32.band(mask, bit32.bnot(2 ^ shift))
+			if left > 0 then
+				data.atlas[id :: string] = left
+			else
+				data.atlas[id :: string] = nil
+			end
 		end
 	elseif action == "jagaSummon" then
 		-- Baba Jaga wylatuje od razu na gracza (test pościgu bez zrywania Ziela)
