@@ -174,7 +174,8 @@ for index, id in skinIds do
 	ShopLook.bob(skinIcon, 3, 2.4 + index * 0.3)
 	local name = PanelKit.label(frame, "Name", UDim2.new(1, -170, 1, -12), UDim2.fromOffset(58, 6), 18)
 	name.TextXAlignment = Enum.TextXAlignment.Left
-	name.TextWrapped = true
+	-- Jedna linia: długa nazwa („Jack-o'-Lantern”) zmniejsza się zamiast łamać w środku słowa
+	name.TextWrapped = false
 	name.ZIndex = 6
 	UiKit.outline(name, 2)
 	local button = Instance.new("TextButton")
