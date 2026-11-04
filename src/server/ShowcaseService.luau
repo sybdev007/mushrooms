@@ -27,10 +27,11 @@ export type Api = {
 local ShowcaseService = {}
 
 -- Regał (lokalnie: środek na ziemi, -Z = przód w stronę dziedzińca, +X = strona furtki)
+-- Półki zaczynają się nad zamkniętą szafką (3 studs): niżej zasłaniały je grzyby z grządek obok
 local LENGTH = 14
 local DEPTH = 1.8
-local HEIGHT = 8.4
-local SHELF_Y = { 0.6, 3.1, 5.6 } -- wierzch półek od dołu: las, jaskinia, bagna
+local HEIGHT = 10.4
+local SHELF_Y = { 3, 5.4, 7.8 } -- wierzch półek od dołu: las, jaskinia, bagna
 local SLOT_STEP = (LENGTH - 1.4) / Config.Showcase.perSeries
 local FROM_FENCE = 1.4 -- środek regału tyle od bocznego płotu
 local ALONG = 3.5 -- środek regału tyle za środkiem ogródka (w stronę tylnego płotu)
@@ -88,6 +89,12 @@ local function buildCabinet(garden: Model): Model?
 	m.Name = "Showcase"
 	local wood, woodDark = Palette.plank, Palette.plankDark
 	make(m, { Name = "Plinth", Size = Vector3.new(LENGTH, SHELF_Y[1], DEPTH), CFrame = cf * CFrame.new(0, SHELF_Y[1] / 2, 0), Color = woodDark })
+	-- Drzwiczki szafki pod półkami (sama ozdoba)
+	for i = 1, 4 do
+		local x = -LENGTH / 2 + (i - 0.5) * LENGTH / 4
+		decor(make(m, { Name = "Door", Size = Vector3.new(LENGTH / 4 - 0.5, SHELF_Y[1] - 0.8, 0.1), CFrame = cf * CFrame.new(x, SHELF_Y[1] / 2, -DEPTH / 2 - 0.05), Color = wood }))
+		decor(make(m, { Name = "Knob", Shape = Enum.PartType.Ball, Size = Vector3.new(0.25, 0.25, 0.25), CFrame = cf * CFrame.new(x + (if i % 2 == 1 then 1 else -1), SHELF_Y[1] / 2, -DEPTH / 2 - 0.15), Color = Color3.fromRGB(230, 180, 60) }))
+	end
 	make(m, { Name = "Back", Size = Vector3.new(LENGTH, HEIGHT, 0.3), CFrame = cf * CFrame.new(0, HEIGHT / 2, DEPTH / 2 - 0.15), Color = Palette.plankDark:Lerp(Color3.new(0, 0, 0), 0.25) })
 	for _, side in { -1, 1 } do
 		make(m, { Name = "Post", Size = Vector3.new(0.5, HEIGHT, DEPTH), CFrame = cf * CFrame.new(side * (LENGTH / 2 - 0.25), HEIGHT / 2, 0), Color = wood })
