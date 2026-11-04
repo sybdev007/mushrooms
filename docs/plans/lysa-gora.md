@@ -113,3 +113,27 @@ Do zrobienia / dla Toma:
 - Arcygrzybiarz (cała księga tęczowa) wymaga teraz też strony Łysej Góry — gracze z tym tytułem go stracą,
   dopóki nie uzupełnią nowej strony (tak samo było przy bagnach).
 - Okno Szans ma teraz 11 wierszy (4 warianty + 7 cech): sprawdzić na telefonie, czy się mieści.
+
+## Prawdziwa góra i nocne niebo (4.11, noc)
+Prośba Toma: „zrób Łysą Górę x1000 times cooler”. Wybrane: **Prawdziwa góra** i **Niebo i klimat**
+(bez „Żywego sabatu” i bez Jagi jako bossa).
+
+- **Kształt** (`Shared/MountainTerrain.luau`, testy w Lune): siatka trójkątów (kolumny ±57 na ścianach,
+  wiersze co 10), ta sama funkcja wysokości dla serwera i klienta. Polana płaska (y = 0), Wiedźmi Las
+  w górę serpentyną (do 22), pole Kotłów (do 38), stromo do kręgu kamieni (50, plac), szczyt z chatką
+  (60, płaski) — najwyżej na górze, ponad morzem chmur (30). Za ścianą z jednej strony skalny grzbiet
+  z iglicami (zawsze niższy niż szczyt), z drugiej urwisko do doliny (−46), za szczytem góra urywa się.
+- **Serwer** (`World/Mountain.luau`): ziemia z klinów (~4300 części, bez cieni), kamienna ścieżka
+  serpentynami i stopnie z bali na stromiznach, latarnie z czaszkami wzdłuż ścieżki, bramy, kotły
+  i ogniska na wyrównanych placach (`Shared/Mountain.FIRES`, `STONE_CIRCLE`), zielony ogień sabatu
+  z iskrami (wielkie ognisko w kręgu kamieni), płot z czaszkami nad urwiskiem, dolina z lasem, rzeką
+  i światłami wioski, dalekie szczyty. Grzyby rosną tylko tam, gdzie zbocze ≤ 24° (wszystkie 188 miejsc
+  się mieszczą); Baba Jaga leci nad zboczem (`ChaseService` `heightAt`), kruki i ich cień leżą na zboczu.
+- **Klient**: księżyc ustawiony szerokością geograficzną 100 i północą — wisi nisko za szczytem
+  (chatka na kurzej stopce na jego tle, z polany nad bramą Wiedźmiego Lasu); o świcie słońce wschodzi
+  zza góry. Księżycowa poświata (fioletowe światło otoczenia, jaśniejsze zbocza), rzadsza fioletowa
+  mgła, mgła przy ziemi po zboczu. `MountainSky`: czarownice na miotłach (dwie krążą nad szczytem,
+  trzecia przelatuje na tle księżyca albo z chichotem nad głową), stada nietoperzy, nietoperze nad
+  chatką, pioruny w chmurach z błyskiem i grzmotem, morze chmur z miękkich kłębów pod szczytem.
+- Dźwięki (Pro Sound Effects): grzmot daleki/bliski, wiatr przy przelocie czarownicy.
+- Test w Studio: `workspace.MountainSky.Test:Fire("bolt" | "moon" | "swoop" | "bats")`.

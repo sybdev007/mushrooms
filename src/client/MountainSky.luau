@@ -175,9 +175,13 @@ local function startSwoop(root: BasePart, camera: Camera, now: number)
 	forward = forward.Unit
 	local side = forward:Cross(Vector3.yAxis) * rng:NextNumber(-0.4, 0.4)
 	local base = root.Position
+	-- Nad zboczem: start i koniec lotu wysoko nad ziemią (pod górę nie wlatuje w stok)
+	local function above(p: Vector3, lift: number): Vector3
+		return Vector3.new(p.X, math.max(base.Y + lift, Terrain.groundY(p.X, p.Z) + 10), p.Z)
+	end
 	crossing = {
-		from = base - forward * 60 + side * 20 + Vector3.new(0, 16, 0),
-		to = base + forward * 70 - side * 20 + Vector3.new(0, 22, 0),
+		from = above(base - forward * 60 + side * 20, 16),
+		to = above(base + forward * 70 - side * 20, 22),
 		start = now,
 		duration = 2.6,
 		arc = -9,
@@ -254,7 +258,10 @@ local function startFlock(root: BasePart, camera: Camera, now: number)
 		offsets[i] = Vector3.new(rng:NextNumber(-5, 5), rng:NextNumber(-2.5, 2.5), rng:NextNumber(-5, 5))
 		phases[i] = rng:NextNumber(0, TAU)
 	end
-	flight = { from = base - across * 50, to = base + across * 50, start = now, duration = rng:NextNumber(3.2, 4.2), offsets = offsets, phases = phases }
+	local function above(p: Vector3): Vector3
+		return Vector3.new(p.X, math.max(p.Y, Terrain.groundY(p.X, p.Z) + 8), p.Z)
+	end
+	flight = { from = above(base - across * 50), to = above(base + across * 50), start = now, duration = rng:NextNumber(3.2, 4.2), offsets = offsets, phases = phases }
 end
 
 local function updateBats(now: number, root: BasePart, camera: Camera, zoneDef: Config.ZoneDef)
