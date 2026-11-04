@@ -46,6 +46,8 @@ local KINDS: { [string]: Kind } = {
 	RavenDrop = { fit = Vector2.new(3.4, 4.6), garden = false },
 	-- Znalezisko Nocy (NightFindService): większy kosmiczny grzyb w złotym kręgu
 	NightFind = { fit = Vector2.new(4.5, 6), garden = false, plain = true },
+	-- Gablota w ogródku (ShowcaseService): miejsca co ok. 2,1 studa, półki co 2,5 (podpisy: ShowcaseView)
+	ShowcaseMushroom = { fit = Vector2.new(1.8, 2), garden = false, plain = true },
 }
 
 local VALUE_COLOR = Color3.fromRGB(255, 226, 140)

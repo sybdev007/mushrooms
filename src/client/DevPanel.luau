@@ -137,6 +137,10 @@ local CATEGORIES: { Category } = {
 				{ id = "nightFindSpawn", label = "✨ Znalezisko przed tobą" },
 				{ id = "nightFindReset", label = "↩️ Trofea Znalezisk na 0" },
 			} },
+			{ name = "Gablota (Studio)", actions = {
+				{ id = "showcaseFill", label = "🏛️ Pełna gablota" },
+				{ id = "showcaseReset", label = "↩️ Gablota od zera" },
+			} },
 		},
 	},
 	{

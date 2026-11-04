@@ -1018,7 +1018,8 @@ MSG_NIGHTFIND_RUN,✨ You have the Night Find! Carry it to the cabin within {1} 
 MSG_NIGHTFIND_TAKEN,✨ {1} picked the Night Find and is carrying it to the cabin!,,,✨ {1} zerwał Znalezisko Nocy i niesie je do chatki!
 MSG_NIGHTFIND_DELIVERED,✨ {1} carried the Night Find to the cabin!,,,✨ {1} doniósł Znalezisko Nocy do chatki!
 MSG_NIGHTFIND_LOST,{1} lost the Night Find - a new one sprouts next night,,,{1} stracił Znalezisko Nocy - następne wyrośnie kolejnej nocy
-MSG_NIGHTFIND_DONE,✨ Delivered: {1}{4}! +{2} coins · Night Finds: {3},,,✨ Doniesione: {1}{4}! +{2} monet · trofea: {3}
+MSG_NIGHTFIND_DONE,✨ Delivered: {1}{3}! The trophy now stands in your garden showcase · Night Finds: {2},,,✨ Doniesione: {1}{3}! Trofeum stoi w gablocie w twoim ogródku · trofea: {2}
+MSG_NIGHTFIND_DONE_FULL,✨ Delivered: {1}{3}! No free showcase spot - the trophy waits in the showcase window · Night Finds: {2},,,✨ Doniesione: {1}{3}! Brak wolnego miejsca - trofeum czeka w oknie gabloty · trofea: {2}
 TITLE_NIGHT_FINDER,Night Finder,,,Znalazca Nocy
 TITLE_NIGHT_FINDER_HOW,Carry {1} Night Find to the cabin,,,Donieś {1} Znalezisko Nocy do chatki
 TITLE_NIGHT_COURIER,Night Courier,,,Nocny Kurier
@@ -1027,3 +1028,26 @@ TITLE_NIGHT_HUNTER,Night Hunter,,,Łowca Nocy
 TITLE_NIGHT_HUNTER_HOW,Carry {1} Night Finds to the cabin,,,Donieś {1} Znalezisk Nocy do chatki
 TITLE_NIGHT_LEGEND,Legend of the Night,,,Legenda Nocy
 TITLE_NIGHT_LEGEND_HOW,Carry {1} Night Finds to the cabin,,,Donieś {1} Znalezisk Nocy do chatki
+SHOWCASE_TITLE,Showcase,,,Gablota
+SHOWCASE_PROMPT,Showcase,,,Gablota
+SHOWCASE_SERIES_FOREST,Forest shelf,,,Półka leśna
+SHOWCASE_SERIES_CAVE,Cave shelf,,,Półka jaskiniowa
+SHOWCASE_SERIES_SWAMP,Swamp shelf,,,Półka bagienna
+SHOWCASE_EMPTY_SLOT,Display,,,Wystaw
+SHOWCASE_LOCKED_WORLD,Unlock the world,,,Odblokuj świat
+SHOWCASE_BUY,Buy a spot: {1} 💰,,,Kup miejsce: {1} 💰
+SHOWCASE_BUY_CONFIRM,Sure? {1} 💰,,,Na pewno? {1} 💰
+SHOWCASE_BUY_HINT,Buy this spot with the button below,,,Kup to miejsce przyciskiem na dole
+SHOWCASE_BUY_ORDER,Spots are bought in order - first the one with the gold frame,,,Miejsca kupuje się po kolei - najpierw to w złotej ramce
+SHOWCASE_FULL,Showcase complete!,,,Gablota pełna!
+SHOWCASE_NEED_WORLD,Unlock the next world first,,,Najpierw odblokuj następny świat
+SHOWCASE_NO_COINS,You need {1} more 💰,,,Brakuje ci {1} 💰
+SHOWCASE_HINT,The showcase is decoration: everyone who visits your garden can see it,,,Gablota to ozdoba widoczna dla wszystkich odwiedzających twój ogródek
+SHOWCASE_PICK_SLOT,Pick an unlocked spot on the shelf first,,,Najpierw wybierz kupione miejsce na półce
+SHOWCASE_PICK_ITEM,Spot {1}: pick a mushroom from the list,,,Miejsce {1}: wybierz grzyb z listy
+SHOWCASE_OPTIONS,You can display ({1}),,,Możesz wystawić ({1})
+SHOWCASE_OPTIONS_EMPTY,Pick mushrooms in the forest: every new form goes to your Atlas and can be displayed here,,,Zbieraj grzyby w lesie: każda nowa forma trafia do Grzybopedii i można ją tu wystawić
+SHOWCASE_REMOVE,Remove,,,Zdejmij
+MSG_SHOWCASE_BOUGHT,New showcase spot ({1}/{2})!,,,Nowe miejsce w gablocie ({1}/{2})!
+MSG_SHOWCASE_NO_COINS,Not enough coins for this spot,,,Za mało monet na to miejsce
+MSG_SHOWCASE_WORLD,Unlock the world of this shelf first,,,Najpierw odblokuj świat tej półki

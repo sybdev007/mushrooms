@@ -54,9 +54,26 @@ function NightFind.inForest(z: number): boolean
 	return Economy.zoneWorld(Economy.zoneIndexAt(z)) == "forest"
 end
 
--- Nagroda w monetach dla gracza o tej skali nagród (Progress.rewardScale)
-function NightFind.reward(scale: number): number
-	return math.floor(Config.NightFind.coinsScale * scale)
+-- Gatunek Znaleziska: jeden z Config.NightFind.rarePick najcenniejszych zwykłych gatunków strefy
+-- (bez ogników, grzybów Gniazda, legowisk i kuźni). r: liczba z [0, 1).
+function NightFind.pickSpecies(zone: number, r: number): string?
+	local list = {}
+	for _, species in Economy.speciesForZone(zone) do
+		if not species.mimic and not species.grove and not species.lair and not species.guardian and not species.forgeOnly then
+			table.insert(list, species)
+		end
+	end
+	if #list == 0 then
+		return nil
+	end
+	table.sort(list, function(a, b)
+		if a.value ~= b.value then
+			return a.value > b.value
+		end
+		return a.id < b.id
+	end)
+	local count = math.min(Config.NightFind.rarePick, #list)
+	return list[math.clamp(math.floor(r * count) + 1, 1, count)].id
 end
 
 return NightFind

@@ -413,8 +413,9 @@ Config.GardenWeather = {
 -- Znalezisko Nocy (Shared/NightFind, NightFindService): raz na noc na każdym serwerze w głębi lasu wyrasta
 -- jeden kosmiczny grzyb, widoczny dla wszystkich. Kto pierwszy go zerwie, musi go donieść na polanę przy
 -- chatce w carrySeconds, idąc wolniej i świecąc (inni widzą go i odliczanie nad głową). Na start bez
--- odbierania przez innych. Nagroda: monety (coinsScale × skala nagród gracza) i trofeum (stats.nightFinds),
--- tytuły za 1, 3, 7 i 15 dostaw. Nie doniesie (czas, śmierć, portal, wyjście z gry) = przepada do jutra.
+-- odbierania przez innych. Nagroda: trofeum do gabloty w ogródku (kosmiczna kopia z datą, Config.Showcase,
+-- bez monet: gablota ma być zlewem na monety) i licznik stats.nightFinds z tytułami za 1, 3, 7 i 15 dostaw.
+-- Nie doniesie (czas, śmierć, portal, teleport, wyjście z gry) = przepada do następnej nocy.
 Config.NightFind = {
 	delay = { 90, 360 }, -- tyle sekund po zapadnięciu nocy wyrasta (losowo z tego przedziału)
 	minLeft = 300, -- nie wyrasta, gdy do świtu zostało mniej niż tyle sekund
@@ -422,14 +423,34 @@ Config.NightFind = {
 	carrySeconds = 180,
 	speed = 0.75, -- prędkość z Znaleziskiem względem zwykłej
 	pickHold = 1.5, -- sekundy trzymania przycisku
-	coinsScale = 5, -- nagroda w monetach: tyle × Progress.rewardScale gracza
-	variant = "cosmic", -- jak wygląda (kosmiczny grzyb gatunku z miejsca, gdzie wyrósł)
+	variant = "cosmic", -- jak wygląda: kosmiczny okaz jednego z rarePick najcenniejszych gatunków strefy
+	rarePick = 3,
 	titles = {
 		{ id = "TITLE_NIGHT_FINDER", goal = 1, rarity = "rare" },
 		{ id = "TITLE_NIGHT_COURIER", goal = 3, rarity = "epic" },
 		{ id = "TITLE_NIGHT_HUNTER", goal = 7, rarity = "legendary" },
 		{ id = "TITLE_NIGHT_LEGEND", goal = 15, rarity = "mythic" },
 	},
+}
+
+-- Gablota w ogródku (Shared/Showcase, ShowcaseService, ShowcasePanel): półki pod bocznym płotem, na których
+-- gracz wystawia kopie grzybów z Grzybopedii (każdą odkrytą formę gatunku) i trofea ze Znaleziska Nocy.
+-- Wystawa to tylko ozdoba (bez dochodu i premii), widzą ją wszyscy na polanie. Zlew na monety po
+-- wymaksowaniu ulepszeń: 3 serie (las, jaskinia, bagna) po perSeries miejsc, kupowane po kolei; k-te płatne
+-- miejsce serii kosztuje priceUnits × skala nagród świata serii (Progress.rewardScale) × 2^(k−1):
+-- las 16 000 … 128 000, jaskinia 320 000 … 10,24 mln, bagna 1,6 mln … 51,2 mln (razem ok. 121 mln).
+-- Pierwsze freeSlots miejsc lasu są za darmo. Serie jaskini i bagien wymagają odblokowanego świata.
+Config.Showcase = {
+	perSeries = 6,
+	freeSlots = 2,
+	priceUnits = 10,
+	series = {
+		{ id = "forest", key = "SHOWCASE_SERIES_FOREST", icon = "🌲", color = { 120, 220, 110 } },
+		{ id = "cave", key = "SHOWCASE_SERIES_CAVE", icon = "💎", color = { 110, 200, 255 }, unlock = "caveUnlocked" },
+		{ id = "swamp", key = "SHOWCASE_SERIES_SWAMP", icon = "🐸", color = { 90, 230, 190 }, unlock = "swampUnlocked" },
+	} :: { { id: string, key: string, icon: string, color: { number }, unlock: string? } },
+	maxTrophies = 40, -- tyle trofeów ze Znaleziska Nocy trzyma zapis (najstarsze wypadają)
+	promptDistance = 8,
 }
 
 -- Cechy tylko z pogody w ogródku (nie losują się w lesie). Liczą się w wartości i zapisie (Economy.getTag).

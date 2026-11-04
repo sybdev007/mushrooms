@@ -54,6 +54,8 @@ local LeszyAnimator = require(script.Parent.LeszyAnimator)
 local GardenPanel = require(script.Parent.GardenPanel)
 local DisplayMushrooms = require(script.Parent.DisplayMushrooms)
 local NightFindView = require(script.Parent.NightFindView)
+local ShowcaseView = require(script.Parent.ShowcaseView)
+local ShowcasePanel = require(script.Parent.ShowcasePanel)
 local HalloweenFx = require(script.Parent.HalloweenFx)
 local MutationText = require(script.Parent.MutationText)
 local FontFix = require(script.Parent.FontFix)
@@ -108,6 +110,7 @@ LeszyAnimator.start()
 GardenPanel.start()
 DisplayMushrooms.start()
 NightFindView.start()
+ShowcaseView.start()
 HalloweenFx.start()
 WinterFx.start()
 CommunityButton.start()
@@ -155,6 +158,7 @@ Remotes.get("StateUpdate").OnClientEvent:Connect(function(state)
 	ShopPanel.update(state, Economy.isSafeZone(state.zone))
 	DelvePanel.setCoins(state.coins)
 	ForgePanel.setCoins(state.coins)
+	ShowcasePanel.setCoins(state.coins)
 	-- Lista grzybów przychodzi tylko po zmianie koszyka
 	if state.basket then
 		SellPanel.setBasket(state.basket, state.basketKey)
@@ -294,6 +298,10 @@ local TOAST_KIND: { [string]: string } = {
 	MSG_NIGHTFIND_SPAWN = "gold",
 	MSG_NIGHTFIND_RUN = "gold",
 	MSG_NIGHTFIND_DONE = "gold",
+	MSG_NIGHTFIND_DONE_FULL = "gold",
+	MSG_SHOWCASE_BOUGHT = "gold",
+	MSG_SHOWCASE_NO_COINS = "warn",
+	MSG_SHOWCASE_WORLD = "warn",
 	MSG_NIGHTFIND_DELIVERED = "info",
 	MSG_NIGHTFIND_TAKEN = "info",
 	MSG_NIGHTFIND_LOST = "warn",

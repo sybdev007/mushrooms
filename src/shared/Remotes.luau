@@ -39,6 +39,8 @@ local NAMES = {
 	"OwlCheck", -- gracz zamknął okno dołączenia do grupy Old Owl Studios: sprawdź członkostwo jeszcze raz
 	"ForgeView", -- Kuźnia Grzybów: dostęp do przepisów, kolekcja, wynik połączenia (i czy otworzyć okno)
 	"ForgeAction", -- Kuźnia Grzybów: połącz 3 grzyby z koszyka według przepisu
+	"ShowcaseView", -- gablota w ogródku: miejsca, wystawy, co można wystawić (i czy otworzyć okno)
+	"ShowcaseAction", -- gablota: kup miejsce, wystaw, zdejmij
 }
 
 local folder: Folder

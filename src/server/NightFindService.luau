@@ -1,8 +1,9 @@
 --!strict
 -- Znalezisko Nocy: raz na noc na serwerze w głębi lasu wyrasta jeden kosmiczny grzyb, widoczny dla
 -- wszystkich (znacznik z tagiem "NightFind": grzyba rysuje każdy klient, DisplayMushrooms). Kto pierwszy
--- go zerwie (przycisk), niesie go nad głową, idzie wolniej i świeci; ma Config.NightFind.carrySeconds,
--- żeby dojść na polanę przy chatce. Doniesie = monety i trofeum (stats.nightFinds, tytuły 1/3/7/15).
+-- go zerwie (przycisk), niesie świecącą kulę przed sobą, idzie wolniej i świeci; ma Config.NightFind.carrySeconds,
+-- żeby dojść na polanę przy chatce. Doniesie = trofeum do gabloty w ogródku (kosmiczna kopia z datą,
+-- ShowcaseService) i licznik stats.nightFinds (tytuły 1/3/7/15), bez monet.
 -- Nie doniesie (czas, zniknięcie postaci, portal albo inna teleportacja, wyjście z gry) = przepada.
 -- Na start bez odbierania przez innych. Czas i miejsca: Shared/NightFind.
 
@@ -15,8 +16,6 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local Cycle = require(ReplicatedStorage.Shared.Cycle)
 local Economy = require(ReplicatedStorage.Shared.Economy)
 local NightFind = require(ReplicatedStorage.Shared.NightFind)
-local Progress = require(ReplicatedStorage.Shared.Progress)
-local Ledger = require(script.Parent.Ledger)
 
 type MutationInfo = { variant: string?, tags: { string }? }
 
@@ -26,6 +25,7 @@ export type Api = {
 	pushState: (Player) -> (),
 	applyStats: (Player) -> (), -- przelicza prędkość chodu (Znalezisko spowalnia)
 	event: (Player, string, number?) -> (), -- ProgressService.event (licznik nightFinds, tytuły)
+	trophy: (Player, { s: string, v: string?, t: number? }) -> boolean, -- do gabloty; true = stanęło na półce
 	rootOf: (Player) -> BasePart?,
 	busy: (Player) -> boolean, -- niesie łup z ogródka albo leży bez latarni: nie może zerwać
 	spots: { NightFind.Spot },
@@ -96,13 +96,7 @@ local function removeFind()
 end
 
 local function speciesNear(zone: number): string
-	for _ = 1, 20 do
-		local species = Economy.rollSpecies(zone, math.random())
-		if species and not species.mimic then
-			return species.id
-		end
-	end
-	return "porcini"
+	return NightFind.pickSpecies(zone, math.random()) or "porcini"
 end
 
 -- Znacznik Znaleziska w świecie (grzyba rysuje klient), z przyciskiem do zerwania
@@ -270,12 +264,11 @@ local function deliver()
 	if not data then
 		return
 	end
-	local scale = Progress.rewardScale(data.caveUnlocked, data.swampUnlocked, data.mountainUnlocked)
-	local coins = NightFind.reward(scale)
-	Ledger.earn(player, data, coins, "Gameplay", "NightFind")
+	local placed = api.trophy(player, { s = current.species, v = Config.NightFind.variant, t = os.time() })
 	api.event(player, "nightFind", 1)
 	local def = Economy.getSpecies(current.species)
-	api.notify(player, "MSG_NIGHTFIND_DONE", { coins, data.stats.nightFinds }, if def then def.key else nil, { variant = Config.NightFind.variant })
+	local key = if placed then "MSG_NIGHTFIND_DONE" else "MSG_NIGHTFIND_DONE_FULL"
+	api.notify(player, key, { data.stats.nightFinds }, if def then def.key else nil, { variant = Config.NightFind.variant })
 	notifyAll("MSG_NIGHTFIND_DELIVERED", { player.DisplayName }, nil, player)
 	api.pushState(player)
 end

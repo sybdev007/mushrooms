@@ -42,6 +42,7 @@ local LeaderboardService = require(script.Parent.LeaderboardService)
 local HalloweenService = require(script.Parent.HalloweenService)
 local WinterService = require(script.Parent.WinterService)
 local NightFindService = require(script.Parent.NightFindService)
+local ShowcaseService = require(script.Parent.ShowcaseService)
 local CommunityService = require(script.Parent.CommunityService)
 local DelveService = require(script.Parent.DelveService)
 local AnnounceService = require(script.Parent.AnnounceService)
@@ -1608,6 +1609,12 @@ local function onDevAction(player: Player, action: unknown)
 	elseif action == "nightFindReset" then
 		NightFindService.devReset(player)
 		ProgressService.refreshTitle(player)
+	elseif action == "showcaseReset" then
+		-- Studio: gablota od zera (miejsca, wystawy, trofea), przywrócenie zapisu po teście
+		ShowcaseService.devReset(player)
+	elseif action == "showcaseFill" then
+		-- Studio: wszystkie miejsca kupione za darmo (podgląd pełnej gabloty)
+		ShowcaseService.devFill(player)
 	elseif string.match(action, "^coinsSet:%d+$") then
 		-- Studio: przywrócenie salda po testach (devActionAllowed nie wpuszcza tego poza Studio)
 		data.coins = tonumber(string.sub(action, 10)) or data.coins
@@ -2433,7 +2440,33 @@ function GameService.start(mapInfo: MapBuilder.MapInfo)
 			local session = sessions[player]
 			return not session or session.downedUntil ~= nil or GardenService.isCarrying(player)
 		end,
+		trophy = function(player: Player, item: { s: string, v: string?, t: number? }): boolean
+			return ShowcaseService.addTrophy(player, item)
+		end,
 		spots = map.spots,
+	})
+	local gardenModels: { Model } = {}
+	for _, rack in map.gardens do
+		table.insert(gardenModels, rack.model)
+	end
+	ShowcaseService.start(gardenModels, {
+		getData = function(player: Player)
+			local session = sessions[player]
+			return if session then session.data else nil
+		end,
+		notify = function(player: Player, key: string, args: { any }?, nameKey: string?)
+			local session = sessions[player]
+			if session then
+				notify(session, key, args, nameKey)
+			end
+		end,
+		pushState = function(player: Player)
+			local session = sessions[player]
+			if session then
+				pushState(session)
+			end
+		end,
+		rootOf = getRoot,
 	})
 	TutorialService.start({
 		pushState = function(session: any)

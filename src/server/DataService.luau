@@ -21,6 +21,7 @@ local Titles = require(ReplicatedStorage.Shared.Titles)
 local Skins = require(ReplicatedStorage.Shared.Skins)
 local Social = require(ReplicatedStorage.Shared.Social)
 local Delve = require(ReplicatedStorage.Shared.Delve)
+local Showcase = require(ReplicatedStorage.Shared.Showcase)
 
 export type Data = {
 	version: number,
@@ -68,6 +69,8 @@ export type Data = {
 	eventGoals: { day: number, seconds: number }, -- Halloween: sekundy mikstury z celów serwera dziś (limit dzienny)
 	forest: Forest?, -- las gracza z ostatniej sesji (szybki powrót nie losuje lasu od nowa)
 	delve: Delve.Save, -- ekspedycja: relikty (odnowione, oprawa), odłamki, dzień zlecenia dnia
+	showcase: Showcase.Save, -- gablota w ogródku: kupione miejsca i wystawione grzyby (Shared/Showcase)
+	trophies: { Showcase.Exhibit }, -- trofea ze Znaleziska Nocy (kosmiczne kopie z datą), najnowsze pierwsze
 }
 
 -- Las gracza: g = pokolenie lasu (numer świtu, Cycle), s = miejsce -> grzyb i kiedy jest gotowy (os.time)
@@ -153,6 +156,8 @@ function DataService.defaultData(): Data
 		eventGoals = { day = -1, seconds = 0 },
 		forest = nil,
 		delve = Delve.emptySave(),
+		showcase = Showcase.emptySave(),
+		trophies = {},
 	}
 end
 
@@ -472,6 +477,8 @@ local function reconcile(raw: any): Data
 		data.forest = { g = math.floor(forest.g), s = spots }
 	end
 	data.delve = Delve.readSave(raw.delve)
+	data.showcase = Showcase.readSave(raw.showcase)
+	data.trophies = Showcase.readTrophies(raw.trophies)
 	if typeof(raw.receipts) == "table" then
 		for _, id in raw.receipts do
 			if typeof(id) == "string" and #data.receipts < 50 then

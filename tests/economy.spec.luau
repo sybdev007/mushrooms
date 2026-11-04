@@ -278,7 +278,7 @@ test("DataService ładuje v5 jako v7 bez utraty ekwipunku i kupionych poziomów"
 	local services = {
 		Players = players,
 		DataStoreService = { GetDataStore = function() return {} end },
-		ReplicatedStorage = { Shared = { Config = Config, Economy = Economy, Progress = Progress, Titles = Titles, Social = Social, Skins = loadSkins(), Delve = loadModule("src/shared/Delve.luau", {}) } },
+		ReplicatedStorage = { Shared = { Config = Config, Economy = Economy, Progress = Progress, Titles = Titles, Social = Social, Skins = loadSkins(), Delve = loadModule("src/shared/Delve.luau", {}), Showcase = loadModule("src/shared/Showcase.luau", { script = { Parent = { Config = Config, Economy = Economy, Progress = Progress } }, require = function(module) return module end }) } },
 	}
 	local DataService = loadModule("src/server/DataService.luau", {
 		game = { GetService = function(_, name) return services[name] end },
@@ -3366,7 +3366,7 @@ test("znalezisko: tylko w głębi lasu, bez legowisk i Gniazda", function()
 	end
 end)
 
-test("znalezisko: dostawa na polanie, poza lasem przepada, nagroda ze skali", function()
+test("znalezisko: dostawa na polanie, poza lasem przepada, rzadki gatunek strefy", function()
 	check(NightFind.delivered(Config.Zones[1].startZ + 20), "polana przy chatce")
 	check(not NightFind.delivered(Config.Zones[Config.NightFind.minZone].startZ + 5), "w lesie jeszcze nie")
 	check(NightFind.inForest(Config.Zones[3].startZ + 5), "las")
@@ -3378,12 +3378,28 @@ test("znalezisko: dostawa na polanie, poza lasem przepada, nagroda ze skali", fu
 		end
 	end
 	check(caveZone ~= nil and not NightFind.inForest(Config.Zones[caveZone :: number].startZ + 5), "jaskinia to nie las")
-	local forest = Progress.rewardScale(false, false, false)
-	local mountain = Progress.rewardScale(true, true, true)
-	eq(NightFind.reward(forest), math.floor(Config.NightFind.coinsScale * forest))
-	check(NightFind.reward(mountain) > NightFind.reward(forest), "dalej więcej")
-	-- Jak kilka zadań dziennych naraz (zadanie = 1 jednostka), nie jak cały dzień gry
-	check(Config.NightFind.coinsScale >= 2 and Config.NightFind.coinsScale <= 10, "skala nagrody")
+	-- Gatunek: jeden z najcenniejszych zwykłych w strefie, nigdy ognik ani grzyb strażnika
+	for zone = Config.NightFind.minZone, #Config.Zones do
+		if Economy.zoneWorld(zone) == "forest" and not Economy.isSafeZone(zone) then
+			local values = {}
+			for _, species in Economy.speciesForZone(zone) do
+				if not species.mimic and not species.grove and not species.lair and not species.guardian and not species.forgeOnly then
+					table.insert(values, species.value)
+				end
+			end
+			table.sort(values, function(a, b)
+				return a > b
+			end)
+			local floor = values[math.min(Config.NightFind.rarePick, #values)]
+			for _, r in { 0, 0.34, 0.67, 0.999 } do
+				local id = NightFind.pickSpecies(zone, r)
+				check(id ~= nil, "gatunek w strefie " .. zone)
+				local def = Economy.getSpecies(id :: string) :: any
+				check(not def.mimic and not def.grove and not def.lair and not def.guardian, "zwykły: " .. tostring(id))
+				check(def.value >= floor, "rzadki: " .. tostring(id))
+			end
+		end
+	end
 end)
 
 test("znalezisko: trofea, tytuły i tłumaczenia", function()
@@ -3411,10 +3427,139 @@ test("znalezisko: trofea, tytuły i tłumaczenia", function()
 		"MSG_NIGHTFIND_DELIVERED",
 		"MSG_NIGHTFIND_LOST",
 		"MSG_NIGHTFIND_DONE",
+		"MSG_NIGHTFIND_DONE_FULL",
 	} do
 		check(csvHas(key), "tłumaczenie " .. key)
 	end
 	check(Economy.getVariant(Config.NightFind.variant) ~= nil, "wariant " .. Config.NightFind.variant)
+end)
+
+-- ===== Gablota w ogródku =====
+print("Gablota w ogródku (Showcase.luau)")
+local Showcase = loadModule("src/shared/Showcase.luau", {
+	script = { Parent = { Config = Config, Economy = Economy, Progress = Progress } },
+	require = function(module)
+		return module
+	end,
+})
+
+test("gablota: ceny serii i darmowe miejsca", function()
+	eq(Showcase.TOTAL, Config.Showcase.perSeries * #Config.Showcase.series)
+	for slot = 1, Config.Showcase.freeSlots do
+		eq(Showcase.price(slot), 0, "darmowe " .. slot)
+	end
+	local forest = Progress.rewardScale(false, false, false)
+	local cave = Progress.rewardScale(true, false, false)
+	local swamp = Progress.rewardScale(true, true, false)
+	eq(Showcase.price(Config.Showcase.freeSlots + 1), Config.Showcase.priceUnits * forest, "pierwsze płatne w lesie")
+	eq(Showcase.price(Config.Showcase.perSeries + 1), Config.Showcase.priceUnits * cave, "pierwsze w jaskini")
+	eq(Showcase.price(Showcase.TOTAL), Config.Showcase.priceUnits * swamp * 2 ^ (Config.Showcase.perSeries - 1), "ostatnie")
+	-- Każde kolejne miejsce w serii dwa razy droższe, każda seria droższa od poprzedniej
+	for slot = 2, Showcase.TOTAL do
+		local series, k = Showcase.slotOf(slot)
+		if k > 1 and Showcase.price(slot - 1) > 0 then
+			eq(Showcase.price(slot), Showcase.price(slot - 1) * 2, "podwojenie " .. slot)
+		end
+		if k == 1 and series > 2 then
+			-- Seria zaczyna od nowa, ale drożej niż poprzednia (las ma darmowe miejsca, więc od jaskini)
+			check(Showcase.price(slot) > Showcase.price(slot - Config.Showcase.perSeries), "seria droższa " .. slot)
+		end
+	end
+	-- Zlew na monety: bagna to kilkadziesiąt godzin dochodu, ostatnie miejsce ponad 50 mln
+	check(Showcase.price(Showcase.TOTAL) > 50e6, "ostatnie ponad 50 mln")
+	local total = 0
+	for series = 1, #Config.Showcase.series do
+		total += Showcase.seriesCost(series)
+	end
+	check(total > 100e6 and total < 150e6, "razem: " .. total)
+end)
+
+test("gablota: kupowanie po kolei, światy, zapis", function()
+	local save = Showcase.emptySave()
+	local flags = { caveUnlocked = false, swampUnlocked = false }
+	local slot, price = Showcase.nextSlot(save, flags)
+	eq(slot, Config.Showcase.freeSlots + 1)
+	eq(price, Showcase.price(slot :: number))
+	save.n = Config.Showcase.perSeries
+	local blocked, _, why = Showcase.nextSlot(save, flags)
+	eq(blocked, nil)
+	eq(why, "world", "jaskinia zamknięta")
+	flags.caveUnlocked = true
+	eq((Showcase.nextSlot(save, flags)), Config.Showcase.perSeries + 1)
+	save.n = Showcase.TOTAL
+	local _, _, full = Showcase.nextSlot(save, flags)
+	eq(full, "full")
+	-- Zapis: śmieci odrzucone, miejsca poza kupionymi wypadają
+	local read = Showcase.readSave({
+		n = 4,
+		items = { ["1"] = { s = "porcini", v = "gold" }, ["2"] = { s = "nope" }, ["3"] = { s = "porcini", v = "bad" }, ["9"] = { s = "porcini" } },
+	})
+	eq(read.n, 4)
+	check(read.items["1"] ~= nil and read.items["1"].v == "gold", "dobry")
+	eq(read.items["2"], nil, "zły gatunek")
+	eq(read.items["3"], nil, "zły wariant")
+	eq(read.items["9"], nil, "poza kupionymi")
+	eq(Showcase.readSave({ n = 999 }).n, Showcase.TOTAL, "limit")
+	eq(Showcase.readSave({ n = -5 }).n, Config.Showcase.freeSlots, "minimum")
+	eq(Showcase.readSave(nil).n, Config.Showcase.freeSlots, "nowy gracz")
+end)
+
+test("gablota: wystawić można tylko odkryte formy i własne trofea", function()
+	local atlas = {}
+	Progress.discover(atlas, "porcini", nil)
+	Progress.discover(atlas, "porcini", "rainbow")
+	local trophies = {}
+	Showcase.addTrophy(trophies, { s = "parasol", v = "cosmic", t = 1793800000 })
+	check(Showcase.allowed(atlas, trophies, { s = "porcini" }), "zwykły")
+	check(Showcase.allowed(atlas, trophies, { s = "porcini", v = "rainbow" }), "tęczowy")
+	check(not Showcase.allowed(atlas, trophies, { s = "porcini", v = "gold" }), "złotego nie znalazł")
+	check(not Showcase.allowed(atlas, trophies, { s = "parasol", v = "cosmic" }), "kosmiczny bez daty to nie trofeum")
+	check(Showcase.allowed(atlas, trophies, { s = "parasol", v = "cosmic", t = 1793800000 }), "trofeum")
+	check(not Showcase.allowed(atlas, trophies, { s = "parasol", v = "cosmic", t = 1793800001 }), "cudze trofeum")
+	local options = Showcase.options(atlas, trophies)
+	eq(#options, 3)
+	eq(options[1].t, 1793800000, "trofea pierwsze")
+	eq(options[2].v, "rainbow", "potem najrzadsze")
+	-- Limit trofeów: najstarsze wypadają
+	for i = 1, Config.Showcase.maxTrophies + 5 do
+		Showcase.addTrophy(trophies, { s = "parasol", v = "cosmic", t = 1793800000 + i })
+	end
+	eq(#trophies, Config.Showcase.maxTrophies)
+	eq(trophies[1].t, 1793800000 + Config.Showcase.maxTrophies + 5, "najnowsze na górze")
+	eq(#Showcase.readTrophies(trophies), Config.Showcase.maxTrophies)
+	local save = Showcase.emptySave()
+	eq(Showcase.firstEmpty(save), 1)
+	save.items["1"] = { s = "porcini" }
+	eq(Showcase.firstEmpty(save), 2)
+	save.items["2"] = { s = "porcini" }
+	eq(Showcase.firstEmpty(save), nil, "pełne darmowe")
+	for _, key in {
+		"SHOWCASE_TITLE",
+		"SHOWCASE_PROMPT",
+		"SHOWCASE_BUY",
+		"SHOWCASE_BUY_CONFIRM",
+		"SHOWCASE_FULL",
+		"SHOWCASE_NEED_WORLD",
+		"SHOWCASE_NO_COINS",
+		"SHOWCASE_HINT",
+		"SHOWCASE_PICK_SLOT",
+		"SHOWCASE_PICK_ITEM",
+		"SHOWCASE_OPTIONS",
+		"SHOWCASE_OPTIONS_EMPTY",
+		"SHOWCASE_REMOVE",
+		"SHOWCASE_EMPTY_SLOT",
+		"SHOWCASE_LOCKED_WORLD",
+		"SHOWCASE_BUY_HINT",
+		"SHOWCASE_BUY_ORDER",
+		"MSG_SHOWCASE_BOUGHT",
+		"MSG_SHOWCASE_NO_COINS",
+		"MSG_SHOWCASE_WORLD",
+	} do
+		check(csvHas(key), "tłumaczenie " .. key)
+	end
+	for _, def in Config.Showcase.series do
+		check(csvHas(def.key), "tłumaczenie " .. def.key)
+	end
 end)
 
 print(string.format("\n%d ok, %d błędów", passed, failed))
