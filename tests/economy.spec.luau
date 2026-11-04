@@ -256,7 +256,7 @@ test("DataService ładuje v5 jako v7 bez utraty ekwipunku i kupionych poziomów"
 			caveUnlocked = false, swampUnlocked = false,
 			basket = { { s = "honey", v = "gold" } },
 			planted = { { s = "porcini", t = os.time() } },
-			atlas = { honey = 7 }, receipts = { "paid-before-migration" },
+			atlas = { honey = 7, porcini = 16, bay_bolete = 31, chanterelle = 40, parasol = -3 }, receipts = { "paid-before-migration" },
 			pot = 123456, potMinutes = 240, luckUntil = os.time() + 1000,
 		},
 		OnSessionEnd = signal, OnAfterSave = signal,
@@ -287,6 +287,10 @@ test("DataService ładuje v5 jako v7 bez utraty ekwipunku i kupionych poziomów"
 	eq(migrated.basket[1].v, "gold")
 	eq(migrated.planted[1].s, "porcini")
 	eq(migrated.atlas.honey, 7)
+	eq(migrated.atlas.porcini, 16, "sam kosmiczny zostaje kosmicznym (bez dopisywania niższych form)")
+	eq(migrated.atlas.bay_bolete, 31, "komplet 5 form")
+	eq(migrated.atlas.chanterelle, 8, "nieznane bity odcięte")
+	eq(migrated.atlas.parasol, nil, "ujemna maska odrzucona")
 	eq(migrated.receipts[1], "paid-before-migration")
 	eq(migrated.pot, 123456, "ponowna migracja nie obcina skrzyni v5")
 	eq(migrated.potMinutes, 240)

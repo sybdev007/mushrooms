@@ -10,6 +10,12 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Economy = require(ReplicatedStorage.Shared.Economy)
+
+-- Grzybopedia: bit na każdą formę (ranga wariantu 0..max), np. 5 form = maska 0..31
+local ATLAS_MASK = 0
+for _, variant in Config.Variants do
+	ATLAS_MASK = math.max(ATLAS_MASK, 2 ^ (variant.rank + 1) - 1)
+end
 local Progress = require(ReplicatedStorage.Shared.Progress)
 local Titles = require(ReplicatedStorage.Shared.Titles)
 local Social = require(ReplicatedStorage.Shared.Social)
@@ -192,8 +198,13 @@ local function reconcile(raw: any): Data
 	if typeof(raw.atlas) == "table" then
 		for id, found in raw.atlas do
 			if typeof(id) == "string" and Economy.getSpecies(id) then
-				-- Stare zapisy: true = znaleziony (zwykły); nowe: maska bitów 1..15
-				local mask = if found == true then 1 elseif typeof(found) == "number" then math.clamp(math.floor(found), 0, 15) else 0
+				-- Stare zapisy: true = znaleziony (zwykły); nowe: maska bitów form 0..4 (kosmiczny = 16).
+				-- Dawniej przycinane do 15, co zamieniało samego kosmicznego (16) we wszystkie niższe formy.
+				local mask = if found == true
+					then 1
+					elseif typeof(found) == "number" and found == found and math.abs(found) < math.huge
+					then bit32.band(math.max(0, math.floor(found)), ATLAS_MASK)
+					else 0
 				if mask > 0 then
 					data.atlas[id] = mask
 				end
