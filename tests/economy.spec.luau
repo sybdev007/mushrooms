@@ -258,7 +258,7 @@ test("migracja poziomów nie odbiera starego maksimum i nie daje nowych poziomó
 	eq(Economy.upgradeLevelsFromSave({ boots = 12 }, 6).boots, 12, "v6 zachowuje nowe poziomy")
 end)
 
-test("DataService ładuje v5 jako v7 bez utraty ekwipunku i kupionych poziomów", function()
+test("DataService ładuje v5 jako v8 bez utraty ekwipunku i kupionych poziomów", function()
 	local players = {}
 	local signal = { Connect = function() return { Disconnect = function() end } end }
 	local profile = {
@@ -287,7 +287,7 @@ test("DataService ładuje v5 jako v7 bez utraty ekwipunku i kupionych poziomów"
 	})
 	local migrated, canSave = DataService.load({ UserId = 1234, Parent = players })
 	check(canSave, "profil otwarty")
-	eq(migrated.version, 7)
+	eq(migrated.version, 8)
 	eq(migrated.coins, 43210)
 	eq(migrated.upgrades.boots, 8)
 	eq(migrated.upgrades.oil, 10)
@@ -307,9 +307,22 @@ test("DataService ładuje v5 jako v7 bez utraty ekwipunku i kupionych poziomów"
 	eq(migrated.potMinutes, 240)
 	eq(migrated.luckUntil, profile.Data.luckUntil)
 	local again = DataService.load({ UserId = 1234, Parent = players })
-	eq(again.version, 7)
+	eq(again.version, 8)
 	eq(again.upgrades.boots, 8, "migracja idempotentna")
 	eq(again.coins, 43210)
+	-- Zapis z nowszej wersji gry na starym serwerze: bez nadpisania, gracz wyrzucony (review-petla P0)
+	local newer = { version = 99, coins = 5, showcase = { n = 7 }, futureField = true }
+	profile.Data = newer
+	local ended, kicked = false, false
+	profile.EndSession = function()
+		ended = true
+	end
+	local _, canSaveNewer = DataService.load({ UserId = 1234, Parent = players, Kick = function()
+		kicked = true
+	end })
+	check(not canSaveNewer, "stary serwer nie zapisuje nowszego profilu")
+	check(ended and kicked, "sesja zamknięta, gracz wraca na nowy serwer")
+	check(profile.Data == newer and newer.futureField == true and newer.showcase.n == 7, "zapis nietknięty")
 end)
 
 test("obszar sklepu uwzględnia granice mapy i wysokość", function()
@@ -1153,7 +1166,8 @@ do
 	-- Tłumaczenia z CSV i przełącznik języka, jak w grze (Localize)
 	local strings: { [string]: { en: string, pl: string } } = {}
 	for line in string.gmatch(fs.readFile("src/localization/GameStrings.csv"), "[^\n]+") do
-		local cols = string.split(line, ",")
+		-- Checkout na Windows ma końce linii CRLF: bez tego polskie napisy kończyły się na "\r"
+		local cols = string.split((string.gsub(line, "\r$", "")), ",")
 		if #cols == 5 then
 			strings[cols[1]] = { en = cols[2], pl = cols[5] }
 		end
@@ -1230,6 +1244,7 @@ do
 	end)
 
 	test("tabliczka: legendarny z wariantem i dochód z premiami", function()
+		locale = "en" -- niezależnie od tego, czy poprzedni test dotarł do końca
 		eq(plain(Display.badges("jaga_toadstool", "gold")), "★★ LEGENDARY · ⭐ GOLD")
 		eq(plain(Display.badges("fern_flower", nil)), "★★★ MYTHIC", "mityczny z kuźni")
 		-- Dochód na tabliczce to atrybut Rate od serwera: Economy.plantIncome z nawozem (bez zmian)
@@ -3367,8 +3382,29 @@ test("znalezisko: tylko w głębi lasu, bez legowisk i Gniazda", function()
 end)
 
 test("znalezisko: dostawa na polanie, poza lasem przepada, rzadki gatunek strefy", function()
-	check(NightFind.delivered(Config.Zones[1].startZ + 20), "polana przy chatce")
-	check(not NightFind.delivered(Config.Zones[Config.NightFind.minZone].startZ + 5), "w lesie jeszcze nie")
+	local V3 = roblox.Vector3.new
+	check(NightFind.delivered(V3(0, 3, Config.Zones[1].startZ + 20)), "polana przy chatce")
+	check(not NightFind.delivered(V3(0, 3, Config.Zones[Config.NightFind.minZone].startZ + 5)), "w lesie jeszcze nie")
+	check(not NightFind.delivered(V3(0, -300, Config.Zones[1].startZ + 20)), "pod mapą to nie polana")
+	check(not NightFind.delivered(V3(0, 200, Config.Zones[1].startZ + 20)), "wysoko nad polaną też nie")
+	check(not NightFind.delivered(V3(Config.Zones[1].halfWidth + 30, 3, Config.Zones[1].startZ + 20)), "poza szerokością polany")
+	-- Ruch niosącego: marsz, lag (kilka sekund naraz) i spadanie przechodzą, skok przez pół lasu nie
+	local speed = 30
+	local bucket, tp = 0, false
+	for _ = 1, 40 do
+		bucket, tp = NightFind.moveCheck(bucket, speed, 0.25, speed * 0.25)
+		check(not tp, "zwykły marsz")
+	end
+	bucket, tp = NightFind.moveCheck(0, speed, 0.25, 0)
+	for _ = 1, 11 do
+		bucket, tp = NightFind.moveCheck(bucket, speed, 0.25, 0) -- stoi (lag: serwer nie dostaje pozycji)
+	end
+	bucket, tp = NightFind.moveCheck(bucket, speed, 0.25, speed * 3)
+	check(not tp, "3 s marszu dochodzi naraz po lagu")
+	local _, far = NightFind.moveCheck(0, speed, 0.25, 160)
+	check(far, "teleport o 160 studs")
+	local _, afterRest = NightFind.moveCheck(speed * 1.35 * NightFind.BUCKET_SECONDS, speed, 0.25, 250)
+	check(afterRest, "nawet po odpoczynku nie przeskoczy 250 studs")
 	check(NightFind.inForest(Config.Zones[3].startZ + 5), "las")
 	local caveZone = nil
 	for zone = 1, #Config.Zones do

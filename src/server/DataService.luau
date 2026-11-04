@@ -79,7 +79,10 @@ export type Forest = { g: number, s: { [string]: ForestSpot } }
 
 local LEGACY_STORE_NAME = "LanternForager_Prototype_v1" -- stary zapis bez blokady sesji (tylko do przeniesienia)
 local PROFILE_STORE_NAME = "LanternForager_Profiles_v1"
-local DATA_VERSION = 7 -- 7: Łysa Góra (mountainUnlocked, nowe poziomy ulepszeń)
+-- 7: Łysa Góra (mountainUnlocked, nowe poziomy ulepszeń)
+-- 8: gablota (showcase, trophies), pogoda w ogródku (weatherNight), Znalezisko Nocy, Zima.
+-- Podnoś przy każdym nowym polu zapisu: serwer ze starszą wersją nie otworzy nowszego zapisu (load).
+local DATA_VERSION = 8
 local MAX_ATTEMPTS = 3
 
 local DataService = {}
@@ -555,6 +558,14 @@ function DataService.load(player: Player): (Data, boolean)
 			return DataService.defaultData(), false
 		end
 		raw = legacy
+	end
+	-- Zapis z nowszej wersji gry (gracz był już na zaktualizowanym serwerze), a ten serwer jest stary.
+	-- reconcile zgubiłby pola, których ten serwer nie zna (np. kupione miejsca w gablocie), a zapis
+	-- by je skasował. Zamykamy sesję bez zmian i wyrzucamy gracza: po powrocie trafi na nowy serwer.
+	if finite(raw.version) and raw.version > DATA_VERSION then
+		profile:EndSession()
+		player:Kick("Ten serwer ma starszą wersję gry. Wejdź ponownie. / This server runs an older version of the game. Please rejoin.")
+		return DataService.defaultData(), false
 	end
 	local data = reconcile(raw)
 	profile.Data = data

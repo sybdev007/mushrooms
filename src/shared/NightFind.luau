@@ -44,9 +44,31 @@ function NightFind.candidates(spots: { Spot }): { Spot }
 	return list
 end
 
--- Czy niosący jest już przy chatce (polana: strefa 1)
-function NightFind.delivered(z: number): boolean
-	return Economy.zoneIndexAt(z) == 1
+-- Czy niosący jest już na polanie przy chatce: strefa 1, w jej szerokości i na wysokości ziemi
+-- (review-petla P1: sam pas współrzędnej Z zaliczał też miejsca poza polaną, np. pod mapą)
+NightFind.GROUND_Y = { -10, 40 }
+function NightFind.delivered(position: Vector3): boolean
+	local cabin = Config.Zones[1]
+	return Economy.zoneIndexAt(position.Z) == 1
+		and math.abs(position.X) <= (cabin.halfWidth or 80)
+		and position.Y >= NightFind.GROUND_Y[1]
+		and position.Y <= NightFind.GROUND_Y[2]
+end
+
+-- Ruch niosącego: „wiadro” dozwolonej drogi w poziomie. Co próbkę dolewa się prędkość × czas (z zapasem),
+-- ruch je opróżnia; skok ponad zawartość to teleport. Pozycja dochodząca z lagiem naraz (kilka sekund
+-- marszu w jednej próbce) mieści się, bo wiadro napełniało się, gdy stał; spadanie się nie liczy (pion).
+-- Zwraca nową zawartość wiadra i czy to teleport.
+NightFind.BUCKET_SECONDS = 4 -- najwyżej tyle sekund marszu na zapas
+NightFind.SPEED_MARGIN = 1.35 -- skos, zjazd ze zbocza, zaokrąglenia
+NightFind.JUMP_ALLOWANCE = 12 -- odrzut, wypchnięcie przez fizykę
+function NightFind.moveCheck(bucket: number, speed: number, dt: number, moved: number): (number, boolean)
+	local rate = math.max(speed, 1) * NightFind.SPEED_MARGIN
+	local filled = math.min(bucket + rate * dt, rate * NightFind.BUCKET_SECONDS)
+	if moved > filled + NightFind.JUMP_ALLOWANCE then
+		return filled, true
+	end
+	return math.max(0, filled - moved), false
 end
 
 -- Czy niosący jeszcze może dojść (nie wyszedł z lasu przez portal)

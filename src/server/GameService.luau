@@ -2408,6 +2408,9 @@ function GameService.start(mapInfo: MapBuilder.MapInfo)
 				TutorialService.event(session :: any, kind)
 			end
 		end,
+		busyElsewhere = function(player: Player): boolean
+			return NightFindService.isCarrying(player)
+		end,
 	})
 	NightFindService.start({
 		getData = function(player: Player)

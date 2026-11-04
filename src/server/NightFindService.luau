@@ -32,17 +32,24 @@ export type Api = {
 }
 
 type Find = { model: Model, species: string, ground: Vector3, zone: number }
-type Carrier = { player: Player, species: string, deadline: number, last: Vector3, lastAt: number, visuals: { Instance } }
+type Carrier = {
+	player: Player,
+	character: Model, -- postać, która zerwała (nowa postać po śmierci = koniec)
+	humanoid: Humanoid,
+	species: string,
+	deadline: number,
+	last: Vector3,
+	lastAt: number,
+	bucket: number, -- zapas dozwolonej drogi w poziomie (NightFind.moveCheck)
+	visuals: { Instance },
+	died: RBXScriptConnection,
+}
 
 local NightFindService = {}
 
 local GOLD = Color3.fromRGB(255, 214, 90)
 local COSMIC = Color3.fromRGB(150, 120, 255)
 local PICK_RANGE = 10 -- serwer jest łagodniejszy niż przycisk przez opóźnienie sieci
--- Skok o więcej niż TELEPORT_STEP + TELEPORT_SPEED × czas od ostatniego sprawdzenia = teleport, nie chód
--- (GameService i tak woła drop przy portalach i śmierci; to tylko zabezpieczenie)
-local TELEPORT_STEP = 20
-local TELEPORT_SPEED = 60
 
 local api: Api
 local folder: Folder
@@ -232,6 +239,7 @@ local function endCarry()
 		return
 	end
 	carrier = nil
+	current.died:Disconnect()
 	for _, instance in current.visuals do
 		instance:Destroy()
 	end
@@ -281,23 +289,34 @@ function NightFindService.pick(player: Player)
 	end
 	local root = api.rootOf(player)
 	local findRoot = current.model.PrimaryPart
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 	if not root or not findRoot or (root.Position - findRoot.Position).Magnitude > PICK_RANGE then
+		return
+	end
+	if not (character and humanoid and humanoid.Health > 0) then
 		return
 	end
 	removeFind()
 	local seconds = Config.NightFind.carrySeconds
 	carrier = {
 		player = player,
+		character = character,
+		humanoid = humanoid,
 		species = current.species,
 		deadline = os.clock() + seconds,
 		last = root.Position,
 		lastAt = os.clock(),
+		bucket = 0,
 		visuals = carryVisuals(player),
+		-- Śmierć kończy niesienie od razu (nie dopiero przy CharacterRemoving po kilku sekundach)
+		died = humanoid.Died:Connect(function()
+			if carrier and carrier.player == player then
+				fail()
+			end
+		end),
 	}
-	local character = player.Character
-	if character then
-		character:SetAttribute("NightFindUntil", Workspace:GetServerTimeNow() + seconds)
-	end
+	character:SetAttribute("NightFindUntil", Workspace:GetServerTimeNow() + seconds)
 	api.applyStats(player)
 	api.notify(player, "MSG_NIGHTFIND_RUN", { math.floor(seconds / 60) })
 	notifyAll("MSG_NIGHTFIND_TAKEN", { player.DisplayName }, nil, player)
@@ -329,7 +348,10 @@ local function step()
 			scheduledNight = phase.index
 			spawnAt = NightFind.spawnTime(phase.index, math.random(), now)
 		end
-		if spawnAt and now >= spawnAt and spawnedNight ~= phase.index and not find and not carrier and #Players:GetPlayers() > 0 then
+		-- Czas do świtu sprawdzamy jeszcze raz przy wyrastaniu: po długim pustym serwerze zaplanowane
+		-- Znalezisko nie wyrasta tuż przed świtem (review-petla)
+		local enoughNight = phase.endsAt - now >= Config.NightFind.minLeft
+		if spawnAt and now >= spawnAt and enoughNight and spawnedNight ~= phase.index and not find and not carrier and #Players:GetPlayers() > 0 then
 			spawnedNight = phase.index
 			spawnRandom()
 		end
@@ -341,19 +363,24 @@ local function step()
 	if current then
 		local player = current.player
 		local root = if player.Parent then api.rootOf(player) else nil
-		if not root then
+		-- Ta sama, żywa postać (po śmierci albo odrodzeniu Znalezisko przepada)
+		if not root or player.Character ~= current.character or current.humanoid.Health <= 0 then
 			fail()
 			return
 		end
 		local position = root.Position
 		local clock = os.clock()
-		local moved = (position - current.last).Magnitude
-		local teleported = moved > TELEPORT_STEP + TELEPORT_SPEED * (clock - current.lastAt)
+		-- Teleport = droga w poziomie ponad zapas z prędkości chodu (lag i spadanie się mieszczą);
+		-- teleporty gry (portal, śmierć, DEV) i tak wołają drop, zanim przeniosą postać
+		local offset = position - current.last
+		local moved = Vector3.new(offset.X, 0, offset.Z).Magnitude
+		local bucket, teleported = NightFind.moveCheck(current.bucket, current.humanoid.WalkSpeed, clock - current.lastAt, moved)
+		current.bucket = bucket
 		current.last = position
 		current.lastAt = clock
 		if teleported or not NightFind.inForest(position.Z) or clock > current.deadline then
 			fail()
-		elseif NightFind.delivered(position.Z) then
+		elseif NightFind.delivered(position) then
 			deliver()
 		end
 	end

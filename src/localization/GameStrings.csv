@@ -1004,6 +1004,7 @@ ADVENT_NEXT,Next door in {1},,,Następne okienko za {1}
 ADVENT_SOON,The calendar opens on December 1,,,Kalendarz otwiera się 1 grudnia
 ADVENT_DONE,Calendar complete - Merry Christmas!,,,Kalendarz zakończony - Wesołych Świąt!
 MSG_STEAL_FOREST,First pick {1} more 🍄 in the forest. Thieves have to forage too!,,,Najpierw zbierz jeszcze {1} 🍄 w lesie. Złodziej też musi chodzić na grzyby!
+MSG_STEAL_BUSY_FIND,You are carrying the Night Find - your hands are full!,,,Niesiesz Znalezisko Nocy - masz zajęte ręce!
 GARDEN_STEAL_FOREST,First {1} 🍄 from the forest,,,Najpierw {1} 🍄 z lasu
 GARDEN_PROTECTED,🛡️ Protected {1},,,🛡️ Chroniony {1}
 MUT_BLOODY,Bloody,,,Krwawy

@@ -50,6 +50,7 @@ export type Api = {
 	pushState: (Player) -> (),
 	applyStats: (Player) -> (), -- przelicza prędkość chodu (łup spowalnia)
 	onEvent: ((Player, string, number?) -> ())?, -- zadania dzienne: "plant", "collect", "steal"
+	busyElsewhere: ((Player) -> boolean)?, -- niesie Znalezisko Nocy: nie może naraz kraść (review-petla P2)
 }
 
 type GardenState = {
@@ -857,6 +858,10 @@ end
 local function onSteal(garden: GardenState, thief: Player)
 	local owner = garden.owner
 	if not owner or owner == thief or carries[thief] then
+		return
+	end
+	if api.busyElsewhere and api.busyElsewhere(thief) then
+		api.notify(thief, "MSG_STEAL_BUSY_FIND")
 		return
 	end
 	local ownerData = api.getData(owner)
