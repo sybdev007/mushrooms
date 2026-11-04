@@ -108,7 +108,7 @@ end
 local splash = Instance.new("Frame")
 splash.Name = "Splash"
 splash.AnchorPoint = Vector2.new(0.5, 0.5)
-splash.Position = UDim2.fromScale(0.5, 0.3)
+splash.Position = UDim2.fromScale(0.5, 0.33)
 splash.Size = UDim2.fromOffset(560, 120)
 splash.BackgroundTransparency = 1
 splash.Visible = false
@@ -131,13 +131,14 @@ local function showSplash(species: string, variant: string?, tags: { string }?)
 	local color = classColor(species)
 	local class = Economy.speciesClass(species)
 	splashTitle.Text = "★ " .. MutationText.upper(Localize.t(class.key)) .. "! ★"
-	splashGradient.Color = ColorSequence.new(Color3.new(1, 1, 1), color)
+	-- Jaśniej u góry, pełny kolor klasy u dołu (wyraźny fiolet zamiast bladego różu)
+	splashGradient.Color = ColorSequence.new(color:Lerp(Color3.new(1, 1, 1), 0.35), color:Lerp(Color3.new(0, 0, 0), 0.1))
 	local mutations = MutationText.rich(variant, tags)
 	splashName.Text = speciesName(species) .. (if mutations ~= "" then " · " .. mutations else "")
 	splash.Visible = true
 	splashTitle.TextTransparency = 0
 	splashName.TextTransparency = 0
-	splash.Position = UDim2.fromScale(0.5, 0.3)
+	splash.Position = UDim2.fromScale(0.5, 0.33)
 	local base = UiScale.get()
 	splashScale.Scale = base * 0.35
 	TweenService:Create(splashScale, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = base }):Play()
@@ -150,7 +151,7 @@ local function showSplash(species: string, variant: string?, tags: { string }?)
 			return
 		end
 		local info = TweenInfo.new(0.45, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
-		TweenService:Create(splash, info, { Position = UDim2.fromScale(0.5, 0.24) }):Play()
+		TweenService:Create(splash, info, { Position = UDim2.fromScale(0.5, 0.27) }):Play()
 		TweenService:Create(splashTitle, info, { TextTransparency = 1 }):Play()
 		TweenService:Create(splashName, info, { TextTransparency = 1 }):Play()
 		task.delay(0.5, function()
@@ -166,7 +167,7 @@ end
 local card = Instance.new("Frame")
 card.Name = "Card"
 card.AnchorPoint = Vector2.new(0.5, 0.5)
-card.Position = UDim2.fromScale(0.5, 0.27)
+card.Position = UDim2.fromScale(0.5, 0.33)
 card.Size = UDim2.fromOffset(500, 156)
 card.BackgroundColor3 = CARD_BG
 card.Visible = false
@@ -284,7 +285,7 @@ local function showCard(species: string, variant: string?, tags: { string }?, va
 	placeModel(snapshot)
 
 	card.Visible = true
-	card.Position = UDim2.fromScale(0.5, 0.27)
+	card.Position = UDim2.fromScale(0.5, 0.33)
 	local base = UiScale.get()
 	cardScale.Scale = base * 0.4
 	TweenService:Create(cardScale, TweenInfo.new(0.45, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = base }):Play()
