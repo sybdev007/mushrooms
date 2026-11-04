@@ -1148,34 +1148,6 @@ test("progi ostrzeżeń są w dobrej kolejności", function()
 	check(Config.ReturnMargin > 1, "zapas na powrót > 1")
 end)
 
-print("Rzadkie grzyby")
-test("rzadkie w ogródku: szyld ma z czego się liczyć", function()
-	-- Epickie gatunki rosną w lesie, legendarne to skarby strażników i gaju
-	local epic, legendary = 0, 0
-	for _, species in Config.Species do
-		local class = Economy.speciesClass(species.id).id
-		if class == "epic" and not species.mimic then
-			epic += 1
-		elseif class == "legendary" then
-			legendary += 1
-			check(species.grove == true or species.lair == true or species.guardian ~= nil, "legendarny tylko u strażnika albo w gaju: " .. species.id)
-		end
-	end
-	check(epic > 0, "są epickie gatunki")
-	check(legendary > 0, "są legendarne gatunki")
-	-- Wielkie litery z polskimi znakami na szyldzie ogródka
-	local MutationText = loadModule("src/client/MutationText.luau", {
-		game = { GetService = function() return { Shared = { Economy = Economy } } end },
-		Color3 = roblox.Color3,
-		script = { Parent = { Localize = { t = function(key) return key end } } },
-		require = function(module) return module end,
-	})
-	eq(MutationText.upper("Złoty"), "ZŁOTY")
-	eq(MutationText.upper("Tęczowy"), "TĘCZOWY")
-	eq(MutationText.upper("Legendarny"), "LEGENDARNY")
-	eq(MutationText.upper("źdźbło ąćęńóśż"), "ŹDŹBŁO ĄĆĘŃÓŚŻ")
-end)
-
 print("Tabliczki grządek (DisplayMushrooms)")
 do
 	-- Tłumaczenia z CSV i przełącznik języka, jak w grze (Localize)

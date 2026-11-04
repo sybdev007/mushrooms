@@ -85,20 +85,6 @@ function MutationText.variantTitle(variant: string?): string
 	return if def.id == "rainbow" then rainbow(name) elseif def.id == "cosmic" then cosmic(name) else colored(name, rgb(def.color))
 end
 
--- Kolor wariantu (tęcza i kosmos: kolor ich poświaty); nil bez wariantu
-function MutationText.variantColor(variant: string?): Color3?
-	local def = Economy.getVariant(variant)
-	if not def then
-		return nil
-	end
-	if def.id == "rainbow" then
-		return Color3.fromRGB(255, 170, 235)
-	elseif def.id == "cosmic" then
-		return COSMIC[1]
-	end
-	return rgb(def.color)
-end
-
 -- Oznaczenie wariantu z ikoną z Config („🌈 TĘCZOWY”); "" bez wariantu
 function MutationText.variantBadge(variant: string?): string
 	local def = Economy.getVariant(variant)
