@@ -58,17 +58,20 @@ end
 -- Ruch niosącego: „wiadro” dozwolonej drogi w poziomie. Co próbkę dolewa się prędkość × czas (z zapasem),
 -- ruch je opróżnia; skok ponad zawartość to teleport. Pozycja dochodząca z lagiem naraz (kilka sekund
 -- marszu w jednej próbce) mieści się, bo wiadro napełniało się, gdy stał; spadanie się nie liczy (pion).
+-- Skutek: niosący nie dotrze do chatki szybciej niż ok. SPEED_MARGIN × jego prędkość chodu (postój
+-- „na zapas” i skok nic nie dają: czekanie kosztuje tyle samo czasu co marsz).
 -- Zwraca nową zawartość wiadra i czy to teleport.
-NightFind.BUCKET_SECONDS = 4 -- najwyżej tyle sekund marszu na zapas
-NightFind.SPEED_MARGIN = 1.35 -- skos, zjazd ze zbocza, zaokrąglenia
-NightFind.JUMP_ALLOWANCE = 12 -- odrzut, wypchnięcie przez fizykę
+NightFind.BUCKET_SECONDS = 3 -- najwyżej tyle sekund marszu na zapas (lag do ok. 3 s)
+NightFind.SPEED_MARGIN = 1.25 -- skos, zjazd ze zbocza, zaokrąglenia
+NightFind.JUMP_ALLOWANCE = 12 -- odrzut, wypchnięcie przez fizykę (jednorazowy dług, spłacany marszem)
 function NightFind.moveCheck(bucket: number, speed: number, dt: number, moved: number): (number, boolean)
 	local rate = math.max(speed, 1) * NightFind.SPEED_MARGIN
 	local filled = math.min(bucket + rate * dt, rate * NightFind.BUCKET_SECONDS)
 	if moved > filled + NightFind.JUMP_ALLOWANCE then
 		return filled, true
 	end
-	return math.max(0, filled - moved), false
+	-- Zapas na odrzut też się zużywa (wiadro schodzi poniżej zera), inaczej co próbkę dawałby darmowe studsy
+	return filled - moved, false
 end
 
 -- Czy niosący jeszcze może dojść (nie wyszedł z lasu przez portal)

@@ -3403,8 +3403,20 @@ test("znalezisko: dostawa na polanie, poza lasem przepada, rzadki gatunek strefy
 	check(not tp, "3 s marszu dochodzi naraz po lagu")
 	local _, far = NightFind.moveCheck(0, speed, 0.25, 160)
 	check(far, "teleport o 160 studs")
-	local _, afterRest = NightFind.moveCheck(speed * 1.35 * NightFind.BUCKET_SECONDS, speed, 0.25, 250)
-	check(afterRest, "nawet po odpoczynku nie przeskoczy 250 studs")
+	local _, afterRest = NightFind.moveCheck(speed * NightFind.SPEED_MARGIN * NightFind.BUCKET_SECONDS, speed, 0.25, 200)
+	check(afterRest, "nawet po odpoczynku nie przeskoczy 200 studs")
+	-- Średnio nie szybciej niż SPEED_MARGIN × prędkość: postój i skoki na zmianę nic nie dają
+	local walked, clock = 0, 0
+	bucket = 0
+	for _ = 1, 400 do
+		clock += 0.25
+		local hop = bucket + speed * NightFind.SPEED_MARGIN * 0.25 + NightFind.JUMP_ALLOWANCE -- zawsze tyle, ile wolno
+		local nextBucket, cheat = NightFind.moveCheck(bucket, speed, 0.25, hop - 0.01)
+		check(not cheat, "na granicy")
+		bucket = nextBucket
+		walked += hop - 0.01
+	end
+	check(walked / clock <= speed * NightFind.SPEED_MARGIN * 1.2, "średnia prędkość: " .. walked / clock)
 	check(NightFind.inForest(Config.Zones[3].startZ + 5), "las")
 	local caveZone = nil
 	for zone = 1, #Config.Zones do
