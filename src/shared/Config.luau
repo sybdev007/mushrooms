@@ -760,21 +760,21 @@ Config.MushroomSprites = { sheet = "rbxassetid://136090318037259", cell = 64, co
 Config.Badges = {
 	first_mushroom = 3569275503907076, -- pierwszy grzyb w koszyku
 	cave = 2082056460324259, -- otwarty portal do jaskini
-	swamp = 0, -- otwarte bagna
+	swamp = 1696489879521185, -- otwarte bagna
 	gold = 3766445876669935, -- pierwszy złoty grzyb
-	rainbow = 0, -- pierwszy tęczowy grzyb
+	rainbow = 1207892509814056, -- pierwszy tęczowy grzyb
 	leszy = 4437565651201625, -- okradziony Leszy
-	skarbnik = 0, -- okradziony Skarbnik
-	utopiec = 0, -- okradziony Utopiec
-	atlas_page = 0, -- cała strona Grzybopedii odkryta
+	skarbnik = 3635009068161156, -- okradziony Skarbnik
+	utopiec = 1005403357582209, -- okradziony Utopiec
+	atlas_page = 2883145295440744, -- cała strona Grzybopedii odkryta
 	grandmaster = 0, -- Arcygrzybiarz: cała księga tęczowa
-	lifesaver = 0, -- podniesiony kumpel
-	streak7 = 0, -- 7 dni logowania z rzędu
+	lifesaver = 3740386354746845, -- podniesiony kumpel
+	streak7 = 4091627784779983, -- 7 dni logowania z rzędu
 	halloween2026 = 1589520696458272, -- Halloween 2026: 100 cukierków w czasie eventu
-	mountain = 0, -- otwarta Łysa Góra
-	jaga = 0, -- okradziona Baba Jaga
+	mountain = 3977568312918006, -- otwarta Łysa Góra
+	jaga = 3897097733097783, -- okradziona Baba Jaga
 	cosmic = 0, -- pierwszy kosmiczny grzyb
-	forge_first = 0, -- pierwszy grzyb z Moździerza Zielarki
+	forge_first = 511688787129005, -- pierwszy grzyb z Moździerza Zielarki
 	forge_collection = 0, -- wszystkie gatunki z kuźni
 } :: { [string]: number }
 -- ===== Halloween: Noc Dziadów (event) =====
