@@ -107,11 +107,11 @@ local SHAPES: { [string]: Shape } = {
 	bog_bell = { stemH = 1.6, stemD = 0.4, capW = 1.7, capH = 1.1, cap = rgb(120, 140, 70), stem = rgb(200, 200, 160) },
 	peat_cap = { stemH = 1.0, stemD = 0.9, capW = 2.3, capH = 0.8, cap = rgb(110, 70, 50), stem = rgb(170, 140, 110), cluster = 3 },
 	frog_stool = { stemH = 1.4, stemD = 0.6, capW = 2.2, capH = 0.9, cap = rgb(90, 210, 90), stem = rgb(230, 240, 200), spots = true },
-	-- Ognik: turkusowy dzwonek z płomykiem na czubku i trzema ognikami w powietrzu (wcześniej zwykły
-	-- świecący dzwonek ginął wśród innych świecących grzybów na bagnach)
-	wisp_cap = { stemH = 1.8, stemD = 0.35, capW = 1.8, capH = 1.0, cap = rgb(140, 255, 220), stem = rgb(220, 255, 240), glow = true, wisp = true },
+	-- Ognik: nasycony turkusowy dzwonek z płomykiem na czubku i trzema ognikami w powietrzu (wcześniej
+	-- blady miętowy dzwonek świecił prawie na biało jak Księżycowa Lilia i ginął wśród grzybów na bagnach)
+	wisp_cap = { stemH = 1.8, stemD = 0.35, capW = 1.8, capH = 1.0, cap = rgb(40, 220, 205), stem = rgb(200, 245, 236), glow = true, wisp = true },
 	-- Błędny ognik wygląda jak Ognik (ten sam kształt, kolor i płomyk); zdradza go tylko niespokojne światło
-	false_wisp = { stemH = 1.8, stemD = 0.35, capW = 1.8, capH = 1.0, cap = rgb(140, 255, 220), stem = rgb(220, 255, 240), glow = true, wisp = true },
+	false_wisp = { stemH = 1.8, stemD = 0.35, capW = 1.8, capH = 1.0, cap = rgb(40, 220, 205), stem = rgb(200, 245, 236), glow = true, wisp = true },
 	moon_lily = { stemH = 2.2, stemD = 0.4, capW = 2.6, capH = 0.6, cap = rgb(230, 230, 255), stem = rgb(240, 240, 250), glow = true },
 	drowned_cap = { stemH = 2.0, stemD = 0.7, capW = 2.6, capH = 1.0, cap = rgb(60, 110, 120), stem = rgb(150, 190, 190), spots = true },
 	bog_pearl = { stemH = 0.8, stemD = 0.8, capW = 1.8, capH = 1.6, cap = rgb(250, 250, 240), stem = rgb(220, 220, 210), glow = true, cluster = 3 },
@@ -580,7 +580,8 @@ local function buildOne(model: Model, origin: CFrame, shape: Shape, species: str
 			for k, f in { 1.0, 0.66, 0.36 } do
 				local w = math.max(u * 0.7, snap(fw * f))
 				local h = snap(u * (if k == 1 then 1.5 else 1.25))
-				local color = if k == 3 then rgb(235, 255, 250) else lighten(capColor, 0.18 + 0.27 * (k - 1))
+				-- Neon w jasnym kolorze świeci na biało, więc dół płomyka i ogniki są nasycone, biały tylko czubek
+				local color = if k == 3 then rgb(225, 255, 250) else capColor:Lerp(rgb(120, 255, 240), 0.25 + 0.35 * (k - 1))
 				local flame = add("Flame", Vector3.new(w, h, w), CFrame.new(u * 0.3 * (k - 1), y + h / 2, 0), color, Enum.Material.Neon)
 				flame:SetAttribute("FlameTip", k == 3)
 				y += h
@@ -589,7 +590,7 @@ local function buildOne(model: Model, origin: CFrame, shape: Shape, species: str
 			local bottomY = bottom + (capTop - bottom) * 0.35
 			for k, at in { { 0.3, bottomY }, { 2.4, capTop + u * 0.6 }, { 4.4, (bottomY + capTop) / 2 } } do
 				local r = capW * 0.62 + u * (if k == 2 then 1.6 else 1.1)
-				local orb = add("Wisp", Vector3.one * u * (if k == 2 then 1.2 else 0.95), CFrame.new(math.cos(at[1]) * r, at[2], math.sin(at[1]) * r), lighten(capColor, 0.55), Enum.Material.Neon)
+				local orb = add("Wisp", Vector3.one * u * (if k == 2 then 1.3 else 1.05), CFrame.new(math.cos(at[1]) * r, at[2], math.sin(at[1]) * r), capColor:Lerp(rgb(90, 255, 235), 0.4), Enum.Material.Neon)
 				orb.Transparency = 0.1
 				orb:SetAttribute("BaseT", 0.1)
 			end

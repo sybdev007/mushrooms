@@ -567,9 +567,9 @@ Config.Species = {
 	{ id = "peat_cap", key = "MUSH_PEAT_CAP", zone = 11, value = 2800, weight = 35, cap = { 110, 70, 50 } },
 	{ id = "frog_stool", key = "MUSH_FROG_STOOL", zone = 11, value = 3800, weight = 15, cap = { 90, 210, 90 } },
 	-- Mokradła Ogników: prawdziwe ogniki i ich podróbki (błędne ogniki)
-	{ id = "wisp_cap", key = "MUSH_WISP_CAP", zone = 12, value = 5500, weight = 45, cap = { 140, 255, 220 } },
+	{ id = "wisp_cap", key = "MUSH_WISP_CAP", zone = 12, value = 5500, weight = 45, cap = { 40, 220, 205 } },
 	{ id = "moon_lily", key = "MUSH_MOON_LILY", zone = 12, value = 8000, weight = 25, cap = { 230, 230, 255 } },
-	{ id = "false_wisp", key = "MUSH_WISP_CAP", zone = 12, value = 0, weight = 30, cap = { 140, 255, 220 }, mimic = true },
+	{ id = "false_wisp", key = "MUSH_WISP_CAP", zone = 12, value = 0, weight = 30, cap = { 40, 220, 205 }, mimic = true },
 	-- Staw Utopca
 	{ id = "drowned_cap", key = "MUSH_DROWNED_CAP", zone = 13, value = 7500, weight = 50, cap = { 60, 110, 120 } },
 	{ id = "bog_pearl", key = "MUSH_BOG_PEARL", zone = 13, value = 10500, weight = 35, cap = { 250, 250, 240 } },
