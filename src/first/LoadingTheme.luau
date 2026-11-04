@@ -71,6 +71,10 @@ local SHARED_TIPS: { Text } = {
 		en = "Stay close to your garden and thieves can't take anything from it.",
 	},
 	{
+		pl = "Złodziej musi najpierw nazbierać grzybów w lesie, a okradany ogródek jest chroniony coraz dłużej.",
+		en = "Thieves have to pick mushrooms in the forest first, and a robbed garden stays protected longer each time.",
+	},
+	{
 		pl = "Im głębiej w lesie, tym częściej trafiają się mutacje.",
 		en = "The deeper you go into the forest, the more often mutations appear.",
 	},

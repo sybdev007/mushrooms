@@ -287,6 +287,7 @@ local TOAST_KIND: { [string]: string } = {
 	MSG_ROBBED = "warn",
 	MSG_RACK_ALERT = "warn",
 	MSG_RACK_PROTECTED = "warn",
+	MSG_STEAL_FOREST = "warn",
 	MSG_OWNER_GUARDING = "warn",
 	MSG_NO_RACK = "warn",
 	MSG_ESCAPED = "gold",

@@ -766,6 +766,41 @@ test("złodziej bierze najcenniejszy, wymiana zaczyna od najsłabszego", functio
 	eq(Economy.mostValuableIndex({}), nil, "pusto")
 end)
 
+test("kradzież: ochrona ogródka rośnie 25 s, 1 min, 2 min", function()
+	local ladder = Config.Garden.stealProtection
+	eq(ladder[1], 25)
+	eq(ladder[2], 60)
+	eq(ladder[3], 120)
+	eq(Economy.stealProtection(1), 25, "pierwsza kradzież")
+	eq(Economy.stealProtection(2), 60, "druga z rzędu")
+	eq(Economy.stealProtection(3), 120, "trzecia")
+	eq(Economy.stealProtection(9), 120, "dalej ostatni próg")
+	eq(Economy.stealProtection(0), 25, "licznik nie schodzi poniżej pierwszego progu")
+	for i = 2, #ladder do
+		check(ladder[i] > ladder[i - 1], "progi rosną")
+	end
+	-- Kamper przy jednym ogródku (bez czasu na las): ile kradzieży w 10 minut, zamiast co 25 s
+	local t, thefts = 0, 0
+	while t < 600 do
+		thefts += 1
+		t += Economy.stealProtection(thefts)
+	end
+	check(thefts <= 7, "najwyżej 7 kradzieży w 10 min: " .. thefts)
+end)
+
+test("kradzież: najpierw grzyby z lasu", function()
+	local need = Config.Garden.stealForestPicks
+	eq(need, 5)
+	eq(Economy.stealPicksLeft(0), need, "od wejścia do gry")
+	eq(Economy.stealPicksLeft(need - 1), 1)
+	eq(Economy.stealPicksLeft(need), 0, "może kraść")
+	eq(Economy.stealPicksLeft(need + 10), 0)
+	eq(Economy.stealPicksLeft(-3), need, "śmieci")
+	for _, key in { "MSG_STEAL_FOREST", "GARDEN_STEAL_FOREST", "GARDEN_PROTECTED", "MSG_RACK_PROTECTED" } do
+		check(csvHas(key), "tłumaczenie " .. key)
+	end
+end)
+
 test("łup spowalnia: im rzadszy, tym wolniej, korony strażników najwolniej", function()
 	local plain = Economy.carrySpeed({ s = "porcini" })
 	local gold = Economy.carrySpeed({ s = "porcini", v = "gold" })

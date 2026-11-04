@@ -1257,6 +1257,8 @@ local function onPick(player: Player, spotId: unknown)
 	local item = { s = state.speciesId, v = state.variant, x = state.tags }
 	table.insert(basket, item)
 	ProgressService.found(player, item, "pick")
+	-- Kradzież w ogródkach wymaga kilku grzybów z lasu od ostatniej kradzieży
+	GardenService.onPick(player)
 
 	-- Komunikat tylko o rzadkich znaleziskach (Złoto+ albo dwie mutacje naraz), żeby nie spamować;
 	-- o zwykłym srebrze czy mchu mówi już kolorowe „+N” nad grzybem

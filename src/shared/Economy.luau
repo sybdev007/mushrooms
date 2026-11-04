@@ -722,6 +722,18 @@ local function extremeIndex(list: { BasketItem }, best: boolean): number?
 	return found
 end
 
+-- Kradzież: ile sekund ochrony dostaje ogródek po kolejnej kradzieży (thefts = która to kradzież z tego
+-- ogródka od ostatniego powrotu właściciela, od 1). Dalsze kradzieże dostają ostatni próg.
+function Economy.stealProtection(thefts: number): number
+	local ladder = Config.Garden.stealProtection
+	return ladder[math.clamp(math.floor(thefts), 1, #ladder)]
+end
+
+-- Kradzież: ile grzybów z lasu brakuje złodziejowi do następnej kradzieży (0 = może kraść)
+function Economy.stealPicksLeft(picks: number): number
+	return math.max(0, Config.Garden.stealForestPicks - math.max(0, math.floor(picks)))
+end
+
 -- Indeks najcenniejszego posadzonego grzyba (to wyrywa złodziej). nil = pusto.
 function Economy.mostValuableIndex(list: { BasketItem }): number?
 	return extremeIndex(list, true)

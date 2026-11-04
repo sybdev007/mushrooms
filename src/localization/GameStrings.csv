@@ -58,7 +58,7 @@ UPG_LOCK_DESC,Thieves need longer,,,Złodziej wyrywa dłużej
 MSG_STOLE,Got it: {1}{2}! Bring it to your garden!,,,Masz: {1}{2}! Donieś do swojego ogródka!
 MSG_ROBBED,{2} stole your {1}{3}!,,,{2} ukradł ci: {1}{3}!
 MSG_RACK_ALERT,{1} is robbing your garden!,,,{1} okrada twój ogródek!
-MSG_RACK_PROTECTED,This garden was just robbed. Try later.,,,Ten ogródek ktoś przed chwilą okradł. Spróbuj później.
+MSG_RACK_PROTECTED,This garden was just robbed - it is protected for {1}.,,,Ten ogródek ktoś przed chwilą okradł - jest chroniony jeszcze przez {1}.
 MSG_OWNER_GUARDING,The owner is guarding this garden!,,,Właściciel pilnuje ogródka!
 MSG_NO_RACK,No free garden on this server.,,,Na tym serwerze nie ma wolnego ogródka.
 MUT_SILVER,Silver,,,Srebro
@@ -1003,3 +1003,6 @@ ADVENT_OPEN,🎁 Open door {1}!,,,🎁 Otwórz okienko {1}!
 ADVENT_NEXT,Next door in {1},,,Następne okienko za {1}
 ADVENT_SOON,The calendar opens on December 1,,,Kalendarz otwiera się 1 grudnia
 ADVENT_DONE,Calendar complete - Merry Christmas!,,,Kalendarz zakończony - Wesołych Świąt!
+MSG_STEAL_FOREST,First pick {1} more 🍄 in the forest. Thieves have to forage too!,,,Najpierw zbierz jeszcze {1} 🍄 w lesie. Złodziej też musi chodzić na grzyby!
+GARDEN_STEAL_FOREST,First {1} 🍄 from the forest,,,Najpierw {1} 🍄 z lasu
+GARDEN_PROTECTED,🛡️ Protected {1},,,🛡️ Chroniony {1}

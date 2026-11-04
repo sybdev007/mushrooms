@@ -1262,7 +1262,12 @@ Config.Garden = {
 	offlineSlowRate = 0.25,
 	offlineMinutes = 480,
 	harvestMinutes = 30, -- produkt za Robuxy: tyle minut dochodu od razu
-	stealCooldown = 25, -- po kradzieży ogródek jest chroniony przez tyle sekund
+	-- Ochrona ogródka po kradzieży (sekundy): pierwsza kradzież 25 s, druga z rzędu 1 min, kolejne 2 min.
+	-- Licznik kradzieży zeruje się, gdy właściciel wróci do swojego ogródka (Economy.stealProtection).
+	stealProtection = { 25, 60, 120 },
+	-- Złodziej musi zebrać tyle grzybów w lesie od wejścia do gry albo od swojej ostatniej kradzieży,
+	-- żeby nie dało się tylko czekać przy ogródkach (Economy.stealPicksLeft)
+	stealForestPicks = 5,
 	thiefCooldown = 8, -- ten sam złodziej może kraść co tyle sekund
 	guardRadius = 10, -- właściciel bliżej przycisków = nie da się kraść
 	promptDistance = 6, -- przyciski na placyku (sadzenie, kradzież)

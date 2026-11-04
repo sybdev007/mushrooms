@@ -6,6 +6,9 @@
 --   Kradzież: inny gracz trzyma przycisk (2 s + kłódka) i wyrywa najcenniejszy grzyb. Niesie go
 --   nad głową wolniej niż zwykle, podświetlony na czerwono. Doniesie do swojego ogródka = łup jego.
 --   Właściciel go dotknie = grzyb wraca. Wyjdzie z polany albo minie minuta = grzyb wraca.
+--   Przeciw czekaniu przy ogródkach: złodziej musi między kradzieżami zebrać kilka grzybów w lesie
+--   (Config.Garden.stealForestPicks), a ogródek po kolejnych kradzieżach jest chroniony coraz dłużej
+--   (25 s, 1 min, 2 min; Config.Garden.stealProtection), aż właściciel wróci do ogródka.
 --
 -- Przyciski to ProximityPrompt (telefon, klawiatura, pad). Serwer tworzy wszystkie, a klient
 -- (src/client/GardenPrompts.luau) pokazuje tylko te, które dotyczą danego gracza.
@@ -15,6 +18,7 @@ local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Economy = require(ReplicatedStorage.Shared.Economy)
@@ -63,6 +67,7 @@ type GardenState = {
 	ownerSign: TextLabel?,
 	owner: Player?,
 	protectedUntil: number,
+	thefts: number, -- kradzieże z tego ogródka od ostatniego powrotu właściciela (ochrona rośnie)
 	stealPrompt: ProximityPrompt,
 	contentKey: string?,
 	slotKeys: { [number]: string }, -- co stoi na każdej grządce (przebudowa tylko zmienionych)
@@ -93,6 +98,7 @@ local gardenOf: { [Player]: GardenState } = {}
 local carries: { [Player]: Carry } = {}
 local thiefLast: { [Player]: number } = {}
 local holdStarted: { [Player]: number } = {}
+local forestPicks: { [Player]: number } = {} -- grzyby z lasu od wejścia albo od ostatniej kradzieży
 
 -- ===== Pomocnicze =====
 
@@ -808,6 +814,41 @@ local function onCollect(garden: GardenState, player: Player, x2: boolean?)
 	api.pushState(player)
 end
 
+-- Ile grzybów z lasu brakuje graczowi do kradzieży; klient (GardenPrompts) pokazuje to na przycisku
+local function picksLeft(player: Player): number
+	return Economy.stealPicksLeft(forestPicks[player] or 0)
+end
+
+local function showPicksLeft(player: Player)
+	player:SetAttribute("StealPicksLeft", picksLeft(player))
+end
+
+-- Ochrona ogródka (os.clock) i ten sam koniec w czasie serwera dla klienta (odliczanie na przycisku)
+local function protect(garden: GardenState, seconds: number)
+	garden.protectedUntil = os.clock() + seconds
+	garden.model:SetAttribute("ProtectedUntil", Workspace:GetServerTimeNow() + seconds)
+end
+
+-- „0:45”, „2:00”
+local function clockText(seconds: number): string
+	local total = math.max(1, math.ceil(seconds))
+	return string.format("%d:%02d", total // 60, total % 60)
+end
+
+-- Czy złodziej może teraz kraść z tego ogródka (bez sprawdzania przycisku i odległości).
+-- Zwraca klucz komunikatu i argumenty, gdy nie może.
+local function stealBlock(garden: GardenState, thief: Player): (string?, { any }?)
+	local left = picksLeft(thief)
+	if left > 0 then
+		return "MSG_STEAL_FOREST", { left }
+	end
+	local now = os.clock()
+	if now < garden.protectedUntil then
+		return "MSG_RACK_PROTECTED", { clockText(garden.protectedUntil - now) }
+	end
+	return nil, nil
+end
+
 local function onSteal(garden: GardenState, thief: Player)
 	local owner = garden.owner
 	if not owner or owner == thief or carries[thief] then
@@ -830,11 +871,12 @@ local function onSteal(garden: GardenState, thief: Player)
 		api.notify(thief, "MSG_NO_RACK")
 		return
 	end
-	local now = os.clock()
-	if now < garden.protectedUntil then
-		api.notify(thief, "MSG_RACK_PROTECTED")
+	local blockKey, blockArgs = stealBlock(garden, thief)
+	if blockKey then
+		api.notify(thief, blockKey, blockArgs)
 		return
 	end
+	local now = os.clock()
 	if now - (thiefLast[thief] or 0) < Config.Garden.thiefCooldown then
 		return
 	end
@@ -848,7 +890,11 @@ local function onSteal(garden: GardenState, thief: Player)
 		return
 	end
 	local item = table.remove(ownerData.planted, index) :: Economy.PlantItem
-	garden.protectedUntil = now + Config.Garden.stealCooldown
+	-- Każda kolejna kradzież z tego ogródka daje mu dłuższą ochronę; złodziej wraca do lasu
+	garden.thefts += 1
+	protect(garden, Economy.stealProtection(garden.thefts))
+	forestPicks[thief] = 0
+	showPicksLeft(thief)
 	thiefLast[thief] = now
 	carries[thief] = { item = item, owner = owner, startedAt = now, visuals = carryVisuals(thief, item) }
 	api.applyStats(thief)
@@ -897,6 +943,7 @@ function GardenService.assign(player: Player)
 		if not garden.owner then
 			garden.owner = player
 			gardenOf[player] = garden
+			showPicksLeft(player)
 			garden.model:SetAttribute("OwnerUserId", player.UserId)
 			garden.model:SetAttribute("OwnerName", player.DisplayName)
 			-- Tylko w Studio: testy otwierają okno sadzenia atrybutem (narzędzia Studio nie klikają ProximityPrompt)
@@ -933,8 +980,13 @@ function GardenService.release(player: Player)
 	gardenOf[player] = nil
 	thiefLast[player] = nil
 	holdStarted[player] = nil
+	forestPicks[player] = nil
 	if garden then
 		garden.owner = nil
+		-- Nowy właściciel zaczyna bez ochrony i bez licznika kradzieży
+		garden.thefts = 0
+		garden.protectedUntil = 0
+		garden.model:SetAttribute("ProtectedUntil", 0)
 		garden.model:SetAttribute("OwnerUserId", 0)
 		garden.model:SetAttribute("OwnerName", "")
 		refreshGarden(garden)
@@ -952,6 +1004,15 @@ end
 function GardenService.speedFactor(player: Player): number
 	local carry = carries[player]
 	return if carry then Economy.carrySpeed(carry.item) else 1
+end
+
+-- Gracz zebrał grzyb w lesie (GameService.onPick): przybliża go do następnej kradzieży
+function GardenService.onPick(player: Player)
+	local picks = forestPicks[player] or 0
+	if picks < Config.Garden.stealForestPicks then
+		forestPicks[player] = picks + 1
+		showPicksLeft(player)
+	end
 end
 
 function GardenService.isCarrying(player: Player): boolean
@@ -1122,12 +1183,14 @@ function GardenService.start(gardenInfos: { { id: number, model: Model } }, serv
 			ownerSign = nameLabel,
 			owner = nil,
 			protectedUntil = 0,
+			thefts = 0,
 			stealPrompt = steal,
 			contentKey = nil,
 			slotKeys = {},
 		}
 		model:SetAttribute("OwnerUserId", 0)
 		model:SetAttribute("Count", 0)
+		model:SetAttribute("ProtectedUntil", 0)
 		-- Po tym tagu klient (GardenPrompts) znajduje ogródki
 		CollectionService:AddTag(model, "GardenPlot")
 		table.insert(gardens, garden)
@@ -1152,9 +1215,10 @@ function GardenService.start(gardenInfos: { { id: number, model: Model } }, serv
 		steal.PromptButtonHoldBegan:Connect(function(player)
 			holdStarted[player] = os.clock()
 			-- Właściciel dostaje ostrzeżenie od razu, żeby mógł przybiec i przegonić złodzieja
+			-- (tylko gdy złodziej naprawdę może kraść: bez fałszywych alarmów przy ochronie)
 			local owner = garden.owner
 			local ownerData = owner and api.getData(owner)
-			if owner and owner ~= player and ownerData and #ownerData.planted > 0 then
+			if owner and owner ~= player and ownerData and #ownerData.planted > 0 and stealBlock(garden, player) == nil then
 				api.notify(owner, "MSG_RACK_ALERT", { player.DisplayName })
 			end
 		end)
@@ -1224,6 +1288,13 @@ function GardenService.start(gardenInfos: { { id: number, model: Model } }, serv
 			for _, garden in gardens do
 				local owner = garden.owner
 				local data = owner and api.getData(owner)
+				-- Właściciel wrócił do ogródka: następna kradzież znowu zaczyna od najkrótszej ochrony
+				if owner and garden.thefts > 0 then
+					local root = getRoot(owner)
+					if root and insideGarden(garden, root.Position) then
+						garden.thefts = 0
+					end
+				end
 				if owner and data then
 					-- Do pełna skrzyni; zapełniła się właśnie teraz = jedno powiadomienie
 					local capacity = capacityOf(owner, data)
