@@ -1549,6 +1549,14 @@ local function onDevAction(player: Player, action: unknown)
 	elseif string.match(action, "^coinsSet:%d+$") then
 		-- Studio: przywrócenie salda po testach (devActionAllowed nie wpuszcza tego poza Studio)
 		data.coins = tonumber(string.sub(action, 10)) or data.coins
+	elseif string.match(action, "^atlasForget:[%w_]+:%d$") then
+		-- Studio: cofnięcie formy dodanej w teście (atlasForget:gatunek:ranga), bez ruszania innych form
+		local id, rank = string.match(action, "^atlasForget:([%w_]+):(%d)$")
+		local mask = data.atlas[id :: string]
+		if typeof(mask) == "number" then
+			local left = bit32.band(mask, bit32.bnot(2 ^ (tonumber(rank) :: number)))
+			data.atlas[id :: string] = if left > 0 then left else nil
+		end
 	elseif action == "jagaSummon" then
 		-- Baba Jaga wylatuje od razu na gracza (test pościgu bez zrywania Ziela)
 		local chaser = chasers.jaga
