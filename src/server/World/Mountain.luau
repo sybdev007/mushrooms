@@ -38,9 +38,9 @@ end
 -- Jaśniejsze niż w innych światach: noc na Łysej Górze jest księżycowa (zbocza mają być widać)
 local GROUND: { [string]: Color3 } = {
 	glade = rgb(58, 70, 44),
-	witchwood = rgb(66, 58, 74),
-	cauldrons = rgb(76, 66, 62),
-	summit = rgb(106, 100, 114),
+	witchwood = rgb(96, 84, 106),
+	cauldrons = rgb(108, 96, 88),
+	summit = rgb(150, 142, 162),
 }
 local GROUND_MATERIAL: { [string]: Enum.Material } = {
 	glade = Enum.Material.Grass,
@@ -48,13 +48,12 @@ local GROUND_MATERIAL: { [string]: Enum.Material } = {
 	cauldrons = Enum.Material.Ground,
 	summit = Enum.Material.Slate,
 }
-local ROCK = { rgb(98, 92, 108), rgb(86, 82, 98), rgb(108, 102, 116) }
-local VALLEY = rgb(30, 38, 34)
-local VALLEY_TREES = { rgb(26, 40, 38), rgb(30, 46, 42), rgb(22, 34, 34), rgb(34, 44, 52) }
-local CLOUDS = { rgb(58, 48, 86), rgb(66, 56, 96), rgb(52, 44, 80) } -- neon: chmury świecą księżycem
+local ROCK = { rgb(140, 132, 154), rgb(124, 118, 140), rgb(154, 146, 166) }
+local VALLEY = rgb(46, 60, 54)
+local VALLEY_TREES = { rgb(40, 62, 58), rgb(46, 70, 64), rgb(34, 52, 52), rgb(52, 66, 78) }
 local PEAKS = { rgb(54, 46, 66), rgb(46, 40, 58), rgb(60, 52, 72) }
 local PEAK_TOP = rgb(128, 118, 150)
-local RIVER = rgb(34, 52, 92)
+local RIVER = rgb(74, 96, 140)
 local VILLAGE_WINDOW = rgb(255, 186, 104)
 local BARK = { rgb(34, 28, 34), rgb(44, 36, 42), rgb(30, 26, 30) }
 local BONE = rgb(226, 218, 196)
@@ -1239,8 +1238,9 @@ local function buildScenery(parent: Instance, rng: Random)
 					Size = Vector3.new(rng:NextNumber(5, 7), 0.3, length + 3),
 					CFrame = CFrame.lookAt((previous + p) / 2, p) + Vector3.new(0, Terrain.FLOOR + 0.25, 0),
 					Color = RIVER,
-					Material = Enum.Material.Neon,
-					Transparency = 0.5,
+					Material = Enum.Material.SmoothPlastic,
+					Reflectance = 0.25,
+					Transparency = 0.15,
 					Parent = folder,
 				}))
 			end
@@ -1258,33 +1258,7 @@ local function buildScenery(parent: Instance, rng: Random)
 		decor(make("Part", { Size = Vector3.new(1.2, 1.1, 0.2), CFrame = cf * CFrame.new(rng:NextNumber(-1.6, 1.6), 2.2, -2.55), Color = VILLAGE_WINDOW, Material = Enum.Material.Neon, Parent = folder }))
 	end
 
-	-- Morze chmur pod szczytem: daleko po bokach góry i za nią (z kręgu kamieni i ze szczytu patrzy się
-	-- na nie z góry; niżej na zboczu widać pod nimi dolinę). Każda chmura to płaska podstawa i kilka
-	-- kłębów na wierzchu; neon, bo w nocy chmury świecą światłem księżyca.
-	local function cloud(center: Vector3, size: number)
-		local color = pick(CLOUDS, rng)
-		local base = blob(folder, center, Vector3.new(size, size * rng:NextNumber(0.1, 0.14), size * rng:NextNumber(0.6, 0.85)), color, rng:NextNumber(0.45, 0.6))
-		base.Material = Enum.Material.Neon
-		for _ = 1, rng:NextInteger(1, 3) do
-			local puff = size * rng:NextNumber(0.3, 0.5)
-			local at = center + Vector3.new(rng:NextNumber(-0.3, 0.3) * size, puff * 0.12, rng:NextNumber(-0.2, 0.2) * size)
-			local p = blob(folder, at, Vector3.new(puff, puff * rng:NextNumber(0.3, 0.45), puff * rng:NextNumber(0.7, 1)), color, rng:NextNumber(0.5, 0.65))
-			p.Material = Enum.Material.Neon
-		end
-	end
-	local function clouds(x1: number, x2: number, z1: number, z2: number, count: number)
-		for _ = 1, count do
-			local x, z = rng:NextNumber(x1, x2), rng:NextNumber(z1, z2)
-			local y = Terrain.CLOUDS + rng:NextNumber(-3, 3)
-			-- Chmura nie wchodzi w zbocze góry
-			if not Terrain.covers(x, z) or Terrain.groundY(x, z) < y - 12 then
-				cloud(Vector3.new(x, y, z), rng:NextNumber(60, 130))
-			end
-		end
-	end
-	clouds(150, 650, 3260, 3950, 34)
-	clouds(-460, 460, 3540, 4100, 40)
-	clouds(-560, -180, 3260, 3950, 20)
+	-- Morze chmur pod szczytem rysuje klient (MountainSky): miękkie kłęby z cząsteczek, nie twarde dyski
 
 	-- Dalekie szczyty za morzem chmur (blade wierzchołki w świetle księżyca)
 	for _, peak in {

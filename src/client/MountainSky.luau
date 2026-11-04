@@ -3,6 +3,7 @@
 -- księżyca i krążą nad szczytem, czasem któraś przemknie z chichotem tuż nad głową; stada nietoperzy
 -- przelatują nad ścieżką, a nad chatką Baby Jagi krąży kilka na stałe; nad doliną co jakiś czas bije
 -- piorun (błysk, zygzak w chmurach, grzmot z opóźnieniem). O świcie czarownice i nietoperze znikają.
+-- Pod szczytem morze chmur z cząsteczek (to zostaje też o świcie).
 -- Księżyc za szczytem ustawia Atmosphere (szerokość geograficzna i pora), tu tylko z niego korzystamy.
 
 local Lighting = game:GetService("Lighting")
@@ -382,6 +383,74 @@ local function strike(camera: Camera)
 	end)
 end
 
+-- ===== Morze chmur (na górze zawsze, także o świcie) =====
+
+-- Miękkie kłęby z cząsteczek na wysokości Terrain.CLOUDS: po bokach góry, za szczytem i tuż pod
+-- urwiskiem przy szczycie. Z kręgu kamieni i ze szczytu patrzy się na nie z góry.
+local cloudFolder = Instance.new("Folder")
+cloudFolder.Name = "MountainClouds"
+local CLOUD_FIELDS = {
+	{ center = Vector3.new(380, 0, 3600), size = Vector3.new(460, 4, 680), rate = 4, scale = 1 },
+	{ center = Vector3.new(0, 0, 3820), size = Vector3.new(900, 4, 560), rate = 5, scale = 1 },
+	{ center = Vector3.new(-370, 0, 3600), size = Vector3.new(380, 4, 680), rate = 3, scale = 1 },
+	{ center = Vector3.new(112, -4, 3420), size = Vector3.new(76, 4, 240), rate = 1.5, scale = 0.6 },
+}
+local CLOUD_LIFETIME = 34
+local cloudEmitters: { ParticleEmitter } = {}
+for _, field in CLOUD_FIELDS do
+	local holder = Instance.new("Part")
+	holder.Name = "CloudField"
+	holder.Anchored = true
+	holder.CanCollide = false
+	holder.CanTouch = false
+	holder.CanQuery = false
+	holder.CastShadow = false
+	holder.Transparency = 1
+	holder.Size = field.size
+	holder.Position = field.center + Vector3.new(0, Terrain.CLOUDS, 0)
+	holder.Parent = cloudFolder
+	local e = Instance.new("ParticleEmitter")
+	e.Name = "Clouds"
+	e.Texture = "rbxasset://textures/particles/smoke_main.dds"
+	e.Shape = Enum.ParticleEmitterShape.Box
+	e.ShapeStyle = Enum.ParticleEmitterShapeStyle.Volume
+	e.Color = ColorSequence.new(Color3.fromRGB(162, 142, 212), Color3.fromRGB(118, 102, 170))
+	e.LightEmission = 0.35
+	e.LightInfluence = 0.2
+	e.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 40 * field.scale), NumberSequenceKeypoint.new(1, 64 * field.scale) })
+	e.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 1),
+		NumberSequenceKeypoint.new(0.06, 0.56),
+		NumberSequenceKeypoint.new(0.85, 0.6),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	e.Lifetime = NumberRange.new(CLOUD_LIFETIME * 0.85, CLOUD_LIFETIME * 1.15)
+	e.Rate = field.rate
+	e.Speed = NumberRange.new(0.5, 1.5)
+	e.SpreadAngle = Vector2.new(180, 5)
+	e.Rotation = NumberRange.new(0, 360)
+	e.RotSpeed = NumberRange.new(-2, 2)
+	e.EmissionDirection = Enum.NormalId.Right
+	e:SetAttribute("Prefill", math.floor(field.rate * CLOUD_LIFETIME))
+	e.Parent = holder
+	table.insert(cloudEmitters, e)
+end
+local cloudsShown = false
+local function setClouds(shown: boolean)
+	if shown == cloudsShown then
+		return
+	end
+	cloudsShown = shown
+	cloudFolder.Parent = if shown then Workspace else nil
+	if shown then
+		-- Chmury od razu na miejscu (bez czekania, aż się nazbierają)
+		for _, e in cloudEmitters do
+			e:Clear()
+			e:Emit((e:GetAttribute("Prefill") :: number?) or 0)
+		end
+	end
+end
+
 -- ===== Sterowanie =====
 
 local active = false
@@ -422,6 +491,7 @@ end
 -- Wołane co klatkę z Main (po Atmosphere.update)
 function MountainSky.update(root: BasePart, zoneDef: Config.ZoneDef)
 	local night = Workspace:GetAttribute("CyclePhase") ~= "dawn"
+	setClouds(zoneDef.world == "mountain")
 	setActive(zoneDef.world == "mountain" and night)
 	if not active then
 		return
