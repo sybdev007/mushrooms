@@ -94,3 +94,22 @@ własne obrazki później (trzeba wgrać arkusz na konto Toma).
   liczbę świateł i neonu (lekcja z 4.11: mniej świateł, słabsza poświata).
 - Wariant ponad tęczą dotyka wielu miejsc (MushroomView, odznaki, tytuły, Okno Szans, sprzedaż) — testy.
 - Ceny nowych poziomów: bez symulatora łatwo zrobić ścianę (178 mln za buty) albo nic nie znaczący zlew.
+
+## Stan (4.11, wieczór)
+Zrobione etapy 1–5 na gałęzi `lysa-gora` (testy Lune 1030 ok, kompilacja 118 plików, typy bez nowych błędów):
+- Mapa, portal przy Stawie Utopca i skrót na Placu Portali, Polana Zielarki, opary z kotłów (bulgoczą),
+  chatka na kurzej stopce (obraca się, snop spojrzenia czerwony, gdy patrzy na ogródek), Baba Jaga.
+- 5 nowych kształtów grzybów, Oko Nocy śledzi gracza, purchawka pyli, cechy Przeklęty/Zaklęty/Księżycowy,
+  wariant Kosmiczny (gwiazdy, mgławica, snop).
+- Kruki: cień → nurkowanie → najtańszy grzyb ląduje 10 studs dalej na 45 s (sprawdzone w Studio: trafienie,
+  podniesienie, unik).
+- Grzybopedia (zakładki na 4 światy, znaczek 🌌), tytuły Uciekinier Baby Jagi i Kosmiczny, DEV: kruk teraz,
+  pościg Jagi teraz, grzyby obok kosmiczne.
+
+Do zrobienia / dla Toma:
+- Zrzuty nowych grzybów, kruka i Jagi w locie: Studio przestało rysować 3D w trakcie testu (zablokowany
+  komputer?), więc kształty sprawdzone tylko kodem (budują się bez błędów, wymiary w normie).
+- Odznaki „Łysa Góra”, „Baba Jaga”, „Kosmiczny”: założyć w Creator Hub i wpisać numery w `Config.Badges`.
+- Arcygrzybiarz (cała księga tęczowa) wymaga teraz też strony Łysej Góry — gracze z tym tytułem go stracą,
+  dopóki nie uzupełnią nowej strony (tak samo było przy bagnach).
+- Okno Szans ma teraz 11 wierszy (4 warianty + 7 cech): sprawdzić na telefonie, czy się mieści.
