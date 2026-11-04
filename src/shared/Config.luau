@@ -393,6 +393,28 @@ Config.Tags = {
 	{ id = "moonlit", key = "MUT_MOONLIT", icon = "🌙", zone = 17, chance = 0.07, mult = 3, color = { 190, 210, 255 } },
 } :: { TagDef }
 
+-- Pogoda w ogródku (Shared/GardenWeather): po każdej nocy zdarzenie nocy może dać JEDNEMU grzybowi
+-- w ogródku gracza swoją cechę (deszcz: Mech, pełnia: Księżycowy, mgła: Blask, krwawy księżyc: Krwawy).
+-- Grzyb, który ma już którąś z tych cech, nic więcej od pogody nie dostanie (najwyżej jedna).
+-- Noce, gdy gracza nie było, też się liczą (przy wejściu), ale najwyżej maxNights ostatnich.
+-- Średnio ok. 1 nowa cecha na 11 nocy (~3,6 h gry albo nieobecności) na ogródek. Symulacja (te same
+-- grzyby cały czas): dochód ogródka po 8 h x1,3, po 16 h x1,6, po doby x1,9, najwyżej ok. x2,2
+-- (wszystkie z cechą). Gracze wymieniają grzyby na lepsze, więc w praktyce mniej.
+Config.GardenWeather = {
+	maxNights = 24, -- 8 h nieobecności, jak dochód offline (Config.Garden.offlineMinutes)
+	events = {
+		rain = { tag = "mossy", chance = 0.2 }, -- x1,5
+		full_moon = { tag = "moonlit", chance = 0.08 }, -- x3, więc rzadziej
+		mist = { tag = "glowing", chance = 0.15 }, -- x2
+		blood_moon = { tag = "bloody", chance = 0.3 }, -- x3, a krwawy księżyc to tylko 6% nocy
+	} :: { [string]: { tag: string, chance: number } },
+}
+
+-- Cechy tylko z pogody w ogródku (nie losują się w lesie). Liczą się w wartości i zapisie (Economy.getTag).
+Config.WeatherTags = {
+	{ id = "bloody", key = "MUT_BLOODY", icon = "🩸", zone = 0, chance = 0, mult = 3, color = { 230, 50, 70 } },
+} :: { TagDef }
+
 -- Cechy z eventów: nie losują się według strefy (Economy.tagsForZone), tylko w czasie eventu
 -- (Shared/Halloween). Zostają w Economy.getTag, więc grzyby z eventu zachowują wartość w zapisie.
 Config.EventTags = {

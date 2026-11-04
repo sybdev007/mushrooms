@@ -45,6 +45,7 @@ export type Data = {
 	planted: { Economy.PlantItem }, -- grzyby na grządkach w ogródku
 	pot: number, -- monety z grządek czekające w skrzyni (z ułamkiem)
 	incomeAt: number, -- os.time() ostatniego naliczenia dochodu (do dochodu offline)
+	weatherNight: number, -- numer ostatniej nocy policzonej dla pogody w ogródku (0 = jeszcze nigdy)
 	potMinutes: number, -- ile minut dochodu ogródka leży w skrzyni (cena x2 skrzyni, Config.ChestX2)
 	-- Oferty x2 skrzyni czekające na zakup: produkt -> premia (b) i kiedy powstała (t). Zostają w zapisie,
 	-- żeby zakup, który przyjdzie później (np. przy następnym wejściu), i tak wypłacił właściwą kwotę.
@@ -131,6 +132,7 @@ function DataService.defaultData(): Data
 		planted = {},
 		pot = 0,
 		incomeAt = 0,
+		weatherNight = 0,
 		potMinutes = 0,
 		x2Offers = {},
 		pity = 0,
@@ -388,6 +390,9 @@ local function reconcile(raw: any): Data
 	end
 	if typeof(raw.incomeAt) == "number" then
 		data.incomeAt = math.clamp(math.floor(raw.incomeAt), 0, now)
+	end
+	if finite(raw.weatherNight) and raw.weatherNight > 0 then
+		data.weatherNight = math.floor(raw.weatherNight)
 	end
 	if typeof(raw.pity) == "number" then
 		data.pity = math.clamp(math.floor(raw.pity), 0, Config.PityRolls)

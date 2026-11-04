@@ -21,7 +21,9 @@ local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local Cycle = require(ReplicatedStorage.Shared.Cycle)
 local Economy = require(ReplicatedStorage.Shared.Economy)
+local GardenWeather = require(ReplicatedStorage.Shared.GardenWeather)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Ledger = require(script.Parent.Ledger)
 
@@ -32,6 +34,7 @@ type Data = {
 	planted: { Economy.PlantItem },
 	pot: number,
 	incomeAt: number,
+	weatherNight: number,
 	potMinutes: number,
 	x2Offers: { [string]: { b: number, t: number } },
 	upgrades: { [string]: number },
@@ -384,6 +387,8 @@ end
 -- Znacznik grzyba na grządce: niewidzialna część na ziemi z gatunkiem, wariantem i cechami.
 -- Samego grzyba (ten sam model co w lesie, z aurami) rysuje każdy klient (DisplayMushrooms).
 local FRESH_SECONDS = 5
+-- Grzyb, który właśnie dostał cechę od pogody: wyrasta z ziemi od nowa, z nową aurą (słabe klucze)
+local mutatedAt: { [Economy.PlantItem]: number } = setmetatable({}, { __mode = "k" }) :: any
 local function plantMarker(parent: Instance, item: Economy.PlantItem, base: CFrame): Model
 	local marker = Instance.new("Model")
 	local root = Instance.new("Part")
@@ -400,7 +405,7 @@ local function plantMarker(parent: Instance, item: Economy.PlantItem, base: CFra
 	marker:SetAttribute("Species", item.s)
 	marker:SetAttribute("Variant", item.v or "")
 	marker:SetAttribute("Tags", table.concat(item.x or {}, ","))
-	marker:SetAttribute("Fresh", os.time() - item.t <= FRESH_SECONDS)
+	marker:SetAttribute("Fresh", os.time() - math.max(item.t, mutatedAt[item] or 0) <= FRESH_SECONDS)
 	CollectionService:AddTag(marker, "GardenMushroom")
 	marker.Parent = parent
 	return marker
@@ -906,6 +911,50 @@ local function onSteal(garden: GardenState, thief: Player)
 	api.pushState(owner)
 end
 
+-- ===== Pogoda w ogródku =====
+-- Po każdej nocy jej zdarzenie może dać jednemu grzybowi w ogródku cechę (Shared/GardenWeather).
+-- away = przy wejściu do gry: noce, gdy gracza nie było (jeden zbiorczy komunikat).
+
+local devWeather: { [Player]: { { item: Economy.PlantItem, tag: string } } } = {}
+
+local function grownMessage(player: Player, item: Economy.PlantItem, tag: string, eventId: string)
+	local event = Cycle.getEvent(eventId)
+	api.notify(player, "MSG_WEATHER_GROWN", { if event then event.icon else "🌙" }, speciesKey(item), { tags = { tag } })
+end
+
+local function applyWeather(player: Player, data: Data, away: boolean)
+	local upTo = GardenWeather.lastNight(os.time())
+	if data.weatherNight <= 0 then
+		-- Pierwsze wejście z pogodą: liczymy od teraz, bez zaległych nocy z całej historii konta
+		data.weatherNight = upTo
+		return
+	end
+	if upTo <= data.weatherNight then
+		return
+	end
+	local results = GardenWeather.apply(player.UserId, data.weatherNight, upTo, data.planted :: any)
+	data.weatherNight = upTo
+	if #results == 0 then
+		return
+	end
+	local now = os.time()
+	for _, result in results do
+		mutatedAt[data.planted[result.slot]] = now
+	end
+	if away and #results > 1 then
+		api.notify(player, "MSG_WEATHER_AWAY", { #results })
+	else
+		for _, result in results do
+			grownMessage(player, data.planted[result.slot], result.tag, result.event)
+		end
+	end
+	local garden = gardenOf[player]
+	if garden then
+		refreshGarden(garden)
+	end
+	api.pushState(player)
+end
+
 -- ===== Przydział ogródków =====
 
 -- Dochód za czas offline (Economy.offlineMinutes), ile zmieści się w skrzyni. Dość na ofertę x2 (i po
@@ -964,6 +1013,8 @@ function GardenService.assign(player: Player)
 					data.pot += Economy.itemValue(table.remove(data.planted, weakest) :: Economy.PlantItem)
 				end
 				applyOffline(player, data, os.time())
+				-- Noce, gdy gracza nie było: pogoda mogła zmienić grzyby w ogródku
+				applyWeather(player, data, true)
 			end
 			refreshGarden(garden)
 			return
@@ -981,6 +1032,7 @@ function GardenService.release(player: Player)
 	thiefLast[player] = nil
 	holdStarted[player] = nil
 	forestPicks[player] = nil
+	devWeather[player] = nil
 	if garden then
 		garden.owner = nil
 		-- Nowy właściciel zaczyna bez ochrony i bez licznika kradzieży
@@ -1004,6 +1056,57 @@ end
 function GardenService.speedFactor(player: Player): number
 	local carry = carries[player]
 	return if carry then Economy.carrySpeed(carry.item) else 1
+end
+
+-- Panel DEV (Studio): noc z danym zdarzeniem na pewno daje cechę losowemu grzybowi w ogródku
+function GardenService.devWeather(player: Player, eventId: string)
+	local data = api.getData(player)
+	local rule = Config.GardenWeather.events[eventId]
+	if not data or not rule then
+		return
+	end
+	local candidates = {}
+	for slot, item in data.planted do
+		if GardenWeather.canGet(item) then
+			table.insert(candidates, slot)
+		end
+	end
+	if #candidates == 0 then
+		api.notify(player, "MSG_WEATHER_NONE")
+		return
+	end
+	local item = data.planted[candidates[math.random(1, #candidates)]]
+	local tags = table.clone(item.x or {})
+	table.insert(tags, rule.tag)
+	item.x = tags
+	mutatedAt[item] = os.time()
+	devWeather[player] = devWeather[player] or {}
+	table.insert(devWeather[player], { item = item, tag = rule.tag })
+	grownMessage(player, item, rule.tag, eventId)
+	local garden = gardenOf[player]
+	if garden then
+		refreshGarden(garden)
+	end
+end
+
+-- Panel DEV (Studio): cofa cechy dodane przez devWeather w tej sesji (przywrócenie zapisu po teście)
+function GardenService.devWeatherUndo(player: Player)
+	local changes: { { item: Economy.PlantItem, tag: string } } = devWeather[player] or {}
+	for _, change in changes do
+		local tags = change.item.x
+		local at = tags and table.find(tags, change.tag)
+		if tags and at then
+			table.remove(tags, at)
+			if #tags == 0 then
+				change.item.x = nil
+			end
+		end
+	end
+	devWeather[player] = nil
+	local garden = gardenOf[player]
+	if garden then
+		refreshGarden(garden)
+	end
 end
 
 -- Gracz zebrał grzyb w lesie (GameService.onPick): przybliża go do następnej kradzieży
@@ -1285,9 +1388,14 @@ function GardenService.start(gardenInfos: { { id: number, model: Model } }, serv
 			task.wait(INCOME_TICK)
 			local now = os.time()
 			sinceVisual += INCOME_TICK
+			local lastNight = GardenWeather.lastNight(now)
 			for _, garden in gardens do
 				local owner = garden.owner
 				local data = owner and api.getData(owner)
+				-- Świt: noc nad ogródkiem mogła dać któremuś grzybowi cechę
+				if owner and data and data.weatherNight > 0 and lastNight > data.weatherNight then
+					applyWeather(owner, data, false)
+				end
 				-- Właściciel wrócił do ogródka: następna kradzież znowu zaczyna od najkrótszej ochrony
 				if owner and garden.thefts > 0 then
 					local root = getRoot(owner)

@@ -2617,6 +2617,108 @@ test("zima: komunikaty i okno mają tłumaczenia", function()
 	check(Config.DevLiveActions.winterToggle == nil and Config.DevLiveActions.adventNext == nil, "podgląd tylko w Studio")
 end)
 
+-- ===== Pogoda w ogródku =====
+print("Pogoda w ogródku (GardenWeather.luau)")
+local GardenWeather = loadModule("src/shared/GardenWeather.luau", {
+	script = { Parent = { Config = Config, Cycle = Cycle, Economy = Economy } },
+	require = function(module)
+		return module
+	end,
+})
+
+test("pogoda: noc po nocy, zdarzenia nocy dają swoje cechy", function()
+	local length = Cycle.length()
+	local index = 5000
+	eq(GardenWeather.lastNight(index * length + 10), index - 1, "w nocy: poprzednia noc")
+	eq(GardenWeather.lastNight(index * length + Config.Cycle.nightSeconds + 1), index, "o świcie: ta noc")
+	for eventId, rule in Config.GardenWeather.events do
+		check(Cycle.getEvent(eventId) ~= nil, "zdarzenie " .. eventId)
+		check(Economy.getTag(rule.tag) ~= nil, "cecha " .. rule.tag)
+		check(rule.chance > 0 and rule.chance <= 1, "szansa " .. eventId)
+		check(csvHas(Economy.getTag(rule.tag).key), "tłumaczenie " .. rule.tag)
+	end
+	-- Krwawa cecha tylko z pogody (nie losuje się w lesie)
+	for zone = 0, #Config.Zones do
+		for _, def in Economy.tagsForZone(zone) do
+			check(def.id ~= "bloody", "strefa " .. zone)
+		end
+	end
+	for _, key in { "MSG_WEATHER_GROWN", "MSG_WEATHER_AWAY", "MSG_WEATHER_NONE" } do
+		check(csvHas(key), "tłumaczenie " .. key)
+	end
+end)
+
+test("pogoda: najwyżej jedna cecha od pogody na grzyb, bez grzybów z kuźni", function()
+	check(GardenWeather.canGet({ s = "porcini" }), "zwykły")
+	check(GardenWeather.canGet({ s = "porcini", x = { "abyssal" } }), "cecha z miejsca nie blokuje")
+	check(not GardenWeather.canGet({ s = "porcini", x = { "mossy" } }), "ma już Mech")
+	check(not GardenWeather.canGet({ s = "porcini", x = { "bloody" } }), "ma już Krwawy")
+	check(not GardenWeather.canGet({ s = "fern_flower" }), "kuźnia")
+	-- Długo, bez przerwy: każdy grzyb dostaje co najwyżej jedną cechę z pogody
+	local planted = {}
+	for _ = 1, 9 do
+		table.insert(planted, { s = "porcini", t = 0 })
+	end
+	for night = 1, 2000 do
+		GardenWeather.apply(4242, 10000 + night - 1, 10000 + night, planted)
+	end
+	for _, item in planted do
+		local weather = 0
+		for _, tag in item.x or {} do
+			if GardenWeather.TAGS[tag] then
+				weather += 1
+			end
+		end
+		check(weather <= 1, "dwie cechy od pogody")
+	end
+end)
+
+test("pogoda: ten sam wynik przy ponownym wejściu, limit przegapionych nocy", function()
+	local function garden()
+		local list = {}
+		for _, s in { "porcini", "honey", "aspen_bolete", "parasol" } do
+			table.insert(list, { s = s, t = 0 })
+		end
+		return list
+	end
+	local a, b = garden(), garden()
+	local ra = GardenWeather.apply(777, 20000, 20030, a)
+	local rb = GardenWeather.apply(777, 20000, 20030, b)
+	eq(#ra, #rb, "deterministycznie")
+	for i, r in ra do
+		eq(r.slot, rb[i].slot)
+		eq(r.tag, rb[i].tag)
+	end
+	local first, last = GardenWeather.range(100, 1000)
+	eq(last - first + 1, Config.GardenWeather.maxNights, "najwyżej maxNights")
+	first, last = GardenWeather.range(995, 1000)
+	eq(first, 996, "tylko nowe noce")
+	eq(#GardenWeather.apply(1, 1000, 1000, garden()), 0, "nic nowego")
+end)
+
+test("pogoda: balans — ok. 1 cecha na kilka nocy, dochód rośnie z umiarem", function()
+	local perNight = GardenWeather.expectedPerNight()
+	check(perNight > 0.05 and perNight < 0.15, "nowych cech na noc: " .. perNight)
+	-- 8 h gry z tymi samymi grzybami (24 noce): dochód ogródka średnio ok. x1,3
+	local base = { "porcini", "aspen_bolete", "chanterelle", "parasol", "bay_bolete", "saffron_milk_cap", "porcini", "aspen_bolete", "slippery_jack" }
+	local sum, players = 0, 300
+	for uid = 1, players do
+		local planted = {}
+		for _, s in base do
+			table.insert(planted, { s = s, t = 0 })
+		end
+		local before = Economy.gardenIncome(planted, 1)
+		-- Różne gracze w różnych porach (zdarzenia nocy są wspólne dla wszystkich serwerów)
+		local start = 30000 + uid * 37
+		for night = 1, 24 do
+			GardenWeather.apply(uid * 7919, start + night - 1, start + night, planted)
+		end
+		sum += Economy.gardenIncome(planted, 1) / before
+	end
+	local ratio = sum / players
+	check(ratio > 1.1 and ratio < 1.45, "dochód po 8 h: x" .. ratio)
+end)
+
 test("las: pokolenia i przywołana Noc Dziadów", function()
 	local length = Cycle.length()
 	local index = 1000

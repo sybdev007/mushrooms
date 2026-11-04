@@ -1590,6 +1590,11 @@ local function onDevAction(player: Player, action: unknown)
 				end
 			end
 		end
+	elseif string.match(action, "^gardenWeather:[%w_]+$") then
+		-- Studio: noc z danym zdarzeniem daje cechę grzybowi w ogródku (pogoda w ogródku)
+		GardenService.devWeather(player, string.sub(action, 15))
+	elseif action == "gardenWeatherUndo" then
+		GardenService.devWeatherUndo(player)
 	elseif string.match(action, "^coinsSet:%d+$") then
 		-- Studio: przywrócenie salda po testach (devActionAllowed nie wpuszcza tego poza Studio)
 		data.coins = tonumber(string.sub(action, 10)) or data.coins

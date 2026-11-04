@@ -695,6 +695,7 @@ local TAG_SPORES: { [string]: { Color3 } } = {
 	frost = { rgb(255, 255, 255), rgb(200, 235, 255), rgb(150, 210, 255) },
 	cursed = { rgb(150, 80, 220), rgb(90, 40, 140) },
 	hexed = { rgb(120, 240, 90), rgb(200, 255, 150) },
+	bloody = { rgb(230, 50, 70), rgb(140, 20, 40), rgb(255, 140, 150) }, -- Krwawy (pogoda w ogródku)
 	moonlit = { rgb(200, 215, 255), rgb(255, 255, 255) },
 }
 local COSMIC_SPORES = { rgb(120, 80, 255), rgb(80, 140, 255), rgb(255, 120, 220), rgb(240, 240, 255) }

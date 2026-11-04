@@ -247,10 +247,10 @@ EVENT_MIST,Thick mist,,,Gęsta mgła
 EVENT_BLOOD_MOON,Blood moon,,,Krwawy księżyc
 MSG_DAWN,Dawn! The forest regrows. Next night: {2} {1},,,Świta! Las odrasta od nowa. Następna noc: {2} {1}
 MSG_NIGHT_CALM,🌙 Night falls. A quiet one.,,,🌙 Zapada noc. Spokojna.
-MSG_NIGHT_FULL_MOON,🌕 Full moon! Mutations are more common tonight.,,,🌕 Pełnia! Tej nocy mutacje są częstsze.
-MSG_NIGHT_RAIN,🌧️ Rain! Mushrooms regrow twice as fast.,,,🌧️ Deszcz! Grzyby odrastają dwa razy szybciej.
-MSG_NIGHT_MIST,🌫️ Thick mist: you see less. Mutations are more common.,,,🌫️ Gęsta mgła: widać mniej. Za to mutacje są częstsze.
-MSG_NIGHT_BLOOD_MOON,🩸 Blood moon! Lots of mutations... and the forest is restless.,,,🩸 Krwawy księżyc! Mnóstwo mutacji... a las jest niespokojny.
+MSG_NIGHT_FULL_MOON,🌕 Full moon! Mutations are more common tonight - and a garden mushroom may turn Moonlit.,,,🌕 Pełnia! Tej nocy mutacje są częstsze - a grzyb w ogródku może stać się Księżycowy.
+MSG_NIGHT_RAIN,🌧️ Rain! Mushrooms regrow twice as fast - and moss may grow in your garden.,,,🌧️ Deszcz! Grzyby odrastają dwa razy szybciej - a w ogródku może wyrosnąć Mech.
+MSG_NIGHT_MIST,🌫️ Thick mist: you see less. Mutations are more common - and a garden mushroom may start to Glow.,,,🌫️ Gęsta mgła: widać mniej. Za to mutacje są częstsze - a grzyb w ogródku może zacząć świecić Blaskiem.
+MSG_NIGHT_BLOOD_MOON,🩸 Blood moon! Lots of mutations... and the forest is restless. A garden mushroom may turn Bloody.,,,🩸 Krwawy księżyc! Mnóstwo mutacji... a las jest niespokojny. Grzyb w ogródku może stać się Krwawy.
 NPC_NAME,Mr. Porcini,,,Pan Borowik
 NPC_NAME_GHOST,Ghost of Mr. Porcini,,,Duch Pana Borowika
 NPC_ROLE,Mushroom buyer,,,Skup grzybów
@@ -1006,3 +1006,7 @@ ADVENT_DONE,Calendar complete - Merry Christmas!,,,Kalendarz zakończony - Weso�
 MSG_STEAL_FOREST,First pick {1} more 🍄 in the forest. Thieves have to forage too!,,,Najpierw zbierz jeszcze {1} 🍄 w lesie. Złodziej też musi chodzić na grzyby!
 GARDEN_STEAL_FOREST,First {1} 🍄 from the forest,,,Najpierw {1} 🍄 z lasu
 GARDEN_PROTECTED,🛡️ Protected {1},,,🛡️ Chroniony {1}
+MUT_BLOODY,Bloody,,,Krwawy
+MSG_WEATHER_GROWN,{2} A night over your garden: your {1} got{3}!,,,{2} Noc nad ogródkiem: twój {1} dostał cechę{3}!
+MSG_WEATHER_AWAY,🌙 While you were away the night weather gave new traits to your garden mushrooms: {1},,,🌙 Gdy cię nie było nocna pogoda dała nowe cechy grzybom w ogródku: {1}
+MSG_WEATHER_NONE,No mushroom in your garden can get a weather trait.,,,Żaden grzyb w ogródku nie może dostać cechy od pogody.

@@ -126,6 +126,13 @@ local CATEGORIES: { Category } = {
 				{ id = "away30m", label = "Powrót po 30 min (x2)" },
 				{ id = "away3h", label = "Powrót po 3 h (x2)" },
 			} },
+			{ name = "Pogoda w ogródku (Studio)", actions = {
+				{ id = "gardenWeather:rain", label = "🌧️ Deszcz: Mech" },
+				{ id = "gardenWeather:full_moon", label = "🌕 Pełnia: Księżycowy" },
+				{ id = "gardenWeather:mist", label = "🌫️ Mgła: Blask" },
+				{ id = "gardenWeather:blood_moon", label = "🩸 Krwawy księżyc: Krwawy" },
+				{ id = "gardenWeatherUndo", label = "↩️ Cofnij cechy z tych testów" },
+			} },
 		},
 	},
 	{
