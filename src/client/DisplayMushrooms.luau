@@ -394,6 +394,8 @@ local function gardenLabel(marker: Model, root: BasePart, info: MushroomView.Mus
 	gui.Adornee = root
 	gui.Size = CHIP_SIZE
 	gui.Enabled = false -- poziom ustawia updateGardenLabels
+	-- Napisy zawsze nad tłem swojej karty; ogonek (rodzeństwo karty, niższy ZIndex) pod kartą
+	gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 	local classColor = ClassColor.of(info.species)
 	local variantDef = Economy.getVariant(info.variant)
 	-- Ramka karty: kolor wariantu (od złota), inaczej klasy
