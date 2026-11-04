@@ -59,6 +59,7 @@ local _AdminEvents = require(script.Parent.AdminEvents)
 local _AnnounceView = require(script.Parent.AnnounceView)
 local _RelicDisplay = require(script.Parent.RelicDisplay)
 local _JagaHutView = require(script.Parent.JagaHutView)
+local _SabbathView = require(script.Parent.SabbathView)
 local Delve = require(Shared:WaitForChild("Delve"))
 
 local player = Players.LocalPlayer
@@ -405,6 +406,9 @@ Remotes.get("Notify").OnClientEvent:Connect(function(payload)
 		or payload.key == "MSG_JAGA_WOKE_WATCHED"
 	then
 		Effects.leszyWoke()
+		if string.sub(payload.key, 1, 13) == "MSG_JAGA_WOKE" then
+			Audio.play("witch", { volume = 1.1 }) -- Baba Jaga rechocze, wylatując z chatki
+		end
 	elseif payload.key == "MSG_ROBBED" or payload.key == "MSG_RACK_ALERT" or payload.key == "MSG_THIEF_RUNNING" then
 		Effects.play("engulf", 1.4, 0.5)
 	elseif

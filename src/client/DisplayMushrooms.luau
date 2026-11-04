@@ -8,6 +8,7 @@
 --                      kolorach i w języku gracza, wartość i dochód (atrybuty Value / Rate od serwera).
 --   "HoardMushroom"  — grzyby odebrane przez strażnika (Leszy, Skarbnik, Utopiec) w jego legowisku,
 --                      z napisem mutacji nad grzybem.
+--   "RavenDrop"      — grzyb, który kruk Baby Jagi upuścił obok gracza (Łysa Góra), wygląda jak w skarbcu.
 -- Atrybut "Ground" (Vector3) = punkt na ziemi pod grzybem, gdy Root stoi wyżej (np. przycisk zabrania).
 -- Atrybut "Fresh" = świeżo położony: wyrasta z ziemi; inaczej stoi od razu.
 -- Napisy siedzą w PlayerGui z Adornee na znaczniku (jak tytuły graczy w TitleView).
@@ -36,6 +37,8 @@ local KINDS: { [string]: Kind } = {
 	GardenMushroom = { fit = DisplayMushrooms.FIT, garden = true },
 	-- w kółku co ok. 3,3 studa (Config.Hoard.radius)
 	HoardMushroom = { fit = Vector2.new(3.4, 4.6), garden = false },
+	-- Grzyb upuszczony przez kruka Baby Jagi (RavenService): leży chwilę, właściciel go podnosi
+	RavenDrop = { fit = Vector2.new(3.4, 4.6), garden = false },
 }
 
 local RATE_COLOR = "#A6F06A"

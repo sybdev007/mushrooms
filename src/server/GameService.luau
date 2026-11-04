@@ -22,6 +22,7 @@ local DataService = require(script.Parent.DataService)
 local MapBuilder = require(script.Parent.MapBuilder)
 local ChaseService = require(script.Parent.ChaseService)
 local HoardService = require(script.Parent.HoardService)
+local RavenService = require(script.Parent.RavenService)
 local World = script.Parent:WaitForChild("World")
 local LeszyModel = require(World:WaitForChild("Leszy"))
 local SkarbnikModel = require(World:WaitForChild("Skarbnik"))
@@ -153,6 +154,7 @@ local GUARDIANS: { [string]: GuardianDef } = {
 
 local chasers: { [string]: ChaseService.Chaser } = {}
 local hoards: { [string]: HoardService.Hoard } = {}
+local ravens: RavenService.Ravens? = nil -- kruki Baby Jagi (Łysa Góra), start w init
 
 local function stopChases(player: Player)
 	for _, chaser in chasers do
@@ -569,6 +571,9 @@ local function engulf(session: Session, messageKey: string?, guardian: string?)
 	-- W Głębokich Komorach: koniec ekspedycji dla gracza (zabezpieczone nagrody zostają)
 	DelveService.onEngulf(session.player)
 	stopChases(session.player)
+	if ravens then
+		ravens.forget(session.player)
+	end
 	local basket = session.data.basket
 
 	-- Strażnik odbiera swoje grzyby i odnosi je do legowiska, gdzie może je zabrać każdy
@@ -923,6 +928,10 @@ local function tick(step: number)
 		end
 		if root then
 			checkPortals(session, root, now)
+			-- Kruki Baby Jagi (tylko w swoich strefach Łysej Góry; tu też podnosi się upuszczone grzyby)
+			if ravens and session.zone and not Economy.isSafeZone(session.zone) then
+				ravens.step(session.player, session.zone, root, #session.data.basket, now)
+			end
 		end
 		syncReadySpots(session, now)
 		pushState(session)
@@ -1044,6 +1053,9 @@ local function onPlayerRemoving(player: Player)
 	end
 	sessions[player] = nil
 	stopChases(player)
+	if ravens then
+		ravens.forget(player)
+	end
 	session.downedUntil = nil
 	-- Wyszedł z niewykorzystaną okazją do ratunku: grzyby strażnika wracają do legowiska od razu
 	local rescue = session.rescue
@@ -1486,6 +1498,10 @@ local function onDevAction(player: Player, action: unknown)
 		data.mountainUnlocked = false
 	elseif action == "coins10m" then
 		data.coins += 10000000
+	elseif action == "ravenNow" then
+		if ravens then
+			ravens.devNow(player)
+		end
 	elseif action == "coins1m" then
 		data.coins += 1000000
 	elseif action == "oilFull" then
@@ -1871,6 +1887,53 @@ function GameService.start(mapInfo: MapBuilder.MapInfo)
 			end,
 		})
 	end
+
+	-- Kruki Baby Jagi: zabierają najtańszy grzyb (nigdy grzyba strażnika) i upuszczają go obok
+	ravens = RavenService.start({
+		takeCheapest = function(player: Player): RavenService.Item?
+			local session = sessions[player]
+			if not session then
+				return nil
+			end
+			local basket = session.data.basket
+			local best: number? = nil
+			local bestValue = math.huge
+			for index, item in basket do
+				if Economy.guardianOf(item.s) == nil then
+					local value = Economy.itemValue(item)
+					if value < bestValue then
+						best, bestValue = index, value
+					end
+				end
+			end
+			if not best then
+				return nil
+			end
+			local item = table.remove(basket, best)
+			pushState(session)
+			return item :: any
+		end,
+		giveBack = function(player: Player, item: RavenService.Item): boolean
+			local session = sessions[player]
+			if not session then
+				return false
+			end
+			local basket = session.data.basket
+			if #basket >= basketMax(session) then
+				return false
+			end
+			table.insert(basket, item :: any)
+			pushState(session)
+			return true
+		end,
+		notify = function(player: Player, key: string, args: { any }?)
+			local session = sessions[player]
+			if session then
+				notify(session, key, args)
+			end
+		end,
+		rootOf = getRoot,
+	})
 
 	-- Portrety do zakładki Strażnicy w Grzybopedii: przebudzone modele do klonowania w ViewportFrame
 	-- (klient nie ma dostępu do budowniczych z serwera, a posągi na mapie mogą być poza streamingiem).

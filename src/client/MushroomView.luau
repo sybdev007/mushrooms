@@ -335,6 +335,7 @@ local function buildOne(model: Model, origin: CFrame, shape: Shape, species: str
 	-- Trzon z szerszą podstawką i ciemniejszym paskiem z jednej strony
 	local sd = snap(stemD)
 	local sh = math.max(u * 2, stemH)
+	local stemPart: BasePart? = nil
 	if form == "ball" then
 		add("Stem", Vector3.new(sd, u * 1.5, sd), CFrame.new(0, u * 0.75, 0), stemColor)
 		sh = u * 1.2
@@ -342,7 +343,7 @@ local function buildOne(model: Model, origin: CFrame, shape: Shape, species: str
 		-- Gwiazdosz nie ma trzonu: kula leży na rozłożonych płatkach
 		sh = u * 0.6
 	else
-		add("Stem", Vector3.new(sd, sh, sd), CFrame.new(0, sh / 2, 0), stemColor)
+		stemPart = add("Stem", Vector3.new(sd, sh, sd), CFrame.new(0, sh / 2, 0), stemColor)
 		add("StemShade", Vector3.new(0.04, sh * 0.96, sd * 0.4), CFrame.new(sd / 2 + 0.01, sh / 2, sd * 0.2), darken(stemColor, 0.12))
 		add("StemBase", Vector3.new(snap(sd * 1.3), u, snap(sd * 1.3)), CFrame.new(0, u / 2, 0), darken(stemColor, 0.05))
 	end
@@ -369,7 +370,8 @@ local function buildOne(model: Model, origin: CFrame, shape: Shape, species: str
 		center = mid
 	elseif form == "bracket" then
 		-- Huba: trzy półki wyrastają z pieńka w różne strony, z jasnym, rosnącym brzegiem
-		add("Top", Vector3.new(sd * 0.92, 0.05, sd * 0.92), CFrame.new(0, sh + 0.02, 0), lighten(stemColor, 0.25))
+		-- Środek modelu (oś obrotu i światło) w pieńku, a nie w półce z boku
+		local stumpTop = add("Top", Vector3.new(sd * 0.92, 0.05, sd * 0.92), CFrame.new(0, sh + 0.02, 0), lighten(stemColor, 0.25))
 		local layerH = snap(capH)
 		for k, f in { 1.0, 0.82, 0.66 } do
 			local w = snap(capW * f)
@@ -383,7 +385,7 @@ local function buildOne(model: Model, origin: CFrame, shape: Shape, species: str
 			table.insert(capParts, upper)
 			add("Rim", Vector3.new(w, layerH * 0.5, u * 0.5), turn * CFrame.new(0, y - layerH * 0.1, -out - d / 2 + u * 0.24), lighten(capColor, 0.38))
 		end
-		center = capParts[3]
+		center = stumpTop
 		top = sh
 	elseif form == "tentacles" then
 		-- Czarcie Palce: z białego „jaja” (trzon) wyrastają czerwone ramiona, które rozchylają się
@@ -410,7 +412,8 @@ local function buildOne(model: Model, origin: CFrame, shape: Shape, species: str
 				highest = math.max(highest, joint.Y)
 			end
 		end
-		center = capParts[2]
+		-- Środek w „jaju”, w osi grzyba (ramiona są z boków)
+		center = stemPart or capParts[2]
 		top = sh - u * 0.5 + highest
 	elseif form == "star" then
 		-- Gwiazdosz: siedem płatków leży na ziemi i zadziera końce, na środku kula z otworkiem na czubku

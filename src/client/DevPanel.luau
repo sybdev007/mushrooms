@@ -82,9 +82,12 @@ local CATEGORIES: { Category } = {
 			{ name = "Bagna", actions = {
 				{ id = "tpSwamp", label = "TP: przystań (bagna)" },
 				{ id = "tpPond", label = "TP: staw Utopca" },
+			} },
+			{ name = "Łysa Góra", actions = {
 				{ id = "tpMountain", label = "TP: Polana Zielarki (góra)" },
 				{ id = "tpCauldrons", label = "TP: Kotły Sabatu" },
 				{ id = "tpSummit", label = "TP: chatka Baby Jagi" },
+				{ id = "ravenNow", label = "Kruk: atak teraz" },
 			} },
 		},
 	},

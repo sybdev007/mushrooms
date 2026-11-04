@@ -358,6 +358,8 @@ local function cauldron(parent: Instance, spot: { x: number, z: number }, rng: R
 		rod(m, base + Vector3.new(math.cos(angle) * 1.4, 0.2, math.sin(angle) * 1.4), base + Vector3.new(-math.cos(angle) * 1.4, 0.2, -math.sin(angle) * 1.4), 0.4, Palette.log)
 	end
 	m:SetAttribute("FumeRadius", Config.Cauldrons.fumeRadius)
+	-- Kocioł dociera do klienta w całości (klient przypina do wywaru bulgotanie, SabbathView)
+	m.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
 	CollectionService:AddTag(m, "SabbathCauldron")
 	m.Parent = parent
 end
