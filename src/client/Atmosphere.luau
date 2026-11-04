@@ -37,11 +37,12 @@ local appliedTint = DARK_TINT
 -- a w mroku zostaje fioletowa poświata księżyca, żeby było widać zbocza i serpentyny.
 local MOUNTAIN_LATITUDE = 100
 local MOUNTAIN_NIGHT_CLOCK = 0
-local MOUNTAIN_MOON_SIZE = 34
+local MOUNTAIN_MOON_SIZE = 24
 local MOUNTAIN_STARS = 5000
-local MOUNTAIN_BRIGHT_AMBIENT = Color3.fromRGB(108, 94, 134)
-local MOUNTAIN_DARK_AMBIENT = Color3.fromRGB(46, 34, 74)
-local MOUNTAIN_DECAY = Color3.fromRGB(96, 44, 128)
+local MOUNTAIN_BRIGHT_AMBIENT = Color3.fromRGB(130, 116, 164)
+local MOUNTAIN_DARK_AMBIENT = Color3.fromRGB(100, 84, 142)
+local MOUNTAIN_FOG = Color3.fromRGB(104, 66, 144)
+local MOUNTAIN_DECAY = Color3.fromRGB(120, 50, 160)
 local MOUNTAIN_TINT = Color3.fromRGB(214, 198, 255)
 local FOREST_DECAY = Color3.fromRGB(60, 50, 80)
 local FOREST_MOON_SIZE = 14
@@ -121,7 +122,7 @@ local function apply(d: number, lanternRange: number)
 	Lighting.Ambient = bright:Lerp(dark, d)
 	Lighting.OutdoorAmbient = bright:Lerp(dark, d)
 	-- Na górze świeci księżyc zza szczytu: zbocza mają światło z jednej strony, a krawędzie poświatę
-	Lighting.Brightness = if mountain then 0.9 * (1 - d) + 0.45 else 1.1 * (1 - d) + 0.05
+	Lighting.Brightness = if mountain then 0.6 * (1 - d) + 1.6 else 1.1 * (1 - d) + 0.05
 	Lighting.EnvironmentDiffuseScale = 0.6 * (1 - d)
 	Lighting.EnvironmentSpecularScale = 0.4 * (1 - d)
 
@@ -129,14 +130,15 @@ local function apply(d: number, lanternRange: number)
 	-- Uwaga: powyżej ok. 0,5 mgła zasłania nawet postać i krąg latarni (sprawdzone w Studio przy 0,7).
 	local lanternFactor = math.clamp((40 - lanternRange) / 30, 0, 1)
 	if mountain then
-		-- Rzadsza mgła: z góry widać dolinę i morze chmur
-		atmosphere.Density = 0.24 + 0.06 * d + 0.03 * d * lanternFactor
-		atmosphere.Haze = 0.6 + 0.8 * d
+		-- Rzadsza, fioletowa mgła: z góry widać dolinę i morze chmur; strefa (np. zielone Kotły) lekko ją barwi
+		atmosphere.Density = 0.24 + 0.02 * d + 0.03 * d * lanternFactor
+		atmosphere.Haze = 0.6
+		atmosphere.Color = MOUNTAIN_FOG:Lerp(currentFog, 0.3)
 	else
 		atmosphere.Density = 0.28 + 0.14 * d + 0.05 * d * lanternFactor
 		atmosphere.Haze = 0.5 + 0.9 * d
+		atmosphere.Color = BRIGHT_FOG:Lerp(currentFog, d)
 	end
-	atmosphere.Color = BRIGHT_FOG:Lerp(currentFog, d)
 	atmosphere.Decay = if mountain then MOUNTAIN_DECAY else FOREST_DECAY
 
 	colorCorrection.Saturation = if mountain then -0.02 - 0.12 * d else -0.04 - 0.3 * d
