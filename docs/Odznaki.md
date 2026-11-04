@@ -35,6 +35,13 @@ po 5 dziennie: najpierw pierwsze pięć z tabeli (te zdobywa najwięcej graczy).
 | `streak7` | `streak7.png` | Regular Forager | Play 7 days in a row. | Stały bywalec – graj 7 dni z rzędu |
 | `grandmaster` | `grandmaster.png` | Grand Forager | Find every mushroom in Rainbow form. | Arcygrzybiarz – cała Grzybopedia tęczowa |
 | `halloween2026` | `halloween2026.png` | Halloween 2026 | Collect 100 candy during the 2026 Halloween event. | Halloween 2026 – zbierz 100 cukierków w czasie eventu (do 9 listopada) |
+| `mountain` | `mountain.png` | Bald Mountain | Open the portal to Bald Mountain. | Łysa Góra – otwórz portal na Łysą Górę |
+| `jaga` | `jaga.png` | Baba Jaga's Thief | Steal Baba Jaga's Toadstool. | Złodziej Baby Jagi – ukradnij Ziele Baby Jagi |
+| `cosmic` | `cosmic.png` | Cosmic Find | Find a Cosmic mushroom. | Kosmiczne znalezisko – znajdź kosmicznego grzyba |
+| `forge_first` | `forge_first.png` | Herbalist's Apprentice | Fuse mushrooms in the Herbalist's Mortar. | Uczeń Zielarki – połącz grzyby w Moździerzu Zielarki |
+| `forge_collection` | `forge_collection.png` | Forge Master | Discover all 6 hidden recipes in the Herbalist's Mortar. | Mistrz Kuźni – odkryj wszystkie 6 ukrytych przepisów |
+
+Obrazki pięciu ostatnich rysuje `tools/badge_art.py` (w tym samym stylu; istniejących plików nie nadpisuje).
 
 ## Sprawdzenie
 
