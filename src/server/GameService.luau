@@ -1509,7 +1509,7 @@ local function onDevAction(player: Player, action: unknown)
 			forge.open(player)
 		end
 	elseif action == "forgeKit" then
-		-- Składniki do wszystkich przepisów kuźni (zwykłe, z wymaganymi cechami); monety ustawia coinsSet
+		-- Składniki do wszystkich ukrytych przepisów kuźni (zwykłe, z wymaganymi cechami); monety: coinsSet
 		for _, recipe in Config.Forge.recipes do
 			for _, input in recipe.inputs do
 				if #data.basket < basketMax(session) then
@@ -1517,17 +1517,29 @@ local function onDevAction(player: Player, action: unknown)
 				end
 			end
 		end
+	elseif action == "forgeKitGuardians" then
+		-- Tęczowe grzyby czterech strażników (trójki na mitycznego i sekretnego)
+		for _, id in { "leszy_crown", "skarbnik_truffle", "utopiec_chalice", "jaga_toadstool" } do
+			if #data.basket < basketMax(session) then
+				table.insert(data.basket, { s = id, v = "rainbow" })
+			end
+		end
 	elseif action == "forgeReset" then
 		-- Kolekcja kuźni od zera (testy w Studio na własnym zapisie): wpisy w Grzybopedii i licznik połączeń
-		for _, recipe in Config.Forge.recipes do
-			data.atlas[recipe.id] = nil
+		for _, species in Config.Species do
+			if species.forgeOnly then
+				data.atlas[species.id] = nil
+			end
 		end
 		data.stats.forged = 0
 		-- Tytuły kuźni znów „nowe” (lista widzianych tytułów), żeby komunikat o zdobyciu dało się przetestować
-		for _, id in { "TITLE_FORGE_APPRENTICE", "TITLE_FORGE_MASTER" } do
-			local at = if data.titles then table.find(data.titles, id) else nil
-			if at then
-				table.remove(data.titles, at)
+		local titles = data.titles
+		if titles then
+			for _, id in { "TITLE_FORGE_APPRENTICE", "TITLE_FORGE_MASTER", "TITLE_FERN_FLOWER", "TITLE_VELES" } do
+				local at = table.find(titles, id)
+				if at then
+					table.remove(titles, at)
+				end
 			end
 		end
 	elseif string.match(action, "^coinsSet:%d+$") then

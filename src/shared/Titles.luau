@@ -70,7 +70,7 @@ export type TitleDef = {
 	stat: string?, -- licznik ze Stats i cel
 	goal: number?,
 	atlas: { page: string, rank: number }?, -- próg strony Grzybopedii
-	special: string?, -- "tutorial" | "grandmaster" | "rainbow" | "cosmic" | "guardians" | "forge"
+	special: string?, -- "tutorial" | "grandmaster" | "rainbow" | "cosmic" | "guardians" | "forge" | id gatunku z kuźni
 	escape: string?, -- strażnik, któremu trzeba choć raz uciec z jego grzybem (Progress.GUARDIANS)
 	event: string?, -- tytuł z eventu (np. "halloween"): po evencie niezdobyty znika z okna
 }
@@ -102,7 +102,9 @@ local LIST: { TitleDef } = {
 	{ id = "TITLE_JAGA_ESCAPEE", rarity = "epic", escape = "jaga" }, -- uciec Babie Jadze z Zielem
 	{ id = "TITLE_COSMIC", rarity = "legendary", special = "cosmic" }, -- pierwszy kosmiczny grzyb
 	{ id = "TITLE_FORGE_APPRENTICE", rarity = "rare", stat = "forged", goal = 1 }, -- pierwsze połączenie w kuźni
-	{ id = "TITLE_FORGE_MASTER", rarity = "legendary", special = "forge" }, -- wszystkie gatunki z kuźni
+	{ id = "TITLE_FORGE_MASTER", rarity = "legendary", special = "forge" }, -- wszystkie gatunki z ukrytych przepisów
+	{ id = "TITLE_FERN_FLOWER", rarity = "mythic", special = "fern_flower" }, -- mityczny Kwiat Paproci z kuźni
+	{ id = "TITLE_VELES", rarity = "mythic", special = "veles_eye" }, -- sekretne Oko Welesa z kuźni
 	{ id = "TITLE_GUARDIAN_BANE", rarity = "legendary", special = "guardians" },
 	{ id = "TITLE_MAGNATE", rarity = "legendary", stat = "sold", goal = 10000 },
 	{ id = "TITLE_VETERAN", rarity = "legendary", stat = "bestStreak", goal = 30 },
@@ -196,6 +198,8 @@ function Titles.progress(def: TitleDef, ctx: Context): (number, number)
 		return if hasForm(ctx.atlas, 4) then 1 else 0, 1
 	elseif def.special == "forge" then
 		return Progress.forgeFound(ctx.atlas)
+	elseif def.special == "fern_flower" or def.special == "veles_eye" then
+		return if Progress.mask(ctx.atlas, def.special) > 0 then 1 else 0, 1
 	elseif def.escape then
 		return math.min(Progress.guardianRecord(ctx.bestiary, def.escape).escaped, 1), 1
 	elseif def.special == "guardians" then

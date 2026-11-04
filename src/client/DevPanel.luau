@@ -94,6 +94,7 @@ local CATEGORIES: { Category } = {
 			{ name = "Kuźnia Grzybów", actions = {
 				{ id = "forgeOpen", label = "Otwórz Moździerz Zielarki" },
 				{ id = "forgeKit", label = "Składniki do wszystkich przepisów" },
+				{ id = "forgeKitGuardians", label = "Tęczowi strażnicy (mityczny/sekretny)" },
 				{ id = "forgeReset", label = "Wyczyść kolekcję kuźni" },
 			} },
 		},

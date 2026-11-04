@@ -389,9 +389,18 @@ function ProgressService.found(player: Player, item: { s: string, v: string?, x:
 	local newEntry, newSpecies = Progress.discover(data.atlas, item.s, item.v)
 	if newEntry then
 		local species = Economy.getSpecies(item.s)
-		api.notify(player, if newSpecies then "MSG_ATLAS_NEW_SPECIES" else "MSG_ATLAS_NEW_FORM", nil, species and species.key or nil, {
-			variant = item.v,
-		})
+		local key = if newSpecies then "MSG_ATLAS_NEW_SPECIES" else "MSG_ATLAS_NEW_FORM"
+		local nameKey = species and species.key or nil
+		if source == "forge" then
+			-- Z kuźni: komunikat dopiero po animacji bębna w oknie, żeby nie zdradzał wyniku
+			task.delay(Config.Forge.revealDelay, function()
+				if player.Parent then
+					api.notify(player, key, nil, nameKey, { variant = item.v })
+				end
+			end)
+		else
+			api.notify(player, key, nil, nameKey, { variant = item.v })
+		end
 		if source ~= "forge" then
 			ProgressService.event(player, "discover", 1)
 		end
@@ -399,7 +408,7 @@ function ProgressService.found(player: Player, item: { s: string, v: string?, x:
 	end
 	-- Grzyb strażnika (z legowiska albo ze skarbca) = kradzież, pierwsza odkrywa go w zakładce Strażnicy
 	local guardian = Economy.guardianOf(item.s)
-	if guardian then
+	if guardian and source ~= "forge" then
 		ProgressService.guardianEvent(player, guardian, "steal")
 	end
 	-- Najlepsze znalezisko tygodnia (ranking): tylko grzyby znalezione w lesie, nie z kuźni

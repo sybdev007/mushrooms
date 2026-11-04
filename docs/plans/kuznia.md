@@ -11,25 +11,34 @@ wariant wyniku jest najsłabszym wariantem składników. Sześć gatunków wył�
 bez dochodu z ogrodu, suszenia, ponownego wkładania i bonusów płatnych produktów. To cel na zbieranie
 konkretnych okazów i wydawanie nadwyżki monet. Maszyna nie emituje monet przy tworzeniu.
 
-## Stan wdrożenia (gałąź `kuznia`)
+## Stan wdrożenia (gałąź `kuznia`) — wersja 2 (losowanie z ekwipunku)
 
-Decyzje Toma (4.11): wynik wart **więcej niż składniki** (~1,3×, opłata zawsze większa niż zysk — zlew
-monet), **10% szansy na wariant o rangę wyżej** (szanse widać w oknie), maszyna na **Placu Portali**.
+Decyzje Toma (4.11, druga runda): do moździerza wrzucasz z ekwipunku **dowolne 3 grzyby**, kręci się
+bęben i wychodzi **losowy grzyb z tych trzech z połączonymi cechami**. Może być **skucha** (gorszy grzyb),
+**mała opłata** (25% wartości wrzuconych), 6 gatunków zostaje jako **ukryte przepisy**, a trzy tęczowe
+grzyby strażników dają **mitycznego** albo **sekretnego** grzyba tylko z kuźni. Szanse ma sprawdzić Codex.
 
-- Liczby i przepisy: `Config.Forge` (R1–R3 z Bagien, R4–R6 z Łysej Góry, R6 po ucieczce Babie Jadze).
-- Logika wspólna (podgląd = serwer): `src/shared/Forge.luau`; serwer: `src/server/ForgeService.luau`;
-  model: `src/server/World/Forge.luau`; okno: `src/client/ForgePanel.luau`.
-- Różnice względem planu poniżej: **bez nowej wersji zapisu (v8) i bez tokenów potwierdzenia** —
-  połączenie jest atomowe w pamięci sesji ProfileStore, jak sprzedaż (opłata, 3 grzyby, wynik w jednym
-  kroku); dochodzi tylko licznik `stats.forged` i wpisy Grzybopedii. Okno samo podpowiada najtańsze
-  pasujące grzyby (klik w miejsce = następny). Grzyby z eventów nie wchodzą do moździerza.
-- Grzybopedia: zakładka „Kuźnia” poza stronami świata (bez premii do cen i progów); tytuły
-  Uczeń Zielarki (1 połączenie) i Mistrz Kuźni (6 gatunków); odznaki `forge_first`, `forge_collection`
-  czekają na ID w `Config.Badges`.
-- DEV (tylko Studio): `forgeOpen`, `forgeKit`, `forgeReset`, `coinsSet:N`.
-- Testy: `tests/economy.spec.luau` (przepisy, 750 kombinacji rang: opłata > zysk, pule losowania,
-  pasowanie, podgląd i wynik, napisy). Sprawdzone w Studio: połączenie R1 i R2, odmowy (zmieniony
-  koszyk, złe indeksy, brak Jagi, przerwa, za daleko), zakładka w Grzybopedii.
+Zasady (`Config.Forge`, `src/shared/Forge.luau`):
+
+| Wynik | Szansa | Co wychodzi |
+|---|---|---|
+| Skucha | 25% | losowy z trzech, **bez cech**, z najsłabszym wariantem z trzech |
+| Zwykły | 65% | losowy z trzech (ze swoim wariantem) + **wszystkie cechy** trzech grzybów |
+| Szczęście | 10% | jak zwykły, wariant **o rangę wyżej** (najwyżej kosmiczny) |
+
+- **Ukryte przepisy** (6, dowolna kolejność): w „zwykłym” i „szczęściu” zamiast losowego wychodzi gatunek
+  z kuźni (wariant = najsłabszy z trzech, w szczęściu o rangę wyżej; cechy połączone). Skucha jak wyżej.
+  Wartość wyniku ok. 1,2× składników. Przepisy działają od Bagien / Łysej Góry / ucieczki Jadze.
+- **Trójki strażników**, każdy co najmniej tęczowy: Leszy + Skarbnik + Utopiec → **Kwiat Paproci**
+  (mityczny); Baba Jaga + dwóch z nich → **Oko Welesa** (sekretny). Nowe klasy `Config.SpecialClasses`.
+- Grzybów z kuźni nie da się posadzić ani wrzucić z powrotem; suszonych i dyniowych (event) też nie.
+- Okno: ekwipunek (siatka grzybów z koszyka), trzy miejsca, szanse i animacja bębna, który skacze po
+  wrzuconych grzybach i staje na wylosowanym. Komunikaty o wyniku przychodzą dopiero po animacji.
+- Grzybopedia: zakładka „Kuźnia” (8 gatunków) z podpowiedziami do nieodkrytych; tytuły Uczeń Zielarki,
+  Mistrz Kuźni (6 przepisów), Znalazca Kwiatu Paproci, Wybraniec Welesa.
+- Bez nowej wersji zapisu: połączenie jest atomowe w pamięci sesji ProfileStore, jak sprzedaż.
+- Balans: `lune run tools/forge_odds.luau` (EV/(wrzucone+opłata) dla przepisów, strażników, losowych
+  trójek z wypraw, dokładania cech i form do Grzybopedii). Testy: `tests/economy.spec.luau` (kuźnia).
 
 Główny komplet to **6 gatunków w dowolnej formie**; na bagnach dostępne są pierwsze 3. Pozostałe formy
 są opcjonalną kolekcją. Model pokazuje około **54 min na 3 gatunki po bagnach i 92 min na 6 po górze**,

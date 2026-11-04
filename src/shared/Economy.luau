@@ -294,6 +294,14 @@ function Economy.speciesClass(id: string): Config.ClassDef
 	if not species then
 		return classes[1]
 	end
+	if species.class then
+		-- Mityczne i sekretne grzyby z kuźni
+		for _, class in Config.SpecialClasses do
+			if class.id == species.class then
+				return class
+			end
+		end
+	end
 	if species.grove or species.lair or species.guardian then
 		return classes[#classes]
 	end

@@ -52,6 +52,7 @@ local SPECIES_SHAPE: { [string]: string } = {
 	-- Kuźnia Grzybów
 	forge_mossbell = "bell", forge_emberpearl = "puffball", forge_glasscap = "crystal",
 	forge_runemorel = "bell", forge_mooncoral = "crown", forge_eclipsestar = "puffball",
+	fern_flower = "crown", veles_eye = "puffball",
 }
 
 local RAINBOW = ColorSequence.new({

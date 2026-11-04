@@ -215,6 +215,26 @@ local function rgb(color: { number }): Color3
 	return Color3.fromRGB(color[1], color[2], color[3])
 end
 
+-- Podpowiedź do nieodkrytego grzyba z kuźni: cechy z ukrytego przepisu i świat, a przy strażnikach tylko opis
+local function forgeHint(species: Config.SpeciesDef): string
+	if species.class == "secret" then
+		return Localize.t("ATLAS_HINT_SECRET")
+	elseif species.class then
+		return Localize.t("ATLAS_HINT_MYTHIC")
+	end
+	for _, recipe in Config.Forge.recipes do
+		if recipe.id == species.id then
+			local parts = {}
+			for _, input in recipe.inputs do
+				local tag = if input.tag then Economy.getTag(input.tag) else nil
+				table.insert(parts, if tag then tag.icon else "❔")
+			end
+			return Localize.t("ATLAS_HINT_RECIPE", { table.concat(parts, " + "), Localize.t("ATLAS_PAGE_" .. string.upper(recipe.world)) })
+		end
+	end
+	return Localize.t("FORGE_TITLE")
+end
+
 local function isActive(): boolean
 	return window.isOpen()
 end
@@ -315,7 +335,7 @@ local function render()
 		if page == GUARDIANS_TAB then
 			found, total = Progress.guardiansFound(bestiary)
 		elseif page == FORGE_TAB then
-			found, total = Progress.forgeFound(atlas)
+			found, total = Progress.forgeFound(atlas, true)
 		else
 			found, total = Progress.entries(atlas, page)
 		end
@@ -346,7 +366,7 @@ local function render()
 	local bonus = Progress.atlasBonus(atlas)
 	local titleKey = Progress.title(atlas)
 	if onForge then
-		local found, total = Progress.forgeFound(atlas)
+		local found, total = Progress.forgeFound(atlas, true)
 		summary.Text = Localize.t("ATLAS_FORGE_SUMMARY", { found, total })
 		forgeTitle.Text = Localize.t("FORGE_TITLE")
 		forgeText.Text = Localize.t("ATLAS_FORGE_INFO")
@@ -396,9 +416,9 @@ local function render()
 		local info = PanelKit.label(row, "Info", UDim2.fromOffset(nameWidth, 18), UDim2.fromOffset(24, 37), 14, PanelKit.MUTED, PanelKit.BODY_FONT)
 		info.TextXAlignment = Enum.TextXAlignment.Left
 		info.ZIndex = 6
-		-- Grzyby z kuźni nie rosną w żadnej strefie: zamiast strefy nazwa Moździerza
+		-- Grzyby z kuźni nie rosną w żadnej strefie: zamiast strefy nazwa Moździerza (a przed odkryciem podpowiedź)
 		local zone = Config.Zones[species.zone]
-		local whereText = if species.forgeOnly then Localize.t("FORGE_TITLE") elseif zone then Localize.t(zone.key) else ""
+		local whereText = if species.forgeOnly then (if known then Localize.t("FORGE_TITLE") else forgeHint(species)) elseif zone then Localize.t(zone.key) else ""
 		if known then
 			name.Text = Localize.t(species.key)
 			-- Nazwa w gradiencie koloru klasy (jak tytuły kart w sklepie)

@@ -84,16 +84,19 @@ function Progress.pageOf(speciesId: string): string?
 	return Economy.zoneWorld(species.zone)
 end
 
--- Ile gatunków z kuźni gracz już ma (w dowolnej formie) i ile jest wszystkich
-function Progress.forgeFound(atlas: { [string]: any }): (number, number)
-	local list = Progress.pageSpecies(Progress.FORGE_PAGE)
-	local found = 0
-	for _, species in list do
-		if Progress.mask(atlas, species.id) > 0 then
-			found += 1
+-- Ile gatunków z ukrytych przepisów kuźni gracz już ma (w dowolnej formie) i ile ich jest
+-- (tytuł Mistrz Kuźni, odznaka). all = true: cała strona kuźni, z mitycznym i sekretnym.
+function Progress.forgeFound(atlas: { [string]: any }, all: boolean?): (number, number)
+	local found, total = 0, 0
+	for _, species in Progress.pageSpecies(Progress.FORGE_PAGE) do
+		if all or not species.class then
+			total += 1
+			if Progress.mask(atlas, species.id) > 0 then
+				found += 1
+			end
 		end
 	end
-	return found, #list
+	return found, total
 end
 
 -- Maska z zapisu; stare zapisy miały true (= znaleziony zwykły)

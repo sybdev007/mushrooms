@@ -133,6 +133,9 @@ local SHAPES: { [string]: Shape } = {
 	forge_runemorel = { stemH = 1.1, stemD = 0.8, capW = 1.7, capH = 2.1, cap = rgb(120, 60, 170), stem = rgb(226, 214, 236), glow = true, runes = true },
 	forge_mooncoral = { stemH = 0.8, stemD = 0.9, capW = 2.4, capH = 2.0, cap = rgb(200, 214, 240), stem = rgb(220, 226, 240), glow = true },
 	forge_eclipsestar = { stemH = 0.5, stemD = 0.7, capW = 2.8, capH = 1.3, cap = rgb(90, 60, 150), stem = rgb(255, 208, 90), glow = true },
+	-- Mityczny Kwiat Paproci (ognisty kwiat-grzyb) i sekretne Oko Welesa (ciemna kula z okiem i runami)
+	fern_flower = { stemH = 1.2, stemD = 0.5, capW = 2.8, capH = 1.4, cap = rgb(255, 110, 40), stem = rgb(120, 200, 90), spots = true, glow = true },
+	veles_eye = { stemH = 0.6, stemD = 0.9, capW = 2.2, capH = 1.9, cap = rgb(40, 80, 60), stem = rgb(70, 60, 50), glow = true, eye = true, runes = true },
 }
 local DEFAULT_SHAPE: Shape = { stemH = 1, stemD = 0.5, capW = 1.6, capH = 0.6, cap = rgb(160, 120, 80) }
 
@@ -269,6 +272,7 @@ local FORMS: { [string]: string } = {
 	sabbath_puffball = "ball", night_eye = "ball", hex_cluster = "bell",
 	forge_mossbell = "bell", forge_emberpearl = "ball", forge_glasscap = "crystal",
 	forge_runemorel = "morel", forge_mooncoral = "tentacles", forge_eclipsestar = "star",
+	fern_flower = "star", veles_eye = "ball",
 }
 local RUNE = rgb(150, 255, 90)
 -- Kształty z buzią na trzonie (kula ma buzię na kapeluszu, a huba, gwiazdosz i palce nie mają żadnej)
