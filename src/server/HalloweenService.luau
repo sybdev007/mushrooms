@@ -18,6 +18,7 @@ local Progress = require(Shared.Progress)
 local Remotes = require(Shared.Remotes)
 local DataService = require(script.Parent.DataService)
 local ProgressService = require(script.Parent.ProgressService)
+local Ledger = require(script.Parent.Ledger)
 
 type Data = DataService.Data
 
@@ -229,7 +230,7 @@ local function useCauldron(player: Player)
 	local result: { [string]: any } = { id = outcome.id, seconds = outcome.seconds }
 	if outcome.id == "coins" then
 		local coins = math.floor((outcome.scale or 1) * scale)
-		data.coins += coins
+		Ledger.earn(player, data, coins, "Gameplay", "Cauldron")
 		result.amount = coins
 	elseif outcome.id == "luck" then
 		local seconds = outcome.seconds or 300
@@ -244,7 +245,7 @@ local function useCauldron(player: Player)
 		if Halloween.ownsSkin(data.skins, data.stats.candy, outcome.skin) or not def then
 			-- Już ją ma: zamiast skórki worek monet
 			local coins = math.floor(cauldron.duplicateScale * scale)
-			data.coins += coins
+			Ledger.earn(player, data, coins, "Gameplay", "Cauldron")
 			result.id = "skin_dupe"
 			result.amount = coins
 			result.skinKey = if def then def.key else nil

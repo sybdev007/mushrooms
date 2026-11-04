@@ -425,6 +425,11 @@ local function render()
 	local ready = state.loginReady == true
 	local todayIndex = if ready then (tonumber(state.loginNextDay) or 1) else state.loginDay
 	streakTitle.Text = Localize.t("QUESTS_STREAK", { if ready then state.loginNextCount else state.streak })
+	-- Mrozik: ile opuszczonych dni seria jeszcze wytrzyma (Progress.FREEZE_*)
+	local freeze = tonumber(state.freeze) or 0
+	if freeze > 0 then
+		streakTitle.Text ..= "   " .. Localize.t("QUESTS_FREEZE", { freeze })
+	end
 	for index, day in days do
 		local isToday = index == todayIndex
 		local claimed = index < todayIndex or (isToday and not ready)
@@ -451,7 +456,8 @@ local function render()
 	local nextDay = todayIndex % #Progress.LOGIN_REWARDS + 1
 	streakHint.Text = if ready
 		then Localize.t("QUESTS_STREAK_READY")
-		else Localize.t("QUESTS_STREAK_HINT", { nextDay, formatCoins(Progress.LOGIN_REWARDS[nextDay] * state.scale) })
+		elseif freeze > 0 then Localize.t("QUESTS_STREAK_HINT_FREEZE", { nextDay, formatCoins(Progress.LOGIN_REWARDS[nextDay] * state.scale) })
+		else Localize.t("QUESTS_STREAK_HINT", { nextDay, formatCoins(Progress.LOGIN_REWARDS[nextDay] * state.scale), Progress.FREEZE_EVERY })
 end
 
 function QuestPanel.toggle()

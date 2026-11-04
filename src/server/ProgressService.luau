@@ -20,6 +20,7 @@ local Achievements = require(Shared.Achievements)
 local Titles = require(Shared.Titles)
 local Halloween = require(Shared.Halloween)
 local DataService = require(script.Parent.DataService)
+local Ledger = require(script.Parent.Ledger)
 
 type Data = DataService.Data
 type MutationInfo = { variant: string?, tags: { string }? }
@@ -187,6 +188,7 @@ local function send(player: Player, force: boolean?)
 		bonusClaimed = data.daily.bonusClaimed,
 		dailyBonus = math.floor(Progress.DAILY_BONUS.reward * scale),
 		streak = data.streak.count,
+		freeze = data.streak.freeze or 0,
 		loginDay = (math.max(data.streak.count, 1) - 1) % #Progress.LOGIN_REWARDS + 1,
 		-- Nagroda za dzisiejsze wejście czeka na odbiór: który to dzień cyklu i seria po odbiorze
 		loginReady = Progress.loginReady(data.streak, today),
@@ -242,7 +244,7 @@ local function grantTrack(player: Player, data: Data)
 			api.notify(player, "MSG_TRACK_LUCK", { math.floor(step.seconds / 60) })
 		elseif step.kind == "coins" and step.scale then
 			local coins = math.floor(step.scale * scaleOf(data))
-			data.coins += coins
+			Ledger.earn(player, data, coins, "Gameplay", "EventTrack")
 			api.notify(player, "MSG_TRACK_COINS", { coins })
 		elseif step.kind == "skin" and step.id then
 			-- Nowa skórka: od razu w dłoni, jeśli w tym miejscu nie ma innej
@@ -267,12 +269,15 @@ end
 -- Nagroda za dzisiejsze wejście: gracz odbiera ją przyciskiem w oknie Zadań
 local function claimLogin(player: Player, data: Data)
 	local today = Progress.dayIndex(os.time())
-	local cycleDay = Progress.claimLogin(data.streak, today)
+	local cycleDay, frozen = Progress.claimLogin(data.streak, today)
 	if not cycleDay then
 		return
 	end
+	if frozen then
+		api.notify(player, "MSG_STREAK_FROZEN", { data.streak.count })
+	end
 	local amount = math.floor(Progress.LOGIN_REWARDS[cycleDay] * scaleOf(data))
-	data.coins += amount
+	Ledger.earn(player, data, amount, "TimedReward", "LoginStreak")
 	data.stats.bestStreak = math.max(data.stats.bestStreak, data.streak.count)
 	local luck = cycleDay == #Progress.LOGIN_REWARDS
 	if luck then
@@ -554,7 +559,7 @@ local function onClaim(player: Player, what: unknown)
 			return
 		end
 		local reward = Progress.questReward(def, scale)
-		data.coins += reward
+		Ledger.earn(player, data, reward, "TimedReward", "Quest")
 		api.notify(player, "MSG_QUEST_DONE", { reward })
 		-- Halloween: każde zadanie dnia daje też cukierki
 		if Halloween.active(os.time()) then
@@ -565,7 +570,7 @@ local function onClaim(player: Player, what: unknown)
 			return
 		end
 		local bonus = math.floor(Progress.DAILY_BONUS.reward * scale)
-		data.coins += bonus
+		Ledger.earn(player, data, bonus, "TimedReward", "QuestBonus")
 		grantLuck(data, Progress.DAILY_BONUS.luckSeconds)
 		api.notify(player, "MSG_QUESTS_ALL_DONE", { bonus, math.floor(Progress.DAILY_BONUS.luckSeconds / 60) })
 	elseif what == "login" then

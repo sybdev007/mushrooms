@@ -3,6 +3,9 @@ HUD_COINS,Coins: {1},,,Monety: {1}
 HUD_OIL,Oil,,,Olej
 HUD_BASKET,Basket: {1}/{2},,,Koszyk: {1}/{2}
 HUD_PICK,COLLECT,,,ZBIERZ
+HUD_PITY,Guaranteed Gold in {1} 🍄,,,Pewne Złoto za {1} 🍄
+HUD_PITY_READY,Next regrow: guaranteed Gold!,,,Następny odrost: pewne Złoto!
+HUD_NEXT_NIGHT,In {1}: {2} {3},,,Za {1}: {2} {3}
 HUD_SELL,Sell basket: +{1} coins,,,Sprzedaj koszyk (+{1})
 HUD_SELL_EMPTY,Your basket is empty,,,Koszyk jest pusty
 HUD_LEVEL,Lv {1},,,Poz. {1}
@@ -326,7 +329,10 @@ QUESTS_REROLL,Swap,,,Wymień
 QUESTS_BONUS,All 3: +{1} coins + Luck Potion {2} min,,,Wszystkie 3: +{1} monet + mikstura szczęścia {2} min
 QUESTS_BONUS_DONE,Today's bonus collected ✅,,,Premia za dziś odebrana ✅
 QUESTS_STREAK,Login streak: day {1},,,Seria logowań: dzień {1}
-QUESTS_STREAK_HINT,Come back tomorrow for day {1}: +{2} coins (miss a day and the streak resets),,,Wróć jutro po dzień {1}: +{2} monet (dzień przerwy zeruje serię)
+QUESTS_STREAK_HINT,Come back tomorrow for day {1}: +{2} coins (miss a day and the streak resets; a new ❄️ Frosty every {3} days),,,Wróć jutro po dzień {1}: +{2} monet (dzień przerwy zeruje serię; nowy ❄️ Mrozik co {3} dni)
+QUESTS_STREAK_HINT_FREEZE,Come back tomorrow for day {1}: +{2} coins (❄️ Frosty saves the streak if you miss one day),,,Wróć jutro po dzień {1}: +{2} monet (❄️ Mrozik uratuje serię przy jednym opuszczonym dniu)
+QUESTS_FREEZE,❄️ x{1},,,❄️ x{1}
+MSG_STREAK_FROZEN,❄️ Frosty saved your login streak! Day {1},,,❄️ Mrozik uratował twoją serię logowań! Dzień {1}
 QUESTS_DAY,Day {1},,,Dzień {1}
 QUEST_PICK,Pick {1} mushrooms,,,Zbierz {1} grzybów
 QUEST_PICK_MUTATED,Pick {1} mutated mushrooms,,,Zbierz {1} grzybów z mutacją
@@ -338,7 +344,7 @@ QUEST_PLANT,Plant {1} mushrooms in your garden,,,Posadź {1} grzyby w ogródku
 QUEST_COLLECT,Collect coins from your garden chest {1} times,,,Zbierz monety ze skrzyni w ogródku {1} razy
 QUEST_UPGRADE,Buy {1} upgrades,,,Kup {1} ulepszenia
 QUEST_DISCOVER,Add a new entry to the Atlas,,,Dodaj nowy wpis do Grzybopedii
-BOARD_RICHEST,Richest foragers,,,Najbogatsi grzybiarze
+BOARD_RICHEST,Top earners (all time),,,Najwięcej zarobili (od początku)
 BOARD_RARE,Find of the week,,,Znalezisko tygodnia
 BOARD_THIEVES,Thieves of the week,,,Złodzieje tygodnia
 BOARD_EMPTY,Nobody yet. Be the first!,,,Jeszcze nikt. Bądź pierwszy!

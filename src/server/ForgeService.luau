@@ -15,6 +15,7 @@ local Economy = require(ReplicatedStorage.Shared.Economy)
 local Forge = require(ReplicatedStorage.Shared.Forge)
 local Progress = require(ReplicatedStorage.Shared.Progress)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local Ledger = require(script.Parent.Ledger)
 
 export type Hooks = {
 	getData: (Player) -> any?,
@@ -203,7 +204,7 @@ function ForgeService.start(station: Vector3, prompt: ProximityPrompt?, hooks: H
 
 		-- Połączenie: opłata, 3 grzyby (od końca, żeby indeksy się nie przesuwały), wynik do koszyka
 		local result, outcome, pick = Forge.roll(preview, items, rng:NextNumber(), rng:NextNumber())
-		data.coins -= preview.fee
+		Ledger.spend(player, data, preview.fee, "Gameplay", "Forge")
 		table.sort(indices, function(a, b)
 			return a > b
 		end)

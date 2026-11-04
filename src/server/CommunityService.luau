@@ -19,6 +19,7 @@ local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Social = require(ReplicatedStorage.Shared.Social)
 local DataService = require(script.Parent.DataService)
 local ProgressService = require(script.Parent.ProgressService)
+local Ledger = require(script.Parent.Ledger)
 
 type Data = DataService.Data
 
@@ -131,7 +132,7 @@ local function welcome(player: Player): boolean
 		return false
 	end
 	local coins = Progress.communityGift(data.caveUnlocked, data.swampUnlocked, data.mountainUnlocked)
-	data.coins += coins
+	Ledger.earn(player, data, coins, "Gameplay", "OwlGift")
 	data.luckUntil = math.max(os.time(), data.luckUntil) + Config.Community.giftLuckSeconds
 	api.notify(player, "MSG_OWL_WELCOME", { coins, math.floor(Config.Community.giftLuckSeconds / 60) })
 	ProgressService.event(player, "owl", 1) -- tytuł „Old Owl Member” i komunikat „Nowy tytuł”

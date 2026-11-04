@@ -19,9 +19,11 @@ local RunService = game:GetService("RunService")
 local Config = require(ReplicatedStorage.Shared.Config)
 local Economy = require(ReplicatedStorage.Shared.Economy)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local Ledger = require(script.Parent.Ledger)
 
 type Data = {
 	coins: number,
+	earned: number, -- monety zarobione w ogóle (Ledger)
 	basket: { Economy.BasketItem },
 	planted: { Economy.PlantItem },
 	pot: number,
@@ -494,7 +496,7 @@ local function giveItem(player: Player, item: Economy.PlantItem): string
 		table.insert(data.basket, { s = item.s, v = item.v, x = item.x, d = item.d })
 		return "basket"
 	end
-	data.coins += Economy.itemValue(item)
+	Ledger.earn(player, data, Economy.itemValue(item :: any), "Gameplay", "GardenOverflow")
 	return "coins"
 end
 
@@ -769,7 +771,7 @@ local function takePot(player: Player, data: Data): (number, number)
 	local minutes = data.potMinutes
 	data.pot -= amount
 	data.potMinutes = 0
-	data.coins += amount
+	Ledger.earn(player, data, amount, "TimedReward", "GardenPot")
 	if api.onEvent then
 		api.onEvent(player, "collect", 1)
 	end
@@ -995,7 +997,7 @@ function GardenService.grantX2(player: Player, product: string): boolean
 	data.x2Offers[product] = nil
 	local bonus = if offer then offer.b else math.floor(Economy.gardenIncome(data.planted, stat(player, "fertilizer")) * minMinutes)
 	bonus = math.max(bonus, 1)
-	data.coins += bonus
+	Ledger.earn(player, data, bonus, "IAP", product)
 	api.notify(player, "MSG_X2_DONE", { bonus })
 	ChestOffer:FireClient(player, { kind = "paid", product = product, bonus = bonus })
 	api.pushState(player)

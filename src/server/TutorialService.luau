@@ -12,6 +12,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage.Shared.Config)
 local Economy = require(ReplicatedStorage.Shared.Economy)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local Ledger = require(script.Parent.Ledger)
+local Analytics = require(script.Parent.Analytics)
 
 local TutorialService = {}
 
@@ -80,6 +82,7 @@ function TutorialService.setStep(session: Session, step: number)
 		return
 	end
 	data.tutorial = step
+	Analytics.onboarding(session.player, step)
 	clearSpots(session)
 	if step == 2 then
 		-- Plecak pełny: olej spada nisko (ostrzeżenie), ale zostaje go na powrót do chatki
@@ -95,9 +98,11 @@ function TutorialService.setStep(session: Session, step: number)
 			TutorialService.setStep(session, 4)
 			return
 		end
-		data.coins = math.max(data.coins, cost)
+		if data.coins < cost then
+			Ledger.earn(session.player, data, cost - data.coins, "Onboarding", "TutorialTopUp")
+		end
 	elseif step == DONE then
-		data.coins += Config.Tutorial.reward
+		Ledger.earn(session.player, data, Config.Tutorial.reward, "Onboarding", "TutorialReward")
 		api.notify(session, "TUT_DONE_MSG", { Config.Tutorial.reward })
 		-- Tytuł „Nowy” nad głową (jeśli gracz nie ma lepszego z Grzybopedii)
 		if api.refreshTitle then
@@ -109,6 +114,10 @@ function TutorialService.setStep(session: Session, step: number)
 end
 
 function TutorialService.onJoin(session: Session)
+	-- Lejek samouczka: pierwszy krok, gdy nowy gracz wchodzi (dalsze kroki w setStep)
+	if session.data.tutorial == 0 then
+		Analytics.onboarding(session.player, 0)
+	end
 	session.tutorialSpots = {}
 	spawnForStep(session)
 end

@@ -1729,6 +1729,37 @@ test("seria logowań: dzień po dniu rośnie, przerwa zeruje, 7 dni w kółko", 
 	eq(streak.count, 1)
 end)
 
+test("seria logowań: Mrozik ratuje jeden opuszczony dzień, odnawia się co 7 dni serii", function()
+	local streak = { day = 99, count = 5, freeze = 1 }
+	eq(select(2, Progress.loginPreview(streak, 101)), 6, "podgląd z Mrozikiem")
+	local cycle, frozen = Progress.claimLogin(streak, 101)
+	eq(cycle, 6)
+	eq(frozen, true, "Mrozik zużyty")
+	eq(streak.count, 6)
+	eq(streak.freeze, 0)
+	-- Kolejna przerwa bez Mrozika zeruje
+	local _, frozen2 = Progress.claimLogin(streak, 103)
+	eq(frozen2, false)
+	eq(streak.count, 1)
+	-- Dwa opuszczone dni: Mrozik nie pomaga
+	local long = { day = 99, count = 4, freeze = 1 }
+	Progress.claimLogin(long, 102)
+	eq(long.count, 1, "dwa dni przerwy")
+	eq(long.freeze, 1, "Mrozik zostaje")
+	-- 7. dzień serii daje Mrozika, najwyżej jeden naraz
+	local week = { day = 99, count = 6, freeze = 0 }
+	Progress.claimLogin(week, 100)
+	eq(week.count, 7)
+	eq(week.freeze, 1, "nowy Mrozik")
+	local full = { day = 99, count = 13, freeze = 1 }
+	Progress.claimLogin(full, 100)
+	eq(full.freeze, Progress.FREEZE_MAX, "bez zapasu ponad limit")
+	-- Stary zapis bez pola: brak Mrozika w tej funkcji (DataService daje jednego przy wczytaniu)
+	local old = { day = 99, count = 3 }
+	eq(select(2, Progress.claimLogin(old, 101)), false)
+	eq(old.count, 1)
+end)
+
 test("zadania: nagroda czeka na odbiór, odbiera się raz, premia dopiero po komplecie", function()
 	local daily = Progress.newDaily(3, 4)
 	eq(Progress.claimQuest(daily, 1), nil, "niezrobione")

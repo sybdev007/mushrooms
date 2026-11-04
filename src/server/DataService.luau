@@ -24,6 +24,7 @@ local Delve = require(ReplicatedStorage.Shared.Delve)
 export type Data = {
 	version: number,
 	coins: number,
+	earned: number, -- monety zarobione w ogóle (ranking „najbogatsi”; Ledger.earn), bez panelu DEV
 	upgrades: { [string]: number },
 	atlas: { [string]: number }, -- Grzybopedia: gatunek -> maska odkrytych wariantów (Progress)
 	atlasDone: { string }, -- progi księgi, o których gracz już dostał komunikat ("forest:2")
@@ -108,12 +109,13 @@ function DataService.defaultData(): Data
 	return {
 		version = DATA_VERSION,
 		coins = Config.StartingCoins or 0,
+		earned = Config.StartingCoins or 0,
 		upgrades = upgrades,
 		atlas = {},
 		atlasDone = {},
 		bestiary = {},
 		daily = { day = -1, quests = {}, rerolled = false, bonusDone = false, bonusClaimed = false },
-		streak = { day = -1, count = 0 },
+		streak = { day = -1, count = 0, freeze = Progress.FREEZE_MAX },
 		weekly = { week = -1, steals = 0, best = 0 },
 		stats = Titles.emptyStats(),
 		titleChoice = "",
@@ -192,6 +194,9 @@ local function reconcile(raw: any): Data
 	if typeof(raw.coins) == "number" and raw.coins >= 0 then
 		data.coins = math.floor(raw.coins)
 	end
+	-- Zarobione w ogóle: stare zapisy (bez licznika) zaczynają od obecnego stanu konta, żeby ranking
+	-- „najbogatsi” nikogo nie zrzucił na dół po zmianie
+	data.earned = if finite(raw.earned) and raw.earned >= 0 then math.floor(raw.earned) else data.coins
 	-- v6: nowe poziomy i bramki map. Zachowujemy numery kupionych poziomów bez
 	-- przycinania do aktualnie otwartej mapy i bez przyznawania nowego maksimum.
 	data.upgrades = Economy.upgradeLevelsFromSave(raw.upgrades, if finite(raw.version) then raw.version else 0)
@@ -258,7 +263,9 @@ local function reconcile(raw: any): Data
 	end
 	local streak = raw.streak
 	if typeof(streak) == "table" and typeof(streak.day) == "number" and typeof(streak.count) == "number" then
-		data.streak = { day = math.floor(streak.day), count = math.max(0, math.floor(streak.count)) }
+		-- Mrozik: stare zapisy (bez pola) dostają jednego na start
+		local freeze = if finite(streak.freeze) then math.clamp(math.floor(streak.freeze), 0, Progress.FREEZE_MAX) else Progress.FREEZE_MAX
+		data.streak = { day = math.floor(streak.day), count = math.max(0, math.floor(streak.count)), freeze = freeze }
 	end
 	local weekly = raw.weekly
 	if typeof(weekly) == "table" and typeof(weekly.week) == "number" then

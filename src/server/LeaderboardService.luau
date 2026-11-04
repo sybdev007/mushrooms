@@ -1,6 +1,6 @@
 --!strict
 -- Rankingi na tablicach przed chatką (OrderedDataStore, wspólne dla wszystkich serwerów):
---   richest — najbogatsi (monety teraz),
+--   richest — najbogatsi (monety zarobione w ogóle, data.earned),
 --   rare    — najcenniejsze znalezisko tygodnia (Progress.encodeFind: wartość + gatunek + wariant),
 --   thieves — najwięcej doniesionych łupów z cudzych ogródków w tym tygodniu,
 --   candy   — Halloween: najwięcej zebranych cukierków (stats.candy), tylko w czasie eventu i do
@@ -62,7 +62,8 @@ local storeOk = true
 -- Wynik gracza na danej tablicy (0 = nie wpisujemy)
 local function scoreOf(data: Data, kind: string, week: number): number
 	if kind == "richest" then
-		return math.floor(data.coins)
+		-- Monety zarobione w ogóle (data.earned), nie stan konta: wydawanie nie spycha w rankingu
+		return math.floor(data.earned)
 	elseif kind == "candy" then
 		return if Halloween.rankingOpen(os.time()) then math.floor(data.stats.candy) else 0
 	end

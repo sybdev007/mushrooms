@@ -52,9 +52,12 @@ function UiScale.row(): number
 	return UiScale.computeRow(viewport())
 end
 
--- Góra rzędu: pod panelem monet (8 + 80 + 8 w skali HUD)
+-- Wysokość panelu monet w lewym górnym rogu (monety, koszyk, pasek gwarancji Złota)
+UiScale.STATS_HEIGHT = 102
+
+-- Góra rzędu: pod panelem monet (8 + STATS_HEIGHT + 8 w skali HUD)
 function UiScale.rowTop(): number
-	return 8 + math.floor(80 * UiScale.get()) + 8
+	return 8 + math.floor(UiScale.STATS_HEIGHT * UiScale.get()) + 8
 end
 
 function UiScale.rowBottom(): number

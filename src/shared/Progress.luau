@@ -523,17 +523,39 @@ end
 Progress.LOGIN_REWARDS = { 0.5, 0.75, 1, 1.25, 1.5, 2, 3 }
 Progress.LOGIN_LUCK_SECONDS = 600
 
-export type Streak = { day: number, count: number }
+-- Mrozik: jeden opuszczony dzień nie zeruje serii (zużywa Mrozika). Nowy Mrozik co FREEZE_EVERY dni
+-- serii, najwyżej FREEZE_MAX naraz; każdy gracz zaczyna z jednym.
+Progress.FREEZE_MAX = 1
+Progress.FREEZE_EVERY = 7
 
--- Odbiór nagrody za dzisiejsze wejście. Zwraca dzień w cyklu 1..7 albo nil, gdy już odebrana.
--- Przerwa dłuższa niż dzień zaczyna serię od nowa.
-function Progress.claimLogin(streak: Streak, today: number): number?
+export type Streak = { day: number, count: number, freeze: number? }
+
+-- Czy Mrozik uratuje serię, gdy dziś jest `today` (dokładnie jeden dzień przerwy)
+local function frozenGap(streak: Streak, today: number): boolean
+	return streak.day == today - 2 and streak.count > 0 and (streak.freeze or 0) > 0
+end
+
+-- Odbiór nagrody za dzisiejsze wejście. Zwraca dzień w cyklu 1..7 (albo nil, gdy już odebrana)
+-- i czy seria przetrwała dzięki Mrozikowi. Dłuższa przerwa (albo bez Mrozika) zaczyna serię od nowa.
+function Progress.claimLogin(streak: Streak, today: number): (number?, boolean)
 	if streak.day == today then
-		return nil
+		return nil, false
 	end
-	streak.count = if streak.day == today - 1 then streak.count + 1 else 1
+	local frozen = false
+	if streak.day == today - 1 then
+		streak.count += 1
+	elseif frozenGap(streak, today) then
+		streak.freeze = (streak.freeze or 0) - 1
+		streak.count += 1
+		frozen = true
+	else
+		streak.count = 1
+	end
 	streak.day = today
-	return (streak.count - 1) % #Progress.LOGIN_REWARDS + 1
+	if streak.count % Progress.FREEZE_EVERY == 0 then
+		streak.freeze = math.min(Progress.FREEZE_MAX, (streak.freeze or 0) + 1)
+	end
+	return (streak.count - 1) % #Progress.LOGIN_REWARDS + 1, frozen
 end
 
 -- Czy dzisiejsza nagroda za logowanie czeka na odbiór
@@ -543,7 +565,9 @@ end
 
 -- Co da odbiór dzisiaj (bez zmiany serii): dzień w cyklu 1..7 i długość serii po odbiorze
 function Progress.loginPreview(streak: Streak, today: number): (number, number)
-	local count = if streak.day == today then streak.count elseif streak.day == today - 1 then streak.count + 1 else 1
+	local count = if streak.day == today then streak.count
+		elseif streak.day == today - 1 or frozenGap(streak, today) then streak.count + 1
+		else 1
 	count = math.max(count, 1)
 	return (count - 1) % #Progress.LOGIN_REWARDS + 1, count
 end

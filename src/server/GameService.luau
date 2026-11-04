@@ -40,6 +40,8 @@ local HalloweenService = require(script.Parent.HalloweenService)
 local CommunityService = require(script.Parent.CommunityService)
 local DelveService = require(script.Parent.DelveService)
 local AnnounceService = require(script.Parent.AnnounceService)
+local Ledger = require(script.Parent.Ledger)
+local Analytics = require(script.Parent.Analytics)
 
 type SpotState = {
 	speciesId: string,
@@ -67,6 +69,7 @@ type Session = {
 	rescue: Rescue?, -- koszyk do uratowania za Robuxy (przez chwilę po zgaśnięciu latarni / złapaniu)
 	group: number, -- ilu graczy idzie razem (wspólna wyprawa: ten gracz + sąsiedzi w promieniu)
 	groupNoticeAt: number, -- kiedy ostatnio mówiliśmy „wspólna wyprawa” (żeby nie spamować)
+	joinedAt: number, -- os.clock() wejścia (analityka: po ilu minutach pierwsza sprzedaż itd.)
 	downedUntil: number?, -- latarnia zgasła i gracz czeka na podniesienie (os.clock końca)
 	downed: { Instance }?, -- przycisk „Podnieś” i napis SOS nad głową
 	debugGroupUntil: number?, -- panel DEV: udawana grupa 3 graczy do tej chwili (os.clock)
@@ -229,6 +232,11 @@ local function stat(session: Session, id: string): number
 	return Economy.upgradeStat(id, session.data.upgrades[id] or 0)
 end
 
+-- Analityka: kamień milowy (pierwsza sprzedaż, pierwsza śmierć...) z minutami od wejścia do gry
+local function milestone(session: Session, name: string)
+	Analytics.milestone(session.player, name, math.floor((os.clock() - session.joinedAt) / 60))
+end
+
 -- Deweloper: Studio, twórca gry albo konto z Config.DevUserIds (komenda /coins, panel DEV)
 local function isDeveloper(player: Player): boolean
 	if RunService:IsStudio() then
@@ -374,6 +382,8 @@ local function rollSpot(session: Session, spot: MapBuilder.Spot, countPity: bool
 	local variant = Economy.rollVariant(session.rng:NextNumber(), if forced then 2 else nil, luck)
 	if countPity then
 		data.pity = if Economy.variantRank(variant) >= 2 then 0 else data.pity + 1
+		-- Pasek gwarancji Złota w HUD (atrybut, żeby nie wysyłać całego stanu przy każdym odroście)
+		session.player:SetAttribute("Pity", data.pity)
 	end
 
 	local tags: { string }? = nil
@@ -609,6 +619,9 @@ local function engulf(session: Session, messageKey: string?, guardian: string?)
 	session.zone = Economy.zoneIndexAt(target.Position.Z)
 	local gate = WORLD_GATES[world]
 	notify(session, messageKey or (if gate then gate.engulfed else "MSG_ENGULFED"), { lost })
+	if session.data.stats.deaths == 0 then
+		milestone(session, "FirstDeath")
+	end
 	ProgressService.event(session.player, "death", 1) -- licznik do tytułu „Pechowiec”
 
 	-- Grzyby strażnika trafiają do legowiska dopiero, gdy minie czas na uratowanie koszyka
@@ -684,6 +697,9 @@ local function checkPortals(session: Session, root: BasePart, now: number)
 			if gate.canEnter(data.coins, data[gate.flag]) then
 				local first = not data[gate.flag]
 				data[gate.flag] = true
+				if first then
+					milestone(session, "Unlock_" .. world)
+				end
 				travel(session, character, info.camp, if first then gate.unlocked else gate.enter)
 			elseif now - session.portalNoticeAt > 4 then
 				session.portalNoticeAt = now
@@ -978,6 +994,7 @@ local function onPlayerAdded(player: Player)
 		fumesNoticeAt = 0,
 		group = 1,
 		groupNoticeAt = 0,
+		joinedAt = os.clock(),
 	}
 	session.oil = stat(session, "oil")
 
@@ -1018,6 +1035,7 @@ local function onPlayerAdded(player: Player)
 	end
 
 	sessions[player] = session
+	player:SetAttribute("Pity", data.pity)
 	GardenService.assign(player)
 	ProgressService.join(player)
 	CommunityService.join(player)
@@ -1331,13 +1349,17 @@ local function onSell(player: Player, indices: unknown, key: unknown)
 	if abuseActive("sell") then
 		value *= 2
 	end
-	session.data.coins += value
+	local firstSale = session.data.stats.sold == 0
+	Ledger.earn(player, session.data, value, "Gameplay", "Sell")
 	if bonus > 0 then
 		notify(session, "MSG_SOLD_BONUS", { value, math.floor(bonus * 100 + 0.5) })
 	else
 		notify(session, "MSG_SOLD", { value })
 	end
 	ProgressService.event(player, "sell", count)
+	if firstSale then
+		milestone(session, "FirstSale")
+	end
 	if candy > 0 and Halloween.active(os.time()) then
 		ProgressService.addCandy(player, candy, "MSG_CANDY_SOLD")
 		-- Wspólny cel serwera: tylko cukierki ze sprzedaży dyń
@@ -1887,6 +1909,14 @@ local function onBuy(player: Player, upgradeId: unknown)
 		notify(session, "MSG_UPGRADE_WHERE")
 		return
 	end
+	local level = session.data.upgrades[upgradeId] or 0
+	local cost = Economy.upgradeCost(upgradeId, level) or 0
+	local firstUpgrade = true
+	for _, owned in session.data.upgrades do
+		if owned > 0 then
+			firstUpgrade = false
+		end
+	end
 	local bought, reason, lockedWorld = Economy.buyUpgrade(session.data, upgradeId, world)
 	if not bought then
 		if reason == "locked" then
@@ -1905,6 +1935,10 @@ local function onBuy(player: Player, upgradeId: unknown)
 	end
 	applyCharacterStats(session)
 	notify(session, "MSG_UPGRADED", nil, def.key)
+	Ledger.spent(player, session.data, cost, "Shop", upgradeId)
+	if firstUpgrade then
+		milestone(session, "FirstUpgrade")
+	end
 	ProgressService.event(player, "upgrade", 1)
 	pushState(session)
 	TutorialService.onBought(session :: any, upgradeId)

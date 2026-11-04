@@ -26,6 +26,7 @@ local World = script.Parent:WaitForChild("World")
 local DelveMap = require(World:WaitForChild("DelveMap"))
 local SkarbnikModel = require(World:WaitForChild("Skarbnik"))
 local RelicArt = require(World:WaitForChild("RelicArt"))
+local Ledger = require(script.Parent.Ledger)
 
 local DelveService = {}
 
@@ -1079,7 +1080,7 @@ local function onAction(player: Player, action: unknown, arg: unknown)
 		if not cost or not def then
 			return
 		end
-		data.coins -= cost
+		Ledger.spend(player, data, cost, "Shop", "RelicRestore")
 		save.relics[arg].r = true
 		api.notify(player, "MSG_DELVE_RESTORED", nil, def.key)
 		api.pushState(player)
@@ -1092,7 +1093,7 @@ local function onAction(player: Player, action: unknown, arg: unknown)
 		if not cost or not shards or not def then
 			return
 		end
-		data.coins -= cost
+		Ledger.spend(player, data, cost, "Shop", "RelicFrame")
 		save.shards -= shards
 		save.relics[arg].f += 1
 		api.notify(player, "MSG_DELVE_FRAMED", nil, def.key)

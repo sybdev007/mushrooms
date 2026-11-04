@@ -188,7 +188,7 @@ gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
 
 -- Monety i koszyk (lewy górny róg)
-local stats = panel("Stats", gui, UDim2.new(0, 196, 0, 80), UDim2.new(0, 12, 0, 8))
+local stats = panel("Stats", gui, UDim2.new(0, 196, 0, UiScale.STATS_HEIGHT), UDim2.new(0, 12, 0, 8))
 local coinsIcon = UiKit.icon("coin", stats, UDim2.new(0, 34, 0, 34), UDim2.new(0, 8, 0, 4))
 local coinsLabel = label("Coins", stats, UDim2.new(1, -52, 0, 30), UDim2.new(0, 46, 0, 6), TITLE_FONT, 26)
 coinsLabel.TextXAlignment = Enum.TextXAlignment.Left
@@ -197,6 +197,14 @@ local basketIcon = UiKit.icon("basket", stats, UDim2.new(0, 32, 0, 32), UDim2.ne
 local basketLabel = label("Basket", stats, UDim2.new(0, 60, 0, 22), UDim2.new(0, 46, 0, 40), TITLE_FONT, 20)
 basketLabel.TextXAlignment = Enum.TextXAlignment.Left
 local _, basketFill = bar(stats, UDim2.new(1, -112, 0, 10), UDim2.new(0, 104, 0, 47), Color3.fromRGB(150, 196, 90))
+-- Gwarancja Złota (Config.PityRolls): ile odrostów twoich grzybów do pewnego Złota. Serwer trzyma licznik
+-- w atrybucie gracza „Pity” (rośnie z każdym odrostem bez Złota, zeruje się przy Złocie lub lepszym).
+local pityIcon = UiKit.icon("star", stats, UDim2.new(0, 22, 0, 22), UDim2.new(0, 12, 0, 66))
+pityIcon.Name = "PityIcon"
+local pityLabel = label("Pity", stats, UDim2.new(1, -46, 0, 18), UDim2.new(0, 40, 0, 68), BODY_FONT, 15)
+pityLabel.TextXAlignment = Enum.TextXAlignment.Left
+pityLabel.TextColor3 = THEME.gold
+local _, pityFill = bar(stats, UDim2.new(1, -24, 0, 7), UDim2.new(0, 12, 0, 89), THEME.gold)
 
 local languageButton = Instance.new("TextButton")
 languageButton.Name = "Language"
@@ -219,7 +227,7 @@ languagePadding.Parent = languageButton
 -- Strefa i pasek oleju (środek u góry)
 local top = Instance.new("Frame")
 top.Name = "Top"
-top.Size = UDim2.new(0, 300, 0, 66)
+top.Size = UDim2.new(0, 300, 0, 94)
 top.Position = UDim2.new(0.5, 0, 0, 8)
 top.AnchorPoint = Vector2.new(0.5, 0)
 top.BackgroundTransparency = 1
@@ -229,6 +237,10 @@ local zonePill = panel("Zone", top, UDim2.new(0, 220, 0, 28), UDim2.new(0.5, 0, 
 local zoneLabel = label("Text", zonePill, UDim2.new(1, -16, 1, -4), UDim2.new(0, 8, 0, 2), TITLE_FONT, 20)
 
 local oilPanel = panel("Oil", top, UDim2.new(1, 0, 0, 32), UDim2.new(0, 0, 0, 34))
+-- Zapowiedź następnej nocy (o świcie i pod koniec nocy): „Za 2:00: 🩸 Krwawy Księżyc”
+local forecastPill = panel("Forecast", top, UDim2.new(0, 260, 0, 24), UDim2.new(0.5, 0, 0, 70), Vector2.new(0.5, 0))
+forecastPill.Visible = false
+local forecastLabel = label("Text", forecastPill, UDim2.new(1, -12, 1, -4), UDim2.new(0, 6, 0, 2), BODY_FONT, 15)
 UiKit.icon("lantern", oilPanel, UDim2.new(0, 30, 0, 30), UDim2.new(0, 4, 0, 1))
 local oilBack, oilFill = bar(oilPanel, UDim2.new(1, -46, 0, 18), UDim2.new(0, 38, 0, 7), THEME.oil)
 local oilGradient = Instance.new("UIGradient")
@@ -1090,6 +1102,47 @@ local function cycleText(): string
 	return "🌙 " .. clock .. " · "
 end
 
+-- Następna noc: pokazujemy o świcie i w ostatnich minutach nocy (Config.Cycle, atrybuty z serwera)
+local FORECAST_BEFORE = 180
+local function forecastText(): string?
+	local phase = Workspace:GetAttribute("CyclePhase")
+	local endsAt = Workspace:GetAttribute("CycleEndsAt")
+	local nextId = Workspace:GetAttribute("CycleNextEvent")
+	if typeof(phase) ~= "string" or typeof(endsAt) ~= "number" then
+		return nil
+	end
+	local now = Workspace:GetServerTimeNow()
+	local startsAt = if phase == "dawn" then endsAt else endsAt + Config.Cycle.dawnSeconds
+	if phase ~= "dawn" and endsAt - now > FORECAST_BEFORE then
+		return nil
+	end
+	for _, def in Config.Cycle.events do
+		if def.id == nextId then
+			local left = math.max(0, math.floor(startsAt - now))
+			return Localize.t("HUD_NEXT_NIGHT", { string.format("%d:%02d", left // 60, left % 60), def.icon, Localize.t(def.key) })
+		end
+	end
+	return nil
+end
+
+-- Zegar pory dnia, zapowiedź nocy i pasek gwarancji Złota: co sekundę i przy każdym stanie
+local function renderTicker()
+	local state = lastState
+	if state then
+		local zoneDef = Config.Zones[state.zone] or Config.Zones[1]
+		zoneLabel.Text = cycleText() .. Localize.t(zoneDef.key)
+	end
+	local forecast = forecastText()
+	forecastPill.Visible = forecast ~= nil
+	if forecast then
+		forecastLabel.Text = forecast
+	end
+	local pity = math.clamp(tonumber(Players.LocalPlayer:GetAttribute("Pity")) or 0, 0, Config.PityRolls)
+	local left = Config.PityRolls - pity
+	pityLabel.Text = if left <= 0 then Localize.t("HUD_PITY_READY") else Localize.t("HUD_PITY", { left })
+	pityFill.Size = UDim2.new(pity / Config.PityRolls, 0, 1, 0)
+end
+
 render = function()
 	languageButton.Text = Localize.t("HUD_LANGUAGE")
 	pickCaption.Text = Localize.t("HUD_PICK")
@@ -1103,8 +1156,7 @@ render = function()
 	basketFill.Size = UDim2.new(if state.basketMax > 0 then math.clamp(state.basketCount / state.basketMax, 0, 1) else 0, 0, 1, 0)
 	basketFill.BackgroundColor3 = if state.basketCount >= state.basketMax then THEME.warn else Color3.fromRGB(150, 196, 90)
 
-	local zoneDef = Config.Zones[state.zone] or Config.Zones[1]
-	zoneLabel.Text = cycleText() .. Localize.t(zoneDef.key)
+	renderTicker()
 
 	local fraction = if state.oilMax > 0 then math.clamp(state.oil / state.oilMax, 0, 1) else 0
 	oilFill.Size = UDim2.new(fraction, 0, 1, 0)
@@ -1428,6 +1480,7 @@ task.spawn(function()
 	while true do
 		task.wait(1)
 		placePickByJump()
+		renderTicker()
 	end
 end)
 
