@@ -23,6 +23,7 @@ export type Match = { id: string, kind: string }
 
 export type Preview = {
 	fee: number,
+	feeRaised: boolean, -- opłata podniesiona, bo wynik może być wart dużo więcej niż wrzucone grzyby
 	inputValue: number, -- ile byłyby warte 3 grzyby przy sprzedaży (bez premii)
 	bust: number, -- szansa na skuchę
 	normal: number,
@@ -186,8 +187,9 @@ function Forge.preview(items: { Item }, access: Access): (Preview?, string?)
 		minRank = math.min(minRank, Economy.variantRank(item.v))
 	end
 	local odds = Config.Forge.odds
-	return {
+	local preview: Preview = {
 		fee = Forge.fee(inputValue),
+		feeRaised = false,
 		inputValue = inputValue,
 		bust = odds.bust,
 		normal = 1 - odds.bust - odds.lucky,
@@ -195,7 +197,15 @@ function Forge.preview(items: { Item }, access: Access): (Preview?, string?)
 		minRank = minRank,
 		tags = Forge.unionTags(items),
 		match = Forge.match(items, access),
-	}, nil
+	}
+	-- Kuźnia nie może zarabiać: gdy średni wynik przekroczyłby maxReturn × (wrzucone + opłata),
+	-- opłata rośnie do tej granicy (np. wiele cech doklejonych do drogiego grzyba)
+	local floor = math.ceil(Forge.expectedValue(preview, items) / Config.Forge.maxReturn - inputValue)
+	if floor > preview.fee then
+		preview.fee = floor
+		preview.feeRaised = true
+	end
+	return preview, nil
 end
 
 function Forge.upRank(rank: number): number
@@ -233,7 +243,7 @@ function Forge.roll(preview: Preview, items: { Item }, rOutcome: number, rPick: 
 	return { s = picked.s, v = Economy.variantOfRank(rank), x = x }, outcome :: Outcome, pick
 end
 
--- Średnia wartość wyniku (do testów i symulacji szans; okno pokazuje szanse, nie średnią)
+-- Średnia wartość wyniku (do opłaty przy drogich trójkach, testów i symulacji szans)
 function Forge.expectedValue(preview: Preview, items: { Item }): number
 	local total = 0
 	local n = #items

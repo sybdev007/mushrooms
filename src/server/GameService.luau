@@ -156,7 +156,7 @@ local GUARDIANS: { [string]: GuardianDef } = {
 local chasers: { [string]: ChaseService.Chaser } = {}
 local hoards: { [string]: HoardService.Hoard } = {}
 local ravens: RavenService.Ravens? = nil -- kruki Baby Jagi (Łysa Góra), start w init
-local forge: { open: (Player) -> () }? = nil -- Kuźnia Grzybów (Moździerz Zielarki), start w init
+local forge: { open: (Player) -> (), flush: (Player) -> () }? = nil -- Kuźnia Grzybów (Moździerz Zielarki), start w init
 
 local function stopChases(player: Player)
 	for _, chaser in chasers do
@@ -1052,6 +1052,10 @@ local function onPlayerRemoving(player: Player)
 	local session = sessions[player]
 	if not session then
 		return
+	end
+	-- Kuźnia: wpisy do Grzybopedii odłożone na czas animacji bębna, póki sesja jeszcze jest
+	if forge then
+		forge.flush(player)
 	end
 	sessions[player] = nil
 	stopChases(player)

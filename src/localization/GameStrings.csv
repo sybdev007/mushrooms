@@ -913,6 +913,7 @@ FORGE_LINE_BUST,💀 Bust {1}% · no traits · {2},,,💀 Skucha {1}% · bez cec
 FORGE_LINE_NORMAL,🍄 Normal {1}% · traits: {2},,,🍄 Zwykły {1}% · cechy: {2}
 FORGE_LINE_LUCKY,🍀 Lucky {1}% · one variant higher,,,🍀 Szczęście {1}% · wariant o rangę wyżej
 FORGE_INPUT_VALUE,You put in mushrooms worth 💰 {1},,,Wrzucasz grzyby warte 💰 {1}
+FORGE_INPUT_VALUE_HIGH,You put in 💰 {1} · a rich result means a higher fee,,,Wrzucasz 💰 {1} · cenny wynik = wyższa opłata
 FORGE_ROLLING,Rolling...,,,Bęben się kręci...
 FORGE_AGAIN,Drop in 3 more to fuse again,,,Wrzuć kolejne 3 grzyby
 FORGE_NO_TRAITS,No traits,,,Bez cech

@@ -2658,7 +2658,7 @@ test("kuźnia: średnio nie zarabia — przepisy i strażnicy przy każdej randz
 		local ev = Forge.expectedValue(preview :: any, items)
 		local ratio = ev / ((preview :: any).inputValue + (preview :: any).fee)
 		worst = math.max(worst, ratio)
-		check(ratio < 1, string.format("%s: średni wynik %.0f >= wrzucone + opłata (%.2f)", label, ev, ratio))
+		check(ratio <= Config.Forge.maxReturn + 1e-6, string.format("%s: średni wynik %.0f > %.2f × (wrzucone + opłata) (%.3f)", label, ev, Config.Forge.maxReturn, ratio))
 	end
 	for _, recipe in Config.Forge.recipes do
 		for r1 = 0, maxRank do
@@ -2700,6 +2700,34 @@ test("kuźnia: średnio nie zarabia — przepisy i strażnicy przy każdej randz
 		end
 	end
 	check(worst > 0.5, string.format("najlepszy przypadek %.2f: kuźnia nie powinna być też zupełnie bez sensu", worst))
+end)
+
+test("kuźnia: wiele cech doklejonych do drogiego grzyba podnosi opłatę (przypadek z przeglądu Codexa)", function()
+	local items = {
+		{ s = "night_eye", v = "rainbow" },
+		{ s = "ember", x = { "mossy", "glowing", "crystal", "abyssal" } },
+		{ s = "earthstar", x = { "cursed", "hexed", "moonlit" } },
+	}
+	local preview = Forge.preview(items, OPEN_ALL) :: any
+	check(preview ~= nil, "podgląd")
+	eq(preview.match, nil)
+	eq(#preview.tags, 7, "wszystkie cechy")
+	eq(preview.feeRaised, true, "opłata podniesiona")
+	check(preview.fee > Forge.fee(preview.inputValue), "wyższa niż 30% wkładu")
+	local ratio = Forge.expectedValue(preview, items) / (preview.inputValue + preview.fee)
+	check(ratio <= Config.Forge.maxReturn + 1e-6, string.format("EV %.3f", ratio))
+	-- Zwykłe trójki płacą zwykłą opłatę
+	local plain = { { s = "porcini", v = "gold", x = { "glowing" } }, { s = "bay_bolete", x = { "mossy" } }, { s = "chanterelle" } }
+	local pp = Forge.preview(plain, OPEN_ALL) :: any
+	eq(pp.feeRaised, false)
+	eq(pp.fee, Forge.fee(pp.inputValue))
+	-- Przepis z podstawowych składników też zwykła opłata
+	local recipe = Config.Forge.recipes[1]
+	local rItems = {}
+	for _, input in recipe.inputs do
+		table.insert(rItems, forgeInput(input, 0))
+	end
+	eq((Forge.preview(rItems, OPEN_ALL) :: any).feeRaised, false, "przepis bez podwyżki")
 end)
 
 test("kuźnia: gatunki z kuźni nie rosną, nie sadzą się i nie liczą do stron Grzybopedii", function()

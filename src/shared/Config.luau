@@ -1067,9 +1067,12 @@ Config.Forge = {
 	station = { x = -17, z = -69, radius = 7 }, -- moździerz stoi z boku Placu Portali
 	cooldown = 5, -- sekund między połączeniami jednego gracza (animacja bębna trwa ok. 3 s)
 	revealDelay = 3.2, -- po tylu sekundach serwer wysyła komunikaty o wyniku (po animacji bębna w oknie)
-	odds = { bust = 0.25, lucky = 0.1 }, -- reszta to wynik zwykły
-	feeShare = 0.25, -- opłata = taka część wartości trzech wrzuconych grzybów
+	odds = { bust = 0.3, lucky = 0.08 }, -- reszta to wynik zwykły (szanse po przeglądzie Codexa: kuznia-szanse.md)
+	feeShare = 0.3, -- opłata = taka część wartości trzech wrzuconych grzybów
 	minFee = 25,
+	-- Średni wynik nigdy nie przekracza tej części (wrzucone + opłata): gdy trójka może dać dużo więcej
+	-- niż jest warta (np. wiele cech doklejonych do drogiego grzyba), opłata rośnie (Forge.preview)
+	maxReturn = 0.9,
 	recipes = {
 		{ id = "forge_mossbell", inputs = { { s = "bay_bolete", tag = "mossy" }, { s = "porcini", tag = "glowing" }, { s = "bog_bell" } }, world = "swamp" },
 		{ id = "forge_emberpearl", inputs = { { s = "pearl", tag = "crystal" }, { s = "obsidian", tag = "abyssal" }, { s = "bog_pearl" } }, world = "swamp" },

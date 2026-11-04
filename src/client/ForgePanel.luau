@@ -536,7 +536,8 @@ render = function()
 		bustLine.TextColor3 = BUST_COLOR
 		normalLine.Text = t("FORGE_LINE_NORMAL", { math.floor(preview.normal * 100 + 0.5), if tags ~= "" then tags else "—" } :: { any })
 		luckyLine.Text = t("FORGE_LINE_LUCKY", { math.floor(preview.lucky * 100 + 0.5) })
-		valueLine.Text = t("FORGE_INPUT_VALUE", { formatCoins(preview.inputValue) })
+		-- Opłata podniesiona, gdy trójka może dać dużo więcej, niż jest warta (Forge.preview)
+		valueLine.Text = t(if preview.feeRaised then "FORGE_INPUT_VALUE_HIGH" else "FORGE_INPUT_VALUE", { formatCoins(preview.inputValue) })
 		resultStroke.Color = VIOLET
 	else
 		mystery.Visible = true

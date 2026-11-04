@@ -29,7 +29,7 @@ end
 
 print("== Ustawienia ==")
 local odds = Config.Forge.odds
-print(string.format("skucha %.0f%%  zwykły %.0f%%  szczęście %.0f%%  opłata %.0f%% wartości (min %d)", odds.bust * 100, (1 - odds.bust - odds.lucky) * 100, odds.lucky * 100, Config.Forge.feeShare * 100, Config.Forge.minFee))
+print(string.format("skucha %.0f%%  zwykły %.0f%%  szczęście %.0f%%  opłata %.0f%% wartości (min %d), średni wynik najwyżej %.0f%% wkładu z opłatą", odds.bust * 100, (1 - odds.bust - odds.lucky) * 100, odds.lucky * 100, Config.Forge.feeShare * 100, Config.Forge.minFee, Config.Forge.maxReturn * 100))
 
 print("\n== Ukryte przepisy: wynik/składniki (zwykłe) i EV/(wrzucone+opłata) po 125 kombinacjach rang ==")
 for _, recipe in Config.Forge.recipes do
@@ -171,6 +171,20 @@ for _, species in Config.Species do
 	end
 end
 print(string.format("najwyżej EV %.3f: %s", worstAmp, worstLabel))
+
+-- Dawcy z wcześniej połączonymi cechami (przypadek z przeglądu Codexa, kuznia-szanse.md): bez podwyżki
+-- opłaty EV wynosił 1,57; teraz opłata rośnie do granicy Config.Forge.maxReturn
+print("\n== Dawcy z wieloma cechami (przegląd Codexa) ==")
+do
+	local items = {
+		{ s = "night_eye", v = "rainbow" },
+		{ s = "ember", x = { "mossy", "glowing", "crystal", "abyssal" } },
+		{ s = "earthstar", x = { "cursed", "hexed", "moonlit" } },
+	}
+	local preview = Forge.preview(items, OPEN)
+	local ev = Forge.expectedValue(preview, items)
+	print(string.format("wrzucone %d  opłata %d (zwykła %d, podniesiona: %s)  średni wynik %d  EV %.3f (granica %.2f)", preview.inputValue, preview.fee, Forge.fee(preview.inputValue), tostring(preview.feeRaised), math.floor(ev), ev / (preview.inputValue + preview.fee), Config.Forge.maxReturn))
+end
 
 print("\n== Warianty z kuźni a z lasu (Grzybopedia) ==")
 for rank = 1, MAX_RANK do

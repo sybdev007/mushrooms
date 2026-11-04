@@ -46,6 +46,34 @@ function ForgeService.start(station: Vector3, prompt: ProximityPrompt?, hooks: H
 	local action = Remotes.get("ForgeAction")
 	local nextAt: { [Player]: number } = {}
 	local rng = Random.new()
+	-- Grzybopedia, liczniki i komunikaty po animacji bębna (inaczej „NOWY” przy Grzybopedii i Tytułach
+	-- zdradza wynik). Przy wyjściu z gry flush() robi je od razu, przed ostatnim zapisem.
+	local pending: { [Player]: { () -> () } } = {}
+
+	local function later(player: Player, fn: () -> ())
+		local list = pending[player]
+		if not list then
+			list = {}
+			pending[player] = list
+		end
+		table.insert(list, fn)
+		task.delay(Config.Forge.revealDelay, function()
+			local current = pending[player]
+			local at = if current then table.find(current, fn) else nil
+			if current and at then
+				table.remove(current, at)
+				fn()
+			end
+		end)
+	end
+
+	local function flush(player: Player)
+		local list = pending[player]
+		pending[player] = nil
+		for _, fn in (list or {}) :: { () -> () } do
+			fn()
+		end
+	end
 
 	local function near(player: Player): boolean
 		local root = hooks.rootOf(player)
@@ -108,6 +136,7 @@ function ForgeService.start(station: Vector3, prompt: ProximityPrompt?, hooks: H
 	end
 	Players.PlayerRemoving:Connect(function(player)
 		nextAt[player] = nil
+		pending[player] = nil
 	end)
 
 	local function refuse(player: Player, key: string, args: { any }?)
@@ -184,8 +213,6 @@ function ForgeService.start(station: Vector3, prompt: ProximityPrompt?, hooks: H
 		table.insert(basket, result)
 		nextAt[player] = now + Config.Forge.cooldown
 
-		hooks.event(player, "forge", 1)
-		hooks.found(player, result)
 		hooks.pushState(player)
 		-- Rodzaj do animacji i komunikatu: skucha / zwykły / szczęście, a przy przepisie jego klasa
 		local match = preview.match
@@ -194,13 +221,13 @@ function ForgeService.start(station: Vector3, prompt: ProximityPrompt?, hooks: H
 			kind = if match.kind == "recipe" then (if outcome == "lucky" then "recipeLucky" else "recipe") else match.kind
 		end
 		send(player, false, result, { outcome = outcome, kind = kind, pick = pick })
-		-- Komunikat po animacji bębna w oknie (ForgePanel), żeby nie zdradzał wyniku
+		-- Grzybopedia, tytuły i komunikat po animacji bębna w oknie (ForgePanel), żeby nie zdradzały wyniku
 		local species = Economy.getSpecies(result.s)
 		local key = MESSAGE[kind] or "MSG_FORGE_DONE"
-		task.delay(Config.Forge.revealDelay, function()
-			if player.Parent then
-				hooks.notify(player, key, nil, species and species.key or nil, { variant = result.v, tags = result.x })
-			end
+		later(player, function()
+			hooks.event(player, "forge", 1)
+			hooks.found(player, result)
+			hooks.notify(player, key, nil, species and species.key or nil, { variant = result.v, tags = result.x })
 		end)
 	end)
 
@@ -209,6 +236,8 @@ function ForgeService.start(station: Vector3, prompt: ProximityPrompt?, hooks: H
 	function self.open(player: Player)
 		send(player, true)
 	end
+	-- Wyjście z gry: odłożone wpisy (Grzybopedia, liczniki) od razu, zanim dane trafią do zapisu
+	self.flush = flush
 	return self
 end
 

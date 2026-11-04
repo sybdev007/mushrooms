@@ -16,15 +16,21 @@ konkretnych okazów i wydawanie nadwyżki monet. Maszyna nie emituje monet przy 
 Decyzje Toma (4.11, druga runda): do moździerza wrzucasz z ekwipunku **dowolne 3 grzyby**, kręci się
 bęben i wychodzi **losowy grzyb z tych trzech z połączonymi cechami**. Może być **skucha** (gorszy grzyb),
 **mała opłata** (25% wartości wrzuconych), 6 gatunków zostaje jako **ukryte przepisy**, a trzy tęczowe
-grzyby strażników dają **mitycznego** albo **sekretnego** grzyba tylko z kuźni. Szanse ma sprawdzić Codex.
+grzyby strażników dają **mitycznego** albo **sekretnego** grzyba tylko z kuźni. Szanse sprawdził Codex
+([kuznia-szanse.md](kuznia-szanse.md)); jego liczby są w grze.
 
 Zasady (`Config.Forge`, `src/shared/Forge.luau`):
 
 | Wynik | Szansa | Co wychodzi |
 |---|---|---|
-| Skucha | 25% | losowy z trzech, **bez cech**, z najsłabszym wariantem z trzech |
-| Zwykły | 65% | losowy z trzech (ze swoim wariantem) + **wszystkie cechy** trzech grzybów |
-| Szczęście | 10% | jak zwykły, wariant **o rangę wyżej** (najwyżej kosmiczny) |
+| Skucha | 30% | losowy z trzech, **bez cech**, z najsłabszym wariantem z trzech |
+| Zwykły | 62% | losowy z trzech (ze swoim wariantem) + **wszystkie cechy** trzech grzybów |
+| Szczęście | 8% | jak zwykły, wariant **o rangę wyżej** (najwyżej kosmiczny) |
+
+Opłata: 30% wartości wrzuconych grzybów (min 25). Gdy trójka może dać średnio więcej niż 90% wkładu
+z opłatą (np. dawcy z wieloma cechami doklejonymi do drogiego grzyba — luka z przeglądu Codexa),
+opłata rośnie do tej granicy (`Config.Forge.maxReturn`), a okno pisze „cenny wynik = wyższa opłata”.
+Grzybopedia, tytuły i komunikaty o wyniku przychodzą po animacji bębna (`revealDelay`).
 
 - **Ukryte przepisy** (6, dowolna kolejność): w „zwykłym” i „szczęściu” zamiast losowego wychodzi gatunek
   z kuźni (wariant = najsłabszy z trzech, w szczęściu o rangę wyżej; cechy połączone). Skucha jak wyżej.

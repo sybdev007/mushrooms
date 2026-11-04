@@ -389,18 +389,10 @@ function ProgressService.found(player: Player, item: { s: string, v: string?, x:
 	local newEntry, newSpecies = Progress.discover(data.atlas, item.s, item.v)
 	if newEntry then
 		local species = Economy.getSpecies(item.s)
-		local key = if newSpecies then "MSG_ATLAS_NEW_SPECIES" else "MSG_ATLAS_NEW_FORM"
-		local nameKey = species and species.key or nil
-		if source == "forge" then
-			-- Z kuźni: komunikat dopiero po animacji bębna w oknie, żeby nie zdradzał wyniku
-			task.delay(Config.Forge.revealDelay, function()
-				if player.Parent then
-					api.notify(player, key, nil, nameKey, { variant = item.v })
-				end
-			end)
-		else
-			api.notify(player, key, nil, nameKey, { variant = item.v })
-		end
+		-- Z kuźni ForgeService woła to dopiero po animacji bębna (Config.Forge.revealDelay)
+		api.notify(player, if newSpecies then "MSG_ATLAS_NEW_SPECIES" else "MSG_ATLAS_NEW_FORM", nil, species and species.key or nil, {
+			variant = item.v,
+		})
 		if source ~= "forge" then
 			ProgressService.event(player, "discover", 1)
 		end
