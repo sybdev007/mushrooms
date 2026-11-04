@@ -1591,6 +1591,9 @@ local function onDevAction(player: Player, action: unknown)
 	elseif string.match(action, "^coinsSet:%d+$") then
 		-- Studio: przywrócenie salda po testach (devActionAllowed nie wpuszcza tego poza Studio)
 		data.coins = tonumber(string.sub(action, 10)) or data.coins
+	elseif string.match(action, "^luckSet:%d+$") then
+		-- Studio: przywrócenie mikstury szczęścia po testach (os.time() końca, 0 = bez mikstury)
+		data.luckUntil = tonumber(string.sub(action, 9)) or data.luckUntil
 	elseif string.match(action, "^atlasForget:[%w_]+:%d$") then
 		-- Studio: cofnięcie formy dodanej w teście (atlasForget:gatunek:ranga), bez ruszania innych form
 		local id, rank = string.match(action, "^atlasForget:([%w_]+):(%d)$")
