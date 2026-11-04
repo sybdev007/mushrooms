@@ -8,9 +8,10 @@
 --                      (updateGardenLabels): z daleka nic, bliżej plakietka z dochodem, a jedna grządka
 --                      naraz (najbliższa albo ta na środku ekranu) ma pełną kartę: nazwa, mutacje w ich
 --                      kolorach i w języku gracza, wartość i dochód (atrybuty Value / Rate od serwera).
---                      Rzadkie grzyby mają nad tym plakietkę rzadkości („★ EPICKI”, „TĘCZOWY”,
---                      „★★★ MITYCZNY”), którą widać z daleka, także z drugiej strony polany: im rzadszy
---                      grzyb, tym większa i z dalszej odległości (MushroomView.rarityTier).
+--                      Rzadkie grzyby mają gwiazdki przy nazwie (★ epicki, ★★ legendarny, ★★★ mityczny)
+--                      i plakietkę w kolorze rzadkości. Nad całym ogródkiem wisi szyld z jego
+--                      najrzadszymi grzybami („★★ LEGENDARNY ×4 · TĘCZOWY ×2”), widoczny z drugiej
+--                      strony polany: im rzadsze grzyby, tym z dalszej odległości (gardenBanner).
 --   "HoardMushroom"  — grzyby odebrane przez strażnika (Leszy, Skarbnik, Utopiec) w jego legowisku,
 --                      z napisem mutacji nad grzybem.
 --   "RavenDrop"      — grzyb, który kruk Baby Jagi upuścił obok gracza (Łysa Góra), wygląda jak w skarbcu.
@@ -62,7 +63,6 @@ type Mode = "card" | "chip" | "hidden"
 
 type Label = {
 	gui: BillboardGui,
-	banner: BillboardGui?, -- plakietka rzadkości nad grządką (widać ją z daleka)
 	mutations: TextLabel,
 	value: TextLabel?,
 	info: MushroomView.MushroomInfo,
@@ -166,46 +166,143 @@ local function infoOf(marker: Model): MushroomView.MushroomInfo?
 	}
 end
 
--- Plakietka rzadkości nad grządką: od jakiej odległości ją widać (studs) i jak duża, według stopnia rzadkości
-local BANNER_DISTANCE = { 35, 70, 110, 150 }
-local BANNER_SCALE = { 0.85, 1, 1.15, 1.3 }
+-- Gwiazdki przed nazwą według klasy (3 epicki, 4 legendarny, 5 mityczny / sekretny)
+local STARS: { [number]: string } = setmetatable({ [3] = "★ ", [4] = "★★ ", [5] = "★★★ " }, {
+	__index = function()
+		return ""
+	end,
+}) :: any
+
+-- ===== Szyld nad ogródkiem =====
+-- Najrzadsze grzyby ogródka jednym napisem nad środkową grządką, np. „★★ LEGENDARNY ×4 · TĘCZOWY ×2”.
+-- Widać go z daleka (im rzadsze grzyby, tym dalej), żeby inni gracze od razu wiedzieli, gdzie rosną
+-- skarby. Liczy się na kliencie ze znaczników grządek (atrybuty Species / Variant / Tags).
+
+local BANNER_DISTANCE = { 70, 120, 160, 200 } -- według najwyższego stopnia (MushroomView.rarityTier)
+local BANNER_GROUPS = 3
 local BANNER_BG = Color3.fromRGB(22, 16, 34)
 
-local function rarityBanner(root: BasePart, info: MushroomView.MushroomInfo): (BillboardGui?, TextLabel?)
+type Banner = { gui: BillboardGui, label: TextLabel, border: UIStroke, anchor: BasePart }
+local banners: { [Model]: Banner } = {}
+local bannerDirty: { [Model]: boolean } = {}
+local gardenOfMarker: { [Instance]: Instance } = {} -- znacznik grządki -> ogródek (przy usuwaniu nie ma już rodzica)
+
+local function hexOf(c: Color3): string
+	return "#" .. c:ToHex()
+end
+
+-- Napis jednej grupy (klasa z gwiazdkami albo wariant) i jej stopień; nil = zwykły grzyb
+local function groupOf(info: MushroomView.MushroomInfo): (string?, number, Color3)
 	local tier = MushroomView.rarityTier(info)
-	local text = MushroomView.rarityText(info)
-	if tier <= 0 or not text then
-		return nil, nil
+	if tier <= 0 then
+		return nil, 0, Color3.new(1, 1, 1)
 	end
-	local k = BANNER_SCALE[tier] or 1
-	local gui = Instance.new("BillboardGui")
-	gui.Name = "GardenRarity"
-	-- Część w studach (rośnie z bliska), część w pikselach (czytelna z drugiej strony polany)
-	gui.Size = UDim2.new(2.4 * k, math.floor(64 * k), 0.5 * k, math.floor(14 * k))
-	gui.StudsOffset = Vector3.new(0, 6.2, 0)
-	gui.AlwaysOnTop = true
-	gui.LightInfluence = 0
-	gui.MaxDistance = BANNER_DISTANCE[tier] or 60
-	gui.ResetOnSpawn = false
-	gui.Adornee = root
-	local pill = Instance.new("Frame")
-	pill.Size = UDim2.fromScale(1, 1)
-	pill.BackgroundColor3 = BANNER_BG
-	pill.BackgroundTransparency = 0.2
-	pill.Parent = gui
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(1, 0)
-	corner.Parent = pill
-	local border = Instance.new("UIStroke")
-	border.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-	border.Thickness = if tier >= 3 then 3 else 2
-	border.Color = MushroomView.rarityAccent(info)
-	border.Parent = pill
-	local label = textLabel(pill, UDim2.new(1, -12, 0.8, 0), UDim2.fromScale(0.5, 0.5), Color3.new(1, 1, 1))
-	label.AnchorPoint = Vector2.new(0.5, 0.5)
-	label.Text = text
-	gui.Parent = playerGui
-	return gui, label
+	local classRank = MushroomView.classRank(info.species)
+	local classTier = if classRank >= 5 then 4 elseif classRank >= 4 then 3 elseif classRank >= 3 then 2 else 0
+	if classTier >= tier then
+		local class = Economy.speciesClass(info.species)
+		local color = Color3.fromRGB(class.color[1], class.color[2], class.color[3])
+		local text = string.format('<font color="%s">%s%s</font>', hexOf(color), STARS[classRank], MutationText.upper(Localize.t(class.key)))
+		return text, tier, color
+	end
+	return MutationText.variantTitle(info.variant), tier, MutationText.variantColor(info.variant) or Color3.new(1, 1, 1)
+end
+
+local function refreshBanner(garden: Model)
+	bannerDirty[garden] = nil
+	local planted = garden:FindFirstChild("Planted")
+	local groups: { [string]: { text: string, tier: number, count: number, color: Color3 } } = {}
+	if planted and garden.Parent then
+		for _, marker in planted:GetChildren() do
+			local species = marker:GetAttribute("Species")
+			if typeof(species) == "string" then
+				local variant = marker:GetAttribute("Variant")
+				local info: MushroomView.MushroomInfo = {
+					id = "",
+					position = Vector3.zero,
+					species = species,
+					variant = if typeof(variant) == "string" and variant ~= "" then variant else nil,
+				}
+				local text, tier, color = groupOf(info)
+				if text then
+					local group = groups[text]
+					if group then
+						group.count += 1
+					else
+						groups[text] = { text = text, tier = tier, count = 1, color = color }
+					end
+				end
+			end
+		end
+	end
+	local list = {}
+	for _, group in groups do
+		table.insert(list, group)
+	end
+	table.sort(list, function(a, b)
+		if a.tier ~= b.tier then
+			return a.tier > b.tier
+		end
+		return a.count > b.count
+	end)
+	local banner = banners[garden]
+	local anchor = garden:FindFirstChild("Bed5", true) or garden:FindFirstChild("Bed1", true)
+	if #list == 0 or not anchor or not anchor:IsA("BasePart") then
+		if banner then
+			banner.gui:Destroy()
+			banners[garden] = nil
+		end
+		return
+	end
+	if not banner then
+		local gui = Instance.new("BillboardGui")
+		gui.Name = "GardenBanner"
+		gui.Size = UDim2.new(7, 150, 1.1, 22)
+		gui.StudsOffset = Vector3.new(0, 9, 0)
+		gui.AlwaysOnTop = true
+		gui.LightInfluence = 0
+		gui.ResetOnSpawn = false
+		local pill = Instance.new("Frame")
+		pill.Size = UDim2.fromScale(1, 1)
+		pill.BackgroundColor3 = BANNER_BG
+		pill.BackgroundTransparency = 0.2
+		pill.Parent = gui
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(1, 0)
+		corner.Parent = pill
+		local border = Instance.new("UIStroke")
+		border.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		border.Thickness = 3
+		border.Parent = pill
+		local label = textLabel(pill, UDim2.new(1, -20, 0.78, 0), UDim2.fromScale(0.5, 0.5), Color3.new(1, 1, 1))
+		label.AnchorPoint = Vector2.new(0.5, 0.5)
+		gui.Parent = playerGui
+		banner = { gui = gui, label = label, border = border, anchor = anchor }
+		banners[garden] = banner
+	end
+	local b = banner :: Banner
+	b.anchor = anchor
+	b.gui.Adornee = anchor
+	b.gui.MaxDistance = BANNER_DISTANCE[list[1].tier] or 120
+	b.border.Color = list[1].color
+	local parts = {}
+	for i = 1, math.min(BANNER_GROUPS, #list) do
+		local group = list[i]
+		table.insert(parts, group.text .. (if group.count > 1 then " ×" .. group.count else ""))
+	end
+	b.label.Text = table.concat(parts, "  ·  ")
+end
+
+-- Zmiany w ogródku liczymy raz na klatkę, nawet gdy naraz dojdzie kilka grządek
+local function markBanner(garden: Instance?)
+	if not garden or not garden:IsA("Model") or not CollectionService:HasTag(garden, "GardenPlot") then
+		return
+	end
+	if bannerDirty[garden] then
+		return
+	end
+	bannerDirty[garden] = true
+	task.defer(refreshBanner, garden)
 end
 
 -- Tabliczka nad grządką. Pełna karta: nazwa gatunku w kolorze klasy / [mutacje w kolorach] /
@@ -252,8 +349,10 @@ local function gardenLabel(marker: Model, root: BasePart, info: MushroomView.Mus
 	chipCorner.CornerRadius = UDim.new(0, 7)
 	chipCorner.Parent = chip
 	local chipBorder = Instance.new("UIStroke")
-	chipBorder.Thickness = 1.5
-	chipBorder.Color = classColor
+	-- Rzadki grzyb (złoty i wyżej, epicki i wyżej): grubsza ramka w kolorze rzadkości
+	local rare = MushroomView.rarityTier(info) > 0
+	chipBorder.Thickness = if rare then 2.5 else 1.5
+	chipBorder.Color = if rare then MushroomView.rarityAccent(info) else classColor
 	chipBorder.Parent = chip
 	local variant = Economy.getVariant(info.variant)
 	local dot = Instance.new("Frame")
@@ -282,7 +381,7 @@ local function gardenLabel(marker: Model, root: BasePart, info: MushroomView.Mus
 
 	local function refresh()
 		local species = Economy.getSpecies(info.species)
-		name.Text = if species then Localize.t(species.key) else "?"
+		name.Text = STARS[MushroomView.classRank(info.species)] .. (if species then Localize.t(species.key) else "?")
 		local text = MutationText.rich(info.variant, info.tags)
 		hasMutations = text ~= ""
 		mutations.Text = text
@@ -300,19 +399,14 @@ local function gardenLabel(marker: Model, root: BasePart, info: MushroomView.Mus
 	end
 
 	local mode: Mode = "hidden"
-	local banner, bannerLabel = rarityBanner(root, info)
 	local entry: Label = {
 		gui = gui,
-		banner = banner,
 		mutations = mutations,
 		value = value,
 		info = info,
 		refresh = function()
 			refresh()
 			layout(mode)
-			if bannerLabel then
-				bannerLabel.Text = MushroomView.rarityText(info) or ""
-			end
 		end,
 		root = root,
 		setMode = function(next: Mode)
@@ -403,9 +497,6 @@ local function dropLabel(marker: Instance)
 	if entry then
 		labels[marker] = nil
 		entry.gui:Destroy()
-		if entry.banner then
-			entry.banner:Destroy()
-		end
 	end
 	local list = connections[marker]
 	if list then
@@ -466,6 +557,11 @@ local function added(marker: Instance, kind: Kind)
 		return
 	end
 	ids[marker] = info.id
+	local garden = if kind.garden and marker.Parent then marker.Parent.Parent else nil
+	if garden then
+		gardenOfMarker[marker] = garden
+		markBanner(garden)
+	end
 	MushroomView.add({ info }, {
 		decorative = true,
 		parent = marker :: Instance,
@@ -477,6 +573,10 @@ end
 
 local function removed(marker: Instance)
 	dropLabel(marker)
+	-- Grządka opustoszała albo właściciel wyszedł: szyld ogródka liczy się od nowa
+	local garden = gardenOfMarker[marker]
+	gardenOfMarker[marker] = nil
+	markBanner(garden)
 	local id = ids[marker]
 	if id then
 		ids[marker] = nil
@@ -489,10 +589,24 @@ function DisplayMushrooms.start()
 		for _, entry in labels do
 			entry.refresh()
 		end
+		for garden in banners do
+			refreshBanner(garden)
+		end
 	end)
 	task.spawn(function()
 		while true do
 			updateGardenLabels()
+			-- Szyld bez grządki w świecie (streaming) Roblox rysowałby w (0, 0, 0), czyli przy chatce
+			for garden, banner in banners do
+				local inWorld = banner.anchor:IsDescendantOf(Workspace)
+				if banner.gui.Enabled ~= inWorld then
+					banner.gui.Enabled = inWorld
+				end
+				if not garden.Parent then
+					banner.gui:Destroy()
+					banners[garden] = nil
+				end
+			end
 			task.wait(0.15)
 		end
 	end)
