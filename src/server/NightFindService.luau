@@ -186,16 +186,24 @@ end
 
 local function carryVisuals(player: Player): { Instance }
 	local character = player.Character
-	local head = character and character:FindFirstChild("Head")
-	if not (character and head and head:IsA("BasePart")) then
+	local body = character and character:FindFirstChild("HumanoidRootPart")
+	if not (character and body and body:IsA("BasePart")) then
 		return {}
 	end
-	local orb = part({ Name = "NightFindOrb", Shape = Enum.PartType.Ball, Size = Vector3.new(1.3, 1.3, 1.3), Color = COSMIC, Material = Enum.Material.Neon })
+	-- Świecąca kula niesiona przed sobą (nad głową zasłaniała tytuł gracza)
+	local orb = part({
+		Name = "NightFindOrb",
+		Shape = Enum.PartType.Ball,
+		Size = Vector3.new(1.2, 1.2, 1.2),
+		Color = Color3.fromRGB(120, 80, 230),
+		Material = Enum.Material.Neon,
+		Transparency = 0.15,
+	})
 	orb.Anchored = false
 	orb.Massless = true
-	orb.CFrame = head.CFrame * CFrame.new(0, 2, 0)
+	orb.CFrame = body.CFrame * CFrame.new(0, 0.5, -1.5)
 	local weld = Instance.new("WeldConstraint")
-	weld.Part0 = head
+	weld.Part0 = body
 	weld.Part1 = orb
 	weld.Parent = orb
 	local light = Instance.new("PointLight")
@@ -203,9 +211,16 @@ local function carryVisuals(player: Player): { Instance }
 	light.Range = 16
 	light.Brightness = 2
 	light.Parent = orb
-	local sparkles = Instance.new("Sparkles")
-	sparkles.SparkleColor = GOLD
-	sparkles.Parent = orb
+	-- Drobne złote iskry (Sparkles były za duże i zasłaniały widok niosącemu)
+	local sparks = Instance.new("ParticleEmitter")
+	sparks.Color = ColorSequence.new(GOLD)
+	sparks.LightEmission = 1
+	sparks.Size = NumberSequence.new(0.25, 0)
+	sparks.Lifetime = NumberRange.new(0.6, 1.1)
+	sparks.Rate = 14
+	sparks.Speed = NumberRange.new(1.5, 3)
+	sparks.SpreadAngle = Vector2.new(180, 180)
+	sparks.Parent = orb
 	orb.Parent = character
 	local highlight = Instance.new("Highlight")
 	highlight.Name = "NightFindHighlight"
