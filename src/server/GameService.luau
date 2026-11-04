@@ -994,6 +994,14 @@ local function onCharacterAdded(session: Session, character: Model)
 	pushState(session)
 end
 
+-- Krok wejścia gracza w osobnym xpcall: błąd trafia do konsoli serwera (F9 → Server) z pełnym śladem
+local function joinStep(name: string, step: (Player) -> (), player: Player)
+	local ok, err = (xpcall :: any)(step, debug.traceback, player)
+	if not ok then
+		warn(string.format("[GameService] %s dla %s się wysypał: %s", name, player.Name, tostring(err)))
+	end
+end
+
 local function onPlayerAdded(player: Player)
 	local data, canSave, kicked = DataService.load(player)
 	if player.Parent == nil or kicked then
@@ -1058,9 +1066,12 @@ local function onPlayerAdded(player: Player)
 
 	sessions[player] = session
 	player:SetAttribute("Pity", data.pity)
-	GardenService.assign(player)
-	ProgressService.join(player)
-	CommunityService.join(player)
+	-- Każdy system osobno: błąd w jednym (np. ogródek) nie może zatrzymać reszty wejścia. Wcześniej
+	-- wtedy nie szło ProgressUpdate, a okna Zadań, Tytułów i Grzybopedii zostawały z napisami „Label”
+	-- (HUD działał, bo pętla gry i tak wysyła stan), a postać nie dostawała ulepszeń.
+	joinStep("GardenService.assign", GardenService.assign, player)
+	joinStep("ProgressService.join", ProgressService.join, player)
+	joinStep("CommunityService.join", CommunityService.join, player)
 
 	-- Bez limitu dało się oddalić kamerę i oglądać las z góry. Zoom = kamera przysuwa się,
 	-- gdy coś (korony drzew) zasłania postać, zamiast robić je przezroczystymi.

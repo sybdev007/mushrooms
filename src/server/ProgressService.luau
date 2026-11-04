@@ -206,8 +206,9 @@ local function send(player: Player, force: boolean?)
 		flakeBag = data.flakeBag,
 		advent = data.advent,
 	}
-	-- Odcisk bez resetAt (zmienia się co sekundę, klient i tak liczy sam)
-	local fingerprint = HttpService:JSONEncode({
+	-- Odcisk bez resetAt (zmienia się co sekundę, klient i tak liczy sam). Gdyby JSONEncode nie
+	-- przełknął danych (np. śmieci w zapisie), wysyłamy i tak: okna bez stanu pokazują „Label”.
+	local encoded, fingerprint = pcall(HttpService.JSONEncode, HttpService, {
 		payload.atlas,
 		payload.bestiary,
 		payload.quests,
@@ -229,6 +230,10 @@ local function send(player: Player, force: boolean?)
 		payload.flakeBag,
 		payload.advent :: any,
 	})
+	if not encoded then
+		warn("[ProgressService] Odcisk stanu się nie policzył dla " .. player.Name .. ": " .. tostring(fingerprint))
+		fingerprint = tostring(os.clock())
+	end
 	if not force and lastSent[player] == fingerprint then
 		return
 	end
@@ -338,23 +343,41 @@ local function newDay(player: Player, data: Data)
 	end
 end
 
+-- Krok wejścia w osobnym xpcall: błąd jednego kroku nie blokuje reszty ani wysłania stanu okien
+local function joinStep(player: Player, name: string, step: () -> ())
+	local ok, err = (xpcall :: any)(step, debug.traceback)
+	if not ok then
+		warn(string.format("[ProgressService] join/%s dla %s: %s", name, player.Name, tostring(err)))
+	end
+end
+
 function ProgressService.join(player: Player)
 	local data = api.getData(player)
 	if not data then
 		return
 	end
-	-- Komunikaty o progach księgi, które gracz zdobył przed tą wersją, nie są potrzebne
-	if #data.atlasDone == 0 then
-		data.atlasDone = Progress.milestones(data.atlas)
-	end
-	-- Strażnicy okradzeni przed zakładką Strażnicy (bez komunikatu)
-	Progress.migrateBestiary(data.bestiary, data.atlas)
-	newDay(player, data)
-	refreshTitle(player, data)
-	applySettings(player, data)
+	joinStep(player, "migrate", function()
+		-- Komunikaty o progach księgi, które gracz zdobył przed tą wersją, nie są potrzebne
+		if #data.atlasDone == 0 then
+			data.atlasDone = Progress.milestones(data.atlas)
+		end
+		-- Strażnicy okradzeni przed zakładką Strażnicy (bez komunikatu)
+		Progress.migrateBestiary(data.bestiary, data.atlas)
+	end)
+	joinStep(player, "newDay", function()
+		newDay(player, data)
+	end)
+	joinStep(player, "title", function()
+		refreshTitle(player, data)
+	end)
+	joinStep(player, "settings", function()
+		applySettings(player, data)
+	end)
 	-- Progi ścieżki z poprzedniej wizyty, których nagrody nie przyszły (np. wyjście w złym momencie)
-	grantTrack(player, data)
-	grantWinterTrack(player, data)
+	joinStep(player, "tracks", function()
+		grantTrack(player, data)
+		grantWinterTrack(player, data)
+	end)
 	if Halloween.active(os.time()) then
 		api.notify(player, "MSG_HALLOWEEN_WELCOME")
 	elseif Winter.active(os.time()) then
