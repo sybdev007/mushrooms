@@ -349,27 +349,30 @@ function Props.signBoard(parent: Instance, cf: CFrame, size: Vector3, signKey: s
 end
 
 -- Brama na granicy strefy: dwa słupy z bali, belka, szyld i dwie latarnie
-function Props.gate(parent: Instance, z: number, signKey: string)
+-- y: wysokość ziemi pod bramą (Łysa Góra stoi na zboczu; w lesie 0)
+function Props.gate(parent: Instance, z: number, signKey: string, y: number?)
 	local m = model("Gate_" .. signKey, parent)
 	local halfSpan = 7
 	local height = 10
+	local base = y or 0
+	local sink = if y then 0.6 else 0 -- na zboczu słupy wchodzą trochę w ziemię
 	for _, side in { -1, 1 } do
-		trunk(m, Vector3.new(side * halfSpan, 0, z), height, 1.4, Palette.log)
-		hangingLantern(m, Vector3.new(side * (halfSpan - 1.6), height - 0.8, z), 16)
+		trunk(m, Vector3.new(side * halfSpan, base - sink, z), height + sink, 1.4, Palette.log)
+		hangingLantern(m, Vector3.new(side * (halfSpan - 1.6), base + height - 0.8, z), 16)
 	end
 	make("Part", {
 		Name = "Beam",
 		Shape = Enum.PartType.Cylinder,
 		Size = Vector3.new(halfSpan * 2 + 3, 1.2, 1.2),
-		Position = Vector3.new(0, height - 0.5, z),
+		Position = Vector3.new(0, base + height - 0.5, z),
 		Color = Palette.log,
 		Parent = m,
 	})
 	-- Szyld wisi na łańcuszkach pod belką, napis od strony nadchodzącego gracza (-Z)
 	for _, side in { -1, 1 } do
-		decor(make("Part", { Size = Vector3.new(0.12, 1.2, 0.12), Position = Vector3.new(side * 3, height - 1.6, z), Color = Palette.metal, Parent = m }))
+		decor(make("Part", { Size = Vector3.new(0.12, 1.2, 0.12), Position = Vector3.new(side * 3, base + height - 1.6, z), Color = Palette.metal, Parent = m }))
 	end
-	Props.signBoard(m, CFrame.new(0, height - 3.2, z), Vector3.new(8, 2.2, 0.35), signKey, Enum.NormalId.Front)
+	Props.signBoard(m, CFrame.new(0, base + height - 3.2, z), Vector3.new(8, 2.2, 0.35), signKey, Enum.NormalId.Front)
 end
 
 -- Kamienie ścieżki wijącej się od chatki w głąb lasu

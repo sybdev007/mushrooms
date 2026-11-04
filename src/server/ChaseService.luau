@@ -34,6 +34,9 @@ export type Options = {
 	build: (parent: Instance, at: CFrame, awake: boolean) -> Model,
 	setAwake: (model: Model, awake: boolean) -> (),
 	hooks: Hooks,
+	-- Wysokość ziemi pod potworem (Łysa Góra: Baba Jaga leci nad zboczem). Bez tego potwór
+	-- porusza się na wysokości legowiska.
+	heightAt: ((x: number, z: number) -> number)?,
 }
 
 type Chase = {
@@ -122,8 +125,9 @@ function ChaseService.new(options: Options): Chaser
 		if not origin or not root then
 			return false
 		end
-		local position = Vector3.new(origin.X, origin.Y, origin.Z)
-		local target = Vector3.new(root.Position.X, origin.Y, root.Position.Z)
+		local heightAt = options.heightAt
+		local position = Vector3.new(origin.X, if heightAt then heightAt(origin.X, origin.Z) else origin.Y, origin.Z)
+		local target = Vector3.new(root.Position.X, position.Y, root.Position.Z)
 		local look = if (target - position).Magnitude > 0.1 then CFrame.lookAt(position, target) else CFrame.new(position)
 		local model = options.build(folder, look, true)
 		model.Name = options.name .. "_" .. player.Name
@@ -169,6 +173,13 @@ function ChaseService.new(options: Options): Chaser
 				local move = math.min(settings.speed * dt, distance)
 				chase.position += toTarget.Unit * move
 				distance -= move
+				-- Po zboczu: potwór trzyma się ziemi (odległość do gracza liczymy w poziomie, jak dotąd)
+				local heightAt = options.heightAt
+				if heightAt then
+					local y = heightAt(chase.position.X, chase.position.Z)
+					chase.position = Vector3.new(chase.position.X, y, chase.position.Z)
+					target = Vector3.new(target.X, y, target.Z)
+				end
 			end
 
 			-- Krok: lekkie podskoki i kołysanie na boki; przed ruszeniem drży, jakby się budził

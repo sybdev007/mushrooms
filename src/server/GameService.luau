@@ -32,6 +32,7 @@ local SkarbnikModel = require(World:WaitForChild("Skarbnik"))
 local UtopiecModel = require(World:WaitForChild("Utopiec"))
 local JagaModel = require(World:WaitForChild("Jaga"))
 local MountainShared = require(ReplicatedStorage.Shared.Mountain)
+local MountainTerrain = require(ReplicatedStorage.Shared.MountainTerrain)
 local HandTools = require(World:WaitForChild("HandTools"))
 local HalloweenDecor = require(World:WaitForChild("HalloweenDecor"))
 local WinterDecor = require(World:WaitForChild("WinterDecor"))
@@ -1479,11 +1480,13 @@ local DEV_TELEPORTS: { [string]: () -> CFrame? } = {
 		return info and info.camp
 	end,
 	tpCauldrons = function()
-		return CFrame.new(0, 4, Config.Zones[16].startZ + 8)
+		local z = Config.Zones[16].startZ + 8
+		return CFrame.new(0, MountainTerrain.groundY(0, z) + 4, z)
 	end,
 	tpSummit = function()
 		local lair = Config.JagaLair
-		return CFrame.new(lair.centerX + 10, 4, lair.hutZ - 24)
+		local x, z = lair.centerX + 10, lair.hutZ - 24
+		return CFrame.new(x, MountainTerrain.groundY(x, z) + 4, z)
 	end,
 	tpDelve = function()
 		-- Przed szczeliną do Głębokich Komór (ściana Otchłani), twarzą do niej
@@ -2046,6 +2049,8 @@ function GameService.start(mapInfo: MapBuilder.MapInfo)
 			settings = def.settings,
 			build = def.model.build,
 			setAwake = def.model.setAwake,
+			-- Baba Jaga leci nad zboczem Łysej Góry
+			heightAt = if name == "jaga" then MountainTerrain.groundY else nil,
 			hooks = {
 				onCaught = function(player: Player)
 					local session = sessions[player]

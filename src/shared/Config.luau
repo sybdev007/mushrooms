@@ -1140,6 +1140,10 @@ Config.Audio = {
 		tiptoe = "rbxassetid://9120062717", -- kroki na paluszkach po trawie
 		bodyfall = "rbxassetid://9113469292", -- upadek na ziemię
 		grow = "rbxassetid://1842312856", -- dzwoneczki, gdy grzyb wyrasta (APM, glockenspiel)
+		-- Łysa Góra (Pro Sound Effects): grzmot daleki i bliski, wiatr, gdy czarownica przemyka nad głową
+		thunder = "rbxassetid://9120018172",
+		thunderClose = "rbxassetid://9120019063",
+		witchFly = "rbxassetid://9120698415",
 	},
 }
 

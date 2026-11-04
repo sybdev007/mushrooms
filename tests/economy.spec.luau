@@ -3610,6 +3610,199 @@ test("gablota: wystawić można tylko odkryte formy i własne trofea", function(
 	end
 end)
 
+-- ===== Łysa Góra: kształt góry =====
+print("Łysa Góra: ziemia (MountainTerrain.luau)")
+do
+	local function req(module)
+		return module
+	end
+	local MountainShared = loadModule("src/shared/Mountain.luau", { script = { Parent = { Config = Config } }, require = req })
+	local Terrain = loadModule("src/shared/MountainTerrain.luau", { script = { Parent = { Config = Config, Mountain = MountainShared } }, require = req })
+	local XS, ZS = Terrain.XS, Terrain.ZS
+	local HALF = Terrain.HALF
+	local function near(a: number, b: number, eps: number?): boolean
+		return math.abs(a - b) <= (eps or 1e-6)
+	end
+
+	test("siatka rośnie (kolumny i wiersze po kolei), ściany leżą na kolumnach", function()
+		for i = 2, #XS do
+			check(XS[i] > XS[i - 1], "kolumny rosną " .. i)
+		end
+		for j = 2, #ZS do
+			check(ZS[j] > ZS[j - 1], "wiersze rosną " .. j)
+		end
+		check(table.find(XS, HALF) ~= nil and table.find(XS, -HALF) ~= nil, "kolumny na ścianach")
+		check(table.find(ZS, Terrain.END_Z) ~= nil, "wiersz na końcu świata")
+	end)
+
+	test("groundY w wierzchołkach to wysokości wierzchołków", function()
+		for j = 1, #ZS do
+			for i = 1, #XS do
+				check(near(Terrain.groundY(XS[i], ZS[j]), Terrain.vertex(i, j), 1e-9), string.format("wierzchołek %d,%d", i, j))
+			end
+		end
+	end)
+
+	test("ziemia jest ciągła na krawędziach komórek i na przekątnych (bez dziur między trójkątami)", function()
+		math.randomseed(7)
+		local function between(a: number, b: number): number
+			return a + (b - a) * math.random()
+		end
+		local eps = 1e-6
+		for _ = 1, 3000 do
+			local i = math.random(2, #XS - 1)
+			local z = between(ZS[1], ZS[#ZS])
+			check(near(Terrain.groundY(XS[i] - eps, z), Terrain.groundY(XS[i] + eps, z), 1e-3), "krawędź pionowa x=" .. XS[i])
+			local j = math.random(2, #ZS - 1)
+			local x = between(XS[1], XS[#XS])
+			check(near(Terrain.groundY(x, ZS[j] - eps), Terrain.groundY(x, ZS[j] + eps), 1e-3), "krawędź pozioma z=" .. ZS[j])
+		end
+		-- Przekątne: punkty tuż po obu stronach przekątnej w losowych komórkach
+		for _ = 1, 2000 do
+			local i, j = math.random(1, #XS - 1), math.random(1, #ZS - 1)
+			local t = between(0.05, 0.95)
+			local x0, x1, z0, z1 = XS[i], XS[i + 1], ZS[j], ZS[j + 1]
+			local x, z
+			if Terrain.diagonalAD(i, j) then
+				x, z = x0 + (x1 - x0) * t, z0 + (z1 - z0) * t
+			else
+				x, z = x1 - (x1 - x0) * t, z0 + (z1 - z0) * t
+			end
+			check(near(Terrain.groundY(x + eps, z), Terrain.groundY(x - eps, z), 1e-3), "przekątna")
+		end
+	end)
+
+	test("polana jest płaska (y = 0), a za polaną teren wznosi się do szczytu", function()
+		for z = 2932, 3040, 4 do
+			for x = -HALF, HALF, 3 do
+				eq(Terrain.groundY(x, z), 0, string.format("polana %d,%d", x, z))
+			end
+		end
+		check(Terrain.trailY(3170) > Terrain.trailY(3040) + 10, "Wiedźmi Las idzie w górę")
+		check(Terrain.trailY(3300) > Terrain.trailY(3170), "Kotły wyżej")
+		eq(Terrain.trailY(3352), Terrain.CIRCLE_Y, "krąg kamieni")
+		eq(Terrain.trailY(3420), Terrain.TOP, "szczyt")
+	end)
+
+	test("szczyt z chatką jest najwyżej, ponad morzem chmur (grzbiet obok niższy)", function()
+		local highest = -math.huge
+		for _, row in ZS do
+			for _, x in XS do
+				highest = math.max(highest, Terrain.groundY(x, row))
+			end
+		end
+		check(highest <= Terrain.TOP + 3, "najwyższy punkt góry " .. highest)
+		check(Terrain.TOP > Terrain.CLOUDS + 20 and Terrain.CIRCLE_Y > Terrain.CLOUDS + 10, "szczyt i krąg nad chmurami")
+		-- Grzbiet za ścianą (lewa strona) nigdy nie przewyższa szczytu
+		for z = 2990, 3480, 10 do
+			for x = -150, -58, 4 do
+				check(Terrain.groundY(x, z) < Terrain.TOP, string.format("grzbiet %d,%d", x, z))
+			end
+		end
+	end)
+
+	test("place są płaskie: bramy, krąg kamieni (ołtarz, ognisko), szczyt (chatka, ogródek, posąg, Jaga)", function()
+		for index, zone in Config.Zones do
+			local previous = Config.Zones[index - 1]
+			if zone.world == "mountain" and previous and previous.world == "mountain" then
+				local y = Terrain.trailY(zone.startZ)
+				for _, x in { -7, 0, 7 } do
+					check(near(Terrain.groundY(x, zone.startZ), y, 0.02), "brama " .. zone.id .. " x=" .. x)
+				end
+			end
+		end
+		local circle = MountainShared.STONE_CIRCLE
+		for _, dx in { -7, -3, 0, 3, 7 } do
+			check(near(Terrain.groundY(circle.x + dx, circle.z), Terrain.CIRCLE_Y, 0.02), "krąg kamieni dx=" .. dx)
+		end
+		local lair = Config.JagaLair
+		for angle = 0, 350, 10 do
+			local a = math.rad(angle)
+			for _, r in { 0, 5, 10, lair.radius } do
+				local x, z = lair.centerX + math.sin(a) * r, lair.centerZ + math.cos(a) * r
+				check(near(Terrain.groundY(x, z), Terrain.TOP, 0.02), string.format("ogródek %.1f,%.1f", x, z))
+			end
+		end
+		for _, p in { { 0, lair.hutZ }, { 5, lair.hutZ + 5 }, { -5, lair.hutZ - 5 }, { 9, lair.hutZ - 3 }, { 0, lair.hutZ - 6 } } do
+			check(near(Terrain.groundY(p[1], p[2]), Terrain.TOP, 0.02), string.format("chatka/posąg %d,%d", p[1], p[2]))
+		end
+	end)
+
+	test("kotły i ogniska stoją na wyrównanym, z dala od ścieżki; ogniska poza oparami", function()
+		local fumes = Config.Cauldrons.fumeRadius
+		for _, spot in MountainShared.CAULDRONS do
+			check(Terrain.slope(spot.x, spot.z) < 0.2, string.format("kocioł %d,%d nachylenie %.2f", spot.x, spot.z, Terrain.slope(spot.x, spot.z)))
+			check(math.abs(spot.x - Terrain.pathX(spot.z)) > fumes + Config.Mountain.path, "opary z dala od ścieżki")
+		end
+		for _, fire in MountainShared.FIRES do
+			check(Terrain.slope(fire.x, fire.z) < 0.2, string.format("ognisko %d,%d nachylenie %.2f", fire.x, fire.z, Terrain.slope(fire.x, fire.z)))
+			check(math.abs(fire.x - Terrain.pathX(fire.z)) > Config.Mountain.path + 2.6, "ognisko obok ścieżki")
+			check(not MountainShared.inFumes(roblox.Vector3.new(fire.x, 0, fire.z)), "ognisko poza oparami")
+		end
+	end)
+
+	test("ścieżka: serpentyny wracają na x = 0 przy bramach, w kręgu i na szczycie; da się nią iść", function()
+		for _, z in { 3040, 3170, 3300, 3352, 3420, 3470 } do
+			eq(Terrain.pathX(z), 0, "x ścieżki przy z=" .. z)
+		end
+		local widest = 0
+		local steepest = 0
+		for z = 3040, 3398, 0.5 do
+			local x = Terrain.pathX(z)
+			widest = math.max(widest, math.abs(x))
+			check(near(Terrain.groundY(x, z), Terrain.trailY(z), 2.5), string.format("ścieżka na ziemi z=%.1f", z))
+			-- Nachylenie wzdłuż ścieżki
+			local x2 = Terrain.pathX(z + 0.5)
+			local run = math.sqrt((x2 - x) ^ 2 + 0.25)
+			steepest = math.max(steepest, (Terrain.groundY(x2, z + 0.5) - Terrain.groundY(x, z)) / run)
+		end
+		check(widest > 10 and widest < Terrain.HALF - 20, "serpentyny w granicach " .. widest)
+		check(steepest < 0.7, string.format("ścieżka bez ścian (najstromiej %.2f)", steepest))
+	end)
+
+	test("w pasie gry nie ma urwisk; za ścianą po prawej urwisko do doliny, a za szczytem morze chmur", function()
+		local steepest = 0
+		for z = 3000, 3478, 1 do
+			for x = -55, 55, 1 do
+				steepest = math.max(steepest, Terrain.slope(x, z))
+			end
+		end
+		check(steepest < 1.2, string.format("najstromiej w pasie gry %.2f", steepest))
+		eq(Terrain.groundY(130, 3300), Terrain.FLOOR, "dno doliny")
+		eq(Terrain.groundY(900, 3300), Terrain.FLOOR, "poza siatką też dno")
+		eq(Terrain.groundY(0, 3620), Terrain.FLOOR, "za szczytem")
+		check(Terrain.groundY(HALF, 3400) - Terrain.groundY(HALF + 7, 3400) > 25, "urwisko tuż za ścianą")
+		check(Terrain.covers(0, 3300) and not Terrain.covers(400, 3300), "covers")
+	end)
+
+	test("grzyby mają gdzie rosnąć: dość łagodnych miejsc w każdej strefie góry", function()
+		for _, zone in Config.Zones do
+			if zone.world == "mountain" and not zone.safe then
+				local gentle, total = 0, 0
+				for z = zone.startZ + 6, zone.endZ - 6, 3 do
+					for x = -48, 48, 3 do
+						total += 1
+						if Terrain.slope(x, z) <= 0.45 then
+							gentle += 1
+						end
+					end
+				end
+				check(gentle / total > 0.6, string.format("%s: łagodnie %.0f%%", zone.id, gentle / total * 100))
+			end
+		end
+	end)
+
+	test("normalna ziemi ma długość 1 i patrzy w górę", function()
+		math.randomseed(11)
+		for _ = 1, 500 do
+			local x, z = -150 + 280 * math.random(), 2930 + 690 * math.random()
+			local nx, ny, nz = Terrain.normal(x, z)
+			check(near(nx * nx + ny * ny + nz * nz, 1, 1e-9), "długość")
+			check(ny > 0, "w górę")
+		end
+	end)
+end
+
 print(string.format("\n%d ok, %d błędów", passed, failed))
 if failed > 0 then
 	process.exit(1)

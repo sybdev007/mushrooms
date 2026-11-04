@@ -15,6 +15,7 @@ local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local MountainShared = require(ReplicatedStorage.Shared.Mountain)
+local MountainTerrain = require(ReplicatedStorage.Shared.MountainTerrain)
 
 export type Item = { s: string, v: string?, x: { string }? }
 
@@ -108,6 +109,18 @@ local function flat(a: Vector3, b: Vector3): number
 	return Vector3.new(a.X - b.X, 0, a.Z - b.Z).Magnitude
 end
 
+-- Punkt na zboczu Łysej Góry
+local function groundAt(x: number, z: number): Vector3
+	return Vector3.new(x, MountainTerrain.groundY(x, z), z)
+end
+
+-- Płaski krążek (walec) leżący na zboczu: oś walca wzdłuż normalnej ziemi, lekko nad ziemią
+local function lying(at: Vector3, lift: number): CFrame
+	local nx, ny, nz = MountainTerrain.normal(at.X, at.Z)
+	local up = Vector3.new(nx, ny, nz)
+	return CFrame.fromMatrix(at + up * lift, up, up:Cross(Vector3.new(0, 0, 1)).Unit)
+end
+
 -- Czy w pobliżu płonie ognisko sabatu (tag "SabbathFire", World/Mountain)
 local function nearFire(at: Vector3): boolean
 	for _, fire in CollectionService:GetTagged("SabbathFire") do
@@ -171,7 +184,7 @@ function RavenService.start(hooks: Hooks): Ravens
 			Name = "Ring",
 			Shape = Enum.PartType.Cylinder,
 			Size = Vector3.new(0.06, 3.2, 3.2),
-			CFrame = CFrame.new(ground + Vector3.new(0, 0.05, 0)) * CFrame.Angles(0, 0, math.rad(90)),
+			CFrame = lying(ground, 0.05),
 			Color = WARN,
 			Material = Enum.Material.Neon,
 			Transparency = 0.55,
@@ -211,13 +224,13 @@ function RavenService.start(hooks: Hooks): Ravens
 	-- Jeden atak: cień i krążący kruk, nurkowanie, a potem (jeśli trafił) odlot z grzybem i upuszczenie
 	local function strike(player: Player, target: Vector3)
 		busy[player] = true
-		local ground = Vector3.new(target.X, 0, target.Z)
+		local ground = groundAt(target.X, target.Z)
 		local radius = settings.radius
 		local shadow = part({
 			Name = "RavenShadow",
 			Shape = Enum.PartType.Cylinder,
 			Size = Vector3.new(0.05, 1, 1),
-			CFrame = CFrame.new(ground + Vector3.new(0, 0.06, 0)) * CFrame.Angles(0, 0, math.rad(90)),
+			CFrame = lying(ground, 0.06),
 			Color = SHADOW,
 			Transparency = 0.8,
 			Parent = folder,
@@ -226,7 +239,7 @@ function RavenService.start(hooks: Hooks): Ravens
 			Name = "RavenWarning",
 			Shape = Enum.PartType.Cylinder,
 			Size = Vector3.new(0.07, radius * 2, radius * 2),
-			CFrame = CFrame.new(ground + Vector3.new(0, 0.08, 0)) * CFrame.Angles(0, 0, math.rad(90)),
+			CFrame = lying(ground, 0.08),
 			Color = WARN,
 			Material = Enum.Material.Neon,
 			Transparency = 0.5,
@@ -265,7 +278,7 @@ function RavenService.start(hooks: Hooks): Ravens
 				-- Odlatuje nisko kawałek dalej i upuszcza grzyb (w granicach stref kruków)
 				local away = rng:NextNumber(0, math.pi * 2)
 				local drop = ground + Vector3.new(math.cos(away), 0, math.sin(away)) * settings.dropDistance
-				drop = Vector3.new(math.clamp(drop.X, -halfWidth, halfWidth), 0, math.clamp(drop.Z, minZ + 6, maxZ - 6))
+				drop = groundAt(math.clamp(drop.X, -halfWidth, halfWidth), math.clamp(drop.Z, minZ + 6, maxZ - 6))
 				local away3 = drop - ground
 				local carryHeading = if away3.Magnitude > 0.1 then away3.Unit else heading
 				local carry = tween(root, 0.8, { CFrame = CFrame.lookAt(drop + Vector3.new(0, 4, 0), drop + Vector3.new(0, 4, 0) + carryHeading) })

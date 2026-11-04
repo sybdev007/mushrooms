@@ -67,6 +67,7 @@ local _AnnounceView = require(script.Parent.AnnounceView)
 local _RelicDisplay = require(script.Parent.RelicDisplay)
 local _JagaHutView = require(script.Parent.JagaHutView)
 local _SabbathView = require(script.Parent.SabbathView)
+local MountainSky = require(script.Parent.MountainSky)
 local Delve = require(Shared:WaitForChild("Delve"))
 
 local player = Players.LocalPlayer
@@ -544,6 +545,7 @@ RunService.RenderStepped:Connect(function(dt)
 	local darkness = Atmosphere.update(zone, sight, dt)
 	Effects.updateAmbient(darkness)
 	Effects.updateParticles(position, zone)
+	MountainSky.update(root, zoneDef)
 	updateLantern(character, root, oilFraction, darkness, now)
 	MushroomView.updateVisibility(position, sight, zoneDef.darkness)
 

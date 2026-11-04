@@ -31,6 +31,24 @@ local SPIRIT_TINT = Color3.fromRGB(206, 168, 255)
 local currentTint = DARK_TINT
 local appliedTint = DARK_TINT
 
+-- Łysa Góra: fioletowa noc z wielkim księżycem tuż nad szczytem. Szerokość geograficzna 100 i północ
+-- stawiają księżyc nisko na +Z, dokładnie za szczytem z chatką (z polany wisi nad górą), a o świcie
+-- słońce wschodzi zza góry. Mgła rzadsza niż w lesie (widać dolinę, morze chmur i dalekie szczyty),
+-- a w mroku zostaje fioletowa poświata księżyca, żeby było widać zbocza i serpentyny.
+local MOUNTAIN_LATITUDE = 100
+local MOUNTAIN_NIGHT_CLOCK = 0
+local MOUNTAIN_MOON_SIZE = 34
+local MOUNTAIN_STARS = 5000
+local MOUNTAIN_BRIGHT_AMBIENT = Color3.fromRGB(108, 94, 134)
+local MOUNTAIN_DARK_AMBIENT = Color3.fromRGB(46, 34, 74)
+local MOUNTAIN_DECAY = Color3.fromRGB(96, 44, 128)
+local MOUNTAIN_TINT = Color3.fromRGB(214, 198, 255)
+local FOREST_DECAY = Color3.fromRGB(60, 50, 80)
+local FOREST_MOON_SIZE = 14
+local FOREST_STARS = 3500
+local defaultLatitude = (Lighting.GeographicLatitude :: number)
+local skyMountain: boolean? = nil -- nil = jeszcze nie ustawione
+
 local function getOrCreate(className: string, name: string): Instance
 	local existing = Lighting:FindFirstChild(name)
 	if existing and existing.ClassName == className then
@@ -50,6 +68,7 @@ local OWN_EFFECTS = {
 	ForestColor = true,
 	ForestBloom = true,
 	ForestSky = true,
+	MountainFlash = true, -- błysk pioruna na Łysej Górze (MountainSky)
 }
 
 local function removeForeignEffect(child: Instance)
@@ -72,7 +91,7 @@ end)
 local atmosphere = getOrCreate("Atmosphere", "ForestAtmosphere") :: Atmosphere
 atmosphere.Offset = 0.05
 atmosphere.Glare = 0
-atmosphere.Decay = Color3.fromRGB(60, 50, 80)
+atmosphere.Decay = FOREST_DECAY
 
 local colorCorrection = getOrCreate("ColorCorrectionEffect", "ForestColor") :: ColorCorrectionEffect
 local bloom = getOrCreate("BloomEffect", "ForestBloom") :: BloomEffect
@@ -84,9 +103,9 @@ bloom.Size = 16
 bloom.Threshold = 1.5
 
 local sky = getOrCreate("Sky", "ForestSky") :: Sky
-sky.StarCount = 3500
+sky.StarCount = FOREST_STARS
 sky.CelestialBodiesShown = true
-sky.MoonAngularSize = 14
+sky.MoonAngularSize = FOREST_MOON_SIZE
 
 local currentDarkness = 0
 local appliedDarkness = -1
@@ -96,22 +115,48 @@ local currentFog = DARK_FOG
 local appliedFog = DARK_FOG
 
 local function apply(d: number, lanternRange: number)
-	Lighting.Ambient = BRIGHT_AMBIENT:Lerp(DARK_AMBIENT, d)
-	Lighting.OutdoorAmbient = BRIGHT_AMBIENT:Lerp(DARK_AMBIENT, d)
-	Lighting.Brightness = 1.1 * (1 - d) + 0.05
+	local mountain = skyMountain == true
+	local bright = if mountain then MOUNTAIN_BRIGHT_AMBIENT else BRIGHT_AMBIENT
+	local dark = if mountain then MOUNTAIN_DARK_AMBIENT else DARK_AMBIENT
+	Lighting.Ambient = bright:Lerp(dark, d)
+	Lighting.OutdoorAmbient = bright:Lerp(dark, d)
+	-- Na górze świeci księżyc zza szczytu: zbocza mają światło z jednej strony, a krawędzie poświatę
+	Lighting.Brightness = if mountain then 0.9 * (1 - d) + 0.45 else 1.1 * (1 - d) + 0.05
 	Lighting.EnvironmentDiffuseScale = 0.6 * (1 - d)
 	Lighting.EnvironmentSpecularScale = 0.4 * (1 - d)
 
 	-- Gęstość mgły rośnie z mrokiem, a słabsza latarnia oznacza gęstszą mgłę w ciemności.
 	-- Uwaga: powyżej ok. 0,5 mgła zasłania nawet postać i krąg latarni (sprawdzone w Studio przy 0,7).
 	local lanternFactor = math.clamp((40 - lanternRange) / 30, 0, 1)
-	atmosphere.Density = 0.28 + 0.14 * d + 0.05 * d * lanternFactor
+	if mountain then
+		-- Rzadsza mgła: z góry widać dolinę i morze chmur
+		atmosphere.Density = 0.24 + 0.06 * d + 0.03 * d * lanternFactor
+		atmosphere.Haze = 0.6 + 0.8 * d
+	else
+		atmosphere.Density = 0.28 + 0.14 * d + 0.05 * d * lanternFactor
+		atmosphere.Haze = 0.5 + 0.9 * d
+	end
 	atmosphere.Color = BRIGHT_FOG:Lerp(currentFog, d)
-	atmosphere.Haze = 0.5 + 0.9 * d
+	atmosphere.Decay = if mountain then MOUNTAIN_DECAY else FOREST_DECAY
 
-	colorCorrection.Saturation = -0.04 - 0.3 * d
+	colorCorrection.Saturation = if mountain then -0.02 - 0.12 * d else -0.04 - 0.3 * d
 	colorCorrection.Contrast = 0.06 + 0.1 * d
-	colorCorrection.TintColor = Color3.new(1, 1, 1):Lerp(currentTint, d)
+	colorCorrection.TintColor = Color3.new(1, 1, 1):Lerp(if mountain then MOUNTAIN_TINT else currentTint, d)
+end
+
+-- Niebo świata: na Łysej Górze księżyc za szczytem, więcej gwiazd; gdzie indziej jak dawniej
+local function setWorldSky(mountain: boolean, dawn: boolean)
+	if skyMountain == mountain then
+		return
+	end
+	skyMountain = mountain
+	Lighting.GeographicLatitude = if mountain then MOUNTAIN_LATITUDE else defaultLatitude
+	sky.MoonAngularSize = if mountain then MOUNTAIN_MOON_SIZE else FOREST_MOON_SIZE
+	sky.StarCount = if mountain then MOUNTAIN_STARS else FOREST_STARS
+	-- Przejście przez portal: niebo od razu w porze tego świata (bez kręcenia gwiazdami)
+	currentClock = if dawn then DAWN_CLOCK elseif mountain then MOUNTAIN_NIGHT_CLOCK else NIGHT_CLOCK
+	Lighting.ClockTime = currentClock
+	appliedDarkness = -1
 end
 
 -- Cutscenka sama ustawia światło: na ten czas Atmosphere nic nie zapisuje do Lighting,
@@ -133,8 +178,10 @@ function Atmosphere.update(zone: number, lanternRange: number, dt: number): numb
 	local dawn = Workspace:GetAttribute("CyclePhase") == "dawn"
 	-- O świcie mrok w lesie słabnie (w jaskini nie ma słońca)
 	local target = zoneDef.darkness * (if dawn and zoneDef.world ~= "cave" then Config.Cycle.dawnDarkness else 1)
+	local mountain = zoneDef.world == "mountain"
+	setWorldSky(mountain, dawn)
 
-	local targetClock = if dawn then DAWN_CLOCK else NIGHT_CLOCK
+	local targetClock = if dawn then DAWN_CLOCK elseif mountain then MOUNTAIN_NIGHT_CLOCK else NIGHT_CLOCK
 	local diff = (targetClock - currentClock) % 24
 	if diff > 0.001 then
 		currentClock = (currentClock + math.min(diff, dt * CLOCK_SPEED)) % 24

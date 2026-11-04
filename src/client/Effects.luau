@@ -11,6 +11,7 @@ local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Sounds = require(ReplicatedStorage.Shared.Sounds)
+local MountainTerrain = require(ReplicatedStorage.Shared.MountainTerrain)
 
 local Effects = {}
 
@@ -199,22 +200,28 @@ spirits.Rate = 0
 spirits.Parent = spiritHolder
 local MIST_COLOR = ColorSequence.new(Color3.fromRGB(150, 165, 190))
 local SPIRIT_MIST_COLOR = ColorSequence.new(Color3.fromRGB(150, 110, 200))
-local spiritShown = false
+-- Łysa Góra: fioletowa mgła snująca się po zboczu
+local MOUNTAIN_MIST_COLOR = ColorSequence.new(Color3.fromRGB(150, 128, 190), Color3.fromRGB(118, 104, 160))
+local mistLook = "forest"
 
 -- Ile świetlików i mgły w której strefie
 
 function Effects.updateParticles(rootPosition: Vector3, zone: number)
-	fireflyHolder.Position = Vector3.new(rootPosition.X, 4, rootPosition.Z + 10)
-	mistHolder.Position = Vector3.new(rootPosition.X, 0.6, rootPosition.Z + 8)
-	spiritHolder.Position = Vector3.new(rootPosition.X, 3, rootPosition.Z + 6)
-	-- Ile czego w strefie: Config.Zones (w jaskini zamiast świetlików lecą pyłki w świetle latarni)
 	local zoneDef = Config.Zones[zone]
+	local mountain = zoneDef ~= nil and zoneDef.world == "mountain"
+	-- Na Łysej Górze ziemia wznosi się serpentynami: mgła i świetliki trzymają się zbocza
+	local ground = if mountain then MountainTerrain.groundY(rootPosition.X, rootPosition.Z + 8) else 0
+	fireflyHolder.Position = Vector3.new(rootPosition.X, ground + 4, rootPosition.Z + 10)
+	mistHolder.Position = Vector3.new(rootPosition.X, ground + 0.6, rootPosition.Z + 8)
+	spiritHolder.Position = Vector3.new(rootPosition.X, ground + 3, rootPosition.Z + 6)
+	-- Ile czego w strefie: Config.Zones (w jaskini zamiast świetlików lecą pyłki w świetle latarni)
 	local spirit = Workspace:GetAttribute("CyclePhase") == "night" and Workspace:GetAttribute("CycleEvent") == "spirit_night"
 	fireflies.Rate = if zoneDef then zoneDef.fireflies or 0 else 0
 	mist.Rate = (if zoneDef then zoneDef.mist or 0 else 0) + (if spirit and zoneDef and not zoneDef.safe then 0.6 else 0)
-	if spirit ~= spiritShown then
-		spiritShown = spirit
-		mist.Color = if spirit then SPIRIT_MIST_COLOR else MIST_COLOR
+	local look = if spirit then "spirit" elseif mountain then "mountain" else "forest"
+	if look ~= mistLook then
+		mistLook = look
+		mist.Color = if spirit then SPIRIT_MIST_COLOR elseif mountain then MOUNTAIN_MIST_COLOR else MIST_COLOR
 	end
 	spirits.Rate = if spirit then (if zoneDef and zoneDef.safe then 2 else 7) else 0
 end

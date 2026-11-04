@@ -1,9 +1,12 @@
 --!strict
 -- Łysa Góra: czwarty świat, za portalem przy Stawie Utopca (od 10 000 000 monet).
 -- Polana Zielarki (bezpieczna, z olejem i skupem) → Wiedźmi Las → Kotły Sabatu → Szczyt Łysej Góry.
--- Sabat czarownic w świetle pełni: krzywe czarne drzewa z kośćmi i amuletami, kotły z trującymi
--- oparami (Shared/Mountain.CAULDRONS), ogniska, miotły wbite w ziemię, krąg kamieni na szczycie
--- i chatka Baby Jagi na kurzej stopce (obraca ją klient, JagaHutView), za nią ogródek w płocie z kości.
+-- Prawdziwa góra: ziemia z trójkątów (Shared/MountainTerrain) wznosi się od polany u stóp góry,
+-- kamienna ścieżka wije się serpentynami w górę, krąg kamieni stoi na wyrównanym placu, a chatka
+-- Baby Jagi na kurzej stopce na płaskim szczycie (obraca ją klient, JagaHutView). Z jednej strony
+-- skalny grzbiet, z drugiej urwisko nad doliną z lasem, rzeką i światłami wioski, a za szczytem
+-- góra opada w morze chmur. Sabat w świetle pełni: krzywe czarne drzewa z kośćmi i amuletami,
+-- kotły z trującymi oparami (Shared/Mountain.CAULDRONS), zielony ogień sabatu, miotły w ziemi.
 -- Strefy leżą wzdłuż osi +Z (Config.Zones z world = "mountain"), daleko za bagnami.
 
 local CollectionService = game:GetService("CollectionService")
@@ -12,6 +15,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage.Shared.Config)
 local Economy = require(ReplicatedStorage.Shared.Economy)
 local MountainShared = require(ReplicatedStorage.Shared.Mountain)
+local Terrain = require(ReplicatedStorage.Shared.MountainTerrain)
 local Palette = require(script.Parent.Palette)
 local Props = require(script.Parent.Props)
 local Jaga = require(script.Parent.Jaga)
@@ -33,9 +37,9 @@ end
 
 local GROUND: { [string]: Color3 } = {
 	glade = rgb(58, 70, 44),
-	witchwood = rgb(42, 38, 44),
-	cauldrons = rgb(50, 44, 40),
-	summit = rgb(78, 74, 82),
+	witchwood = rgb(46, 40, 50),
+	cauldrons = rgb(54, 46, 42),
+	summit = rgb(84, 78, 90),
 }
 local GROUND_MATERIAL: { [string]: Enum.Material } = {
 	glade = Enum.Material.Grass,
@@ -43,6 +47,14 @@ local GROUND_MATERIAL: { [string]: Enum.Material } = {
 	cauldrons = Enum.Material.Ground,
 	summit = Enum.Material.Slate,
 }
+local ROCK = { rgb(74, 68, 84), rgb(64, 60, 74), rgb(84, 78, 92) }
+local VALLEY = rgb(26, 32, 30)
+local VALLEY_TREES = { rgb(22, 34, 32), rgb(26, 40, 36), rgb(18, 28, 28), rgb(30, 38, 44) }
+local CLOUD = rgb(92, 82, 128)
+local PEAKS = { rgb(54, 46, 66), rgb(46, 40, 58), rgb(60, 52, 72) }
+local PEAK_TOP = rgb(128, 118, 150)
+local RIVER = rgb(70, 104, 170)
+local VILLAGE_WINDOW = rgb(255, 186, 104)
 local BARK = { rgb(34, 28, 34), rgb(44, 36, 42), rgb(30, 26, 30) }
 local BONE = rgb(226, 218, 196)
 local BONE_SHADE = rgb(190, 180, 156)
@@ -52,12 +64,16 @@ local STONE = { rgb(104, 100, 112), rgb(92, 88, 100), rgb(118, 112, 122) }
 local POT = rgb(30, 28, 32)
 local BREW = rgb(120, 230, 60)
 local FIRE = rgb(255, 130, 40)
+local GREEN_FIRE = rgb(120, 255, 90)
+local GREEN_FIRE_EDGE = rgb(30, 150, 60)
 local STRAW = rgb(206, 170, 90)
 local LEG = rgb(228, 168, 64)
 local LEG_SHADE = rgb(196, 134, 46)
 local CLAW = rgb(60, 52, 48)
 local THATCH = rgb(96, 78, 52)
 local GLOW_WINDOW = rgb(130, 220, 70)
+
+local TERRAIN_THICKNESS = 3
 
 -- Ile czego w strefie
 type Recipe = {
@@ -69,12 +85,11 @@ type Recipe = {
 	glow: number,
 	tufts: number,
 	brooms: number,
-	bonfires: number,
 }
 local RECIPES: { [string]: Recipe } = {
-	witchwood = { crooked = 20, pines = 10, rocks = 8, stumps = 5, bones = 6, glow = 6, tufts = 18, brooms = 3, bonfires = 0 },
-	cauldrons = { crooked = 8, pines = 4, rocks = 6, stumps = 3, bones = 8, glow = 4, tufts = 10, brooms = 8, bonfires = 3 },
-	summit = { crooked = 6, pines = 0, rocks = 14, stumps = 2, bones = 4, glow = 4, tufts = 6, brooms = 0, bonfires = 0 },
+	witchwood = { crooked = 22, pines = 10, rocks = 9, stumps = 5, bones = 6, glow = 6, tufts = 18, brooms = 3 },
+	cauldrons = { crooked = 8, pines = 4, rocks = 7, stumps = 3, bones = 8, glow = 4, tufts = 10, brooms = 8 },
+	summit = { crooked = 6, pines = 0, rocks = 16, stumps = 2, bones = 4, glow = 4, tufts = 6, brooms = 0 },
 }
 
 local function make(className: string, props: { [string]: any }): BasePart
@@ -133,6 +148,25 @@ local function mountainZones(): { { index: number, zone: Config.ZoneDef } }
 		end
 	end
 	return list
+end
+
+-- Punkt na ziemi góry
+local function groundAt(x: number, z: number): Vector3
+	return Vector3.new(x, Terrain.groundY(x, z), z)
+end
+
+-- Układ przechylony jak zbocze w danym miejscu (oś Y wzdłuż normalnej ziemi), obrócony o yaw
+local function slopeFrame(position: Vector3, yaw: number): CFrame
+	local nx, ny, nz = Terrain.normal(position.X, position.Z)
+	local up = Vector3.new(nx, ny, nz)
+	local look = CFrame.Angles(0, yaw, 0).LookVector
+	local back = -(look - up * look:Dot(up)).Unit
+	return CFrame.fromMatrix(position, up:Cross(back), up, back)
+end
+
+-- Podstawa rzeczy stojącej na zboczu: trochę w ziemi, żeby od strony spadku nie wisiała w powietrzu
+local function footing(x: number, z: number, radius: number): Vector3
+	return groundAt(x, z) - Vector3.new(0, 0.3 + Terrain.slope(x, z) * radius, 0)
 end
 
 -- ===== Elementy =====
@@ -238,33 +272,68 @@ local function broom(parent: Instance, base: Vector3, rng: Random)
 	m.Parent = parent
 end
 
--- Ognisko sabatu: stożek z polan, płomienie, kamienie dookoła (kruki się do niego nie zbliżają)
-local function bonfire(parent: Instance, base: Vector3, rng: Random)
+-- Ognisko: stożek z polan, płomienie, kamienie dookoła (kruki się do niego nie zbliżają).
+-- Ognisko zielarki na polanie pali się ciepło; ogniska sabatu zielonym ogniem, z iskrami,
+-- a wielkie ognisko w kręgu kamieni jest dwa razy większe.
+type FireKind = "warm" | "sabbath" | "great"
+local function bonfire(parent: Instance, base: Vector3, rng: Random, kind: FireKind)
 	local m = Instance.new("Model")
-	m.Name = "Bonfire"
+	m.Name = if kind == "warm" then "Bonfire" else "SabbathFire"
+	local s = if kind == "great" then 1.7 else 1
+	local green = kind ~= "warm"
+	local function ground(offset: Vector3): Vector3
+		local p = base + offset
+		return if green then Vector3.new(p.X, Terrain.groundY(p.X, p.Z), p.Z) else p
+	end
 	for i = 1, 6 do
 		local angle = i / 6 * TAU
-		local foot = base + Vector3.new(math.cos(angle) * 1.6, 0.1, math.sin(angle) * 1.6)
-		rod(m, foot, base + Vector3.new(0, 2.6, 0), 0.45, Palette.log)
+		local foot = ground(Vector3.new(math.cos(angle) * 1.6 * s, 0, math.sin(angle) * 1.6 * s)) + Vector3.new(0, 0.1, 0)
+		rod(m, foot, base + Vector3.new(0, 2.6 * s, 0), 0.45 * s, Palette.log)
 	end
-	for i = 1, 10 do
-		local angle = i / 10 * TAU
+	for i = 1, (if kind == "great" then 14 else 10) do
+		local angle = i / (if kind == "great" then 14 else 10) * TAU
+		local at = ground(Vector3.new(math.cos(angle) * 2.6 * s, 0, math.sin(angle) * 2.6 * s))
 		decor(make("Part", {
-			Size = Vector3.new(0.9, 0.5, 0.7),
-			CFrame = CFrame.new(base + Vector3.new(math.cos(angle) * 2.6, 0.2, math.sin(angle) * 2.6)) * CFrame.Angles(0, -angle, 0),
+			Size = Vector3.new(0.9, 0.5, 0.7) * math.sqrt(s),
+			CFrame = CFrame.new(at + Vector3.new(0, 0.2, 0)) * CFrame.Angles(0, -angle, 0),
 			Color = pick(STONE, rng),
 			Material = Enum.Material.Slate,
 			Parent = m,
 		}))
 	end
-	local core = decor(make("Part", { Name = "Flame", Size = Vector3.new(1.2, 1.8, 1.2), CFrame = CFrame.new(base + Vector3.new(0, 1.2, 0)) * CFrame.Angles(0, math.rad(45), 0), Color = FIRE, Material = Enum.Material.Neon, Transparency = 0.2, Parent = m }))
+	local core = decor(make("Part", {
+		Name = "Flame",
+		Size = Vector3.new(1.2, 1.8, 1.2) * s,
+		CFrame = CFrame.new(base + Vector3.new(0, 1.2 * s, 0)) * CFrame.Angles(0, math.rad(45), 0),
+		Color = if green then GREEN_FIRE else FIRE,
+		Material = Enum.Material.Neon,
+		Transparency = if green then 0.3 else 0.2,
+		Parent = m,
+	}))
 	local fire = Instance.new("Fire")
-	fire.Size = 6
-	fire.Heat = 9
-	fire.Color = FIRE
-	fire.SecondaryColor = rgb(255, 60, 20)
+	fire.Size = 6 * s
+	fire.Heat = 9 * s
+	fire.Color = if green then GREEN_FIRE else FIRE
+	fire.SecondaryColor = if green then GREEN_FIRE_EDGE else rgb(255, 60, 20)
 	fire.Parent = core
-	light(core, rgb(255, 150, 70), 16, 1)
+	light(core, if green then rgb(140, 255, 110) else rgb(255, 150, 70), 16 * s, if kind == "great" then 0.9 else 1)
+	if green then
+		-- Zielone iskry lecą wysoko w górę (widać je z daleka, z dołu góry)
+		local sparks = Instance.new("ParticleEmitter")
+		sparks.Name = "Sparks"
+		sparks.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+		sparks.Color = ColorSequence.new(rgb(200, 255, 140), rgb(90, 255, 120))
+		sparks.LightEmission = 1
+		sparks.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.35 * s), NumberSequenceKeypoint.new(1, 0) })
+		sparks.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.1), NumberSequenceKeypoint.new(1, 1) })
+		sparks.Lifetime = NumberRange.new(1.4, 2.6)
+		sparks.Rate = if kind == "great" then 14 else 6
+		sparks.Speed = NumberRange.new(4, 8)
+		sparks.SpreadAngle = Vector2.new(18, 18)
+		sparks.Acceleration = Vector3.new(0, 2, 0)
+		sparks.EmissionDirection = Enum.NormalId.Top
+		sparks.Parent = core
+	end
 	CollectionService:AddTag(core, "SabbathFire")
 	m.Parent = parent
 end
@@ -273,10 +342,10 @@ end
 local function cauldron(parent: Instance, spot: { x: number, z: number }, rng: Random)
 	local m = Instance.new("Model")
 	m.Name = "Cauldron"
-	local base = Vector3.new(spot.x, 0, spot.z)
+	local base = groundAt(spot.x, spot.z)
 	for i = 1, 3 do
 		local angle = i / 3 * TAU + 0.3
-		local foot = base + Vector3.new(math.cos(angle) * 2.4, 0, math.sin(angle) * 2.4)
+		local foot = groundAt(spot.x + math.cos(angle) * 2.4, spot.z + math.sin(angle) * 2.4) - Vector3.new(0, 0.2, 0)
 		rod(m, foot, base + Vector3.new(math.cos(angle) * 1.6, 2.4, math.sin(angle) * 1.6), 0.35, POT, true)
 	end
 	make("Part", { Name = "Pot", Shape = Enum.PartType.Ball, Size = Vector3.new(4.6, 4.6, 4.6), Position = base + Vector3.new(0, 3.6, 0), Color = POT, Material = Enum.Material.Metal, Parent = m })
@@ -370,7 +439,7 @@ local function menhir(parent: Instance, base: Vector3, rng: Random, facing: numb
 	make("Part", {
 		Name = "Menhir",
 		Size = Vector3.new(2.6, height, 1.8),
-		CFrame = CFrame.new(base + Vector3.new(0, height / 2 - 0.4, 0)) * CFrame.Angles(math.rad(rng:NextNumber(-6, 6)), facing, math.rad(rng:NextNumber(-6, 6))),
+		CFrame = CFrame.new(base + Vector3.new(0, height / 2 - 0.6, 0)) * CFrame.Angles(math.rad(rng:NextNumber(-6, 6)), facing, math.rad(rng:NextNumber(-6, 6))),
 		Color = pick(STONE, rng),
 		Material = Enum.Material.Slate,
 		Parent = parent,
@@ -381,29 +450,60 @@ end
 local function skullLantern(parent: Instance, base: Vector3)
 	local m = Instance.new("Model")
 	m.Name = "SkullLantern"
-	make("Part", { Size = Vector3.new(0.5, 6, 0.5), Position = base + Vector3.new(0, 3, 0), Color = Palette.trunkDark, Parent = m })
+	make("Part", { Size = Vector3.new(0.5, 6.6, 0.5), Position = base + Vector3.new(0, 2.7, 0), Color = Palette.trunkDark, Parent = m })
 	skull(m, CFrame.new(base + Vector3.new(0, 6.5, 0)), 1.1, rgb(190, 120, 255))
 	local glow = decor(make("Part", { Size = Vector3.new(0.4, 0.4, 0.4), Position = base + Vector3.new(0, 6.5, 0), Transparency = 1, Parent = m }))
 	light(glow, rgb(190, 130, 255), 14, 0.7)
 	m.Parent = parent
 end
 
--- Ścieżka z płaskich kamieni środkiem góry (od polany do chatki Baby Jagi)
+-- Kierunek ścieżki (poziomo, długość 1) w miejscu z
+local function pathDirection(z: number): Vector3
+	local dx = Terrain.pathX(z + 0.5) - Terrain.pathX(z - 0.5)
+	return Vector3.new(dx, 0, 1).Unit
+end
+
+-- Ścieżka z płaskich kamieni serpentynami w górę (od polany do chatki Baby Jagi). Kamienie leżą
+-- co kilka kroków wzdłuż ścieżki, przechylone jak zbocze; na stromych odcinkach w poprzek ścieżki
+-- leżą bale jak stopnie.
 local function stonePath(parent: Instance, fromZ: number, toZ: number, rng: Random)
 	local m = Instance.new("Model")
 	m.Name = "Path"
 	local z = fromZ
+	local travelled = 0
+	local nextStone = 0
+	local nextStep = 0
+	local previous = Vector3.new(Terrain.pathX(z), 0, z)
 	while z < toZ do
-		local d = rng:NextNumber(2, 3)
-		decor(make("Part", {
-			Shape = Enum.PartType.Cylinder,
-			Size = Vector3.new(0.3, d, d * rng:NextNumber(0.8, 1)),
-			CFrame = CFrame.new(rng:NextNumber(-0.8, 0.8), -0.04, z) * VERTICAL * CFrame.Angles(rng:NextNumber(0, TAU), 0, 0),
-			Color = pick(STONE, rng):Lerp(GROUND.cauldrons, rng:NextNumber(0.2, 0.4)),
-			Material = Enum.Material.Slate,
-			Parent = m,
-		}))
-		z += rng:NextNumber(2.4, 3.2)
+		local x = Terrain.pathX(z)
+		local here = Vector3.new(x, 0, z)
+		travelled += (here - previous).Magnitude
+		previous = here
+		if travelled >= nextStone then
+			local d = rng:NextNumber(2, 3)
+			local at = groundAt(x + rng:NextNumber(-0.8, 0.8), z) - Vector3.new(0, 0.06, 0)
+			decor(make("Part", {
+				Shape = Enum.PartType.Cylinder,
+				Size = Vector3.new(0.3, d, d * rng:NextNumber(0.8, 1)),
+				CFrame = slopeFrame(at, rng:NextNumber(0, TAU)) * VERTICAL,
+				Color = pick(STONE, rng):Lerp(GROUND.cauldrons, rng:NextNumber(0.2, 0.4)),
+				Material = Enum.Material.Slate,
+				Parent = m,
+			}))
+			nextStone = travelled + rng:NextNumber(2.4, 3.2)
+		end
+		-- Stopnie z bali tam, gdzie ścieżka idzie stromo pod górę
+		local forward = pathDirection(z)
+		local rise = (Terrain.groundY(x + forward.X, z + forward.Z) - Terrain.groundY(x - forward.X, z - forward.Z)) / 2
+		if rise > 0.2 and travelled >= nextStep then
+			local across = Vector3.new(forward.Z, 0, -forward.X)
+			local half = Config.Mountain.path + 0.6
+			local a = groundAt(x - across.X * half, z - across.Z * half) + Vector3.new(0, 0.12, 0)
+			local b = groundAt(x + across.X * half, z + across.Z * half) + Vector3.new(0, 0.12, 0)
+			rod(m, a, b, 0.7, Palette.trunkDark)
+			nextStep = travelled + 3.4
+		end
+		z += 0.5
 	end
 	m.Parent = parent
 end
@@ -514,7 +614,7 @@ local function buildGlade(parent: Instance, zone: Config.ZoneDef, rng: Random)
 	local hw = Config.Mountain.halfWidth
 	herbalistHut(m, CFrame.new(-hw + 14, 0, zone.startZ + 22) * CFrame.Angles(0, math.rad(70), 0))
 	herbalistHut(m, CFrame.new(hw - 14, 0, zone.startZ + 24) * CFrame.Angles(0, math.rad(-70), 0))
-	bonfire(m, Vector3.new(-8, 0, zone.startZ + 34), rng)
+	bonfire(m, Vector3.new(-8, 0, zone.startZ + 34), rng, "warm")
 	for _, x in { -6, 6 } do
 		Props.lanternPost(m, Vector3.new(x, 0, zone.endZ - 3), if x > 0 then math.pi else 0)
 	end
@@ -645,7 +745,7 @@ end
 -- Płot z kości wokół ogródka (czaszki z zielonymi oczami na co drugim palu) i grządki
 local function buildGarden(parent: Instance, rng: Random)
 	local lair = Config.JagaLair
-	local center = Vector3.new(lair.centerX, 0, lair.centerZ)
+	local center = Vector3.new(lair.centerX, Terrain.TOP, lair.centerZ)
 	local m = Instance.new("Model")
 	m.Name = "JagaGarden"
 	-- Grządki z ciemnej ziemi
@@ -670,45 +770,134 @@ local function buildGarden(parent: Instance, rng: Random)
 	m.Parent = parent
 end
 
--- ===== Skorupa świata =====
+-- ===== Ziemia góry =====
 
-local function buildShell(parent: Instance, rng: Random)
+-- Wygląd trójkąta: kolor strefy, goła skała na stromiznach, ciemne dno doliny; każdy trójkąt
+-- trochę inny odcień (widać ściany jak w low-poly)
+local function terrainLook(center: Vector3, up: number, rng: Random): (Color3, Enum.Material)
+	local color: Color3
+	local material: Enum.Material
+	if center.Y < Terrain.FLOOR + 6 then
+		color, material = VALLEY, Enum.Material.Grass
+	elseif up < 0.72 then
+		color, material = pick(ROCK, rng), Enum.Material.Slate
+	else
+		local zoneId = "summit"
+		local zone = Config.Zones[Economy.zoneIndexAt(math.clamp(center.Z, 3000, 3479))]
+		if zone and zone.world == "mountain" then
+			zoneId = zone.id
+		end
+		color, material = GROUND[zoneId] or GROUND.witchwood, GROUND_MATERIAL[zoneId] or Enum.Material.Ground
+		if math.abs(center.X) > Terrain.HALF then
+			-- Za ścianą: brzeg grzbietu i krawędź urwiska bardziej skaliste
+			color = color:Lerp(ROCK[1], 0.45)
+			material = Enum.Material.Slate
+		end
+	end
+	return color:Lerp(Color3.new(0, 0, 0), rng:NextNumber(0, 0.16)), material
+end
+
+-- Trójkąt z dwóch klinów (grubość pod spodem, wierzch dokładnie na płaszczyźnie trójkąta)
+local function triangle(parent: Instance, a: Vector3, b: Vector3, c: Vector3, rng: Random)
+	local ab, ac, bc = b - a, c - a, c - b
+	local abd, acd, bcd = ab:Dot(ab), ac:Dot(ac), bc:Dot(bc)
+	if abd > acd and abd > bcd then
+		c, a = a, c
+	elseif acd > bcd and acd > abd then
+		a, b = b, a
+	end
+	ab, ac, bc = b - a, c - a, c - b
+	local normal = ac:Cross(ab)
+	if normal.Magnitude < 1e-4 then
+		return
+	end
+	local right = normal.Unit
+	local up = bc:Cross(right).Unit
+	local back = bc.Unit
+	local height = math.abs(ab:Dot(up))
+	local surface = if right.Y >= 0 then right else -right
+	local shift = -surface * TERRAIN_THICKNESS / 2
+	local color, material = terrainLook((a + b + c) / 3, surface.Y, rng)
+	local function wedge(size: Vector3, cf: CFrame)
+		local w = make("WedgePart", { Name = "Ground", Size = size, CFrame = cf, Color = color, Material = material, Parent = parent })
+		w.CastShadow = false
+	end
+	wedge(Vector3.new(TERRAIN_THICKNESS, height, math.abs(ab:Dot(back))), CFrame.fromMatrix((a + b) / 2 + shift, right, up, back))
+	wedge(Vector3.new(TERRAIN_THICKNESS, height, math.abs(ac:Dot(back))), CFrame.fromMatrix((a + c) / 2 + shift, -right, up, -back))
+end
+
+-- Ziemia z trójkątów (te same, co liczy Shared/MountainTerrain), płaska polana, dno doliny i ściany
+local function buildGround(parent: Instance, rng: Random)
 	local folder = Instance.new("Folder")
-	folder.Name = "Shell"
-	local hw = Config.Mountain.halfWidth
+	folder.Name = "Terrain"
+	local XS, ZS = Terrain.XS, Terrain.ZS
+	local gladeEnd = 3040
+	local function vertex(i: number, j: number): Vector3
+		return Vector3.new(XS[i], Terrain.vertex(i, j), ZS[j])
+	end
+	local function skip(t: { Vector3 }): boolean
+		-- Polana ma własną płaską ziemię, a dno doliny przykrywa jedna płyta
+		local glade, floor = true, true
+		for _, v in t do
+			if not (v.Y == 0 and math.abs(v.X) <= Terrain.HALF and v.Z <= gladeEnd) then
+				glade = false
+			end
+			if v.Y > Terrain.FLOOR + 0.01 then
+				floor = false
+			end
+		end
+		return glade or floor
+	end
+	for j = 1, #ZS - 1 do
+		for i = 1, #XS - 1 do
+			local a, b, c, d = vertex(i, j), vertex(i + 1, j), vertex(i, j + 1), vertex(i + 1, j + 1)
+			if a.Y == b.Y and a.Y == c.Y and a.Y == d.Y then
+				-- Płaska komórka (place, płaskowyż): jeden klocek zamiast czterech klinów
+				if not skip({ a, b, c, d }) then
+					local color, material = terrainLook((a + d) / 2, 1, rng)
+					local p = make("Part", {
+						Name = "Ground",
+						Size = Vector3.new(b.X - a.X, TERRAIN_THICKNESS, c.Z - a.Z),
+						Position = Vector3.new((a.X + b.X) / 2, a.Y - TERRAIN_THICKNESS / 2, (a.Z + c.Z) / 2),
+						Color = color,
+						Material = material,
+						Parent = folder,
+					})
+					p.CastShadow = false
+				end
+			else
+				local pair: { { Vector3 } } = if Terrain.diagonalAD(i, j) then { { a, b, d }, { a, d, c } } else { { a, b, c }, { b, d, c } }
+				for _, t in pair do
+					if not skip(t) then
+						triangle(folder, t[1], t[2], t[3], rng)
+					end
+				end
+			end
+		end
+	end
+	-- Polana: płaska trawa od początku świata do pierwszej bramy
+	local z1 = ZS[1]
+	make("Part", {
+		Name = "Ground_glade",
+		Size = Vector3.new(Terrain.HALF * 2, 2, gladeEnd - z1),
+		Position = Vector3.new(0, -1, (z1 + gladeEnd) / 2),
+		Color = GROUND.glade,
+		Material = GROUND_MATERIAL.glade,
+		Parent = folder,
+	})
+	-- Dno doliny pod urwiskami (las, rzeka i wioska stoją na nim)
+	decor(make("Part", {
+		Name = "ValleyFloor",
+		Size = Vector3.new(1700, 2, 1800),
+		Position = Vector3.new(60, Terrain.FLOOR - 1, 3380),
+		Color = VALLEY,
+		Material = Enum.Material.Grass,
+		Parent = folder,
+	}))
+	-- Niewidzialne ściany: wysokie, bo ziemia sięga ponad 60 studs
 	local zones = mountainZones()
 	local first, last = zones[1].zone, zones[#zones].zone
-	for _, entry in zones do
-		local zone = entry.zone
-		local length = zone.endZ - zone.startZ
-		make("Part", {
-			Name = "Ground_" .. zone.id,
-			Size = Vector3.new(hw * 2 + 40, 2, length),
-			Position = Vector3.new(0, -1, zone.startZ + length / 2),
-			Color = GROUND[zone.id] or GROUND.witchwood,
-			Material = GROUND_MATERIAL[zone.id] or Enum.Material.Ground,
-			Parent = folder,
-		})
-	end
-	-- Ściana z krzywych drzew i skał po bokach i na końcach (za nią niewidzialne ściany)
-	for _, side in { -1, 1 } do
-		local z = first.startZ
-		while z < last.endZ do
-			if rng:NextNumber() < 0.7 then
-				crookedTree(folder, Vector3.new(side * (hw - 2 + rng:NextNumber(-1.5, 1.5)), 0, z), rng, rng:NextNumber(1.3, 1.8), false)
-			else
-				Props.rock(folder, Vector3.new(side * (hw - 3), 0, z), rng:NextNumber(1.4, 2), rng, 0.6)
-			end
-			z += rng:NextNumber(7, 11)
-		end
-	end
-	for _, edgeZ in { first.startZ - 2, last.endZ + 2 } do
-		local x = -hw
-		while x < hw do
-			crookedTree(folder, Vector3.new(x, 0, edgeZ), rng, rng:NextNumber(1.3, 1.8), false)
-			x += rng:NextNumber(8, 11)
-		end
-	end
+	local hw = Config.Mountain.halfWidth
 	local totalLength = last.endZ - first.startZ
 	local centerZ = first.startZ + totalLength / 2
 	local function wall(size: Vector3, position: Vector3)
@@ -716,10 +905,102 @@ local function buildShell(parent: Instance, rng: Random)
 		w.CanQuery = false
 	end
 	for _, side in { -1, 1 } do
-		wall(Vector3.new(2, 60, totalLength), Vector3.new(side * (hw + 1), 30, centerZ))
+		wall(Vector3.new(2, 280, totalLength + 4), Vector3.new(side * (hw + 1), 100, centerZ))
 	end
 	for _, z in { first.startZ - 1, last.endZ + 1 } do
-		wall(Vector3.new(hw * 2, 60, 2), Vector3.new(0, 30, z))
+		wall(Vector3.new(hw * 2 + 4, 280, 2), Vector3.new(0, 100, z))
+	end
+	folder.Parent = parent
+end
+
+-- ===== Brzegi świata =====
+
+-- Krzywy płot z pali nad urwiskiem (czaszki na co czwartym palu patrzą na ścieżkę)
+local function fence(parent: Instance, from: Vector3, to: Vector3, rng: Random)
+	local count = math.max(1, math.floor((to - from).Magnitude / 8))
+	local inward = Vector3.new(-math.sign(from.X), 0, 0)
+	if math.abs(from.X - to.X) > math.abs(from.Z - to.Z) then
+		inward = Vector3.new(0, 0, -1)
+	end
+	local previous: Vector3? = nil
+	for k = 0, count do
+		local p = from:Lerp(to, k / count)
+		local base = groundAt(p.X, p.Z)
+		local lean = CFrame.Angles(math.rad(rng:NextNumber(-7, 7)), 0, math.rad(rng:NextNumber(-7, 7)))
+		local top = (CFrame.new(base) * lean * CFrame.new(0, rng:NextNumber(2.6, 3.4), 0)).Position
+		rod(parent, base - Vector3.new(0, 0.8, 0), top, 0.45, Palette.trunkDark)
+		if previous then
+			rod(parent, previous - Vector3.new(0, 0.6, 0), top - Vector3.new(0, 0.6, 0), 0.22, Palette.log)
+		end
+		if k % 4 == 2 then
+			skull(parent, CFrame.lookAt(top + Vector3.new(0, 0.42, 0), top + Vector3.new(0, 0.42, 0) + inward), 0.8, nil)
+		end
+		previous = top
+	end
+end
+
+local function buildEdges(parent: Instance, rng: Random)
+	local folder = Instance.new("Folder")
+	folder.Name = "Edges"
+	local hw = Config.Mountain.halfWidth
+	local zones = mountainZones()
+	local first, last = zones[1].zone, zones[#zones].zone
+	-- Brzeg pod grzbietem: krzywe drzewa i skały tuż przy ścianie, wyżej na stoku drugi rząd
+	local z = first.startZ
+	while z < last.endZ - 4 do
+		local x = -(hw - 2) + rng:NextNumber(-1.5, 1.5)
+		if rng:NextNumber() < 0.7 then
+			crookedTree(folder, footing(x, z, 1), rng, rng:NextNumber(1.3, 1.8), false)
+		else
+			Props.rock(folder, footing(x, z, 2), rng:NextNumber(1.4, 2), rng, 0.6)
+		end
+		if z < 3400 and rng:NextNumber() < 0.65 then
+			local x2 = -(hw + 6) - rng:NextNumber(0, 16)
+			local z2 = z + rng:NextNumber(-3, 3)
+			crookedTree(folder, footing(x2, z2, 1.5), rng, rng:NextNumber(1.4, 2.1), false)
+		end
+		z += rng:NextNumber(7, 11)
+	end
+	-- Po drugiej stronie drzewa tylko przy polanie; dalej płot nad urwiskiem, żeby widać było dolinę
+	z = first.startZ
+	while z < first.endZ do
+		crookedTree(folder, footing(hw - 2 + rng:NextNumber(-1.5, 1.5), z, 1), rng, rng:NextNumber(1.3, 1.8), false)
+		z += rng:NextNumber(7, 11)
+	end
+	fence(folder, Vector3.new(hw - 0.8, 0, first.endZ + 4), Vector3.new(hw - 0.8, 0, last.endZ - 3), rng)
+	-- Za ogródkiem i pod szczytem po drugiej stronie zbocze też opada w chmury
+	fence(folder, Vector3.new(-hw + 2, 0, last.endZ - 1.5), Vector3.new(hw - 2, 0, last.endZ - 1.5), rng)
+	fence(folder, Vector3.new(-(hw - 0.8), 0, 3418), Vector3.new(-(hw - 0.8), 0, last.endZ - 3), rng)
+	-- Rząd drzew na początku świata (za polaną)
+	local x = -hw
+	while x < hw do
+		crookedTree(folder, Vector3.new(x, 0, first.startZ - 2), rng, rng:NextNumber(1.3, 1.8), false)
+		x += rng:NextNumber(8, 11)
+	end
+	-- Skalne iglice na grzbiecie: postrzępiona sylwetka na tle nieba
+	z = 3050
+	while z < 3370 do
+		local cx = -rng:NextNumber(88, 112)
+		local base = groundAt(cx, z)
+		local height = rng:NextNumber(10, 22)
+		local tilt = CFrame.Angles(math.rad(rng:NextNumber(-10, 10)), rng:NextNumber(0, TAU), math.rad(rng:NextNumber(-10, 10)))
+		decor(make("Part", {
+			Name = "Spire",
+			Size = Vector3.new(rng:NextNumber(5, 8), height, rng:NextNumber(4, 7)),
+			CFrame = CFrame.new(base) * tilt * CFrame.new(0, height / 2 - 2, 0),
+			Color = pick(ROCK, rng),
+			Material = Enum.Material.Slate,
+			Parent = folder,
+		}))
+		decor(make("WedgePart", {
+			Name = "Spire",
+			Size = Vector3.new(rng:NextNumber(3, 5), height * 0.5, rng:NextNumber(3, 5)),
+			CFrame = CFrame.new(base) * tilt * CFrame.new(0, height + height * 0.25 - 2.2, 0),
+			Color = pick(ROCK, rng),
+			Material = Enum.Material.Slate,
+			Parent = folder,
+		}))
+		z += rng:NextNumber(26, 44)
 	end
 	folder.Parent = parent
 end
@@ -743,85 +1024,92 @@ local function buildZoneDecor(parent: Instance, zone: Config.ZoneDef, rng: Rando
 			cauldron(folder, spot, rng)
 		end
 	end
-	for _ = 1, recipe.bonfires do
-		local x, z = api.place(rng, -hw, hw, z1, z2, 4)
-		if x and z then
-			bonfire(folder, Vector3.new(x, 0, z), rng)
+	for _, fire in MountainShared.FIRES do
+		if not fire.big and fire.z >= zone.startZ and fire.z < zone.endZ then
+			bonfire(folder, groundAt(fire.x, fire.z), rng, "sabbath")
 		end
 	end
 	for i = 1, recipe.crooked do
 		local scale = rng:NextNumber(0.9, 1.3)
 		local x, z = api.place(rng, -hw, hw, z1, z2, 2.4 * scale)
 		if x and z then
-			crookedTree(folder, Vector3.new(x, 0, z), rng, scale, i % 2 == 0)
+			crookedTree(folder, footing(x, z, 1.2), rng, scale, i % 2 == 0)
 		end
 	end
 	for _ = 1, recipe.pines do
 		local x, z = api.place(rng, -hw, hw, z1, z2, 2.4)
 		if x and z then
-			Props.pine(folder, Vector3.new(x, 0, z), rng:NextNumber(1, 1.4), rng, 0.85)
+			Props.pine(folder, footing(x, z, 1.2), rng:NextNumber(1, 1.4), rng, 0.85)
 		end
 	end
 	for _ = 1, recipe.rocks do
 		local x, z = api.place(rng, -hw, hw, z1, z2, 2.5)
 		if x and z then
-			Props.rock(folder, Vector3.new(x, 0, z), rng:NextNumber(0.8, 1.4), rng, zone.darkness * 0.6)
+			Props.rock(folder, footing(x, z, 2), rng:NextNumber(0.8, 1.4), rng, zone.darkness * 0.6)
 		end
 	end
 	for _ = 1, recipe.stumps do
 		local x, z = api.place(rng, -hw, hw, z1, z2, 1.8)
 		if x and z then
-			Props.stump(folder, Vector3.new(x, 0, z), rng:NextNumber(0.8, 1.2), rng, zone.darkness * 0.6)
+			Props.stump(folder, footing(x, z, 1.2), rng:NextNumber(0.8, 1.2), rng, zone.darkness * 0.6)
 		end
 	end
 	for _ = 1, recipe.bones do
 		local x, z = api.place(rng, -hw, hw, z1, z2, 1.6)
 		if x and z then
-			bonePile(folder, Vector3.new(x, 0, z), rng)
+			bonePile(folder, groundAt(x, z), rng)
 		end
 	end
 	for _ = 1, recipe.brooms do
 		local x, z = api.place(rng, -hw, hw, z1, z2, 1.2)
 		if x and z then
-			broom(folder, Vector3.new(x, 0, z), rng)
+			broom(folder, footing(x, z, 0.3), rng)
 		end
 	end
 	for _ = 1, recipe.glow do
 		local x, z = api.place(rng, -hw, hw, z1, z2, 1.6)
 		if x and z then
-			Props.glowCluster(folder, Vector3.new(x, 0, z), rng)
+			Props.glowCluster(folder, footing(x, z, 0.6), rng)
 		end
 	end
 	for _ = 1, recipe.tufts do
 		local x, z = api.place(rng, -hw, hw, z1, z2, 0.8)
 		if x and z then
-			Props.grass(folder, Vector3.new(x, 0, z), rng:NextNumber(0.9, 1.3), rng, 0.7)
+			Props.grass(folder, footing(x, z, 0.4), rng:NextNumber(0.9, 1.3), rng, 0.7)
 		end
 	end
 	folder.Parent = parent
 end
 
--- Krąg kamieni na szczycie (ścieżka przechodzi przez środek), z ołtarzem z runą
-local STONE_CIRCLE = { z = 3352, radius = 13 }
+-- Krąg kamieni na wyrównanym placu (ścieżka przechodzi przez środek): ołtarz z runą po jednej
+-- stronie ścieżki, wielkie zielone ognisko sabatu po drugiej
 local function buildStoneCircle(parent: Instance, rng: Random)
+	local circle = MountainShared.STONE_CIRCLE
 	local m = Instance.new("Model")
 	m.Name = "StoneCircle"
-	local center = Vector3.new(0, 0, STONE_CIRCLE.z)
+	local center = Vector3.new(circle.x, Terrain.CIRCLE_Y, circle.z)
 	for i = 1, 10 do
 		local angle = (i - 0.5) / 10 * TAU
 		local dir = Vector3.new(math.sin(angle), 0, math.cos(angle))
 		-- Bez kamieni na ścieżce (przód i tył kręgu)
 		if math.abs(dir.X) > 0.3 then
-			menhir(m, center + dir * STONE_CIRCLE.radius, rng, -angle)
+			local at = center + dir * circle.radius
+			menhir(m, groundAt(at.X, at.Z), rng, -angle)
 		end
 	end
 	make("Part", { Name = "Altar", Size = Vector3.new(4, 1.6, 2.6), Position = center + Vector3.new(7, 0.8, 0), Color = pick(STONE, rng), Material = Enum.Material.Slate, Parent = m })
 	local rune = decor(make("Part", { Name = "Rune", Size = Vector3.new(2.2, 0.06, 1.4), Position = center + Vector3.new(7, 1.63, 0), Color = rgb(190, 110, 255), Material = Enum.Material.Neon, Transparency = 0.35, Parent = m }))
 	light(rune, rgb(190, 120, 255), 12, 0.6)
+	for _, fire in MountainShared.FIRES do
+		if fire.big then
+			bonfire(m, groundAt(fire.x, fire.z), rng, "great")
+		end
+	end
 	m.Parent = parent
 end
 
--- Miejsca, gdzie nic nie może wyrosnąć: polana, ścieżka, kotły, krąg kamieni, chatka i ogródek
+-- Miejsca, gdzie nic nie może wyrosnąć: polana, ścieżka (serpentyny), kotły, ogniska, krąg kamieni,
+-- chatka i ogródek
 function Mountain.reservedRects(): { Rect }
 	local rects: { Rect } = {}
 	local half = Config.Mountain.path + 1
@@ -830,57 +1118,180 @@ function Mountain.reservedRects(): { Rect }
 		if zone.safe then
 			table.insert(rects, { x1 = -Config.Mountain.halfWidth, x2 = Config.Mountain.halfWidth, z1 = zone.startZ - 4, z2 = zone.endZ + 2 })
 		else
-			table.insert(rects, { x1 = -half, x2 = half, z1 = zone.startZ, z2 = zone.endZ })
+			local z = zone.startZ
+			while z < zone.endZ do
+				local z2 = math.min(z + 4, zone.endZ)
+				local xa, xb = Terrain.pathX(z), Terrain.pathX(z2)
+				table.insert(rects, { x1 = math.min(xa, xb) - half, x2 = math.max(xa, xb) + half, z1 = z, z2 = z2 })
+				z = z2
+			end
 			table.insert(rects, { x1 = -9.5, x2 = 9.5, z1 = zone.startZ - 2.5, z2 = zone.startZ + 2.5 })
 		end
 	end
 	for _, spot in MountainShared.CAULDRONS do
 		table.insert(rects, { x1 = spot.x - 4, x2 = spot.x + 4, z1 = spot.z - 4, z2 = spot.z + 4 })
 	end
-	table.insert(rects, { x1 = -STONE_CIRCLE.radius - 2, x2 = STONE_CIRCLE.radius + 2, z1 = STONE_CIRCLE.z - STONE_CIRCLE.radius - 2, z2 = STONE_CIRCLE.z + STONE_CIRCLE.radius + 2 })
+	for _, fire in MountainShared.FIRES do
+		local r = if fire.big then 5 else 3.5
+		table.insert(rects, { x1 = fire.x - r, x2 = fire.x + r, z1 = fire.z - r, z2 = fire.z + r })
+	end
+	local circle = MountainShared.STONE_CIRCLE
+	table.insert(rects, { x1 = circle.x - circle.radius - 2, x2 = circle.x + circle.radius + 2, z1 = circle.z - circle.radius - 2, z2 = circle.z + circle.radius + 2 })
 	local lair = Config.JagaLair
 	table.insert(rects, { x1 = lair.centerX - lair.radius - 2, x2 = lair.centerX + lair.radius + 2, z1 = lair.hutZ - 8, z2 = lair.centerZ + lair.radius + 2 })
 	return rects
 end
 
--- ===== Tło za ścianami =====
+-- ===== Widok z góry: dolina, chmury, dalekie szczyty =====
 
 local MOUNTAIN_HILLS = { rgb(34, 28, 40), rgb(40, 32, 46), rgb(30, 26, 36) }
 local MOUNTAIN_PEAKS = { rgb(48, 42, 58), rgb(40, 36, 52), rgb(56, 48, 64) }
 
-local function buildBackdrop(parent: Instance, rng: Random)
+-- Czy w (x, z) jest już dno doliny (poza górą albo na jej dole)
+local function inValley(x: number, z: number): boolean
+	return not Terrain.covers(x, z) or Terrain.groundY(x, z) <= Terrain.FLOOR + 1
+end
+
+local function blob(parent: Instance, center: Vector3, size: Vector3, color: Color3, transparency: number?): BasePart
+	local p = Backdrop.blob(parent, center, size, color)
+	p.Transparency = transparency or 0
+	return p
+end
+
+local function buildScenery(parent: Instance, rng: Random)
+	local folder = Instance.new("Folder")
+	folder.Name = "Scenery"
 	local hw = Config.Mountain.halfWidth
 	local zones = mountainZones()
 	local first, last = zones[1].zone, zones[#zones].zone
-	Backdrop.build(parent, { x1 = -hw - 1, x2 = hw + 1, z1 = first.startZ - 3, z2 = last.endZ + 3 }, {
+
+	-- Za polaną (początek świata) zwykłe tło: drzewa, wzgórza i góry zasłaniają bagna
+	Backdrop.build(folder, { x1 = -hw - 1, x2 = hw + 1, z1 = first.startZ - 3, z2 = last.endZ + 3 }, {
 		name = "Mountain",
-		ground = rgb(36, 32, 40),
-		near = function(folder: Instance, base: Vector3, treeRng: Random)
+		near = function(f: Instance, base: Vector3, treeRng: Random)
 			if treeRng:NextNumber() < 0.6 then
-				crookedTree(folder, base, treeRng, treeRng:NextNumber(1.5, 2), false)
+				crookedTree(f, base, treeRng, treeRng:NextNumber(1.5, 2), false)
 			else
-				Props.pine(folder, base, treeRng:NextNumber(1.4, 1.9), treeRng, 0.95)
+				Props.pine(f, base, treeRng:NextNumber(1.4, 1.9), treeRng, 0.95)
 			end
 		end,
 		nearSpacing = 10,
-		far = function(folder: Instance, base: Vector3, treeRng: Random)
-			-- Sylwetka świerka
+		far = function(f: Instance, base: Vector3, treeRng: Random)
 			local s = treeRng:NextNumber(1.8, 2.6)
-			Backdrop.cone(folder, base + Vector3.new(0, 4 * s, 0), 7 * s, 12 * s, treeRng:NextNumber(0, TAU), rgb(22, 26, 28))
+			Backdrop.cone(f, base + Vector3.new(0, 4 * s, 0), 7 * s, 12 * s, treeRng:NextNumber(0, TAU), rgb(22, 26, 28))
 		end,
 		farSpacing = 10,
 		hill = MOUNTAIN_HILLS,
 		hillHeight = { 30, 52 },
 		mountain = MOUNTAIN_PEAKS,
-		mountainHeight = { 80, 130 },
+		mountainHeight = { 45, 75 },
+		ends = { true, false },
+		lines = { x1 = false, x2 = false, z1 = true, z2 = false },
+		groundY = Terrain.groundY,
 	}, rng)
+
+	-- Las w dolinie: ciemne korony widziane z góry
+	local function forest(x1: number, x2: number, z1: number, z2: number, count: number)
+		for _ = 1, count do
+			local x, z = rng:NextNumber(x1, x2), rng:NextNumber(z1, z2)
+			if inValley(x, z) then
+				local w = rng:NextNumber(14, 30)
+				local h = rng:NextNumber(10, 18)
+				blob(folder, Vector3.new(x, Terrain.FLOOR + h * 0.3, z), Vector3.new(w, h, w * rng:NextNumber(0.8, 1.2)), pick(VALLEY_TREES, rng))
+			end
+		end
+	end
+	forest(70, 420, 2930, 3700, 90)
+	forest(-320, 320, 3540, 3900, 50)
+	forest(-420, -150, 3000, 3700, 40)
+
+	-- Rzeka wijąca się dnem doliny (lekko świeci w świetle księżyca)
+	local points = {
+		Vector3.new(60, 0, 3900),
+		Vector3.new(120, 0, 3700),
+		Vector3.new(160, 0, 3520),
+		Vector3.new(240, 0, 3360),
+		Vector3.new(200, 0, 3200),
+		Vector3.new(270, 0, 3040),
+		Vector3.new(340, 0, 2900),
+	}
+	for k = 1, #points - 1 do
+		local p0 = points[math.max(k - 1, 1)]
+		local p1, p2 = points[k], points[k + 1]
+		local p3 = points[math.min(k + 2, #points)]
+		local previous = p1
+		for step = 1, 6 do
+			local t = step / 6
+			local t2, t3 = t * t, t * t * t
+			-- Catmull-Rom: gładka linia przez punkty
+			local p = (p1 * 2 + (p2 - p0) * t + (p0 * 2 - p1 * 5 + p2 * 4 - p3) * t2 + (p1 * 3 - p0 - p2 * 3 + p3) * t3) * 0.5
+			local length = (p - previous).Magnitude
+			if length > 0.1 then
+				decor(make("Part", {
+					Name = "River",
+					Size = Vector3.new(rng:NextNumber(7, 10), 0.3, length + 3),
+					CFrame = CFrame.lookAt((previous + p) / 2, p) + Vector3.new(0, Terrain.FLOOR + 0.25, 0),
+					Color = RIVER,
+					Material = Enum.Material.Neon,
+					Transparency = 0.35,
+					Parent = folder,
+				}))
+			end
+			previous = p
+		end
+	end
+
+	-- Wioska w dole: kilka chałup z ciepłymi okienkami (z góry widać tylko światełka)
+	for _ = 1, 9 do
+		local at = Vector3.new(rng:NextNumber(230, 290), Terrain.FLOOR, rng:NextNumber(3120, 3220))
+		local cf = CFrame.new(at) * CFrame.Angles(0, rng:NextNumber(0, TAU), 0)
+		decor(make("Part", { Size = Vector3.new(6, 4, 5), CFrame = cf * CFrame.new(0, 2, 0), Color = rgb(40, 32, 30), Parent = folder }))
+		decor(make("WedgePart", { Size = Vector3.new(6.4, 2.4, 2.8), CFrame = cf * CFrame.new(0, 5.2, -1.3), Color = rgb(52, 38, 34), Parent = folder }))
+		decor(make("WedgePart", { Size = Vector3.new(6.4, 2.4, 2.8), CFrame = cf * CFrame.new(0, 5.2, 1.3) * CFrame.Angles(0, math.pi, 0), Color = rgb(52, 38, 34), Parent = folder }))
+		decor(make("Part", { Size = Vector3.new(1.2, 1.1, 0.2), CFrame = cf * CFrame.new(rng:NextNumber(-1.6, 1.6), 2.2, -2.55), Color = VILLAGE_WINDOW, Material = Enum.Material.Neon, Parent = folder }))
+	end
+
+	-- Morze chmur pod szczytem: po bokach góry i za nią (szczyt i krąg kamieni są ponad nim)
+	local function clouds(x1: number, x2: number, z1: number, z2: number, count: number)
+		for _ = 1, count do
+			local x, z = rng:NextNumber(x1, x2), rng:NextNumber(z1, z2)
+			local y = Terrain.CLOUDS + rng:NextNumber(-3, 3)
+			-- Chmura nie wchodzi w zbocze góry
+			if not Terrain.covers(x, z) or Terrain.groundY(x, z) < y - 6 then
+				blob(folder, Vector3.new(x, y, z), Vector3.new(rng:NextNumber(60, 140), rng:NextNumber(6, 11), rng:NextNumber(40, 100)), CLOUD, rng:NextNumber(0.25, 0.45))
+			end
+		end
+	end
+	clouds(90, 640, 3150, 3950, 45)
+	clouds(-460, 460, 3520, 4100, 40)
+	clouds(-560, -170, 3150, 3950, 22)
+
+	-- Dalekie szczyty za morzem chmur (blade wierzchołki w świetle księżyca)
+	for _, peak in {
+		{ -300, 3760, 96 },
+		{ -150, 3900, 118 },
+		{ 30, 3980, 104 },
+		{ 190, 3880, 112 },
+		{ 330, 3770, 92 },
+		{ -420, 3640, 84 },
+		{ 440, 3640, 80 },
+	} do
+		local height = peak[3]
+		local base = Vector3.new(peak[1], Terrain.FLOOR - 2, peak[2])
+		local width = height * rng:NextNumber(1.2, 1.5)
+		local yaw = rng:NextNumber(0, TAU)
+		Backdrop.cone(folder, base, width, height, yaw, pick(PEAKS, rng))
+		Backdrop.cone(folder, base + Vector3.new(0, height * 0.72, 0), width * 0.28, height * 0.28, yaw, PEAK_TOP)
+	end
+	folder.Parent = parent
 end
 
 -- Buduje Łysą Górę. Zwraca CFrame polany (tu ląduje gracz) i Babę Jagę drzemiącą przy chatce.
 function Mountain.build(parent: Instance, rng: Random, api: Api): (CFrame, Model)
 	local folder = Instance.new("Folder")
 	folder.Name = "Mountain"
-	buildShell(folder, rng)
+	buildGround(folder, rng)
+	buildEdges(folder, rng)
 	local zones = mountainZones()
 	for index, entry in zones do
 		local zone = entry.zone
@@ -888,7 +1299,7 @@ function Mountain.build(parent: Instance, rng: Random, api: Api): (CFrame, Model
 			buildGlade(folder, zone, rng)
 		else
 			if index > 1 then
-				Props.gate(folder, zone.startZ, zone.key)
+				Props.gate(folder, zone.startZ, zone.key, Terrain.groundY(0, zone.startZ))
 			end
 			buildZoneDecor(folder, zone, rng, api)
 		end
@@ -897,40 +1308,58 @@ function Mountain.build(parent: Instance, rng: Random, api: Api): (CFrame, Model
 	stonePath(folder, zones[1].zone.endZ - 1, lair.hutZ - 6, rng)
 	-- Latarnie z czaszkami przy ścieżce, na zmianę po obu stronach (z dala od bram stref)
 	local side = 1
-	for z = zones[1].zone.endZ + 20, lair.hutZ - 20, 36 do
-		local nearGate = false
-		for _, entry in zones do
-			if math.abs(entry.zone.startZ - z) < 6 then
-				nearGate = true
+	local travelled = 0
+	local nextLantern = 20
+	local z = zones[1].zone.endZ
+	local previous = Vector3.new(Terrain.pathX(z), 0, z)
+	while z < lair.hutZ - 20 do
+		local here = Vector3.new(Terrain.pathX(z), 0, z)
+		travelled += (here - previous).Magnitude
+		previous = here
+		if travelled >= nextLantern then
+			local nearGate = false
+			for _, entry in zones do
+				if math.abs(entry.zone.startZ - z) < 6 then
+					nearGate = true
+				end
+			end
+			local circle = MountainShared.STONE_CIRCLE
+			if not nearGate and math.abs(z - circle.z) > circle.radius + 3 then
+				local forward = pathDirection(z)
+				local across = Vector3.new(forward.Z, 0, -forward.X)
+				local at = here + across * side * (Config.Mountain.path + 1.6)
+				skullLantern(folder, footing(at.X, at.Z, 0.3))
+				side = -side
+				nextLantern = travelled + 34
 			end
 		end
-		if not nearGate then
-			skullLantern(folder, Vector3.new(side * (Config.Mountain.path + 1.4), 0, z))
-			side = -side
-		end
+		z += 0.5
 	end
 	buildStoneCircle(folder, rng)
-	buildHut(folder, Vector3.new(lair.centerX, 0, lair.hutZ))
+	buildHut(folder, Vector3.new(lair.centerX, Terrain.TOP, lair.hutZ))
 	buildGarden(folder, rng)
 	-- Tabliczka ostrzegawcza przed chatką
 	local signZ = lair.hutZ - 14
+	local signY = Terrain.groundY(9, signZ)
 	for _, s in { -1, 1 } do
-		make("Part", { Size = Vector3.new(0.4, 4.6, 0.4), Position = Vector3.new(9 + s * 4.2, 2.3, signZ + 0.4), Color = Palette.log, Parent = folder })
+		local post = groundAt(9 + s * 4.2, signZ + 0.4)
+		make("Part", { Size = Vector3.new(0.4, 5.4, 0.4), Position = Vector3.new(post.X, post.Y + 1.9, post.Z), Color = Palette.log, Parent = folder })
 	end
-	Props.signBoard(folder, CFrame.new(9, 3.8, signZ), Vector3.new(9.6, 2.2, 0.3), "SIGN_HUT", Enum.NormalId.Front)
-	buildBackdrop(folder, rng)
+	Props.signBoard(folder, CFrame.new(9, signY + 3.8, signZ), Vector3.new(9.6, 2.2, 0.3), "SIGN_HUT", Enum.NormalId.Front)
+	buildScenery(folder, rng)
 	folder.Parent = parent
 	-- Baba Jaga drzemie w moździerzu obok chatki (posąg; budzi się, kiedy ktoś ukradnie jej Ziele)
-	local statue = Jaga.build(parent, CFrame.lookAt(Vector3.new(lair.centerX + 9, 0, lair.hutZ - 3), Vector3.new(lair.centerX + 9, 0, lair.hutZ - 20)), false)
+	local statueAt = Vector3.new(lair.centerX + 9, Terrain.TOP, lair.hutZ - 3)
+	local statue = Jaga.build(parent, CFrame.lookAt(statueAt, statueAt - Vector3.new(0, 0, 17)), false)
 	statue.Name = "JagaStatue"
 	local camp = Config.Mountain.camp
 	return CFrame.new(camp.x, 3, camp.z) * CFrame.Angles(0, math.pi, 0), statue
 end
 
--- Skąd wylatuje Baba Jaga w pościgu: spod drzwi chatki
+-- Skąd wylatuje Baba Jaga w pościgu: spod drzwi chatki (na płaskim szczycie)
 function Mountain.jagaOrigin(): Vector3
 	local lair = Config.JagaLair
-	return Vector3.new(lair.centerX, 0, lair.hutZ - 6)
+	return Vector3.new(lair.centerX, Terrain.TOP, lair.hutZ - 6)
 end
 
 return Mountain

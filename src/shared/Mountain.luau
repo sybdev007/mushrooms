@@ -64,6 +64,19 @@ Mountain.CAULDRONS = {
 	{ x = -24, z = 3286 },
 }
 
+-- Ogniska sabatu z zielonym ogniem: trzy na polu kotłów (kruki się do nich nie zbliżają, z dala od
+-- oparów i od ścieżki) i wielkie ognisko w kręgu kamieni na szczycie. Stałe miejsca, bo ziemia pod
+-- nimi jest wyrównana (Shared/MountainTerrain).
+Mountain.FIRES = {
+	{ x = 12, z = 3182 },
+	{ x = -12, z = 3246 },
+	{ x = 40, z = 3280 },
+	{ x = -7, z = 3354, big = true },
+}
+
+-- Krąg kamieni na szczycie (ścieżka przechodzi przez środek)
+Mountain.STONE_CIRCLE = { x = 0, z = 3354, radius = 13 }
+
 -- Czy punkt jest w trujących oparach któregoś kotła
 function Mountain.inFumes(at: Vector3): boolean
 	local radius = Config.Cauldrons.fumeRadius

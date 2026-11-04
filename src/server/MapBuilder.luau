@@ -21,6 +21,7 @@ local Cave = require(World:WaitForChild("Cave"))
 local DelveMap = require(World:WaitForChild("DelveMap"))
 local Swamp = require(World:WaitForChild("Swamp"))
 local MountainWorld = require(World:WaitForChild("Mountain"))
+local MountainTerrain = require(ReplicatedStorage.Shared.MountainTerrain)
 local ForgeWorld = require(World:WaitForChild("Forge"))
 local Leszy = require(World:WaitForChild("Leszy"))
 local Backdrop = require(World:WaitForChild("Backdrop"))
@@ -524,18 +525,25 @@ local function buildZoneDecor(parent: Instance, zoneIndex: number, rng: Random)
 	folder.Parent = parent
 end
 
+-- Łysa Góra: grzyby rosną na zboczu, ale nie na stromiznach (tam stałyby krzywo)
+local MOUNTAIN_SPOT_SLOPE = 0.45
+local function gentleSlope(x: number, z: number): boolean
+	return MountainTerrain.slope(x, z) <= MOUNTAIN_SPOT_SLOPE
+end
+
 local function buildSpots(rng: Random): { Spot }
 	local spots: { Spot } = {}
 	for zoneIndex, zone in Config.Zones do
 		local halfWidth = Economy.worldHalfWidth(zone.world) - 8
+		local mountain = zone.world == "mountain"
 		for i = 1, zone.spotCount do
-			local x, z = findSpot(rng, -halfWidth, halfWidth, zone.startZ + 6, zone.endZ - 6, 3)
+			local x, z = findSpot(rng, -halfWidth, halfWidth, zone.startZ + 6, zone.endZ - 6, 3, if mountain then gentleSlope else nil)
 			if x and z then
 				occupy(x, z, 3)
 				table.insert(spots, {
 					id = string.format("%s_%d", zone.id, i),
 					zone = zoneIndex,
-					position = Vector3.new(x, 0, z),
+					position = Vector3.new(x, if mountain then MountainTerrain.groundY(x, z) else 0, z),
 				})
 			end
 		end
@@ -596,7 +604,7 @@ end
 local function buildJagaSpots(): { Spot }
 	local spots: { Spot } = {}
 	local lair = Config.JagaLair
-	local center = Vector3.new(lair.centerX, 0, lair.centerZ)
+	local center = Vector3.new(lair.centerX, MountainTerrain.TOP, lair.centerZ) -- ogródek na płaskim szczycie
 	for i = 1, lair.spots do
 		local angle = (i - 1) / lair.spots * math.pi * 2 + math.pi / lair.spots
 		local position = center + Vector3.new(math.sin(angle), 0, math.cos(angle)) * lair.spotRadius
