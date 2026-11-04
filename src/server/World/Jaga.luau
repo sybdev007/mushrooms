@@ -131,7 +131,7 @@ function Jaga.build(parent: Instance, at: CFrame, awake: boolean): Model
 
 	-- ===== Głowa: chusta zawiązana pod brodą, żelazny haczykowaty nos, jeden ząb =====
 	local headY = body + 3.4
-	local head = block(m, "Head", Vector3.new(1.7, 1.6, 1.6), cf(0, headY, -0.55) * rot(-12, 0, 0), SKIN, { texture = 0.6 })
+	block(m, "Head", Vector3.new(1.7, 1.6, 1.6), cf(0, headY, -0.55) * rot(-12, 0, 0), SKIN, { texture = 0.6 })
 	block(m, "Chin", Vector3.new(0.9, 0.55, 0.6), cf(0, headY - 0.85, -1.15) * rot(25, 0, 0), SKIN_SHADE)
 	block(m, "Mouth", Vector3.new(0.8, 0.12, 0.08), cf(0, headY - 0.45, -1.38), MOUTH)
 	block(m, "Tooth", Vector3.new(0.14, 0.24, 0.08), cf(0.18, headY - 0.53, -1.4), TOOTH)
@@ -147,13 +147,16 @@ function Jaga.build(parent: Instance, at: CFrame, awake: boolean): Model
 		rod(m, "Hair", Vector3.new(side * 0.85, headY + 0.4, -0.7), Vector3.new(side * 1.05, headY - 1.1, -0.4), 0.22, HAIR)
 		rod(m, "Hair", Vector3.new(side * 0.75, headY + 0.2, -0.2), Vector3.new(side * 1.0, headY - 1.3, 0.1), 0.2, HAIR)
 	end
+	-- Zielona poświata przed twarzą: światło w środku głowy oświetlałoby wszystko dookoła, tylko nie
+	-- samą twarz, a w najciemniejszej strefie trzeba widzieć, kto nadlatuje
+	local glow = block(m, "Glow", Vector3.new(0.2, 0.2, 0.2), cf(0, headY - 0.2, -3.1), WOOD, { transparency = 1 })
 	local eyeLight = Instance.new("PointLight")
 	eyeLight.Name = "EyeLight"
 	eyeLight.Color = Jaga.EYE_COLOR
 	eyeLight.Range = 14
 	eyeLight.Brightness = if awake then 1.6 else 0
 	eyeLight.Shadows = false
-	eyeLight.Parent = head
+	eyeLight.Parent = glow
 	-- Chusta na głowie: czapa i węzeł pod brodą
 	block(m, "Scarf", Vector3.new(2.0, 1.2, 1.9), cf(0, headY + 0.75, -0.35) * rot(-12, 0, 0), SCARF, { texture = 0.55 })
 	block(m, "ScarfSide", Vector3.new(2.05, 1.4, 1.1), cf(0, headY - 0.1, 0.0) * rot(-12, 0, 0), SCARF_DARK, { texture = 0.6 })
@@ -224,8 +227,7 @@ function Jaga.setAwake(m: Model, awake: boolean)
 			child.Color = if awake then Jaga.EYE_COLOR else Jaga.EYE_SLEEP
 		end
 	end
-	local head = m:FindFirstChild("Head")
-	local eyeLight = head and head:FindFirstChild("EyeLight")
+	local eyeLight = m:FindFirstChild("EyeLight", true)
 	if eyeLight and eyeLight:IsA("PointLight") then
 		eyeLight.Brightness = if awake then 1.6 else 0
 	end

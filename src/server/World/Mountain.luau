@@ -57,7 +57,7 @@ local LEG = rgb(228, 168, 64)
 local LEG_SHADE = rgb(196, 134, 46)
 local CLAW = rgb(60, 52, 48)
 local THATCH = rgb(96, 78, 52)
-local GLOW_WINDOW = rgb(200, 255, 120)
+local GLOW_WINDOW = rgb(130, 220, 70)
 
 -- Ile czego w strefie
 type Recipe = {
@@ -319,6 +319,37 @@ local function cauldron(parent: Instance, spot: { x: number, z: number }, rng: R
 	fumes.Acceleration = Vector3.new(0, -0.3, 0)
 	fumes.EmissionDirection = Enum.NormalId.Right
 	fumes.Parent = brew
+	-- Opary przy ziemi rozlewają się na cały zasięg chmury, żeby było widać, gdzie lepiej nie stać
+	local radius = Config.Cauldrons.fumeRadius
+	local area = decor(make("Part", {
+		Name = "FumeArea",
+		Size = Vector3.new(radius * 2, 0.4, radius * 2),
+		Position = base + Vector3.new(0, 0.7, 0),
+		Transparency = 1,
+		Parent = m,
+	}))
+	local ground = Instance.new("ParticleEmitter")
+	ground.Name = "GroundFumes"
+	ground.Shape = Enum.ParticleEmitterShape.Sphere -- spłaszczona przez rozmiar części: koło o promieniu chmury
+	ground.ShapeStyle = Enum.ParticleEmitterShapeStyle.Volume
+	ground.Texture = "rbxasset://textures/particles/smoke_main.dds"
+	ground.Color = ColorSequence.new(rgb(130, 220, 80), rgb(70, 130, 45))
+	ground.LightInfluence = 0.5
+	ground.LightEmission = 0.2
+	ground.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 2.5), NumberSequenceKeypoint.new(1, 5) })
+	ground.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 1),
+		NumberSequenceKeypoint.new(0.3, 0.8),
+		NumberSequenceKeypoint.new(0.7, 0.84),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	ground.Lifetime = NumberRange.new(4, 6)
+	ground.Rate = 5
+	ground.Speed = NumberRange.new(0.2, 0.6)
+	ground.Rotation = NumberRange.new(0, 360)
+	ground.RotSpeed = NumberRange.new(-15, 15)
+	ground.EmissionDirection = Enum.NormalId.Top
+	ground.Parent = area
 	-- Ogień pod kotłem
 	local flame = decor(make("Part", { Name = "Flame", Size = Vector3.new(1.4, 1.2, 1.4), CFrame = CFrame.new(base + Vector3.new(0, 0.7, 0)) * CFrame.Angles(0, math.rad(45), 0), Color = FIRE, Material = Enum.Material.Neon, Transparency = 0.25, Parent = m }))
 	light(flame, rgb(255, 140, 60), 8, 0.6)
@@ -400,7 +431,8 @@ local function herbalistHut(parent: Instance, cf: CFrame)
 	m.Name = "HerbalistHut"
 	make("Part", { Name = "Walls", Size = Vector3.new(11, 7, 9), CFrame = cf * CFrame.new(0, 3.5, 0), Color = Palette.log, Material = Enum.Material.Wood, Parent = m })
 	for _, side in { -1, 1 } do
-		make("WedgePart", { Name = "Roof", Size = Vector3.new(12.4, 3.6, 5.6), CFrame = cf * CFrame.new(0, 8.8, side * 2.8) * CFrame.Angles(0, if side > 0 then 0 else math.pi, 0), Color = THATCH, Material = Enum.Material.Fabric, Parent = m })
+		-- WedgePart bez obrotu jest najwyższy z tyłu (+Z): wysoki bok obracamy do kalenicy (środka)
+		make("WedgePart", { Name = "Roof", Size = Vector3.new(12.4, 3.6, 5.6), CFrame = cf * CFrame.new(0, 8.8, side * 2.8) * CFrame.Angles(0, if side > 0 then math.pi else 0, 0), Color = THATCH, Material = Enum.Material.Fabric, Parent = m })
 	end
 	make("Part", { Name = "Door", Size = Vector3.new(2.4, 4.6, 0.3), CFrame = cf * CFrame.new(0, 2.3, -4.55), Color = Palette.plankDark, Parent = m })
 	local window = decor(make("Part", { Name = "Window", Size = Vector3.new(1.8, 1.6, 0.2), CFrame = cf * CFrame.new(3.4, 4.2, -4.55), Color = Palette.windowGlow, Material = Enum.Material.Neon, Transparency = 0.2, Parent = m }))
@@ -539,7 +571,7 @@ local function buildHut(parent: Instance, center: Vector3): Model
 	end
 	-- Dach ze strzechy z mchem i kominem
 	for _, side in { -1, 1 } do
-		decor(make("WedgePart", { Name = "Roof", Size = Vector3.new(11.6, 4.4, 6), CFrame = houseCf * CFrame.new(0, 9.9, side * 3) * CFrame.Angles(0, if side > 0 then 0 else math.pi, 0), Color = THATCH, Material = Enum.Material.Fabric, Parent = m }))
+		decor(make("WedgePart", { Name = "Roof", Size = Vector3.new(11.6, 4.4, 6), CFrame = houseCf * CFrame.new(0, 9.9, side * 3) * CFrame.Angles(0, if side > 0 then math.pi else 0, 0), Color = THATCH, Material = Enum.Material.Fabric, Parent = m }))
 	end
 	decor(make("Part", { Size = Vector3.new(11.8, 0.5, 0.8), CFrame = houseCf * CFrame.new(0, 12.15, 0), Color = rgb(70, 96, 52), Material = Enum.Material.Grass, Parent = m }))
 	local chimney = decor(make("Part", { Name = "Chimney", Size = Vector3.new(1.6, 4, 1.6), CFrame = houseCf * CFrame.new(3, 11.8, 2), Color = Palette.stoneChimney, Material = Enum.Material.Cobblestone, Parent = m }))
@@ -563,21 +595,46 @@ local function buildHut(parent: Instance, center: Vector3): Model
 		decor(make("Part", { Size = Vector3.new(0.18, 1.6, 0.24), CFrame = houseCf * CFrame.new(x, 3.4, -5.14), Color = Palette.trunkDark, Parent = m }))
 		window:SetAttribute("WatchGlow", true)
 	end
-	local glow = decor(make("Part", { Name = "DoorGlow", Size = Vector3.new(0.4, 0.4, 0.4), CFrame = houseCf * CFrame.new(0, 3.4, -6.4), Transparency = 1, Parent = m }))
-	light(glow, GLOW_WINDOW, 18, 0.8)
-	-- Wiązka promienia z drzwi: widać, gdzie chatka patrzy (klient rozjaśnia, gdy patrzy na ogródek)
-	local beam = decor(make("Part", {
-		Name = "WatchBeam",
-		Size = Vector3.new(7, 0.06, 18),
-		CFrame = CFrame.new(center + Vector3.new(0, 0.08, -9)),
-		Color = GLOW_WINDOW,
-		Material = Enum.Material.Neon,
-		Transparency = 0.86,
+	-- Spojrzenie chatki: snop światła spod drzwi pada skosem na ziemię przed nią, więc widać, gdzie
+	-- chatka patrzy (klient barwi go na czerwono, kiedy patrzy na ogródek). Beam zamiast SpotLight:
+	-- w mroku szczytu światło punktowe ginęło w mgle, a snop widać z daleka.
+	local eyeAt = (houseCf * CFrame.new(0, 3.4, -5.7)).Position
+	local watch = decor(make("Part", {
+		Name = "WatchLight",
+		Size = Vector3.new(0.4, 0.4, 0.4),
+		CFrame = CFrame.lookAt(eyeAt, eyeAt + Vector3.new(0, -0.8, -1)),
+		Transparency = 1,
 		Parent = m,
 	}))
-	beam:SetAttribute("WatchGlow", true)
+	watch:SetAttribute("WatchGlow", true)
+	local from = Instance.new("Attachment")
+	from.Name = "From"
+	from.Parent = watch
+	local to = Instance.new("Attachment")
+	to.Name = "To"
+	to.Position = Vector3.new(0, 0, -(floor + 3.4) / 0.62) -- do ziemi (spadek 0,8 na 1 = sinus ok. 0,62)
+	to.Parent = watch
+	local shaft = Instance.new("Beam")
+	shaft.Attachment0 = from
+	shaft.Attachment1 = to
+	shaft.Width0 = 2.4
+	shaft.Width1 = 10
+	shaft.FaceCamera = true
+	shaft.Segments = 1
+	shaft.LightEmission = 1
+	shaft.LightInfluence = 0
+	shaft.Color = ColorSequence.new(GLOW_WINDOW)
+	shaft.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.55),
+		NumberSequenceKeypoint.new(0.75, 0.8),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	shaft.Parent = watch
 
 	m:SetAttribute("Center", center)
+	-- Cała chatka dociera do klienta naraz (inaczej klient mógłby obracać model bez osi nogi)
+	m.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
+	m.WorldPivot = CFrame.new(center)
 	CollectionService:AddTag(m, "JagaHut")
 	m.Parent = parent
 	return m
