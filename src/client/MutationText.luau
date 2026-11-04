@@ -65,6 +65,47 @@ function MutationText.rich(variant: string?, tags: { string }?): string
 	return table.concat(parts, " ")
 end
 
+-- Wielkie litery także dla polskich znaków (string.upper zmienia tylko a-z)
+local POLISH_UPPER: { [string]: string } = { ["ą"] = "Ą", ["ć"] = "Ć", ["ę"] = "Ę", ["ł"] = "Ł", ["ń"] = "Ń", ["ó"] = "Ó", ["ś"] = "Ś", ["ź"] = "Ź", ["ż"] = "Ż" }
+function MutationText.upper(text: string): string
+	local out = string.upper(text)
+	for lower, upper in POLISH_UPPER do
+		out = (string.gsub(out, lower, upper))
+	end
+	return out
+end
+
+-- Nazwa wariantu wielkimi literami w jego kolorach („ZŁOTY”, tęcza litera po literze); "" bez wariantu
+function MutationText.variantTitle(variant: string?): string
+	local def = Economy.getVariant(variant)
+	if not def then
+		return ""
+	end
+	local name = MutationText.upper(Localize.t(def.key))
+	return if def.id == "rainbow" then rainbow(name) elseif def.id == "cosmic" then cosmic(name) else colored(name, rgb(def.color))
+end
+
+-- Oznaczenie wariantu z ikoną z Config („🌈 TĘCZOWY”); "" bez wariantu
+function MutationText.variantBadge(variant: string?): string
+	local def = Economy.getVariant(variant)
+	if not def then
+		return ""
+	end
+	return def.icon .. " " .. MutationText.variantTitle(variant)
+end
+
+-- Same cechy (bez wariantu), każda w swoim kolorze, rozdzielone kropką („Otchłanny · Zaklęty”)
+function MutationText.traits(tags: { string }?): string
+	local parts = {}
+	for _, id in (tags or {}) :: { string } do
+		local tag = Economy.getTag(id)
+		if tag then
+			table.insert(parts, colored(Localize.t(tag.key), rgb(tag.color)))
+		end
+	end
+	return table.concat(parts, colored(" · ", Color3.fromRGB(170, 160, 190)))
+end
+
 -- Napis nad grzybem (BillboardGui z jednym TextLabel z RichText i obwódką), bez rodzica
 function MutationText.billboard(name: string, size: UDim2, maxDistance: number): (BillboardGui, TextLabel)
 	local gui = Instance.new("BillboardGui")
