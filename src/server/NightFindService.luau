@@ -364,11 +364,21 @@ function NightFindService.devSpawn(player: Player)
 	spawnAt_(groundAt(ahead.Position), Economy.zoneIndexAt(ahead.Position.Z))
 end
 
--- Trofea na 0 (przywrócenie zapisu po teście)
+-- Trofea na 0 i tytuły Znalezisk znów „nowe” (przywrócenie zapisu po teście)
 function NightFindService.devReset(player: Player)
 	local data = api.getData(player)
-	if data then
-		data.stats.nightFinds = 0
+	if not data then
+		return
+	end
+	data.stats.nightFinds = 0
+	for _, step in Config.NightFind.titles do
+		local at = if data.titles then table.find(data.titles, step.id) else nil
+		if at then
+			table.remove(data.titles, at)
+		end
+		if data.titleChoice == step.id then
+			data.titleChoice = ""
+		end
 	end
 end
 
