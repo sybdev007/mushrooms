@@ -1149,7 +1149,7 @@ test("progi ostrzeżeń są w dobrej kolejności", function()
 end)
 
 print("Rzadkie grzyby")
-test("rzadkie: plakietki i wielkie znaleziska mają z czego się liczyć", function()
+test("rzadkie w ogródku: szyld ma z czego się liczyć", function()
 	-- Epickie gatunki rosną w lesie, legendarne to skarby strażników i gaju
 	local epic, legendary = 0, 0
 	for _, species in Config.Species do
@@ -1163,8 +1163,7 @@ test("rzadkie: plakietki i wielkie znaleziska mają z czego się liczyć", funct
 	end
 	check(epic > 0, "są epickie gatunki")
 	check(legendary > 0, "są legendarne gatunki")
-	check(Config.AnnounceRank == 3, "tęcza i wyżej ogłaszane")
-	-- Wielkie litery z polskimi znakami na plakietkach i kartach
+	-- Wielkie litery z polskimi znakami na szyldzie ogródka
 	local MutationText = loadModule("src/client/MutationText.luau", {
 		game = { GetService = function() return { Shared = { Economy = Economy } } end },
 		Color3 = roblox.Color3,

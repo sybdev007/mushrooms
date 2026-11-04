@@ -1272,10 +1272,8 @@ local function onPick(player: Player, spotId: unknown)
 			tags = state.tags,
 		})
 	end
-	-- Tęcza, kosmos i legendarne gatunki (skarby strażników): ogłoszenie dla całego serwera (wiadomo,
-	-- czyj ogródek warto potem odwiedzić)
-	local legendary = Economy.speciesClass(state.speciesId).id == "legendary"
-	if rank >= Config.AnnounceRank or legendary then
+	-- Tęcza: ogłoszenie dla całego serwera (wiadomo, czyją suszarnię warto potem odwiedzić)
+	if rank >= Config.AnnounceRank then
 		for _, other in sessions do
 			if other ~= session then
 				notify(other, "MSG_RARE_FIND", { player.DisplayName }, species and species.key or nil, {

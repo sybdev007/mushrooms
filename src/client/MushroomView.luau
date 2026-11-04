@@ -3,8 +3,6 @@
 -- Serwer mówi, gdzie co rośnie, a ten moduł rysuje grzyby: voxelowe, z klocków (schodkowy kapelusz,
 -- kwadratowe kropki, piksele cienia i buzia na trzonie). Każdy gatunek ma swój kształt, grzyby wyrastają
 -- z ziemi, złote i świecące lśnią i się unoszą, a rzadsze mają aury (zarodniki, krążące kostki, słup światła).
--- Epickie i legendarne gatunki prześwitują przez ciemność jak warianty (snop światła widać spoza latarni),
--- a epickie, legendarne, złote, tęczowe i kosmiczne mają nad sobą plakietkę rzadkości („★ EPICKI”).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -58,8 +56,6 @@ type Entry = {
 	emitters: { ParticleEmitter }, -- dym Przeklętego: gaśnie razem z grzybem schowanym w ciemności
 	tracks: boolean, -- Oko Nocy: obraca się za graczem
 	lookYaw: number?,
-	beacon: boolean, -- epicki albo legendarny gatunek: widać go w ciemności spoza latarni
-	plaque: BillboardGui?, -- plakietka rzadkości nad grzybem (PlayerGui, Adornee na kapeluszu)
 }
 
 export type AddOptions = {
@@ -809,7 +805,7 @@ local function buildAura(model: Model, info: MushroomInfo, origin: CFrame, shape
 	end
 	-- Epicki: niższy snop w kolorze klasy, żeby było go widać z daleka w ciemnym lesie
 	if rank == 3 and not aura.pillar then
-		local pillar, beams, motes = buildShaft(model, origin, shape.capW * SIZE * 0.8 + 0.4, 12, lighten(classColor, 0.25))
+		local pillar, beams, motes = buildShaft(model, origin, shape.capW * SIZE * 0.8 + 0.4, 9, lighten(classColor, 0.25))
 		aura.pillar = pillar
 		aura.beams = beams
 		aura.motes = motes
@@ -1223,132 +1219,6 @@ local function buildModel(info: MushroomInfo, parent: Instance?, fit: Vector2?):
 	return model, parts, neon or rank >= 1, rainbow, aura, fxParts, extras
 end
 
--- ===== Plakietka rzadkości =====
--- Nad epickimi i legendarnymi gatunkami oraz złotymi, tęczowymi i kosmicznymi grzybami (bez celowania):
--- „★ EPICKI”, „★★ LEGENDARNY” w kolorze klasy, obok nazwa wariantu w jego kolorach. Widać ją z bliska
--- (MaxDistance), znika, gdy grzyb schowa się w ciemności albo gdy gracz w niego celuje (wtedy jest
--- pełny napis z nazwą). Rośnie, gdy podchodzisz (rozmiar w studach), ale z daleka nie maleje do zera.
-
-local PLAQUE_DISTANCE = 45
-local PLAQUE_BG = rgb(22, 16, 34)
-
--- Klasa gatunku jako liczba: 0 pospolity ... 3 epicki, 4 legendarny (mityczny i sekretny z kuźni: 5)
-function MushroomView.classRank(species: string): number
-	local id = Economy.speciesClass(species).id
-	if id == "mythic" or id == "secret" then
-		return 5
-	end
-	return CLASS_RANK[id] or 0
-end
-
-local function plaqueText(info: MushroomInfo): string?
-	local classRank = MushroomView.classRank(info.species)
-	local variantRank = Economy.variantRank(info.variant)
-	if classRank < 3 and variantRank < 2 then
-		return nil
-	end
-	local parts = {}
-	if classRank >= 3 then
-		local class = Economy.speciesClass(info.species)
-		local stars = if classRank >= 5 then "★★★" elseif classRank >= 4 then "★★" else "★"
-		local color = rgb(class.color[1], class.color[2], class.color[3])
-		table.insert(parts, string.format('<font color="#%s">%s %s</font>', color:ToHex(), stars, MutationText.upper(Localize.t(class.key))))
-	end
-	if variantRank >= 2 then
-		table.insert(parts, MutationText.variantTitle(info.variant))
-	end
-	return table.concat(parts, "  ")
-end
-
-local function plaqueAccent(info: MushroomInfo): Color3
-	local variantColor = if Economy.variantRank(info.variant) >= 3 then MutationText.variantColor(info.variant) else nil
-	if variantColor then
-		return variantColor
-	end
-	if MushroomView.classRank(info.species) >= 3 then
-		local class = Economy.speciesClass(info.species)
-		return rgb(class.color[1], class.color[2], class.color[3])
-	end
-	return MutationText.variantColor(info.variant) or Color3.new(1, 1, 1)
-end
-
-local function makePlaque(info: MushroomInfo, model: Model): BillboardGui?
-	local text = plaqueText(info)
-	local cap = model.PrimaryPart
-	if not text or not cap then
-		return nil
-	end
-	local gui = Instance.new("BillboardGui")
-	gui.Name = "RarityPlaque"
-	-- Część w studach (rośnie, gdy podchodzisz), część w pikselach (z daleka dalej czytelna)
-	gui.Size = UDim2.new(3.2, 70, 0.62, 14)
-	gui.StudsOffsetWorldSpace = Vector3.new(0, cap.Size.Y / 2 + 1.7, 0)
-	gui.AlwaysOnTop = true
-	gui.LightInfluence = 0
-	gui.MaxDistance = PLAQUE_DISTANCE
-	gui.ResetOnSpawn = false
-	gui.Adornee = cap
-	local pill = Instance.new("Frame")
-	pill.Name = "Pill"
-	pill.Size = UDim2.fromScale(1, 1)
-	pill.BackgroundColor3 = PLAQUE_BG
-	pill.BackgroundTransparency = 0.25
-	pill.Parent = gui
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(1, 0)
-	corner.Parent = pill
-	local border = Instance.new("UIStroke")
-	border.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-	border.Thickness = 2
-	border.Color = plaqueAccent(info)
-	border.Parent = pill
-	local label = Instance.new("TextLabel")
-	label.Name = "Text"
-	label.Size = UDim2.new(1, -12, 0.78, 0)
-	label.Position = UDim2.fromScale(0.5, 0.5)
-	label.AnchorPoint = Vector2.new(0.5, 0.5)
-	label.BackgroundTransparency = 1
-	label.Font = Enum.Font.FredokaOne
-	label.RichText = true
-	label.TextScaled = true
-	label.TextColor3 = Color3.new(1, 1, 1)
-	label.Text = text
-	label.Parent = pill
-	local outline = Instance.new("UIStroke")
-	outline.Thickness = 1.5
-	outline.Color = rgb(20, 12, 8)
-	outline.Parent = label
-	gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
-	return gui
-end
-
--- Napis rzadkości („★ EPICKI  ZŁOTY”, RichText) i jego kolor dla plakietek poza lasem (ogródki);
--- nil = zwykły grzyb bez plakietki
-MushroomView.rarityText = plaqueText
-MushroomView.rarityAccent = plaqueAccent
-
--- Stopień rzadkości do plakietek w ogródku: 0 brak, 1 złoty, 2 tęczowy albo epicki,
--- 3 kosmiczny albo legendarny, 4 mityczny albo sekretny (z kuźni). Im wyższy, tym dalej widać.
-function MushroomView.rarityTier(info: MushroomInfo): number
-	local variantRank = Economy.variantRank(info.variant)
-	local classRank = MushroomView.classRank(info.species)
-	local byVariant = if variantRank >= 4 then 3 elseif variantRank >= 3 then 2 elseif variantRank >= 2 then 1 else 0
-	local byClass = if classRank >= 5 then 4 elseif classRank >= 4 then 3 elseif classRank >= 3 then 2 else 0
-	return math.max(byVariant, byClass)
-end
-
--- Kopia modelu grzyba (bez dźwięków i światła), np. do okienka z wielkim znaleziskiem (RareFind)
-function MushroomView.snapshot(id: string): Model?
-	local entry = entries[id]
-	if not entry then
-		return nil
-	end
-	local ok, copy = pcall(function()
-		return entry.model:Clone()
-	end)
-	return if ok then copy else nil
-end
-
 -- Grzyb wyrasta z ziemi: części startują schowane pod ziemią i wyskakują na swoje miejsce
 local function growIn(parts: { BasePart })
 	local info = TweenInfo.new(0.55, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
@@ -1367,9 +1237,6 @@ function MushroomView.add(list: { MushroomInfo }, options: AddOptions?)
 		local old = entries[info.id]
 		if old then
 			old.model:Destroy()
-			if old.plaque then
-				old.plaque:Destroy()
-			end
 			-- Grzyb podmieniony (np. o świcie): napis nad nim trzeba zbudować od nowa
 			if targetId == info.id then
 				targetId = nil
@@ -1399,8 +1266,6 @@ function MushroomView.add(list: { MushroomInfo }, options: AddOptions?)
 			cosmicParts = extras.cosmic,
 			emitters = extras.emitters,
 			tracks = extras.tracks,
-			beacon = not decorative and MushroomView.classRank(info.species) >= 3,
-			plaque = if decorative then nil else makePlaque(info, model),
 		}
 	end
 end
@@ -1422,9 +1287,6 @@ function MushroomView.forget(id: string)
 		highlight.Adornee = nil
 	end
 	entry.model:Destroy()
-	if entry.plaque then
-		entry.plaque:Destroy()
-	end
 end
 
 -- Kolor kapelusza (do efektów przy zbieraniu)
@@ -1491,9 +1353,6 @@ function MushroomView.remove(id: string)
 		highlight.Adornee = nil
 	end
 	entries[id] = nil
-	if entry.plaque then
-		entry.plaque:Destroy()
-	end
 	-- Purchawka: przy zerwaniu wypuszcza chmurę zarodników
 	local species = Economy.getSpecies(entry.info.species)
 	if species and species.puff and not entry.hidden then
@@ -1573,8 +1432,7 @@ function MushroomView.updateVisibility(position: Vector3, lanternRange: number, 
 	local visibleRange = if darkness >= 0.7 then lanternRange + 2 else math.huge
 	local t = os.clock()
 	for _, entry in entries do
-		-- Świecące, warianty i epickie/legendarne gatunki widać w ciemności spoza latarni
-		local glows = entry.animated or entry.beacon
+		local glows = entry.animated
 		local hidden = not glows and not entry.decorative and flatDistance(position, entry.info.position) > visibleRange
 		if hidden ~= entry.hidden then
 			entry.hidden = hidden
@@ -1592,14 +1450,6 @@ function MushroomView.updateVisibility(position: Vector3, lanternRange: number, 
 			end
 			for _, emitter in entry.emitters do
 				emitter.Enabled = not hidden
-			end
-		end
-		local plaque = entry.plaque
-		if plaque then
-			-- Gdy gracz celuje w grzyb, nad nim jest pełny napis z nazwą (targetTag)
-			local show = not entry.hidden and entry.info.id ~= targetId
-			if plaque.Enabled ~= show then
-				plaque.Enabled = show
 			end
 		end
 		-- Tęczowy kapelusz przechodzi przez wszystkie kolory (tylko gdy gracz jest blisko)
@@ -1709,17 +1559,5 @@ function MushroomView.updateVisibility(position: Vector3, lanternRange: number, 
 		end
 	end
 end
-
--- Zmiana języka: plakietki rzadkości dostają nowe napisy
-Localize.onChanged(function()
-	for _, entry in entries do
-		local plaque = entry.plaque
-		local label = plaque and plaque:FindFirstChild("Text", true)
-		local text = plaqueText(entry.info)
-		if label and label:IsA("TextLabel") and text then
-			label.Text = text
-		end
-	end
-end)
 
 return MushroomView

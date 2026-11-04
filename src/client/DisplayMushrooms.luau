@@ -166,6 +166,39 @@ local function infoOf(marker: Model): MushroomView.MushroomInfo?
 	}
 end
 
+-- ===== Rzadkość grzybów w ogródku =====
+-- (tylko ogródki: grzyby do zbierania w lesie wyglądają tak jak zawsze, MushroomView)
+
+local CLASS_RANK: { [string]: number } = { common = 0, uncommon = 1, rare = 2, epic = 3, legendary = 4, mythic = 5, secret = 5 }
+
+-- Klasa gatunku jako liczba: 0 pospolity ... 3 epicki, 4 legendarny, 5 mityczny i sekretny (z kuźni)
+local function classRank(species: string): number
+	return CLASS_RANK[Economy.speciesClass(species).id] or 0
+end
+
+-- Stopień rzadkości: 0 brak, 1 złoty, 2 tęczowy albo epicki, 3 kosmiczny albo legendarny,
+-- 4 mityczny albo sekretny. Im wyższy, tym dalej widać szyld ogródka.
+local function rarityTier(info: MushroomView.MushroomInfo): number
+	local variantRank = Economy.variantRank(info.variant)
+	local rank = classRank(info.species)
+	local byVariant = if variantRank >= 4 then 3 elseif variantRank >= 3 then 2 elseif variantRank >= 2 then 1 else 0
+	local byClass = if rank >= 5 then 4 elseif rank >= 4 then 3 elseif rank >= 3 then 2 else 0
+	return math.max(byVariant, byClass)
+end
+
+-- Kolor rzadkości (ramka plakietki): tęcza i kosmos wygrywają z klasą, potem epicki i wyżej, potem złoto
+local function rarityAccent(info: MushroomView.MushroomInfo): Color3
+	local variantColor = if Economy.variantRank(info.variant) >= 3 then MutationText.variantColor(info.variant) else nil
+	if variantColor then
+		return variantColor
+	end
+	if classRank(info.species) >= 3 then
+		local class = Economy.speciesClass(info.species)
+		return Color3.fromRGB(class.color[1], class.color[2], class.color[3])
+	end
+	return MutationText.variantColor(info.variant) or Color3.new(1, 1, 1)
+end
+
 -- Gwiazdki przed nazwą według klasy (3 epicki, 4 legendarny, 5 mityczny / sekretny)
 local STARS: { [number]: string } = setmetatable({ [3] = "★ ", [4] = "★★ ", [5] = "★★★ " }, {
 	__index = function()
@@ -178,7 +211,7 @@ local STARS: { [number]: string } = setmetatable({ [3] = "★ ", [4] = "★★ "
 -- Widać go z daleka (im rzadsze grzyby, tym dalej), żeby inni gracze od razu wiedzieli, gdzie rosną
 -- skarby. Liczy się na kliencie ze znaczników grządek (atrybuty Species / Variant / Tags).
 
-local BANNER_DISTANCE = { 70, 120, 160, 200 } -- według najwyższego stopnia (MushroomView.rarityTier)
+local BANNER_DISTANCE = { 70, 120, 160, 200 } -- według najwyższego stopnia (rarityTier)
 local BANNER_GROUPS = 3
 local BANNER_BG = Color3.fromRGB(22, 16, 34)
 
@@ -193,16 +226,16 @@ end
 
 -- Napis jednej grupy (klasa z gwiazdkami albo wariant) i jej stopień; nil = zwykły grzyb
 local function groupOf(info: MushroomView.MushroomInfo): (string?, number, Color3)
-	local tier = MushroomView.rarityTier(info)
+	local tier = rarityTier(info)
 	if tier <= 0 then
 		return nil, 0, Color3.new(1, 1, 1)
 	end
-	local classRank = MushroomView.classRank(info.species)
-	local classTier = if classRank >= 5 then 4 elseif classRank >= 4 then 3 elseif classRank >= 3 then 2 else 0
+	local rank = classRank(info.species)
+	local classTier = if rank >= 5 then 4 elseif rank >= 4 then 3 elseif rank >= 3 then 2 else 0
 	if classTier >= tier then
 		local class = Economy.speciesClass(info.species)
 		local color = Color3.fromRGB(class.color[1], class.color[2], class.color[3])
-		local text = string.format('<font color="%s">%s%s</font>', hexOf(color), STARS[classRank], MutationText.upper(Localize.t(class.key)))
+		local text = string.format('<font color="%s">%s%s</font>', hexOf(color), STARS[rank], MutationText.upper(Localize.t(class.key)))
 		return text, tier, color
 	end
 	return MutationText.variantTitle(info.variant), tier, MutationText.variantColor(info.variant) or Color3.new(1, 1, 1)
@@ -350,9 +383,9 @@ local function gardenLabel(marker: Model, root: BasePart, info: MushroomView.Mus
 	chipCorner.Parent = chip
 	local chipBorder = Instance.new("UIStroke")
 	-- Rzadki grzyb (złoty i wyżej, epicki i wyżej): grubsza ramka w kolorze rzadkości
-	local rare = MushroomView.rarityTier(info) > 0
+	local rare = rarityTier(info) > 0
 	chipBorder.Thickness = if rare then 2.5 else 1.5
-	chipBorder.Color = if rare then MushroomView.rarityAccent(info) else classColor
+	chipBorder.Color = if rare then rarityAccent(info) else classColor
 	chipBorder.Parent = chip
 	local variant = Economy.getVariant(info.variant)
 	local dot = Instance.new("Frame")
@@ -381,7 +414,7 @@ local function gardenLabel(marker: Model, root: BasePart, info: MushroomView.Mus
 
 	local function refresh()
 		local species = Economy.getSpecies(info.species)
-		name.Text = STARS[MushroomView.classRank(info.species)] .. (if species then Localize.t(species.key) else "?")
+		name.Text = STARS[classRank(info.species)] .. (if species then Localize.t(species.key) else "?")
 		local text = MutationText.rich(info.variant, info.tags)
 		hasMutations = text ~= ""
 		mutations.Text = text
