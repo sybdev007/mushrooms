@@ -8,6 +8,9 @@
 --                      (updateGardenLabels): z daleka nic, bliżej plakietka z dochodem, a jedna grządka
 --                      naraz (najbliższa albo ta na środku ekranu) ma pełną kartę: nazwa, mutacje w ich
 --                      kolorach i w języku gracza, wartość i dochód (atrybuty Value / Rate od serwera).
+--                      Rzadkie grzyby mają nad tym plakietkę rzadkości („★ EPICKI”, „TĘCZOWY”,
+--                      „★★★ MITYCZNY”), którą widać z daleka, także z drugiej strony polany: im rzadszy
+--                      grzyb, tym większa i z dalszej odległości (MushroomView.rarityTier).
 --   "HoardMushroom"  — grzyby odebrane przez strażnika (Leszy, Skarbnik, Utopiec) w jego legowisku,
 --                      z napisem mutacji nad grzybem.
 --   "RavenDrop"      — grzyb, który kruk Baby Jagi upuścił obok gracza (Łysa Góra), wygląda jak w skarbcu.
@@ -59,6 +62,7 @@ type Mode = "card" | "chip" | "hidden"
 
 type Label = {
 	gui: BillboardGui,
+	banner: BillboardGui?, -- plakietka rzadkości nad grządką (widać ją z daleka)
 	mutations: TextLabel,
 	value: TextLabel?,
 	info: MushroomView.MushroomInfo,
@@ -162,6 +166,48 @@ local function infoOf(marker: Model): MushroomView.MushroomInfo?
 	}
 end
 
+-- Plakietka rzadkości nad grządką: od jakiej odległości ją widać (studs) i jak duża, według stopnia rzadkości
+local BANNER_DISTANCE = { 35, 70, 110, 150 }
+local BANNER_SCALE = { 0.85, 1, 1.15, 1.3 }
+local BANNER_BG = Color3.fromRGB(22, 16, 34)
+
+local function rarityBanner(root: BasePart, info: MushroomView.MushroomInfo): (BillboardGui?, TextLabel?)
+	local tier = MushroomView.rarityTier(info)
+	local text = MushroomView.rarityText(info)
+	if tier <= 0 or not text then
+		return nil, nil
+	end
+	local k = BANNER_SCALE[tier] or 1
+	local gui = Instance.new("BillboardGui")
+	gui.Name = "GardenRarity"
+	-- Część w studach (rośnie z bliska), część w pikselach (czytelna z drugiej strony polany)
+	gui.Size = UDim2.new(2.4 * k, math.floor(64 * k), 0.5 * k, math.floor(14 * k))
+	gui.StudsOffset = Vector3.new(0, 6.2, 0)
+	gui.AlwaysOnTop = true
+	gui.LightInfluence = 0
+	gui.MaxDistance = BANNER_DISTANCE[tier] or 60
+	gui.ResetOnSpawn = false
+	gui.Adornee = root
+	local pill = Instance.new("Frame")
+	pill.Size = UDim2.fromScale(1, 1)
+	pill.BackgroundColor3 = BANNER_BG
+	pill.BackgroundTransparency = 0.2
+	pill.Parent = gui
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(1, 0)
+	corner.Parent = pill
+	local border = Instance.new("UIStroke")
+	border.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	border.Thickness = if tier >= 3 then 3 else 2
+	border.Color = MushroomView.rarityAccent(info)
+	border.Parent = pill
+	local label = textLabel(pill, UDim2.new(1, -12, 0.8, 0), UDim2.fromScale(0.5, 0.5), Color3.new(1, 1, 1))
+	label.AnchorPoint = Vector2.new(0.5, 0.5)
+	label.Text = text
+	gui.Parent = playerGui
+	return gui, label
+end
+
 -- Tabliczka nad grządką. Pełna karta: nazwa gatunku w kolorze klasy / [mutacje w kolorach] /
 -- 💰 wartość  +dochód/min, obwódka w kolorze klasy (klasę mówi kolor nazwy, bez osobnych znaków).
 -- Plakietka: kropka w kolorze wariantu (bez wariantu: klasy) i sam dochód.
@@ -254,14 +300,19 @@ local function gardenLabel(marker: Model, root: BasePart, info: MushroomView.Mus
 	end
 
 	local mode: Mode = "hidden"
+	local banner, bannerLabel = rarityBanner(root, info)
 	local entry: Label = {
 		gui = gui,
+		banner = banner,
 		mutations = mutations,
 		value = value,
 		info = info,
 		refresh = function()
 			refresh()
 			layout(mode)
+			if bannerLabel then
+				bannerLabel.Text = MushroomView.rarityText(info) or ""
+			end
 		end,
 		root = root,
 		setMode = function(next: Mode)
@@ -352,6 +403,9 @@ local function dropLabel(marker: Instance)
 	if entry then
 		labels[marker] = nil
 		entry.gui:Destroy()
+		if entry.banner then
+			entry.banner:Destroy()
+		end
 	end
 	local list = connections[marker]
 	if list then

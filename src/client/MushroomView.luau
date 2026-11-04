@@ -1250,7 +1250,7 @@ local function plaqueText(info: MushroomInfo): string?
 	local parts = {}
 	if classRank >= 3 then
 		local class = Economy.speciesClass(info.species)
-		local stars = if classRank >= 4 then "★★" else "★"
+		local stars = if classRank >= 5 then "★★★" elseif classRank >= 4 then "★★" else "★"
 		local color = rgb(class.color[1], class.color[2], class.color[3])
 		table.insert(parts, string.format('<font color="#%s">%s %s</font>', color:ToHex(), stars, MutationText.upper(Localize.t(class.key))))
 	end
@@ -1320,6 +1320,21 @@ local function makePlaque(info: MushroomInfo, model: Model): BillboardGui?
 	outline.Parent = label
 	gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
 	return gui
+end
+
+-- Napis rzadkości („★ EPICKI  ZŁOTY”, RichText) i jego kolor dla plakietek poza lasem (ogródki);
+-- nil = zwykły grzyb bez plakietki
+MushroomView.rarityText = plaqueText
+MushroomView.rarityAccent = plaqueAccent
+
+-- Stopień rzadkości do plakietek w ogródku: 0 brak, 1 złoty, 2 tęczowy albo epicki,
+-- 3 kosmiczny albo legendarny, 4 mityczny albo sekretny (z kuźni). Im wyższy, tym dalej widać.
+function MushroomView.rarityTier(info: MushroomInfo): number
+	local variantRank = Economy.variantRank(info.variant)
+	local classRank = MushroomView.classRank(info.species)
+	local byVariant = if variantRank >= 4 then 3 elseif variantRank >= 3 then 2 elseif variantRank >= 2 then 1 else 0
+	local byClass = if classRank >= 5 then 4 elseif classRank >= 4 then 3 elseif classRank >= 3 then 2 else 0
+	return math.max(byVariant, byClass)
 end
 
 -- Kopia modelu grzyba (bez dźwięków i światła), np. do okienka z wielkim znaleziskiem (RareFind)
