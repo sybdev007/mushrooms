@@ -995,9 +995,9 @@ local function onCharacterAdded(session: Session, character: Model)
 end
 
 local function onPlayerAdded(player: Player)
-	local data, canSave = DataService.load(player)
-	if player.Parent == nil then
-		return -- gracz wyszedł w trakcie wczytywania
+	local data, canSave, kicked = DataService.load(player)
+	if player.Parent == nil or kicked then
+		return -- gracz wyszedł w trakcie wczytywania albo zapis się nie otworzył (wyrzucony)
 	end
 
 	local session: Session = {

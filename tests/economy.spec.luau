@@ -325,6 +325,50 @@ test("DataService ładuje v5 jako v8 bez utraty ekwipunku i kupionych poziomów"
 	check(profile.Data == newer and newer.futureField == true and newer.showcase.n == 7, "zapis nietknięty")
 end)
 
+test("DataService: zapis, który się nie otwiera (awaria DataStore), kończy się wyrzuceniem, a nie grą bez danych", function()
+	local players = {}
+	local now = 1000
+	local cancels: { boolean } = {}
+	-- Podróbka ProfileStore przy awarii: ponawia, dopóki Cancel nie powie dość, i zwraca nil
+	local profileStore = { New = function() return { StartSessionAsync = function(_, _, params)
+		table.clear(cancels)
+		table.insert(cancels, params.Cancel())
+		now += 30
+		table.insert(cancels, params.Cancel())
+		now += 31
+		table.insert(cancels, params.Cancel())
+		return nil
+	end } end }
+	local packages = { WaitForChild = function() return profileStore end }
+	local services = {
+		Players = players,
+		DataStoreService = { GetDataStore = function() return {} end },
+		ReplicatedStorage = { Shared = { Config = Config, Economy = Economy, Progress = Progress, Titles = Titles, Social = Social, Skins = loadSkins(), Delve = loadModule("src/shared/Delve.luau", {}), Showcase = loadModule("src/shared/Showcase.luau", { script = { Parent = { Config = Config, Economy = Economy, Progress = Progress } }, require = function(module) return module end }) } },
+	}
+	local DataService = loadModule("src/server/DataService.luau", {
+		game = { GetService = function(_, name) return services[name] end },
+		script = { Parent = { WaitForChild = function() return packages end } },
+		require = function(module) return module end,
+		os = { clock = function() return now end, time = os.time, date = os.date },
+		warn = function() end,
+	})
+	local kickMessage: string? = nil
+	local data, canSave, kicked = DataService.load({ Name = "Tester", UserId = 1234, Parent = players, Kick = function(_, message)
+		kickMessage = message
+	end })
+	check(cancels[1] == false and cancels[2] == false, "pierwsze 30 s czekamy (np. przejęcie sesji z innego serwera)")
+	check(cancels[3] == true, "po minucie ProfileStore przestaje ponawiać")
+	check(not canSave, "bez zapisu nic nie zapisujemy")
+	check(kicked == true and kickMessage ~= nil and string.find(kickMessage, "Roblox", 1, true) ~= nil, "gracz wyrzucony z wyjaśnieniem")
+	eq(data.coins, 0)
+	-- Gracz wyszedł w trakcie wczytywania: nikogo nie wyrzucamy
+	local left = false
+	local _, _, kickedLeft = DataService.load({ Name = "Gone", UserId = 5678, Parent = nil, Kick = function()
+		left = true
+	end })
+	check(not left and not kickedLeft, "nieobecnego nie wyrzucamy")
+end)
+
 test("obszar sklepu uwzględnia granice mapy i wysokość", function()
 	eq(Economy.upgradeCampAt(0, 3, -10), "forest")
 	eq(Economy.upgradeCampAt(0, 3, 1025), "cave")

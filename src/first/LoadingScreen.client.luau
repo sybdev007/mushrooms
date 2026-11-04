@@ -28,7 +28,11 @@ local LoadingUI = require(script.Parent:WaitForChild("LoadingUI"))
 local player = Players.LocalPlayer
 
 local MIN_TIME = 2.5 -- krócej ekran tylko by mignął
-local MAX_TIME = 45 -- awaryjnie: po tym czasie gra rusza mimo braków
+local MAX_TIME = 45 -- awaryjnie: po tym czasie gra rusza mimo braków (poza zapisem, niżej)
+-- Na zapis czekamy dłużej: bez niego gra nie działa (wszędzie „Label”). Serwer po 60 s bez zapisu
+-- wyrzuca gracza z komunikatem (DataService.LOAD_TIMEOUT), więc ekran ma przetrwać do tego czasu.
+local SAVE_MAX_TIME = 90
+local SAVE_SLOW_AFTER = 12 -- po tylu sekundach czekania na zapis ekran mówi, że Roblox odpowiada wolno
 
 local function setCoreGui(enabled: boolean)
 	pcall(function()
@@ -202,7 +206,7 @@ end)
 task.spawn(function()
 	local stage = stages.save
 	local t0 = os.clock()
-	while player:GetAttribute("IntroPending") == nil and os.clock() - t0 < 30 do
+	while player:GetAttribute("IntroPending") == nil and os.clock() - t0 < SAVE_MAX_TIME do
 		task.wait(0.1)
 	end
 	stage.done = true
@@ -229,17 +233,20 @@ local function run()
 			allDone = allDone and stage.done
 		end
 		ui.setTarget(math.min(total, 0.98))
+		local elapsed = os.clock() - started
 		for _, id in ORDER do
 			if not stages[id].done then
-				if shownStage ~= id then
-					shownStage = id
-					ui.setStage(id)
+				-- Reszta gotowa, a zapisu wciąż nie ma: mówimy wprost, na co czekamy
+				local shown = if id == "save" and elapsed >= SAVE_SLOW_AFTER then "slow" else id
+				if shownStage ~= shown then
+					shownStage = shown
+					ui.setStage(shown)
 				end
 				break
 			end
 		end
-		local elapsed = os.clock() - started
-		if (allDone and elapsed >= MIN_TIME) or elapsed >= MAX_TIME then
+		local timedOut = elapsed >= MAX_TIME and (stages.save.done or elapsed >= SAVE_MAX_TIME)
+		if (allDone and elapsed >= MIN_TIME) or timedOut then
 			if not allDone then
 				warn("[LoadingScreen] koniec czasu, nie doszły etapy:", stages.connect.done, stages.world.done, stages.assets.done, stages.save.done)
 			end

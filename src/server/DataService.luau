@@ -84,11 +84,23 @@ local PROFILE_STORE_NAME = "LanternForager_Profiles_v1"
 -- Podnoś przy każdym nowym polu zapisu: serwer ze starszą wersją nie otworzy nowszego zapisu (load).
 local DATA_VERSION = 8
 local MAX_ATTEMPTS = 3
+-- Ile czekamy na otwarcie zapisu. Przy awarii DataStore Robloxa ProfileStore z własnym Cancel
+-- ponawia w nieskończoność, a gracz stał w grze bez danych (wszędzie „Label”, nic nie działa).
+-- Po tym czasie wyrzucamy go z jasnym komunikatem. Musi być dłużej niż przejęcie sesji z innego
+-- serwera (ProfileStore SESSION_STEAL 40 s + odczyty co 10 s, razem ok. 45–50 s).
+local LOAD_TIMEOUT = 60
+local LOAD_FAILED_KICK = "Nie udało się wczytać twojego zapisu (serwery danych Robloxa mają teraz problem). Postęp jest bezpieczny, wejdź ponownie za kilka minut. / Couldn't load your save (Roblox data servers are having issues). Your progress is safe, please rejoin in a few minutes."
 
 local DataService = {}
 
 local ProfileStore = require(script.Parent:WaitForChild("Packages"):WaitForChild("ProfileStore")) :: any
 local profileStore = ProfileStore.New(PROFILE_STORE_NAME, {})
+-- Błędy DataStore (np. „Access forbidden” przy awarii Robloxa) widać w konsoli serwera (F9 → Server)
+if ProfileStore.OnError then -- (testowa podróbka ProfileStore go nie ma)
+	ProfileStore.OnError:Connect(function(message: string, storeName: string, profileKey: string)
+		warn(string.format("[DataService] DataStore %s/%s: %s", tostring(storeName), tostring(profileKey), tostring(message)))
+	end)
+end
 local profiles: { [Player]: any } = {}
 -- Ostatni potwierdzony zapis profilu (ProfileStore.LastSavedData) i kto chce o nim wiedzieć.
 -- Ranking cukierków publikuje tylko to, co już na pewno leży w profilu (awaria nie zostawi w rankingu
@@ -530,19 +542,28 @@ local function loadLegacy(player: Player): any
 	error("legacy load failed")
 end
 
--- Zwraca dane i informację, czy wolno je potem zapisać.
+-- Zwraca dane, informację, czy wolno je potem zapisać, i czy gracz został wyrzucony (zapis się nie otworzył).
 -- Jeśli sesji nie udało się otworzyć, NIE zapisujemy, żeby nie nadpisać prawdziwego postępu pustym.
-function DataService.load(player: Player): (Data, boolean)
+function DataService.load(player: Player): (Data, boolean, boolean?)
+	local started = os.clock()
 	local ok, profile = pcall(function()
 		return profileStore:StartSessionAsync(keyFor(player), {
 			Cancel = function()
-				return player.Parent ~= Players -- wyszedł, zanim dane się otworzyły
+				-- wyszedł, zanim dane się otworzyły, albo DataStore nie odpowiada od dawna
+				return player.Parent ~= Players or os.clock() - started > LOAD_TIMEOUT
 			end,
 		})
 	end)
 	if not ok or not profile then
 		if not ok then
 			warn("[DataService] Nie udało się otworzyć danych", player.Name, profile)
+		end
+		if player.Parent == Players then
+			-- Bez zapisu gra nie działa (panele bez danych, zero monet), a postęp i tak by przepadł:
+			-- lepiej uczciwie wyrzucić niż zostawić gracza w zepsutej grze.
+			warn(string.format("[DataService] Zapis %s się nie otworzył po %.0f s, wyrzucam", player.Name, os.clock() - started))
+			player:Kick(LOAD_FAILED_KICK)
+			return DataService.defaultData(), false, true
 		end
 		return DataService.defaultData(), false
 	end

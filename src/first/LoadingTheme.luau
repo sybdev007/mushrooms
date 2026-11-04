@@ -114,6 +114,7 @@ LoadingTheme.themes = {
 			world = { pl = "Zapalamy latarnie w lesie", en = "Lighting the forest lanterns" },
 			assets = { pl = "Budzimy duchy", en = "Waking the ghosts" },
 			save = { pl = "Szukamy twojego koszyka", en = "Finding your basket" },
+			slow = { pl = "Roblox odpowiada wolno, czekamy na zapis", en = "Roblox is slow, waiting for your save" },
 			done = { pl = "Do lasu!", en = "Into the woods!" },
 		},
 		tips = withTips({
@@ -148,6 +149,7 @@ LoadingTheme.themes = {
 			world = { pl = "Zapalamy latarnie", en = "Lighting the lanterns" },
 			assets = { pl = "Grzyby wychodzą spod liści", en = "Mushrooms are popping up" },
 			save = { pl = "Szukamy twojego koszyka", en = "Finding your basket" },
+			slow = { pl = "Roblox odpowiada wolno, czekamy na zapis", en = "Roblox is slow, waiting for your save" },
 			done = { pl = "Do lasu!", en = "Into the woods!" },
 		},
 		tips = withTips({}),
@@ -173,6 +175,7 @@ LoadingTheme.themes = {
 			world = { pl = "Wieszamy lampki na choince", en = "Hanging lights on the tree" },
 			assets = { pl = "Grzyby wychodzą spod śniegu", en = "Mushrooms are popping out of the snow" },
 			save = { pl = "Szukamy twojego koszyka", en = "Finding your basket" },
+			slow = { pl = "Roblox odpowiada wolno, czekamy na zapis", en = "Roblox is slow, waiting for your save" },
 			done = { pl = "Do lasu!", en = "Into the woods!" },
 		},
 		tips = withTips({
