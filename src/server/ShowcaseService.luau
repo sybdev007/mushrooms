@@ -362,6 +362,28 @@ function ShowcaseService.devReset(player: Player)
 	ShowcaseService.refreshOf(player)
 end
 
+-- Panel DEV (Studio): cofnięcie jednego trofeum z testu (po dacie t): z listy, z półki i z licznika dostaw.
+-- Reszta gabloty gracza (kupione miejsca, jego własne trofea) zostaje.
+function ShowcaseService.devForgetTrophy(player: Player, t: number)
+	local data = api.getData(player)
+	if not data then
+		return
+	end
+	for index = #data.trophies, 1, -1 do
+		if data.trophies[index].t == t then
+			table.remove(data.trophies, index)
+			data.stats.nightFinds = math.max(0, data.stats.nightFinds - 1)
+		end
+	end
+	local save: Showcase.Save = data.showcase
+	for key, item in save.items do
+		if item.t == t then
+			save.items[key] = nil
+		end
+	end
+	ShowcaseService.refreshOf(player)
+end
+
 -- Panel DEV (Studio): wszystkie miejsca kupione (bez płacenia) i wypełnione najrzadszymi formami
 function ShowcaseService.devFill(player: Player)
 	local data = api.getData(player)

@@ -1612,6 +1612,10 @@ local function onDevAction(player: Player, action: unknown)
 	elseif action == "showcaseReset" then
 		-- Studio: gablota od zera (miejsca, wystawy, trofea), przywrócenie zapisu po teście
 		ShowcaseService.devReset(player)
+	elseif string.match(action, "^trophyForget:%d+$") then
+		-- Studio: trofeum ze Znaleziska z testu (data os.time) znika z gabloty i licznika
+		ShowcaseService.devForgetTrophy(player, tonumber(string.sub(action, 14)) or 0)
+		ProgressService.refreshTitle(player)
 	elseif action == "showcaseFill" then
 		-- Studio: wszystkie miejsca kupione za darmo (podgląd pełnej gabloty)
 		ShowcaseService.devFill(player)
