@@ -123,8 +123,9 @@ local function buildCabinet(garden: Model): Model?
 		}))
 		local light = Instance.new("PointLight")
 		light.Color = Palette.lanternGlow
-		light.Range = 7
-		light.Brightness = 0.55
+		-- Słabe: wystawione grzyby świecą same, a mocniejsze lampy prześwietlały regał na biało
+		light.Range = 6
+		light.Brightness = 0.25
 		light.Shadows = false
 		light.Parent = lamp
 	end
