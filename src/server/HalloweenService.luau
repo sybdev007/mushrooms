@@ -14,6 +14,7 @@ local Workspace = game:GetService("Workspace")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared.Config)
 local Halloween = require(Shared.Halloween)
+local Skins = require(Shared.Skins)
 local Progress = require(Shared.Progress)
 local Remotes = require(Shared.Remotes)
 local DataService = require(script.Parent.DataService)
@@ -272,14 +273,15 @@ local function useCauldron(player: Player)
 	api.refresh(player)
 end
 
+-- Zakładanie skórki z dowolnego eventu (Halloween, Zima): wspólna lista Shared/Skins
 local function onEquip(player: Player, slot: unknown, id: unknown)
 	local data = api.getData(player)
-	if not data or typeof(slot) ~= "string" or typeof(id) ~= "string" or not table.find(Halloween.SLOTS, slot) then
+	if not data or typeof(slot) ~= "string" or typeof(id) ~= "string" or not table.find(Skins.SLOTS, slot) then
 		return
 	end
 	if id ~= "" then
-		local def = Halloween.getSkin(id)
-		if not def or def.slot ~= slot or not Halloween.ownsSkin(data.skins, data.stats.candy, id) then
+		local def = Skins.get(id)
+		if not def or def.slot ~= slot or not Skins.owns(data.skins, data.stats, id) then
 			return
 		end
 	end

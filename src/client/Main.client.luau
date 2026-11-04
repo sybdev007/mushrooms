@@ -26,10 +26,13 @@ local ShopPanel = require(script.Parent.ShopPanel)
 local GardenPrompts = require(script.Parent.GardenPrompts)
 local SellPanel = require(script.Parent.SellPanel)
 local MerchantView = require(script.Parent.MerchantView)
--- Kolejność = kolejność dużych przycisków pod „Ulepszeniami”: (Halloween w czasie eventu), Zadania,
--- Grzybopedia, Tytuły
+-- Kolejność = kolejność dużych przycisków pod „Ulepszeniami”: (Halloween albo Zima w czasie eventu),
+-- Zadania, Grzybopedia, Tytuły
 local _HalloweenPanel = require(script.Parent.HalloweenPanel)
 local _CauldronView = require(script.Parent.CauldronView)
+local _WinterPanel = require(script.Parent.WinterPanel)
+local _GiftTreeView = require(script.Parent.GiftTreeView)
+local WinterFx = require(script.Parent.WinterFx)
 local _QuestPanel = require(script.Parent.QuestPanel)
 local _AtlasPanel = require(script.Parent.AtlasPanel)
 local _TitlePanel = require(script.Parent.TitlePanel)
@@ -84,6 +87,7 @@ local BuyUpgrade = Remotes.get("BuyUpgrade")
 local LANTERN_BRIGHTNESS = 2 -- w najciemniejszej strefie; przy chatce latarnia świeci słabiej, żeby nie przepalać ścian
 local LANTERN_GLASS = Color3.fromRGB(255, 206, 120)
 local GHOST_GLASS = Color3.fromRGB(120, 255, 150) -- psikus z kotła: zielona latarnia duchów
+local FROST_GLASS = Color3.fromRGB(150, 220, 255) -- psikus z choinki: lodowe światło
 
 local lanternRange = Economy.upgradeStat("lantern", 0)
 local oil = Economy.upgradeStat("oil", 0)
@@ -103,6 +107,7 @@ LeszyAnimator.start()
 GardenPanel.start()
 DisplayMushrooms.start()
 HalloweenFx.start()
+WinterFx.start()
 CommunityButton.start()
 FontFix.start()
 
@@ -474,7 +479,11 @@ local function updateLantern(character: Model, root: BasePart, oilFraction: numb
 	end
 	if glass and glass:IsA("BasePart") then
 		local ghostUntil = character:GetAttribute("GhostLantern")
-		local base = if typeof(ghostUntil) == "number" and ghostUntil > os.time() then GHOST_GLASS else LANTERN_GLASS
+		local frostUntil = character:GetAttribute("FrostLantern")
+		local base = if typeof(ghostUntil) == "number" and ghostUntil > os.time()
+			then GHOST_GLASS
+			elseif typeof(frostUntil) == "number" and frostUntil > os.time() then FROST_GLASS
+			else LANTERN_GLASS
 		glass.Color = Color3.fromRGB(70, 40, 20):Lerp(base, math.clamp(strength, 0, 1))
 	end
 end
@@ -495,7 +504,9 @@ RunService.RenderStepped:Connect(function(dt)
 	local night = Workspace:GetAttribute("CyclePhase") == "night"
 	local spiritNight = night and Workspace:GetAttribute("CycleEvent") == "spirit_night"
 	local halloweenMusic = Workspace:GetAttribute("Halloween") == true and night and (world == "forest" or spiritNight)
-	Audio.playlist(if halloweenMusic then "halloween" else world)
+	-- Zima: nocą w lesie zimowa muzyka
+	local winterMusic = Workspace:GetAttribute("Winter") == true and night and world == "forest"
+	Audio.playlist(if halloweenMusic then "halloween" elseif winterMusic then "winter" else world)
 	local oilFraction = if oilMax > 0 then math.clamp(oil / oilMax, 0, 1) else 1
 	local now = os.clock()
 

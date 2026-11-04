@@ -101,6 +101,8 @@ end
 function HandTools.lantern(level: number, base: CFrame, weldTo: BasePart?, scale: number?, skin: string?): Model
 	if skin == "pumpkin_lantern" then
 		return HandTools.pumpkinLantern(level, base, weldTo, scale)
+	elseif skin == "ice_lantern" then
+		return HandTools.iceLantern(level, base, weldTo, scale)
 	end
 	local trim = TRIMS[HandTools.lanternTier(level)]
 	local m = Instance.new("Model")
@@ -202,6 +204,53 @@ function HandTools.pumpkinLantern(level: number, base: CFrame, weldTo: BasePart?
 	return m
 end
 
+-- Zima: lodowa latarnia (skórka). Kuty pałąk i bryła lodu ze śnieżną czapą, w środku jasne
+-- lodowe światło, pod spodem sople. Światło w środku nazywa się "LanternGlass" (klient przyciemnia
+-- je przy końcu oleju).
+local ICE = Color3.fromRGB(176, 226, 255)
+local ICE_GLOW = Color3.fromRGB(200, 240, 255)
+local SNOW = Color3.fromRGB(248, 252, 255)
+function HandTools.iceLantern(level: number, base: CFrame, weldTo: BasePart?, scale: number?): Model
+	local trim = TRIMS[HandTools.lanternTier(level)]
+	local m = Instance.new("Model")
+	m.Name = "HandLantern"
+	local function at(x: number, y: number, z: number): CFrame
+		return base * CFrame.new(x, y, z)
+	end
+	part(m, "Bail", Vector3.new(0.3, 0.05, 0.05), at(0, 0, 0), trim.dark, trim.material)
+	for _, side in { -1, 1 } do
+		part(m, "BailArm", Vector3.new(0.05, 0.22, 0.05), at(side * 0.13, -0.09, 0) * CFrame.Angles(0, 0, side * math.rad(-30)), trim.dark, trim.material)
+	end
+	part(m, "Hook", Vector3.new(0.12, 0.05, 0.05), at(0, -0.2, 0), trim.metal, trim.material)
+	-- Śnieżna czapa na lodzie
+	blob(m, "SnowCap", Vector3.new(0.62, 0.16, 0.62), at(0, -0.27, 0), SNOW)
+	-- Bryła lodu: przezroczysta, z jaśniejszymi krawędziami
+	local y = -0.6
+	local ice = part(m, "Ice", Vector3.new(0.52, 0.56, 0.52), at(0, y, 0), ICE, Enum.Material.Glass)
+	ice.Transparency = 0.35
+	for _, x in { -0.25, 0.25 } do
+		for _, z in { -0.25, 0.25 } do
+			local edge = part(m, "IceEdge", Vector3.new(0.05, 0.56, 0.05), at(x, y, z), ICE_GLOW, Enum.Material.Glass)
+			edge.Transparency = 0.2
+		end
+	end
+	-- Światło w środku (przyciemniane przy końcu oleju) i jasny rdzeń
+	local glow = blob(m, "LanternGlass", Vector3.new(0.26, 0.34, 0.26), at(0, y, 0), ICE_GLOW, Enum.Material.Neon)
+	glow.Transparency = 0.1
+	blob(m, "GlowCore", Vector3.new(0.1, 0.14, 0.1), at(0, y - 0.03, 0), Color3.fromRGB(255, 255, 255), Enum.Material.Neon)
+	-- Sople pod spodem
+	part(m, "Floor", Vector3.new(0.54, 0.05, 0.54), at(0, y - 0.3, 0), ICE, Enum.Material.Glass)
+	for i, x in { -0.18, -0.05, 0.08, 0.2 } do
+		local length = 0.1 + (i % 2) * 0.08
+		local icicle = part(m, "Icicle", Vector3.new(0.05, length, 0.05), at(x, y - 0.32 - length / 2, (i % 3 - 1) * 0.12), ICE_GLOW, Enum.Material.Glass)
+		icicle.Transparency = 0.25
+	end
+	m:SetAttribute("Tier", HandTools.lanternTier(level))
+	m:SetAttribute("Skin", "ice_lantern")
+	attach(m, weldTo, base, scale or 1.35)
+	return m
+end
+
 -- ===== Nożyk =====
 
 type KnifeStyle = {
@@ -266,6 +315,8 @@ end
 function HandTools.knife(level: number, base: CFrame, weldTo: BasePart?, scale: number?, skin: string?): Model
 	if skin == "sickle" then
 		return HandTools.sickle(level, base, weldTo, scale)
+	elseif skin == "candy_cane" then
+		return HandTools.candyCane(level, base, weldTo, scale)
 	end
 	local style = HandTools.knifeStyle(level)
 	local m = Instance.new("Model")
@@ -419,6 +470,48 @@ function HandTools.sickle(level: number, base: CFrame, weldTo: BasePart?, scale:
 	end
 	m:SetAttribute("Level", level)
 	m:SetAttribute("Skin", "sickle")
+	attach(m, weldTo, base, scale or 1.7)
+	return m
+end
+
+-- Zima: laska cukrowa (skórka nożyka). Rączka w czerwono-białe paski zakończona hakiem laski,
+-- ostrze z lodu z jasną krawędzią.
+function HandTools.candyCane(level: number, base: CFrame, weldTo: BasePart?, scale: number?): Model
+	local m = Instance.new("Model")
+	m.Name = "HandKnife"
+	local red = Color3.fromRGB(214, 36, 48)
+	local white = Color3.fromRGB(250, 248, 244)
+	-- Rączka: paski wzdłuż Z (od końca do okucia)
+	local segments = 6
+	for i = 0, segments - 1 do
+		local z = 0.26 - (i + 0.5) * 0.42 / segments
+		part(m, "Stripe", Vector3.new(0.42 / segments + 0.005, 0.14, 0.14), base * CFrame.new(0, 0, z) * CFrame.Angles(0, math.rad(90), 0), if i % 2 == 0 then red else white, nil, Enum.PartType.Cylinder)
+	end
+	-- Hak laski za rączką: łuk do góry i z powrotem
+	local hookCenter = Vector3.new(0, 0.11, 0.26)
+	local radius = 0.11
+	for i = 0, 5 do
+		local a = math.rad(-90 + i * 36)
+		local b = math.rad(-90 + (i + 1) * 36)
+		local pa = hookCenter + Vector3.new(0, radius * math.sin(a), radius * math.cos(a))
+		local pb = hookCenter + Vector3.new(0, radius * math.sin(b), radius * math.cos(b))
+		local mid = (pa + pb) / 2
+		part(m, "Hook", Vector3.new(0.12, 0.12, (pb - pa).Magnitude + 0.04), base * CFrame.lookAt(mid, pb), if i % 2 == 0 then white else red)
+	end
+	part(m, "Bolster", Vector3.new(0.16, 0.17, 0.05), base * CFrame.new(0, 0, -0.17), Color3.fromRGB(200, 230, 245), Enum.Material.Metal)
+	-- Ostrze z lodu: lekko zwężające się, z jasną krawędzią i światełkiem
+	local blade = part(m, "Blade", Vector3.new(0.035, 0.13, 0.46), base * CFrame.new(0, 0.01, -0.42), Color3.fromRGB(170, 222, 255), Enum.Material.Glass)
+	blade.Transparency = 0.2
+	part(m, "BladeTip", Vector3.new(0.035, 0.08, 0.12), base * CFrame.new(0, 0.03, -0.7), Color3.fromRGB(170, 222, 255), Enum.Material.Glass).Transparency = 0.2
+	local edge = part(m, "Edge", Vector3.new(0.045, 0.022, 0.5), base * CFrame.new(0, -0.05, -0.44), Color3.fromRGB(225, 248, 255), Enum.Material.Neon)
+	local light = Instance.new("PointLight")
+	light.Color = Color3.fromRGB(170, 222, 255)
+	light.Range = 5
+	light.Brightness = 0.6
+	light.Shadows = false
+	light.Parent = edge
+	m:SetAttribute("Level", level)
+	m:SetAttribute("Skin", "candy_cane")
 	attach(m, weldTo, base, scale or 1.7)
 	return m
 end

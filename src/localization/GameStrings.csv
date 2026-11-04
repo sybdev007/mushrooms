@@ -946,3 +946,60 @@ TITLE_FERN_FLOWER,Fern Flower Finder,,,Znalazca Kwiatu Paproci
 TITLE_FERN_FLOWER_HOW,Forge the mythic Fern Flower,,,Wytop mityczny Kwiat Paproci
 TITLE_VELES,Chosen of Veles,,,Wybraniec Welesa
 TITLE_VELES_HOW,Discover the secret of the mortar,,,Odkryj sekret moździerza
+MUT_FROST,Frosted,,,Oszroniony
+MSG_FROST_BOOM,❄️ {1} cast a Blizzard! The whole forest regrew - every other mushroom is frosted!,,,❄️ {1} rzuca Zamieć! Las odrósł od nowa - co drugi grzyb jest oszroniony!
+MSG_FLAKES_SOLD,+{1} ❄️ for frosted mushrooms! (total {2}),,,+{1} ❄️ za oszronione grzyby! (razem {2})
+MSG_FLAKES_QUEST,+{1} ❄️ for the quest! (total {2}),,,+{1} ❄️ za zadanie! (razem {2})
+MSG_WTRACK_LUCK,❄️ Winter reward: a {1}-minute Luck Potion!,,,❄️ Nagroda zimowa: mikstura szczęścia na {1} min!
+MSG_WTRACK_COINS,❄️ Winter reward: +{1} coins!,,,❄️ Nagroda zimowa: +{1} monet!
+MSG_WTRACK_SKIN,❄️ Winter reward: new skin {1}! Switch it in the ❄️ window.,,,❄️ Nagroda zimowa: nowa skórka {1}! Zmienisz ją w oknie ❄️.
+MSG_WINTER_WELCOME,❄️ Winter Festival! Frosted mushrooms give snowflakes - open the ❄️ Winter button.,,,❄️ Zimowy Festiwal! Oszronione grzyby dają płatki śniegu - zajrzyj pod przycisk ❄️ Zima.
+MSG_ADVENT_GIFT,🗓️ Advent day {1}: +{2} coins and +{3} ❄️!,,,🗓️ Kalendarz adwentowy - dzień {1}: +{2} monet i +{3} ❄️!
+MSG_ADVENT_FLAKES,🗓️ Advent day {1}: +{2} ❄️!,,,🗓️ Kalendarz adwentowy - dzień {1}: +{2} ❄️!
+MSG_ADVENT_LUCK,🗓️ Advent day {1}: a {2}-minute Luck Potion!,,,🗓️ Kalendarz adwentowy - dzień {1}: mikstura szczęścia na {2} min!
+MSG_ADVENT_COINS,🗓️ Advent day {1}: +{2} coins!,,,🗓️ Kalendarz adwentowy - dzień {1}: +{2} monet!
+MSG_GIFT_NEED,The tree wants {1} ❄️ - you have {2}. Sell frosted mushrooms!,,,Choinka chce {1} ❄️ - masz {2}. Sprzedaj oszronione grzyby!
+MSG_GIFT_SKIN_ALL,🎄 {2} found the {1} skin under the tree!,,,🎄 {2} znalazł pod choinką skórkę {1}!
+TITLE_SNOWBALL,Snowball,,,Śnieżka
+TITLE_SNOWBALL_HOW,Winter: collect {1} snowflakes,,,Zima: zbierz {1} płatków śniegu
+TITLE_FROST_SPIRIT,Frost Spirit,,,Duch Mrozu
+TITLE_FROST_SPIRIT_HOW,Winter: collect {1} snowflakes,,,Zima: zbierz {1} płatków śniegu
+TITLE_WINTER_KING,Winter King,,,Król Zimy
+TITLE_WINTER_KING_HOW,Winter: collect {1} snowflakes,,,Zima: zbierz {1} płatków śniegu
+TITLE_ADVENT,Advent Keeper,,,Strażnik Kalendarza
+TITLE_ADVENT_HOW,Winter: open {1} Advent calendar doors,,,Zima: otwórz {1} okienek kalendarza adwentowego
+SKIN_ICE_LANTERN,Ice Lantern,,,Lodowa latarnia
+SKIN_CANDY_CANE,Candy Cane,,,Cukrowa laska
+GIFT_ACTION,Put in {1} ❄️,,,Wrzuć {1} ❄️
+GIFT_NAME,Gift Tree,,,Choinka z prezentami
+GIFT_SIGN,🎄 Gift or trick? 🎄,,,🎄 Prezent czy psikus? 🎄
+GIFT_TREAT,Gift! 🎁,,,Prezent! 🎁
+GIFT_TRICK,Trick! ⛄,,,Psikus! ⛄
+GIFT_BAG,❄️ left: {1},,,❄️ zostało: {1}
+GIFT_COINS,+{1} coins!,,,+{1} monet!
+GIFT_LUCK,Luck Potion for {1} min!,,,Mikstura szczęścia na {1} min!
+GIFT_FLAKES,Snowflake jackpot! +{1} ❄️,,,Śnieżna wygrana! +{1} ❄️
+GIFT_SKIN_LANTERN,New skin: {2}!,,,Nowa skórka: {2}!
+GIFT_SKIN_KNIFE,New skin: {2}!,,,Nowa skórka: {2}!
+GIFT_SKIN_DUPE,{2} again - so +{1} coins!,,,Znowu {2} - więc +{1} monet!
+GIFT_TRICK_SNOWMAN,Your head turned into a snowman!,,,Twoja głowa zamieniła się w bałwana!
+GIFT_TRICK_FROST,Your lantern glows icy blue!,,,Twoja latarnia świeci lodowym blaskiem!
+GIFT_TRICK_SNOWBALL,Splat! A snowball right in the face!,,,Plask! Śnieżka prosto w twarz!
+GIFT_TRICK_FLURRY,A little blizzard is following you!,,,Mała śnieżyca chodzi za tobą!
+WINTER_BUTTON,Winter,,,Zima
+WINTER_TITLE,Winter Festival,,,Zimowy Festiwal
+WINTER_ENDS,❄️ Winter Festival - ends in {1},,,❄️ Zimowy Festiwal - koniec za {1}
+WINTER_ENDED,The Winter Festival is over - thanks for playing!,,,Zimowy Festiwal się skończył - dzięki za grę!
+WINTER_TRACK_PROGRESS,Collected {1} / {2} ❄️,,,Zebrane {1} / {2} ❄️
+WINTER_TRACK_DONE,{1} ❄️ - all rewards collected!,,,{1} ❄️ - wszystkie nagrody zdobyte!
+WINTER_HOW_TITLE,How to get snowflakes ❄️,,,Jak zdobyć płatki śniegu ❄️
+WINTER_HOW_FROST,🧊 Frosted mushrooms (x2 value) grow in every world. Sell them at the buyer: {1} ❄️ forest · {2} ❄️ caves · {3} ❄️ swamp · {4} ❄️ mountain.,,,🧊 Oszronione grzyby (x2 wartości) rosną w każdym świecie. Sprzedaj je u skupywacza: {1} ❄️ las · {2} ❄️ jaskinie · {3} ❄️ bagna · {4} ❄️ góra.
+WINTER_HOW_QUEST,📜 Every daily quest you finish: +{1} ❄️,,,📜 Każde ukończone zadanie dnia: +{1} ❄️
+WINTER_HOW_TREE,🎄 Gift tree by the cabin: put in {1} ❄️ - gift or trick! Gifts: coins · potions · skins.,,,🎄 Choinka przy chatce: wrzuć {1} ❄️ - prezent czy psikus! Prezenty: monety · mikstury · skórki.
+WINTER_SKINS_TITLE,Skins ❄️,,,Skórki ❄️
+WINTER_SKIN_LOCKED,🔒 {1} ❄️,,,🔒 {1} ❄️
+ADVENT_TITLE,🗓️ Advent calendar · opened {1} (title at {2}),,,🗓️ Kalendarz adwentowy · otwarte {1} (tytuł za {2})
+ADVENT_OPEN,🎁 Open door {1}!,,,🎁 Otwórz okienko {1}!
+ADVENT_NEXT,Next door in {1},,,Następne okienko za {1}
+ADVENT_SOON,The calendar opens on December 1,,,Kalendarz otwiera się 1 grudnia
+ADVENT_DONE,Calendar complete - Merry Christmas!,,,Kalendarz zakończony - Wesołych Świąt!

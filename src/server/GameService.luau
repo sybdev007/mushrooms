@@ -18,6 +18,8 @@ local Remotes = require(Shared.Remotes)
 local Cycle = require(Shared.Cycle)
 local Expedition = require(Shared.Expedition)
 local Halloween = require(Shared.Halloween)
+local Skins = require(Shared.Skins)
+local Winter = require(Shared.Winter)
 local DataService = require(script.Parent.DataService)
 local MapBuilder = require(script.Parent.MapBuilder)
 local ChaseService = require(script.Parent.ChaseService)
@@ -32,11 +34,13 @@ local JagaModel = require(World:WaitForChild("Jaga"))
 local MountainShared = require(ReplicatedStorage.Shared.Mountain)
 local HandTools = require(World:WaitForChild("HandTools"))
 local HalloweenDecor = require(World:WaitForChild("HalloweenDecor"))
+local WinterDecor = require(World:WaitForChild("WinterDecor"))
 local GardenService = require(script.Parent.GardenService)
 local ProgressService = require(script.Parent.ProgressService)
 local TutorialService = require(script.Parent.TutorialService)
 local LeaderboardService = require(script.Parent.LeaderboardService)
 local HalloweenService = require(script.Parent.HalloweenService)
+local WinterService = require(script.Parent.WinterService)
 local CommunityService = require(script.Parent.CommunityService)
 local DelveService = require(script.Parent.DelveService)
 local AnnounceService = require(script.Parent.AnnounceService)
@@ -275,6 +279,8 @@ end
 local liveEvent: Config.NightEventDef? = Cycle.activeEvent(os.time())
 -- Halloween, panel DEV: „Dyniowy wysyp” (las odrasta, co drugi grzyb dyniowy) na czas jednego odrostu
 local pumpkinBoom = false
+-- Zima, panel DEV: „Zamieć” (las odrasta, co drugi grzyb oszroniony) na czas jednego odrostu
+local frostBoom = false
 
 -- Mnożnik szans na mutacje: Wysyp dla wszystkich, mikstura szczęścia dla kupującego, bonus grupy,
 -- nożyk gracza, zdarzenie nocy (pełnia, krwawy księżyc) i głębokość strefy
@@ -399,6 +405,14 @@ local function rollSpot(session: Session, spot: MapBuilder.Spot, countPity: bool
 		if chance > 0 and session.rng:NextNumber() < chance then
 			tags = tags or {}
 			table.insert(tags :: { string }, Halloween.TAG)
+		end
+	end
+	-- Zima: oszroniony grzyb (stała szansa, niezależna od szczęścia), w każdym świecie
+	if Winter.canBeFrost(species.id) then
+		local chance = Winter.frostChance(os.time(), frostBoom)
+		if chance > 0 and session.rng:NextNumber() < chance then
+			tags = tags or {}
+			table.insert(tags :: { string }, Winter.TAG)
 		end
 	end
 	return species.id, variant, tags
@@ -564,11 +578,11 @@ local function applyCharacterStats(session: Session)
 		-- Wspólna wyprawa świeci dalej; 60 to limit Robloxa dla PointLight
 		lantern.Range = math.min(stat(session, "lantern") * Expedition.light(session.group), 60)
 	end
-	-- Skórki z Halloween (tylko te, które gracz naprawdę ma)
+	-- Skórki z eventów (tylko te, które gracz naprawdę ma)
 	local data = session.data
 	local function skinFor(slot: string): string
 		local id = (data.equipped :: any)[slot] or ""
-		return if id ~= "" and Halloween.ownsSkin(data.skins, data.stats.candy, id) then id else ""
+		return if id ~= "" and Skins.owns(data.skins, data.stats, id) then id else ""
 	end
 	attachHandLantern(character, data.upgrades.lantern or 0, skinFor("lantern"))
 	attachHandKnife(character, data.upgrades.knife or 0, skinFor("knife"))
@@ -1325,10 +1339,12 @@ local function onSell(player: Player, indices: unknown, key: unknown)
 	local value = 0
 	local count = 0
 	local candy = 0 -- Halloween: cukierki za sprzedane dyniowe grzyby
+	local flakes = 0 -- Zima: płatki śniegu za sprzedane oszronione grzyby
 	if indices == nil then
 		value = Economy.basketValue(basket)
 		count = #basket
 		candy = Halloween.candyForList(basket)
+		flakes = Winter.flakesForList(basket)
 		table.clear(basket)
 	else
 		local valid = Economy.validSellIndices(indices, #basket)
@@ -1338,6 +1354,7 @@ local function onSell(player: Player, indices: unknown, key: unknown)
 		for _, index in valid do
 			value += Economy.itemValue(basket[index])
 			candy += Halloween.candyFor(basket[index])
+			flakes += Winter.flakesFor(basket[index])
 			table.remove(basket, index)
 		end
 		count = #valid
@@ -1364,6 +1381,9 @@ local function onSell(player: Player, indices: unknown, key: unknown)
 		ProgressService.addCandy(player, candy, "MSG_CANDY_SOLD")
 		-- Wspólny cel serwera: tylko cukierki ze sprzedaży dyń
 		HalloweenService.contribute(player, candy)
+	end
+	if flakes > 0 and Winter.active(os.time()) then
+		ProgressService.addFlakes(player, flakes, "MSG_FLAKES_SOLD")
 	end
 	TutorialService.onSold(session :: any)
 	pushState(session)
@@ -1738,6 +1758,36 @@ local function onDevAction(player: Player, action: unknown)
 		if not ok then
 			warn("[GameService] Dyniowy wysyp:", err)
 		end
+	elseif action == "frostBoom" then
+		-- Admin abuse: las wszystkich odrasta od nowa, co drugi grzyb oszroniony (jednorazowo)
+		if not Winter.active(os.time()) then
+			return
+		end
+		frostBoom = true
+		local ok, err = pcall(function()
+			for _, other in sessions do
+				regrowForest(other, os.clock())
+				notify(other, "MSG_FROST_BOOM", { player.DisplayName })
+			end
+		end)
+		frostBoom = false
+		if not ok then
+			warn("[GameService] Zamieć:", err)
+		end
+	elseif action == "winterToggle" then
+		-- Tylko Studio: podgląd Zimy przed datą (atrybut Workspace.Winter, wystrój, przycisk po wejściu)
+		if not RunService:IsStudio() then
+			return
+		end
+		Winter.forced = not Winter.forced
+		Workspace:SetAttribute("Winter", Winter.active(os.time()))
+	elseif action == "adventNext" then
+		-- Tylko Studio: następny dzień kalendarza adwentowego (1..24 w kółko)
+		if not RunService:IsStudio() then
+			return
+		end
+		Winter.devDay = (Winter.devDay or Winter.adventDay(os.time()) or 0) % #Winter.ADVENT + 1
+		Workspace:SetAttribute("AdventDay", Winter.devDay)
 	elseif action == "expeditionGroup" then
 		session.debugGroupUntil = os.clock() + 60
 	elseif action == "expeditionDown" then
@@ -1750,7 +1800,7 @@ local function onDevAction(player: Player, action: unknown)
 		-- Config.Halloween.rankingBanned
 		local userId = tonumber(string.match(action, "%d+")) or 0
 		removeFromRanking(session, userId)
-	elseif not (ProgressService.dev(player, action) or HalloweenService.dev(player, action)) then
+	elseif not (ProgressService.dev(player, action) or HalloweenService.dev(player, action) or WinterService.dev(player, action)) then
 		return
 	end
 	notify(session, "MSG_DEV_DONE", { action })
@@ -2131,6 +2181,33 @@ function GameService.start(mapInfo: MapBuilder.MapInfo)
 			end
 		end,
 	})
+	WinterService.start({
+		getData = function(player: Player)
+			local session = sessions[player]
+			return if session then session.data else nil
+		end,
+		notify = function(player: Player, key: string, args: { any }?, nameKey: string?)
+			local session = sessions[player]
+			if session then
+				notify(session, key, args, nameKey)
+			end
+		end,
+		pushState = function(player: Player)
+			local session = sessions[player]
+			if session then
+				pushState(session)
+			end
+		end,
+		applyStats = function(player: Player)
+			local session = sessions[player]
+			if session then
+				applyCharacterStats(session)
+			end
+		end,
+		refresh = function(player: Player)
+			ProgressService.refresh(player)
+		end,
+	})
 	HalloweenService.start({
 		getData = function(player: Player)
 			local session = sessions[player]
@@ -2379,6 +2456,9 @@ function GameService.start(mapInfo: MapBuilder.MapInfo)
 			end
 			Workspace:SetAttribute("Halloween", Halloween.active(now))
 			Workspace:SetAttribute("HalloweenEndsAt", Config.Halloween.endsAt)
+			-- Zima: przed startem klient nic nie pokazuje (przycisk, tytuły, śnieg, muzyka)
+			Workspace:SetAttribute("Winter", Winter.active(now))
+			Workspace:SetAttribute("AdventDay", Winter.adventDay(now) or 0)
 			Workspace:SetAttribute("CyclePhase", phase.phase)
 			Workspace:SetAttribute("CycleEndsAt", phase.endsAt)
 			Workspace:SetAttribute("CycleEvent", phase.event.id)
@@ -2420,6 +2500,29 @@ function GameService.start(mapInfo: MapBuilder.MapInfo)
 				decor = nil
 			end
 			task.wait(60)
+		end
+	end)
+
+	-- Zima: choinka, bałwany, śnieg na ziemi i drzewach (tylko w czasie eventu albo w podglądzie z DEV)
+	task.spawn(function()
+		local decor: Instance? = nil
+		local failed = false
+		while true do
+			local on = Winter.active(os.time())
+			if on and not decor and not failed then
+				local ok, result = pcall(WinterDecor.build, Workspace, map)
+				if ok then
+					decor = result
+				else
+					failed = true -- bez powtarzania tego samego błędu
+					warn("[GameService] Wystrój Zimy:", result)
+				end
+			elseif not on and decor then
+				pcall(WinterDecor.remove, map)
+				decor:Destroy()
+				decor = nil
+			end
+			task.wait(5)
 		end
 	end)
 

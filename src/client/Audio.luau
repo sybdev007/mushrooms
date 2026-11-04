@@ -212,6 +212,9 @@ local function playlistTracks(name: string): { string }
 	if name == "halloween" then
 		local halloween = (Config :: any).Halloween
 		return if halloween and typeof(halloween.playlist) == "table" then halloween.playlist else {}
+	elseif name == "winter" then
+		local winter = (Config :: any).Winter
+		return if winter and typeof(winter.playlist) == "table" then winter.playlist else {}
 	end
 	local audio = (Config :: any).Audio
 	local lists = audio and audio.playlists

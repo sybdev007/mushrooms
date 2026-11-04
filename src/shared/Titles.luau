@@ -26,6 +26,8 @@ export type Stats = {
 	delves: number, -- ekspedycje do Głębokich Komór z zabezpieczonym znaleziskiem
 	crypts: number, -- trofea wyniesione z Krypty Skarbnika
 	forged: number, -- połączenia w Moździerzu Zielarki (Kuźnia Grzybów)
+	snowflakes: number, -- płatki śniegu z Zimy (wszystkie zdobyte; wydawanie na choince ich nie cofa)
+	advent: number, -- Zima: otwarte okienka kalendarza adwentowego
 }
 
 -- Liczniki z całej gry: rodzaj zdarzenia (jak w ProgressService.event) -> pole w Stats
@@ -44,10 +46,12 @@ Titles.EVENT_STAT = {
 	delve = "delves",
 	crypt = "crypts",
 	forge = "forged",
+	snowflake = "snowflakes",
+	advent = "advent",
 } :: { [string]: string }
 
 function Titles.emptyStats(): Stats
-	return { picked = 0, sold = 0, steals = 0, escapes = 0, revives = 0, planted = 0, deaths = 0, bestStreak = 0, candy = 0, graveyard = 0, owl = 0, invites = 0, delves = 0, crypts = 0, forged = 0 }
+	return { picked = 0, sold = 0, steals = 0, escapes = 0, revives = 0, planted = 0, deaths = 0, bestStreak = 0, candy = 0, graveyard = 0, owl = 0, invites = 0, delves = 0, crypts = 0, forged = 0, snowflakes = 0, advent = 0 }
 end
 
 -- Rzadkości od najsłabszej: kolor napisu nad głową i ramki w oknie (mityczny = tęcza)
@@ -132,6 +136,13 @@ for _, step in Config.Halloween.track do
 end
 -- Halloween 2026: znicz zapalony na sekretnym cmentarzyku w lesie (HalloweenService)
 table.insert(LIST, { id = "TITLE_HALLOWEEN_2026", rarity = "epic", stat = "graveyard", goal = 1, event = "halloween" })
+-- Tytuły z Zimy: progi płatków ze ścieżki nagród (Config.Winter.track) i okienka kalendarza adwentowego
+for _, step in Config.Winter.track do
+	if step.kind == "title" and step.id then
+		table.insert(LIST, { id = step.id, rarity = step.rarity or "rare", stat = "snowflakes", goal = step.flakes, event = "winter" })
+	end
+end
+table.insert(LIST, { id = "TITLE_ADVENT", rarity = "epic", stat = "advent", goal = Config.Winter.adventTitle, event = "winter" })
 -- W oknie: najpierw według rzadkości, w niej w kolejności z listy
 local ORDER: { [string]: number } = {}
 for index, def in LIST do

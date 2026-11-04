@@ -661,11 +661,14 @@ function LoadingUI.new(themeId: string?, parent: Instance?): Handle
 		local screen = gui.AbsoluteSize
 		if screen.X > 0 then
 			spawnAcc += dt
-			local rate = if theme.particleKind == "embers" then 0.09 else 0.22
+			local rate = if theme.particleKind == "embers" then 0.09 elseif theme.particleKind == "snow" then 0.07 else 0.22
 			while spawnAcc > rate do
 				spawnAcc -= rate
 				local color = theme.particles[math.random(1, #theme.particles)]
-				if theme.particleKind == "embers" then
+				if theme.particleKind == "snow" then
+					-- Płatki śniegu spadają z góry ekranu i kołyszą się na boki (jak żar, tylko w dół)
+					spawnParticle("snow", math.random() * screen.X, -10, (math.random() - 0.5) * 24, (28 + math.random() * 46) * scale, (2.5 + math.random() * 4) * scale, 7 + math.random() * 5, color)
+				elseif theme.particleKind == "embers" then
 					spawnParticle("ember", math.random() * screen.X, screen.Y + 10, (math.random() - 0.5) * 30, -(45 + math.random() * 80) * scale, (3 + math.random() * 4) * scale, 4 + math.random() * 3, color)
 				else
 					spawnParticle("firefly", math.random() * screen.X, screen.Y * (0.3 + math.random() * 0.65), 0, 0, (3 + math.random() * 3) * scale, 6 + math.random() * 4, color)

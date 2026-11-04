@@ -19,6 +19,8 @@ local Remotes = require(Shared.Remotes)
 local Achievements = require(Shared.Achievements)
 local Titles = require(Shared.Titles)
 local Halloween = require(Shared.Halloween)
+local Winter = require(Shared.Winter)
+local Skins = require(Shared.Skins)
 local DataService = require(script.Parent.DataService)
 local Ledger = require(script.Parent.Ledger)
 
@@ -39,6 +41,7 @@ local QuestReroll = Remotes.get("QuestReroll")
 local QuestClaim = Remotes.get("QuestClaim")
 local SelectTitle = Remotes.get("SelectTitle")
 local SaveSettings = Remotes.get("SaveSettings")
+local AdventOpen = Remotes.get("AdventOpen")
 
 -- Ustawienia dźwięku jako atrybuty gracza (klient czyta je w SettingsButtons)
 local function applySettings(player: Player, data: Data)
@@ -51,6 +54,7 @@ end
 
 local api: Api
 local lastSent: { [Player]: string } = {}
+local lastAdvent: { [Player]: number } = {} -- ostatnie otwarcie okienka kalendarza (os.clock)
 
 local function scaleOf(data: Data): number
 	return Progress.rewardScale(data.caveUnlocked, data.swampUnlocked, data.mountainUnlocked)
@@ -141,16 +145,9 @@ local function refreshTitle(player: Player, data: Data)
 	checkBadges(player, data)
 end
 
--- Skórki, które gracz ma (z kotła i ze ścieżki nagród)
+-- Skórki, które gracz ma (z kotła, z choinki i ze ścieżek nagród)
 local function ownedSkins(data: Data): { string }
-	local list = {}
-	for id in Halloween.SKINS do
-		if Halloween.ownsSkin(data.skins, data.stats.candy, id) then
-			table.insert(list, id)
-		end
-	end
-	table.sort(list)
-	return list
+	return Skins.owned(data.skins, data.stats)
 end
 
 -- Stan dla klienta (okna Grzybopedii i zadań). Wysyłamy tylko, gdy coś się zmieniło.
@@ -205,6 +202,9 @@ local function send(player: Player, force: boolean?)
 		candyBag = data.candyBag,
 		skins = ownedSkins(data),
 		equipped = data.equipped,
+		winterClaimed = data.winterClaimed,
+		flakeBag = data.flakeBag,
+		advent = data.advent,
 	}
 	-- Odcisk bez resetAt (zmienia się co sekundę, klient i tak liczy sam)
 	local fingerprint = HttpService:JSONEncode({
@@ -225,6 +225,9 @@ local function send(player: Player, force: boolean?)
 		payload.candyBag,
 		payload.skins :: any,
 		payload.equipped :: any,
+		payload.winterClaimed,
+		payload.flakeBag,
+		payload.advent :: any,
 	})
 	if not force and lastSent[player] == fingerprint then
 		return
@@ -259,6 +262,38 @@ local function grantTrack(player: Player, data: Data)
 			end
 		end
 		data.eventClaimed = index
+	end
+	if #steps > 0 then
+		api.pushState(player)
+		send(player)
+	end
+end
+
+-- Zima: progi ścieżki płatków osiągnięte od ostatniego razu (tytuły liczy Titles ze stats.snowflakes)
+local function grantWinterTrack(player: Player, data: Data)
+	local steps = Winter.newSteps(data.winterClaimed, data.stats.snowflakes)
+	for _, index in steps do
+		local step = Winter.TRACK[index]
+		if step.kind == "luck" and step.seconds then
+			grantLuck(data, step.seconds)
+			api.notify(player, "MSG_WTRACK_LUCK", { math.floor(step.seconds / 60) })
+		elseif step.kind == "coins" and step.scale then
+			local coins = math.floor(step.scale * scaleOf(data))
+			Ledger.earn(player, data, coins, "Gameplay", "WinterTrack")
+			api.notify(player, "MSG_WTRACK_COINS", { coins })
+		elseif step.kind == "skin" and step.id then
+			-- Nowa skórka: od razu w dłoni, jeśli w tym miejscu nie ma innej
+			local skin = Winter.getSkin(step.id)
+			if skin then
+				local equipped = data.equipped :: any
+				if equipped[skin.slot] == "" then
+					equipped[skin.slot] = step.id
+					api.applyStats(player)
+				end
+				api.notify(player, "MSG_WTRACK_SKIN", nil, skin.key)
+			end
+		end
+		data.winterClaimed = index
 	end
 	if #steps > 0 then
 		api.pushState(player)
@@ -319,14 +354,18 @@ function ProgressService.join(player: Player)
 	applySettings(player, data)
 	-- Progi ścieżki z poprzedniej wizyty, których nagrody nie przyszły (np. wyjście w złym momencie)
 	grantTrack(player, data)
+	grantWinterTrack(player, data)
 	if Halloween.active(os.time()) then
 		api.notify(player, "MSG_HALLOWEEN_WELCOME")
+	elseif Winter.active(os.time()) then
+		api.notify(player, "MSG_WINTER_WELCOME")
 	end
 	send(player, true)
 end
 
 function ProgressService.leave(player: Player)
 	lastSent[player] = nil
+	lastAdvent[player] = nil
 	awarding[player] = nil
 end
 
@@ -448,6 +487,63 @@ function ProgressService.addCandy(player: Player, amount: number, key: string?)
 	grantTrack(player, data)
 end
 
+-- ===== Zima =====
+
+-- Płatki śniegu (sprzedane oszronione grzyby, zadania, kalendarz). key = komunikat z liczbą i sumą
+-- (nil = bez komunikatu). Tylko w czasie eventu.
+function ProgressService.addFlakes(player: Player, amount: number, key: string?)
+	local data = api.getData(player)
+	if not data or amount <= 0 or not Winter.active(os.time()) then
+		return
+	end
+	if key then
+		api.notify(player, key, { amount, data.stats.snowflakes + amount })
+	end
+	data.flakeBag += amount
+	-- Licznik, tytuły z płatków i odznaka (Titles.EVENT_STAT.snowflake)
+	ProgressService.event(player, "snowflake", amount)
+	grantWinterTrack(player, data)
+end
+
+-- Kalendarz adwentowy: otwiera dzisiejsze okienko (raz dziennie, przegapione zostają zamknięte)
+local function openAdvent(player: Player)
+	local data = api.getData(player)
+	local now = os.clock()
+	if not data or now - (lastAdvent[player] or 0) < 0.5 then
+		return
+	end
+	lastAdvent[player] = now
+	local day = Winter.adventDay(os.time())
+	if not day or not Winter.canOpen(data.advent, day) then
+		return
+	end
+	local reward = Winter.ADVENT[day]
+	table.insert(data.advent, day)
+	local coins = if reward.coins then math.floor(reward.coins * scaleOf(data)) else 0
+	if coins > 0 then
+		Ledger.earn(player, data, coins, "TimedReward", "Advent")
+	end
+	if reward.luck then
+		grantLuck(data, reward.luck)
+	end
+	if coins > 0 and reward.flakes then
+		api.notify(player, "MSG_ADVENT_GIFT", { day, coins, reward.flakes })
+	elseif reward.flakes then
+		api.notify(player, "MSG_ADVENT_FLAKES", { day, reward.flakes })
+	elseif reward.luck then
+		api.notify(player, "MSG_ADVENT_LUCK", { day, math.floor(reward.luck / 60) })
+	else
+		api.notify(player, "MSG_ADVENT_COINS", { day, coins })
+	end
+	-- Tytuł za otwarte okienka (Titles.EVENT_STAT.advent), płatki na ścieżkę i do kieszeni
+	ProgressService.event(player, "advent", 1)
+	if reward.flakes then
+		ProgressService.addFlakes(player, reward.flakes)
+	end
+	api.pushState(player)
+	send(player)
+end
+
 -- Dodatek do ceny przy sprzedaży z ukończonych stron Grzybopedii (0.11 = +11%)
 function ProgressService.sellBonus(player: Player): number
 	local data = api.getData(player)
@@ -514,6 +610,35 @@ function ProgressService.dev(player: Player, action: string): boolean
 		data.eventClaimed = Halloween.reached(data.stats.candy)
 		refreshTitle(player, data)
 		api.applyStats(player)
+	elseif action == "flakes50" then
+		ProgressService.addFlakes(player, 50, "MSG_FLAKES_SOLD")
+	elseif action == "winterReset" then
+		-- Zima od nowa: płatki, ścieżka, kalendarz i skórki z Zimy (skórki z Halloween zostają)
+		data.stats.snowflakes = 0
+		data.stats.advent = 0
+		data.flakeBag = 0
+		data.winterClaimed = 0
+		table.clear(data.advent)
+		for i = #data.skins, 1, -1 do
+			if Winter.getSkin(data.skins[i]) then
+				table.remove(data.skins, i)
+			end
+		end
+		for slot, id in data.equipped :: any do
+			if Winter.getSkin(id) then
+				(data.equipped :: any)[slot] = ""
+			end
+		end
+		api.applyStats(player)
+		refreshTitle(player, data)
+	elseif string.match(action, "^flakesSet:%d+:%d+$") then
+		-- Testy: ustawia płatki zebrane i w kieszeni (np. przywrócenie zapisu po teście choinki)
+		local total, bag = string.match(action, "^flakesSet:(%d+):(%d+)$")
+		data.stats.snowflakes = tonumber(total) or 0
+		data.flakeBag = tonumber(bag) or 0
+		data.winterClaimed = Winter.reached(data.stats.snowflakes)
+		refreshTitle(player, data)
+		api.applyStats(player)
 	elseif action == "questsNew" then
 		-- Jakby był nowy dzień: nowe zadania i nagroda za kolejny dzień serii
 		data.daily.day = -1
@@ -565,6 +690,10 @@ local function onClaim(player: Player, what: unknown)
 		if Halloween.active(os.time()) then
 			ProgressService.addCandy(player, Config.Halloween.questCandy, "MSG_CANDY_QUEST")
 		end
+		-- Zima: każde zadanie dnia daje też płatki śniegu
+		if Winter.active(os.time()) then
+			ProgressService.addFlakes(player, Config.Winter.questFlakes, "MSG_FLAKES_QUEST")
+		end
 	elseif what == "bonus" then
 		if not Progress.claimBonus(data.daily) then
 			return
@@ -604,6 +733,7 @@ function ProgressService.start(serviceApi: Api)
 	api = serviceApi
 	QuestReroll.OnServerEvent:Connect(onReroll)
 	QuestClaim.OnServerEvent:Connect(onClaim)
+	AdventOpen.OnServerEvent:Connect(openAdvent)
 	Players.PlayerRemoving:Connect(function(player)
 		lastClaim[player] = nil
 	end)

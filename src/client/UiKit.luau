@@ -50,6 +50,7 @@ local FALLBACK: { [string]: string } = {
 	book = "📖", scroll = "📜", trophy = "🏆", gift = "🎁", dice = "🎲",
 	music = "🎵", sound = "🔊", soundOff = "🔇", invite = "👥",
 	pumpkin = "🎃", candy = "🍬", ghost = "👻", owl = "🦉",
+	snowflake = "❄️", tree = "🎄",
 }
 
 UiKit.COLORS = {

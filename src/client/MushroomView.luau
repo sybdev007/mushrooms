@@ -144,6 +144,10 @@ local MOSS = rgb(110, 176, 72)
 local PUMPKIN = rgb(240, 128, 30)
 local PUMPKIN_GLOW = rgb(255, 214, 90)
 local PUMPKIN_STEM = rgb(70, 104, 40)
+-- Zima: oszroniony grzyb (cecha „frost”): szron na kapeluszu, śnieg na wierzchu i sople
+local FROST = rgb(196, 232, 255)
+local SNOW_CAP = rgb(248, 252, 255)
+local ICICLE = rgb(186, 230, 255)
 
 -- Cechy, przy których grzyb świeci (widać go z daleka w ciemności), i kolor tej poświaty
 local GLOW_TAGS: { [string]: Color3 } = {
@@ -688,6 +692,7 @@ local TAG_SPORES: { [string]: { Color3 } } = {
 	abyssal = { rgb(255, 90, 40), rgb(255, 190, 60) },
 	mossy = { rgb(110, 190, 72), rgb(180, 230, 120) },
 	pumpkin = { rgb(255, 140, 30), rgb(255, 214, 90), rgb(120, 50, 170) },
+	frost = { rgb(255, 255, 255), rgb(200, 235, 255), rgb(150, 210, 255) },
 	cursed = { rgb(150, 80, 220), rgb(90, 40, 140) },
 	hexed = { rgb(120, 240, 90), rgb(200, 255, 150) },
 	moonlit = { rgb(200, 215, 255), rgb(255, 255, 255) },
@@ -1016,6 +1021,12 @@ local function buildModel(info: MushroomInfo, parent: Instance?, fit: Vector2?):
 		-- Srebrna / złota dynia: wciąż pomarańczowa, z odcieniem wariantu (tęczowa mieni się jak zawsze)
 		capColor = PUMPKIN:Lerp(capColor, 0.4)
 	end
+	local frost = hasTag(info, "frost")
+	if frost and rank == 0 then
+		capColor = capColor:Lerp(FROST, 0.55)
+	elseif frost and rank < 3 then
+		capColor = capColor:Lerp(FROST, 0.3)
+	end
 	local parts: { BasePart } = {}
 	local yaw = math.random() * math.pi * 2
 	local origin = CFrame.new(info.position) * CFrame.Angles(0, yaw, 0)
@@ -1060,6 +1071,25 @@ local function buildModel(info: MushroomInfo, parent: Instance?, fit: Vector2?):
 
 	if pumpkin then
 		pumpkinFace(model, origin, info.species, capTop, parts)
+	end
+
+	-- Oszroniony: śnieg na wierzchu kapelusza i sople pod jego brzegiem
+	if frost then
+		local u = math.clamp(shape.capW * SIZE / 7, 0.16, 0.42)
+		local snow = makePart("FrostSnow", Vector3.new(shape.capW * SIZE * 0.55, u * 0.45, shape.capW * SIZE * 0.55), origin * CFrame.new(0, capTop + u * 0.05, 0), SNOW_CAP)
+		snow.Parent = model
+		table.insert(parts, snow)
+		local rim = shape.capW * SIZE * 0.42
+		local under = capTop - shape.capH * SIZE * 0.85
+		for k = 1, 5 do
+			local angle = k * 1.26 + 0.4
+			local length = u * (1.2 + (k % 2) * 0.8)
+			local icicle = makePart("Icicle", Vector3.new(u * 0.45, length, u * 0.45), origin * CFrame.new(math.cos(angle) * rim, under - length / 2, math.sin(angle) * rim), ICICLE)
+			icicle.Material = Enum.Material.Glass
+			icicle.Transparency = 0.2
+			icicle.Parent = model
+			table.insert(parts, icicle)
+		end
 	end
 
 	-- Księżycowy: srebrna aureola z kostek nad kapeluszem
@@ -1134,6 +1164,14 @@ local function buildModel(info: MushroomInfo, parent: Instance?, fit: Vector2?):
 		newLight.Color = rgb(255, 150, 50)
 		newLight.Range = 8
 		newLight.Brightness = 1.3
+		newLight.Parent = mainCap
+		light = newLight
+	elseif frost then
+		-- Szron lekko świeci zimnym światłem (widać go nocą w lesie)
+		local newLight = Instance.new("PointLight")
+		newLight.Color = rgb(170, 225, 255)
+		newLight.Range = 7
+		newLight.Brightness = 0.9
 		newLight.Parent = mainCap
 		light = newLight
 	end

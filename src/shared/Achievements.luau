@@ -36,6 +36,7 @@ Achievements.IDS = {
 	"cosmic",
 	"forge_first",
 	"forge_collection",
+	"winter2026",
 }
 
 local function anyForm(atlas: { [string]: any }, rank: number): boolean
@@ -88,6 +89,7 @@ function Achievements.check(source: Source): { [string]: boolean }
 	done.lifesaver = (stats.revives or 0) >= 1
 	done.streak7 = (stats.bestStreak or 0) >= 7
 	done.halloween2026 = (stats.candy or 0) >= Config.Halloween.badgeCandy
+	done.winter2026 = (stats.snowflakes or 0) >= Config.Winter.badgeFlakes
 	for id, value in done do
 		if not value then
 			done[id] = nil

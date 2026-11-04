@@ -397,6 +397,7 @@ Config.Tags = {
 -- (Shared/Halloween). Zostają w Economy.getTag, więc grzyby z eventu zachowują wartość w zapisie.
 Config.EventTags = {
 	{ id = "pumpkin", key = "MUT_PUMPKIN", icon = "🎃", zone = 0, chance = 0.06, mult = 2, color = { 255, 140, 30 } },
+	{ id = "frost", key = "MUT_FROST", icon = "❄️", zone = 0, chance = 0.06, mult = 2, color = { 150, 220, 255 } }, -- Zima (Shared/Winter)
 } :: { TagDef }
 
 -- Im głębiej w świecie, tym częstsze mutacje: pierwsza niebezpieczna strefa x1, każda kolejna +DepthLuck
@@ -646,6 +647,7 @@ Config.DevLiveActions = {
 	resetSave = true, -- tylko własny zapis i tylko w dół (do zera), więc bezpieczne też na żywo
 	spiritNight = true,
 	pumpkinBoom = true,
+	frostBoom = true, -- Zima: „Zamieć” (tylko w czasie eventu)
 } :: { [string]: boolean }
 
 -- Admin abuse z panelu DEV: wydarzenia dla całego serwera, ogłaszane wszystkim, z banerem i odliczaniem.
@@ -776,6 +778,7 @@ Config.Badges = {
 	cosmic = 0, -- pierwszy kosmiczny grzyb
 	forge_first = 511688787129005, -- pierwszy grzyb z Moździerza Zielarki
 	forge_collection = 0, -- wszystkie gatunki z kuźni
+	winter2026 = 0, -- Zima 2026: 100 płatków śniegu w czasie eventu
 } :: { [string]: number }
 -- ===== Halloween: Noc Dziadów (event) =====
 -- Włącza się sam według daty (os.time, UTC). W tym czasie:
@@ -850,6 +853,98 @@ Config.Halloween = {
 		"rbxassetid://1836009626", -- Halloween Horrors Waltz
 		"rbxassetid://130935065570387", -- Ghostly Masquerade Ball
 		"rbxassetid://139960241205796", -- Sweet Scare
+	},
+}
+
+-- ===== Zima (event, Shared/Winter) =====
+-- Włącza się sama według daty (os.time, UTC); wcześniej nic z niej nie widać (bez przycisku, tytułów,
+-- dekoracji i oszronionych grzybów). W tym czasie:
+--   oszronione grzyby (cecha „frost” z Config.EventTags, x2 wartości) rosną w każdym świecie,
+--   a sprzedane u skupywacza dają płatki śniegu (flakesByWorld: zależnie od świata grzyba);
+--   płatki (licznik stats.snowflakes) prowadzą po ścieżce nagród (track), nagrody przychodzą same;
+--   kalendarz adwentowy: od 1 do 24 grudnia jeden prezent dziennie (tylko dzisiejsze okienko);
+--   choinka z prezentami przy chatce: wrzuca się płatki z kieszeni, wypada prezent albo psikus;
+--   w lesie pada śnieg, drzewa i ziemia są oszronione, nocą gra zimowa muzyka.
+-- Po evencie oszronione grzyby przestają rosnąć, a zdobyte tytuły, skórki i grzyby zostają.
+Config.Winter = {
+	startsAt = 1796083200, -- 2026-12-01 00:00 UTC
+	endsAt = 1799280000, -- 2027-01-07 00:00 UTC (do Trzech Króli włącznie)
+	frostChance = 0.06, -- szansa na oszroniony grzyb (stała, szczęście jej nie zmienia)
+	boomFrostChance = 0.5, -- „Zamieć” z panelu DEV (jednorazowy odrost lasu wszystkim)
+	flakesByWorld = { forest = 1, cave = 2, swamp = 3, mountain = 4 } :: { [string]: number },
+	questFlakes = 2, -- za każde ukończone zadanie dnia w czasie eventu
+	badgeFlakes = 100, -- odznaka Config.Badges.winter2026
+	-- Ścieżka nagród (płatki zebrane łącznie, wydawanie na choince ich nie cofa).
+	-- kind: "title" (tytuł z Titles, rarity), "luck" (mikstura na seconds), "skin" (skórka z skins)
+	track = {
+		{ flakes = 10, kind = "title", id = "TITLE_SNOWBALL", rarity = "rare", icon = "⛄" },
+		{ flakes = 30, kind = "luck", seconds = 900, icon = "🍀" },
+		{ flakes = 60, kind = "skin", id = "ice_lantern", icon = "🧊" },
+		{ flakes = 100, kind = "title", id = "TITLE_FROST_SPIRIT", rarity = "epic", icon = "❄️" },
+		{ flakes = 150, kind = "skin", id = "candy_cane", icon = "🍬" },
+		{ flakes = 200, kind = "title", id = "TITLE_WINTER_KING", rarity = "legendary", icon = "👑" },
+	} :: { { flakes: number, kind: string, id: string?, rarity: string?, seconds: number?, scale: number?, icon: string } },
+	-- Skórki narzędzi w dłoni (zostają na zawsze, Shared/Skins). slot: która rzecz w dłoni się zmienia
+	skins = {
+		ice_lantern = { slot = "lantern", key = "SKIN_ICE_LANTERN", icon = "🧊" },
+		candy_cane = { slot = "knife", key = "SKIN_CANDY_CANE", icon = "🍬" },
+	} :: { [string]: { slot: string, key: string, icon: string } },
+	-- Choinka z prezentami przy chatce: wrzuca się cost płatków (z kieszeni), wypada prezent
+	-- albo nieszkodliwy psikus (tylko wygląd na chwilę, nic nie zabiera).
+	tree = {
+		cost = 5,
+		cooldown = 1.5,
+		duplicateScale = 3, -- skórka, którą już masz: monety (x skala nagród)
+		outcomes = {
+			{ id = "coins", weight = 28, scale = 1 },
+			{ id = "luck", weight = 15, seconds = 300 },
+			{ id = "flakes", weight = 6, amount = 12 }, -- tylko do kieszeni, ścieżki nie przesuwa
+			{ id = "skin_lantern", weight = 4, skin = "ice_lantern" },
+			{ id = "skin_knife", weight = 4, skin = "candy_cane" },
+			{ id = "trick_snowman", weight = 12, seconds = 60, trick = true }, -- głowa bałwana
+			{ id = "trick_frost", weight = 12, seconds = 120, trick = true }, -- latarnia świeci lodowym światłem
+			{ id = "trick_snowball", weight = 10, trick = true }, -- śnieżka w ekran
+			{ id = "trick_flurry", weight = 9, seconds = 45, trick = true }, -- śnieżyca wokół gracza
+		} :: { { id: string, weight: number, scale: number?, seconds: number?, amount: number?, skin: string?, trick: boolean? } },
+	},
+	-- Kalendarz adwentowy: dzień 1 = startsAt (1 grudnia, UTC). Otworzyć można tylko dzisiejsze
+	-- okienko (przegapione zostają zamknięte). coins: jednostki nagród (× Progress.rewardScale, w MONETACH),
+	-- flakes: płatki do kieszeni i na ścieżkę, luck: sekundy mikstury szczęścia.
+	advent = {
+		{ coins = 2 },
+		{ flakes = 5 },
+		{ luck = 600 },
+		{ coins = 3 },
+		{ flakes = 6 },
+		{ coins = 5 },
+		{ luck = 600 },
+		{ flakes = 6 },
+		{ coins = 3 },
+		{ flakes = 8 },
+		{ luck = 900 },
+		{ coins = 5 },
+		{ flakes = 8 },
+		{ coins = 3 },
+		{ luck = 900 },
+		{ flakes = 10 },
+		{ coins = 4 },
+		{ coins = 6 },
+		{ flakes = 10 },
+		{ luck = 1200 },
+		{ coins = 5 },
+		{ flakes = 12 },
+		{ coins = 6 },
+		{ coins = 10, flakes = 20 }, -- Wigilia
+	} :: { { coins: number?, flakes: number?, luck: number? } },
+	adventTitle = 12, -- tytuł TITLE_ADVENT za tyle otwartych okienek
+	-- Muzyka nocą w lesie w czasie eventu. Licencjonowane: APM, DistroKid.
+	playlist = {
+		"rbxassetid://9046740461", -- Winter Holidays
+		"rbxassetid://1838667764", -- Christmas Tree
+		"rbxassetid://9046741231", -- Wrapping Gifts
+		"rbxassetid://140347288034746", -- Winter Glow
+		"rbxassetid://140732695067309", -- Cozy Future Christmas Lights
+		"rbxassetid://140596895991475", -- Christmas Morning Magic
 	},
 }
 

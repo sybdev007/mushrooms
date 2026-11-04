@@ -3,13 +3,22 @@
 -- klient dostanie resztę gry (Shared/Config, tabelę tłumaczeń GameStrings). Dlatego teksty PL/EN
 -- i numery obrazków są tutaj, a nie w Config/CSV.
 --
--- ACTIVE przełącza motyw: "halloween" (dynia nad paskiem) albo "forest" (grzybek-skoczek i kiełki).
+-- Motyw wybiera się sam po dacie (SCHEDULE): w czasie Halloween "halloween" (dynia nad paskiem),
+-- w czasie Zimy "winter" (grzybek-skoczek i padający śnieg), poza eventami "forest" (grzybek i kiełki).
+-- ACTIVE (np. "winter") wymusza motyw na stałe, nil = po dacie.
 -- Grafiki: assets/loading/ (rysuje je tools/loading_art.py). Pusty numer obrazka = ekran działa
 -- dalej, tylko bez tła / z emoji zamiast dyni i grzybka.
 
 local LoadingTheme = {}
 
-LoadingTheme.ACTIVE = "halloween"
+LoadingTheme.ACTIVE = nil :: string?
+
+-- Te same daty co Config.Halloween i Config.Winter (tutaj kopia, bo Shared/Config wczytuje się później;
+-- test w tests/economy.spec.luau pilnuje, żeby się zgadzały). Czas w sekundach UTC.
+LoadingTheme.SCHEDULE = {
+	{ id = "halloween", startsAt = 1793232000, endsAt = 1794268800 },
+	{ id = "winter", startsAt = 1796083200, endsAt = 1799280000 },
+} :: { { id: string, startsAt: number, endsAt: number } }
 
 export type Text = { pl: string, en: string }
 
@@ -27,7 +36,7 @@ export type Theme = {
 	fillTo: Color3,
 	glow: Color3, -- poświata biegacza i główki paska
 	particles: { Color3 },
-	particleKind: "embers" | "fireflies",
+	particleKind: "embers" | "fireflies" | "snow",
 	bats: boolean,
 	stages: { [string]: Text },
 	tips: { Text },
@@ -139,10 +148,57 @@ LoadingTheme.themes = {
 		},
 		tips = withTips({}),
 	} :: Theme,
+	winter = {
+		background = "rbxassetid://76824083718605", -- na razie tło lasu (assets/loading/bg-forest.jpg) + padający śnieg
+		backdrop = Color3.fromRGB(12, 22, 46),
+		runner = "mushroom",
+		fallbackRunner = "🍄",
+		titleTop = Color3.fromRGB(240, 250, 255),
+		titleBottom = Color3.fromRGB(140, 200, 255),
+		badge = { pl = "❄️ Zimowy Festiwal w lesie", en = "❄️ Winter Festival in the forest" },
+		badgeColor = Color3.fromRGB(40, 110, 170),
+		track = Color3.fromRGB(18, 34, 62),
+		fillFrom = Color3.fromRGB(200, 240, 255),
+		fillTo = Color3.fromRGB(110, 170, 255),
+		glow = Color3.fromRGB(170, 225, 255),
+		particles = { Color3.fromRGB(255, 255, 255), Color3.fromRGB(225, 240, 255), Color3.fromRGB(200, 228, 255) },
+		particleKind = "snow",
+		bats = false,
+		stages = {
+			connect = { pl = "Odśnieżamy ścieżkę", en = "Clearing the snowy path" },
+			world = { pl = "Wieszamy lampki na choince", en = "Hanging lights on the tree" },
+			assets = { pl = "Grzyby wychodzą spod śniegu", en = "Mushrooms are popping out of the snow" },
+			save = { pl = "Szukamy twojego koszyka", en = "Finding your basket" },
+			done = { pl = "Do lasu!", en = "Into the woods!" },
+		},
+		tips = withTips({
+			{
+				pl = "Sprzedane oszronione grzyby dają płatki śniegu. Wydasz je pod choinką przy chatce!",
+				en = "Sold frosted mushrooms give snowflakes. Spend them at the gift tree by the cabin!",
+			},
+			{
+				pl = "Do Wigilii codziennie otwórz jedno okienko kalendarza adwentowego w oknie Zima.",
+				en = "Open one Advent calendar door every day until Christmas Eve in the Winter window.",
+			},
+		}),
+	} :: Theme,
 }
 
+-- Motyw na dany czas (sekundy UTC): event z SCHEDULE albo las
+function LoadingTheme.activeAt(t: number): string
+	if LoadingTheme.ACTIVE then
+		return LoadingTheme.ACTIVE
+	end
+	for _, entry in LoadingTheme.SCHEDULE do
+		if t >= entry.startsAt and t < entry.endsAt then
+			return entry.id
+		end
+	end
+	return "forest"
+end
+
 function LoadingTheme.get(id: string?): Theme
-	return LoadingTheme.themes[id or LoadingTheme.ACTIVE] or LoadingTheme.themes.halloween
+	return LoadingTheme.themes[id or LoadingTheme.activeAt(os.time())] or LoadingTheme.themes.forest
 end
 
 -- Język jak w grze (Localize.detectLocale): z konta gracza, polski albo angielski

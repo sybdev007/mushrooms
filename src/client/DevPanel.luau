@@ -207,6 +207,24 @@ local CATEGORIES: { Category } = {
 		},
 	},
 	{
+		id = "winter",
+		name = "❄️ Zima",
+		sections = {
+			{ name = "Podgląd (tylko Studio)", actions = {
+				{ id = "winterToggle", label = "❄️ Włącz/wyłącz Zimę" },
+				{ id = "adventNext", label = "🗓️ Następny dzień kalendarza" },
+			} },
+			{ name = "Wydarzenia (ogłaszane)", actions = {
+				{ id = "frostBoom", label = "🧊 Mroźny wysyp" },
+			} },
+			{ name = "Płatki i choinka", actions = {
+				{ id = "flakes50", label = "❄️ +50 płatków" },
+				{ id = "winterReset", label = "❄️ Zima na 0 (płatki, kalendarz, skórki)" },
+				{ id = "giftTree", label = "🎄 Choinka (5 ❄️)" },
+			} },
+		},
+	},
+	{
 		id = "danger",
 		name = "Strefa zagrożenia",
 		sections = {

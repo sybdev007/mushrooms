@@ -18,6 +18,7 @@ for _, variant in Config.Variants do
 end
 local Progress = require(ReplicatedStorage.Shared.Progress)
 local Titles = require(ReplicatedStorage.Shared.Titles)
+local Skins = require(ReplicatedStorage.Shared.Skins)
 local Social = require(ReplicatedStorage.Shared.Social)
 local Delve = require(ReplicatedStorage.Shared.Delve)
 
@@ -58,8 +59,11 @@ export type Data = {
 	tutorial: number, -- krok samouczka (0 = cutscenka na start, Config.Tutorial.done = skończony)
 	eventClaimed: number, -- Halloween: ile progów ścieżki nagród gracz już dostał (cukierki są w stats.candy)
 	candyBag: number, -- Halloween: cukierki w kieszeni do wydania w kotle (stats.candy = zebrane łącznie)
-	skins: { string }, -- skórki z kotła (te ze ścieżki nagród liczą się z cukierków)
+	skins: { string }, -- skórki z kotła i z choinki (te ze ścieżek nagród liczą się z liczników, Shared/Skins)
 	equipped: { lantern: string, knife: string }, -- założone skórki ("" = zwykła latarnia / nożyk)
+	winterClaimed: number, -- Zima: ile progów ścieżki nagród gracz już dostał (płatki są w stats.snowflakes)
+	flakeBag: number, -- Zima: płatki w kieszeni do wydania na choince (stats.snowflakes = zebrane łącznie)
+	advent: { number }, -- Zima: otwarte okienka kalendarza adwentowego (numery dni 1..24)
 	eventGoals: { day: number, seconds: number }, -- Halloween: sekundy mikstury z celów serwera dziś (limit dzienny)
 	forest: Forest?, -- las gracza z ostatniej sesji (szybki powrót nie losuje lasu od nowa)
 	delve: Delve.Save, -- ekspedycja: relikty (odnowione, oprawa), odłamki, dzień zlecenia dnia
@@ -141,6 +145,9 @@ function DataService.defaultData(): Data
 		candyBag = 0,
 		skins = {},
 		equipped = { lantern = "", knife = "" },
+		winterClaimed = 0,
+		flakeBag = 0,
+		advent = {},
 		eventGoals = { day = -1, seconds = 0 },
 		forest = nil,
 		delve = Delve.emptySave(),
@@ -405,7 +412,7 @@ local function reconcile(raw: any): Data
 	end
 	if typeof(raw.skins) == "table" then
 		for _, id in raw.skins do
-			if typeof(id) == "string" and Config.Halloween.skins[id] and not table.find(data.skins, id) then
+			if Skins.get(id) and not table.find(data.skins, id) then
 				table.insert(data.skins, id)
 			end
 		end
@@ -413,9 +420,23 @@ local function reconcile(raw: any): Data
 	if typeof(raw.equipped) == "table" then
 		for slot in data.equipped do
 			local id = raw.equipped[slot]
-			local def = if typeof(id) == "string" then Config.Halloween.skins[id] else nil
+			local def = Skins.get(id)
 			if def and def.slot == slot then
 				(data.equipped :: any)[slot] = id
+			end
+		end
+	end
+	-- Zima: ścieżka, kieszeń z płatkami i kalendarz adwentowy
+	if typeof(raw.winterClaimed) == "number" then
+		data.winterClaimed = math.clamp(math.floor(raw.winterClaimed), 0, #Config.Winter.track)
+	end
+	if typeof(raw.flakeBag) == "number" then
+		data.flakeBag = math.max(0, math.floor(raw.flakeBag))
+	end
+	if typeof(raw.advent) == "table" then
+		for _, day in raw.advent do
+			if typeof(day) == "number" and day == math.floor(day) and Config.Winter.advent[day] and not table.find(data.advent, day) then
+				table.insert(data.advent, day)
 			end
 		end
 	end

@@ -274,6 +274,28 @@ local function choice(): string
 	return if state and typeof(state.titleChoice) == "string" then state.titleChoice else ""
 end
 
+-- Tytuły z eventu widać tylko w czasie eventu (atrybut serwera) albo gdy są już zdobyte
+local EVENT_ATTRIBUTE: { [string]: string } = { halloween = "Halloween", winter = "Winter" }
+local function eventActive(event: string): boolean
+	local attribute = EVENT_ATTRIBUTE[event]
+	return attribute ~= nil and Workspace:GetAttribute(attribute) == true
+end
+
+local function visible(def: Titles.TitleDef, earned: { [string]: boolean }): boolean
+	return earned[def.id] == true or def.event == nil or eventActive(def.event)
+end
+
+-- Ile tytułów pokazujemy (bez tytułów z eventów, które nie trwają i nie są zdobyte)
+local function visibleTotal(earned: { [string]: boolean }): number
+	local total = 0
+	for _, def in Titles.LIST do
+		if visible(def, earned) then
+			total += 1
+		end
+	end
+	return total
+end
+
 local function refreshBadge(earned: { [string]: boolean })
 	local count = 0
 	local fresh = false
@@ -286,7 +308,7 @@ local function refreshBadge(earned: { [string]: boolean })
 	if fresh then
 		side.setBadge(Localize.t("BADGE_NEW"), "alert")
 	else
-		side.setBadge(string.format("%d/%d", count, #Titles.LIST), "info")
+		side.setBadge(string.format("%d/%d", count, visibleTotal(earned)), "info")
 	end
 end
 
@@ -314,7 +336,7 @@ local function render()
 	for _ in earned do
 		count += 1
 	end
-	window.pillText.Text = string.format("%d/%d", count, #Titles.LIST)
+	window.pillText.Text = string.format("%d/%d", count, visibleTotal(earned))
 
 	-- Podgląd: tak jak nad głową
 	previewHint.Text = Localize.t("TITLES_EQUIPPED")
@@ -325,13 +347,12 @@ local function render()
 	UiKit.recolor(autoButton, if chosen == "" then AUTO_ON else AUTO_OFF)
 	UiKit.recolor(noneButton, if chosen == Titles.NONE then AUTO_ON else AUTO_OFF)
 
-	-- Tytuły z eventu: po evencie widać tylko zdobyte (niezdobytych nie da się już zdobyć)
-	local eventOn = Workspace:GetAttribute("Halloween") == true
+	-- Tytuły z eventu: przed i po evencie widać tylko zdobyte (niezdobytych nie da się wtedy zdobyć)
 	for _, card in cards do
 		local def = card.def
 		local has = earned[def.id] == true
 		local equipped = has and def.id == current
-		card.frame.Visible = has or def.event == nil or eventOn
+		card.frame.Visible = visible(def, earned)
 		card.chip.Text = Localize.t("RARITY_" .. string.upper(def.rarity))
 		card.name.Text = Localize.t(def.id)
 		local n, goal = Titles.progress(def, ctx)

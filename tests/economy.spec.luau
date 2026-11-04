@@ -45,6 +45,17 @@ local Achievements = loadModule("src/shared/Achievements.luau", {
 local roblox = require("@lune/roblox")
 local Expedition = loadModule("src/shared/Expedition.luau", { Vector3 = roblox.Vector3 })
 
+-- Skórki eventów (Shared/Skins) z modułami Halloween i Winter, dla testów, które ładują serwer
+local function loadSkins(): any
+	local function req(module)
+		return module
+	end
+	local cycle = loadModule("src/shared/Cycle.luau", { script = { Parent = { Config = Config } }, require = req })
+	local halloween = loadModule("src/shared/Halloween.luau", { script = { Parent = { Config = Config, Cycle = cycle, Economy = Economy } }, require = req })
+	local winter = loadModule("src/shared/Winter.luau", { script = { Parent = { Config = Config, Economy = Economy } }, require = req })
+	return loadModule("src/shared/Skins.luau", { script = { Parent = { Halloween = halloween, Winter = winter } }, require = req })
+end
+
 local passed, failed = 0, 0
 
 local function test(name: string, fn: () -> ())
@@ -267,7 +278,7 @@ test("DataService ładuje v5 jako v7 bez utraty ekwipunku i kupionych poziomów"
 	local services = {
 		Players = players,
 		DataStoreService = { GetDataStore = function() return {} end },
-		ReplicatedStorage = { Shared = { Config = Config, Economy = Economy, Progress = Progress, Titles = Titles, Social = Social, Delve = loadModule("src/shared/Delve.luau", {}) } },
+		ReplicatedStorage = { Shared = { Config = Config, Economy = Economy, Progress = Progress, Titles = Titles, Social = Social, Skins = loadSkins(), Delve = loadModule("src/shared/Delve.luau", {}) } },
 	}
 	local DataService = loadModule("src/server/DataService.luau", {
 		game = { GetService = function(_, name) return services[name] end },
@@ -2233,6 +2244,244 @@ test("halloween: najbliższa Noc Dziadów", function()
 	eq(at, start + H.spiritEvery * length, "o świcie: następna")
 	eq(now, false)
 	eq((Halloween.nextSpiritNight(H.endsAt + 10)), nil, "po evencie żadnej")
+end)
+
+-- ===== Zima: Zimowy Festiwal =====
+print("Zima (Winter.luau)")
+local Winter = loadModule("src/shared/Winter.luau", {
+	script = { Parent = { Config = Config, Economy = Economy } },
+	require = function(module)
+		return module
+	end,
+})
+local Skins = loadModule("src/shared/Skins.luau", {
+	script = { Parent = { Halloween = Halloween, Winter = Winter } },
+	require = function(module)
+		return module
+	end,
+})
+local W = Config.Winter
+
+test("zima: okno eventu 1.12 - 6.01 (UTC) i ukrycie przed startem", function()
+	eq(W.startsAt, 1796083200, "1 grudnia 2026 00:00 UTC")
+	eq(W.endsAt, 1799280000, "7 stycznia 2027 00:00 UTC (6 stycznia włącznie)")
+	check(W.startsAt >= Config.Halloween.endsAt, "po Halloween")
+	check(not Winter.forced and Winter.devDay == nil, "podgląd z panelu DEV wyłączony")
+	check(not Winter.active(W.startsAt - 1), "przed")
+	check(Winter.active(W.startsAt), "start")
+	check(Winter.active(W.endsAt - 1), "ostatnia sekunda")
+	check(not Winter.active(W.endsAt), "po")
+	-- Przed startem nic nie widać i nic się nie losuje
+	local before = W.startsAt - 3600
+	eq(Winter.frostChance(before, false), 0, "szron przed startem")
+	eq(Winter.frostChance(before, true), 0, "Zamieć przed startem")
+	eq(Winter.adventDay(before), nil, "kalendarz przed startem")
+	eq(Winter.frostChance(W.endsAt, true), 0, "po evencie")
+	eq(Winter.secondsLeft(W.endsAt + 50), 0)
+	eq(Winter.secondsLeft(W.startsAt - 100), W.endsAt - W.startsAt, "przed startem: cały event")
+	-- Podgląd w Studio włącza wszystko i daje się wyłączyć
+	Winter.forced = true
+	check(Winter.active(before), "podgląd")
+	eq(Winter.frostChance(before, false), W.frostChance)
+	Winter.forced = false
+	check(not Winter.active(before), "po podglądzie")
+end)
+
+test("zima: szansa na szron i cecha frost", function()
+	local t = W.startsAt + 100
+	eq(Winter.frostChance(t, false), W.frostChance)
+	eq(Winter.frostChance(t, true), W.boomFrostChance)
+	check(W.boomFrostChance > W.frostChance, "Zamieć daje więcej")
+	check(not Winter.canBeFrost("false_wisp"), "błędny ognik nie")
+	check(Winter.canBeFrost("honey"), "opieńka tak")
+	check(not Winter.canBeFrost("nie_ma_takiego"), "nieznany")
+	local tag = Economy.getTag("frost")
+	check(tag ~= nil, "getTag zna szron (zapis)")
+	eq(Economy.mutationMultiplier(nil, { "frost" }), 2)
+	for zone = 0, #Config.Zones do
+		for _, def in Economy.tagsForZone(zone) do
+			check(def.id ~= "frost", "strefa " .. zone)
+		end
+	end
+	check(csvHas("MUT_FROST"), "tłumaczenie")
+end)
+
+test("zima: płatki zależnie od świata", function()
+	local mountain
+	for _, species in Config.Species do
+		if Economy.zoneWorld(species.zone) == "mountain" and not species.mimic then
+			mountain = species.id
+			break
+		end
+	end
+	check(mountain ~= nil, "gatunek z góry")
+	eq(Winter.flakesFor({ s = "honey", x = { "frost" } }), W.flakesByWorld.forest)
+	eq(Winter.flakesFor({ s = "cave_oyster", x = { "frost" } }), W.flakesByWorld.cave)
+	eq(Winter.flakesFor({ s = "bog_bell", x = { "mossy", "frost" } }), W.flakesByWorld.swamp)
+	eq(Winter.flakesFor({ s = mountain, x = { "frost" } }), W.flakesByWorld.mountain)
+	eq(Winter.flakesFor({ s = "honey", x = { "pumpkin" } }), 0, "dynia to nie szron")
+	eq(Winter.flakesFor({ s = "honey" }), 0, "bez cech")
+	eq(Winter.flakesFor({ s = "false_wisp", x = { "frost" } }), 0, "ognik")
+	eq(Winter.flakesForList({ { s = "honey", x = { "frost" } }, { s = "porcini" }, { s = "cave_oyster", x = { "frost" } } }), W.flakesByWorld.forest + W.flakesByWorld.cave)
+	check(W.flakesByWorld.forest < W.flakesByWorld.cave and W.flakesByWorld.cave < W.flakesByWorld.swamp and W.flakesByWorld.swamp < W.flakesByWorld.mountain, "głębiej więcej")
+end)
+
+test("zima: ścieżka nagród, tytuły i odznaka", function()
+	local track = Winter.TRACK
+	for i = 2, #track do
+		check(track[i].flakes > track[i - 1].flakes, "progi rosną")
+	end
+	eq(Winter.reached(0), 0)
+	eq(Winter.reached(track[1].flakes - 1), 0)
+	eq(Winter.reached(track[1].flakes), 1)
+	eq(Winter.reached(track[#track].flakes + 999), #track)
+	local steps = Winter.newSteps(0, track[3].flakes)
+	eq(#steps, 3)
+	eq(#Winter.newSteps(3, track[3].flakes), 0, "już odebrane")
+	for _, step in track do
+		if step.kind == "title" then
+			local def = Titles.get(step.id)
+			check(def ~= nil and def.stat == "snowflakes" and def.goal == step.flakes and def.event == "winter", "tytuł " .. tostring(step.id))
+			check(csvHas(step.id :: string) and csvHas(step.id :: string .. "_HOW"), "tłumaczenie " .. tostring(step.id))
+		else
+			check(step.kind == "luck" or step.kind == "coins" or (step.kind == "skin" and Winter.getSkin(step.id) ~= nil), "nieznana nagroda " .. step.kind)
+		end
+	end
+	local advent = Titles.get("TITLE_ADVENT")
+	check(advent ~= nil and advent.stat == "advent" and advent.goal == W.adventTitle and advent.event == "winter", "tytuł za kalendarz")
+	check(csvHas("TITLE_ADVENT") and csvHas("TITLE_ADVENT_HOW"), "tłumaczenie kalendarza")
+	check(W.adventTitle <= #W.advent, "da się zdobyć")
+	-- Liczniki
+	local stats = Titles.emptyStats()
+	eq(stats.snowflakes, 0)
+	eq(stats.advent, 0)
+	Titles.count(stats, "snowflake", track[1].flakes)
+	eq(stats.snowflakes, track[1].flakes)
+	Titles.count(stats, "advent", W.adventTitle)
+	local ctx = { atlas = {}, bestiary = {}, stats = stats, tutorialDone = true }
+	local earned = Titles.earned(ctx)
+	check(earned.TITLE_SNOWBALL == true, "Śnieżka")
+	check(earned.TITLE_ADVENT == true, "Strażnik Kalendarza")
+	check(not earned.TITLE_WINTER_KING, "Król jeszcze nie")
+	local source = { atlas = {}, bestiary = {}, stats = stats, caveUnlocked = false, swampUnlocked = false }
+	check(not Achievements.check(source).winter2026, "odznaka jeszcze nie")
+	stats.snowflakes = W.badgeFlakes
+	check(Achievements.check(source).winter2026 == true, "odznaka")
+	check(Config.Badges.winter2026 ~= nil, "miejsce na numer odznaki")
+end)
+
+test("zima: skórki (ścieżka, choinka, wspólna lista)", function()
+	for id, def in Winter.SKINS do
+		check(def.slot == "lantern" or def.slot == "knife", "slot " .. id)
+		check(csvHas(def.key), "tłumaczenie " .. def.key)
+		check(Skins.get(id) ~= nil and Skins.get(id).event == "winter", "na wspólnej liście " .. id)
+		check(Halloween.SKINS[id] == nil, "id nie koliduje z Halloween " .. id)
+	end
+	local lanternAt = Winter.trackFlakesFor("ice_lantern")
+	check(lanternAt ~= nil, "latarnia na ścieżce")
+	check(not Winter.ownsSkin({}, (lanternAt :: number) - 1, "ice_lantern"), "jeszcze nie")
+	check(Winter.ownsSkin({}, lanternAt :: number, "ice_lantern"), "z progu")
+	check(Winter.ownsSkin({ "candy_cane" }, 0, "candy_cane"), "z choinki")
+	check(not Winter.ownsSkin({ "pumpkin_lantern" }, 9999, "pumpkin_lantern"), "nie zimowa")
+	-- Skins łączy oba eventy: każda skórka liczy się ze swojego licznika
+	local stats = { candy = 0, snowflakes = lanternAt }
+	check(Skins.owns({}, stats, "ice_lantern"), "zimowa z płatków")
+	check(not Skins.owns({}, { candy = 9999, snowflakes = 0 }, "ice_lantern"), "cukierki nie dają zimowej")
+	check(Skins.owns({ "sickle" }, stats, "sickle"), "halloweenowa z kotła")
+	check(not Skins.owns({ "nope" }, stats, "nope"), "nieznana")
+	local owned = Skins.owned({ "sickle" }, stats)
+	eq(#owned, 2)
+	eq(Skins.get(owned[1]).event, "halloween", "najpierw Halloween")
+	eq(owned[2], "ice_lantern")
+end)
+
+test("zima: choinka z prezentami", function()
+	local tree = W.tree
+	local seen = {}
+	for i = 0, 999 do
+		local outcome = Winter.rollGift(i / 1000)
+		seen[outcome.id] = (seen[outcome.id] or 0) + 1
+		if outcome.skin then
+			check(Winter.getSkin(outcome.skin) ~= nil, "skórka " .. outcome.id)
+		end
+	end
+	for _, outcome in tree.outcomes do
+		check((seen[outcome.id] or 0) > 0, "wypada " .. outcome.id)
+		check(csvHas("GIFT_" .. string.upper(outcome.id)), "tłumaczenie " .. outcome.id)
+	end
+	check(csvHas("GIFT_SKIN_DUPE"), "tłumaczenie duplikatu")
+	eq(Winter.rollGift(0).id, tree.outcomes[1].id)
+	eq(Winter.rollGift(1).id, tree.outcomes[#tree.outcomes].id, "r = 1 nie wychodzi poza listę")
+	local chance = Winter.treatChance()
+	check(chance > 0.5 and chance < 0.75, "częściej prezent niż psikus: " .. chance)
+	-- Płatki z choinki nie mogą się opłacać (wartość oczekiwana < koszt)
+	local total, flakes = 0, 0
+	for _, outcome in tree.outcomes do
+		total += outcome.weight
+		if outcome.id == "flakes" then
+			flakes += outcome.weight * (outcome.amount or 0)
+		end
+	end
+	check(flakes / total < tree.cost, "choinka nie mnoży płatków")
+end)
+
+test("zima: kalendarz adwentowy", function()
+	eq(#Winter.ADVENT, 24, "24 okienka")
+	for day, reward in Winter.ADVENT do
+		check(reward.coins ~= nil or reward.flakes ~= nil or reward.luck ~= nil, "pusty dzień " .. day)
+	end
+	eq(Winter.adventDay(W.startsAt), 1, "1 grudnia")
+	eq(Winter.adventDay(W.startsAt + Winter.DAY - 1), 1, "do północy UTC")
+	eq(Winter.adventDay(W.startsAt + Winter.DAY), 2)
+	eq(Winter.adventDay(W.startsAt + 23 * Winter.DAY + 5), 24, "Wigilia")
+	eq(Winter.adventDay(W.startsAt + 24 * Winter.DAY), nil, "po Wigilii")
+	eq(Winter.adventDay(W.endsAt + 5), nil, "po evencie")
+	eq(Winter.secondsToNextDay(W.startsAt + 100), Winter.DAY - 100)
+	check(Winter.canOpen({}, 3), "dzisiejsze")
+	check(not Winter.canOpen({ 3 }, 3), "już otwarte")
+	check(not Winter.canOpen({}, nil), "brak dnia")
+	check(not Winter.canOpen({}, 25), "poza kalendarzem")
+	-- Podgląd w Studio przestawia dzień
+	Winter.devDay = 7
+	eq(Winter.adventDay(W.startsAt - 5000), 7)
+	Winter.devDay = nil
+	eq(Winter.adventDay(W.startsAt - 5000), nil)
+	for _, key in { "MSG_ADVENT_GIFT", "MSG_ADVENT_FLAKES", "MSG_ADVENT_LUCK", "MSG_ADVENT_COINS", "ADVENT_OPEN", "ADVENT_NEXT", "ADVENT_SOON", "ADVENT_DONE", "ADVENT_TITLE" } do
+		check(csvHas(key), "tłumaczenie " .. key)
+	end
+end)
+
+test("zima: ekran wczytywania sam przełącza motyw po dacie", function()
+	local LoadingTheme = loadModule("src/first/LoadingTheme.luau", { Vector2 = roblox.Vector2, Color3 = roblox.Color3 })
+	local byId = {}
+	for _, entry in LoadingTheme.SCHEDULE do
+		byId[entry.id] = entry
+		check(LoadingTheme.themes[entry.id] ~= nil, "motyw " .. entry.id)
+	end
+	eq(byId.halloween.startsAt, Config.Halloween.startsAt, "daty Halloween jak w Config")
+	eq(byId.halloween.endsAt, Config.Halloween.endsAt)
+	eq(byId.winter.startsAt, W.startsAt, "daty Zimy jak w Config")
+	eq(byId.winter.endsAt, W.endsAt)
+	eq(LoadingTheme.ACTIVE, nil, "bez wymuszonego motywu")
+	eq(LoadingTheme.activeAt(Config.Halloween.startsAt + 5), "halloween")
+	eq(LoadingTheme.activeAt(Config.Halloween.endsAt), "forest", "po Halloween las")
+	eq(LoadingTheme.activeAt(W.startsAt - 1), "forest", "przed Zimą las")
+	eq(LoadingTheme.activeAt(W.startsAt), "winter")
+	eq(LoadingTheme.activeAt(W.endsAt), "forest", "po Zimie las")
+end)
+
+test("zima: komunikaty i okno mają tłumaczenia", function()
+	for _, key in {
+		"MSG_FROST_BOOM", "MSG_FLAKES_SOLD", "MSG_FLAKES_QUEST", "MSG_WTRACK_LUCK", "MSG_WTRACK_COINS", "MSG_WTRACK_SKIN",
+		"MSG_WINTER_WELCOME", "MSG_GIFT_NEED", "MSG_GIFT_SKIN_ALL", "GIFT_ACTION", "GIFT_NAME", "GIFT_SIGN", "GIFT_TREAT",
+		"GIFT_TRICK", "GIFT_BAG", "WINTER_BUTTON", "WINTER_TITLE", "WINTER_ENDS", "WINTER_ENDED", "WINTER_TRACK_PROGRESS",
+		"WINTER_TRACK_DONE", "WINTER_HOW_TITLE", "WINTER_HOW_FROST", "WINTER_HOW_QUEST", "WINTER_HOW_TREE",
+		"WINTER_SKINS_TITLE", "WINTER_SKIN_LOCKED",
+	} do
+		check(csvHas(key), "brak " .. key)
+	end
+	check(Config.DevLiveActions.frostBoom == true, "Zamieć działa na żywo")
+	check(Config.DevLiveActions.winterToggle == nil and Config.DevLiveActions.adventNext == nil, "podgląd tylko w Studio")
 end)
 
 test("las: pokolenia i przywołana Noc Dziadów", function()
