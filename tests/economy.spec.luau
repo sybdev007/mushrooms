@@ -355,6 +355,32 @@ test("ProgressFeed: stan z serwera, który przyszedł przed oknami, dostają wsz
 	check(got[1] == 2 and got[2] == 2 and got[3] == 2, "i każdy następny")
 end)
 
+test("DataService: zupełnie nowy gracz (pusty profil, bez starego zapisu) dostaje dane startowe", function()
+	local players = {}
+	local signal = { Connect = function() return { Disconnect = function() end } end }
+	local profile = { Data = {}, OnSessionEnd = signal, OnAfterSave = signal, AddUserId = function() end }
+	local profileStore = { New = function() return { StartSessionAsync = function() return profile end } end }
+	local packages = { WaitForChild = function() return profileStore end }
+	local services = {
+		Players = players,
+		DataStoreService = { GetDataStore = function() return { GetAsync = function() return nil end } end },
+		ReplicatedStorage = { Shared = { Config = Config, Economy = Economy, Progress = Progress, Titles = Titles, Social = Social, Skins = loadSkins(), Delve = loadModule("src/shared/Delve.luau", {}), Showcase = loadModule("src/shared/Showcase.luau", { script = { Parent = { Config = Config, Economy = Economy, Progress = Progress } }, require = function(module) return module end }) } },
+	}
+	local DataService = loadModule("src/server/DataService.luau", {
+		game = { GetService = function(_, name) return services[name] end },
+		script = { Parent = { WaitForChild = function() return packages end } },
+		require = function(module) return module end,
+	})
+	local kicked = false
+	local ok, data, canSave = pcall(DataService.load, { Name = "Nowy", UserId = 4242, Parent = players, Kick = function()
+		kicked = true
+	end })
+	check(ok, "load nie wywala się na nowym graczu: " .. tostring(data))
+	check(canSave and not kicked, "nowy gracz gra i zapisuje")
+	eq(data.version, 8)
+	eq(data.tutorial, 0, "nowy gracz zaczyna od samouczka")
+end)
+
 test("DataService: zapis, który się nie otwiera (awaria DataStore), kończy się wyrzuceniem, a nie grą bez danych", function()
 	local players = {}
 	local now = 1000

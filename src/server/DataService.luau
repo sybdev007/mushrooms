@@ -577,7 +577,8 @@ function DataService.load(player: Player): (Data, boolean, boolean?)
 	-- Zapis z nowszej wersji gry (gracz był już na zaktualizowanym serwerze), a ten serwer jest stary.
 	-- reconcile zgubiłby pola, których ten serwer nie zna (np. kupione miejsca w gablocie), a zapis
 	-- by je skasował. Zamykamy sesję bez zmian i wyrzucamy gracza: po powrocie trafi na nowy serwer.
-	if finite(raw.version) and raw.version > DATA_VERSION then
+	-- (raw = nil: zupełnie nowy gracz bez starego zapisu; wtedy reconcile da dane startowe)
+	if typeof(raw) == "table" and finite(raw.version) and raw.version > DATA_VERSION then
 		profile:EndSession()
 		player:Kick("Ten serwer ma starszą wersję gry. Wejdź ponownie. / This server runs an older version of the game. Please rejoin.")
 		return DataService.defaultData(), false
