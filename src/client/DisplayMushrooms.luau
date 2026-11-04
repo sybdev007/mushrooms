@@ -37,9 +37,11 @@ local DisplayMushrooms = {}
 -- Grzyb mieści się na grządce (skrzynia 3,4 studa) i pod tabliczką (4,4 studa nad ziemią)
 DisplayMushrooms.FIT = Vector2.new(3.2, 3.4)
 
-type Kind = { fit: Vector2?, garden: boolean, plain: boolean? } -- plain: bez tabliczki (ma własną)
+-- plain: bez tabliczki (ma własną); glow: jak mocno świeci (MushroomView), gdzie wiele grzybów stoi blisko
+-- siebie: światła rzadkich grzybów się sumowały i prześwietlały grządki i gablotę na biało
+type Kind = { fit: Vector2?, garden: boolean, plain: boolean?, glow: number? }
 local KINDS: { [string]: Kind } = {
-	GardenMushroom = { fit = DisplayMushrooms.FIT, garden = true },
+	GardenMushroom = { fit = DisplayMushrooms.FIT, garden = true, glow = 0.45 },
 	-- w kółku co ok. 3,3 studa (Config.Hoard.radius)
 	HoardMushroom = { fit = Vector2.new(3.4, 4.6), garden = false },
 	-- Grzyb upuszczony przez kruka Baby Jagi (RavenService): leży chwilę, właściciel go podnosi
@@ -47,7 +49,7 @@ local KINDS: { [string]: Kind } = {
 	-- Znalezisko Nocy (NightFindService): większy kosmiczny grzyb w złotym kręgu
 	NightFind = { fit = Vector2.new(4.5, 6), garden = false, plain = true },
 	-- Gablota w ogródku (ShowcaseService): miejsca co ok. 2,1 studa, półki co 2,5 (podpisy: ShowcaseView)
-	ShowcaseMushroom = { fit = Vector2.new(1.8, 2), garden = false, plain = true },
+	ShowcaseMushroom = { fit = Vector2.new(1.8, 2), garden = false, plain = true, glow = 0 },
 }
 
 local VALUE_COLOR = Color3.fromRGB(255, 226, 140)
@@ -585,6 +587,7 @@ local function added(marker: Instance, kind: Kind)
 		parent = marker :: Instance,
 		grow = marker:GetAttribute("Fresh") == true,
 		fit = kind.fit,
+		glow = kind.glow,
 	})
 	attachLabel(marker, kind, info)
 end

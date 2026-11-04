@@ -63,6 +63,10 @@ export type AddOptions = {
 	parent: Instance?, -- gdzie wstawić model (domyślnie folder z grzybami lasu)
 	grow: boolean?, -- animacja wyrastania z ziemi (domyślnie tak)
 	fit: Vector2?, -- zmniejsz grzyb, żeby zmieścił się w (szerokość, wysokość) w studach (np. na grządce)
+	-- Jak mocno świeci (0..1, domyślnie 1 = las): światło, snop, krąg na ziemi i zarodniki. Tam, gdzie wiele
+	-- rzadkich grzybów stoi blisko siebie (ogródek, gablota), światła się sumowały i prześwietlały wszystko
+	-- na biało (zrzut Toma 4.11). 0 = bez światła, snopu, kręgu i zarodników (zostają iskry i krążące kostki).
+	glow: number?,
 }
 
 local function rgb(r: number, g: number, b: number): Color3
@@ -636,7 +640,7 @@ end
 -- Snop światła: kilka nałożonych promieni (zawsze zwróconych do kamery) o różnej szerokości daje miękkie
 -- brzegi bez kanciastego słupa. Do tego iskierki płynące w górę.
 local SHAFT_LAYERS = { { width = 1, base = 0.86 }, { width = 0.6, base = 0.78 }, { width = 0.28, base = 0.62 } }
-local function buildShaft(model: Model, origin: CFrame, width: number, height: number, color: Color3): (BasePart, { Beam }, ParticleEmitter)
+local function buildShaft(model: Model, origin: CFrame, width: number, height: number, color: Color3, strength: number): (BasePart, { Beam }, ParticleEmitter)
 	local anchor = makePart("Pillar", Vector3.new(0.2, 0.2, 0.2), origin, color)
 	anchor.Transparency = 1
 	anchor:SetAttribute("BaseT", 1)
@@ -657,9 +661,11 @@ local function buildShaft(model: Model, origin: CFrame, width: number, height: n
 		beam.LightEmission = 1
 		beam.LightInfluence = 0
 		beam.Color = ColorSequence.new(color)
-		beam.Transparency = shaftFade(layer.base)
+		-- Słabszy snop (strength < 1) = bardziej przezroczysty
+		local base = 1 - (1 - layer.base) * strength
+		beam.Transparency = shaftFade(base)
 		beam.Segments = 1
-		beam:SetAttribute("Base", layer.base)
+		beam:SetAttribute("Base", base)
 		beam.Parent = anchor
 		table.insert(beams, beam)
 	end
@@ -702,7 +708,7 @@ local COSMIC_SPORES = { rgb(120, 80, 255), rgb(80, 140, 255), rgb(255, 120, 220)
 local activeSpores = 0
 local MAX_SPORES = 70
 
-local function buildAura(model: Model, info: MushroomInfo, origin: CFrame, shape: Shape, capColor: Color3, capTop: number, fxParts: { BasePart }): (Aura?, Color3?)
+local function buildAura(model: Model, info: MushroomInfo, origin: CFrame, shape: Shape, capColor: Color3, capTop: number, fxParts: { BasePart }, glow: number): (Aura?, Color3?)
 	local class = Economy.speciesClass(info.species)
 	local rank = CLASS_RANK[class.id] or 0
 	local variant = info.variant
@@ -768,10 +774,10 @@ local function buildAura(model: Model, info: MushroomInfo, origin: CFrame, shape
 		end
 		any = true
 	end
-	if rank >= 4 or variant == "rainbow" or variant == "cosmic" then
+	if (rank >= 4 or variant == "rainbow" or variant == "cosmic") and glow >= 0.5 then
 		-- Snop światła widoczny z daleka (miękkie promienie i iskry zamiast kanciastego słupa)
 		local shaftColor = if variant == "cosmic" then COSMIC_GLOW elseif variant == "rainbow" then rgb(255, 170, 235) else rgb(255, 214, 90)
-		local pillar, beams, motes = buildShaft(model, origin, shape.capW * SIZE * 1.1 + 0.6, if variant == "cosmic" then 22 else 18, shaftColor)
+		local pillar, beams, motes = buildShaft(model, origin, shape.capW * SIZE * 1.1 + 0.6, if variant == "cosmic" then 22 else 18, shaftColor, glow)
 		aura.pillar = pillar
 		aura.beams = beams
 		aura.motes = motes
@@ -805,8 +811,8 @@ local function buildAura(model: Model, info: MushroomInfo, origin: CFrame, shape
 		end
 	end
 	-- Epicki: niższy snop w kolorze klasy, żeby było go widać z daleka w ciemnym lesie
-	if rank == 3 and not aura.pillar then
-		local pillar, beams, motes = buildShaft(model, origin, shape.capW * SIZE * 0.8 + 0.4, 9, lighten(classColor, 0.25))
+	if rank == 3 and not aura.pillar and glow >= 0.5 then
+		local pillar, beams, motes = buildShaft(model, origin, shape.capW * SIZE * 0.8 + 0.4, 9, lighten(classColor, 0.25), glow)
 		aura.pillar = pillar
 		aura.beams = beams
 		aura.motes = motes
@@ -825,7 +831,7 @@ local function buildAura(model: Model, info: MushroomInfo, origin: CFrame, shape
 	elseif rank >= 2 then
 		ringColor = classColor
 	end
-	if ringColor then
+	if ringColor and glow > 0 then
 		local d = aura.ringSize
 		local flat = origin * CFrame.new(0, 0.06, 0) * CFrame.Angles(0, 0, math.rad(90))
 		-- Delikatna poświata pod grzybem
@@ -844,13 +850,14 @@ local function buildAura(model: Model, info: MushroomInfo, origin: CFrame, shape
 			local angle = k * math.pi / 4 + math.pi / 8
 			local piece = makePart("RingPiece", Vector3.new(segment, 0.1, 0.22), origin * CFrame.Angles(0, -angle, 0) * CFrame.new(0, 0.1, -radius), ringColor)
 			piece.Material = Enum.Material.Neon
-			piece.Transparency = 0.35
-			piece:SetAttribute("BaseT", 0.35)
+			local pieceT = 1 - 0.65 * glow
+			piece.Transparency = pieceT
+			piece:SetAttribute("BaseT", pieceT)
 			piece.Parent = model
 			table.insert(fxParts, piece)
 		end
 		-- Fala rozchodząca się od grzyba: tylko epickie, legendarne i warianty
-		if rank >= 3 or variant ~= nil then
+		if (rank >= 3 or variant ~= nil) and glow >= 1 then
 			local ripple = makePart("RingRipple", Vector3.new(0.04, d, d), flat * CFrame.new(0.02, 0, 0), ringColor)
 			ripple.Shape = Enum.PartType.Cylinder
 			ripple.Material = Enum.Material.Neon
@@ -876,7 +883,7 @@ local function buildAura(model: Model, info: MushroomInfo, origin: CFrame, shape
 			spores = TAG_SPORES[tag]
 		end
 	end
-	if spores then
+	if spores and glow >= 0.5 then
 		aura.spores = spores
 		any = true
 	end
@@ -993,7 +1000,7 @@ end
 
 type Extras = { cosmic: { BasePart }?, emitters: { ParticleEmitter }, tracks: boolean }
 
-local function buildModel(info: MushroomInfo, parent: Instance?, fit: Vector2?): (Model, { BasePart }, boolean, { BasePart }, Aura?, { BasePart }, Extras)
+local function buildModel(info: MushroomInfo, parent: Instance?, fit: Vector2?, glow: number): (Model, { BasePart }, boolean, { BasePart }, Aura?, { BasePart }, Extras)
 	local model = Instance.new("Model")
 	model.Name = info.id
 	local shape = SHAPES[info.species] or DEFAULT_SHAPE
@@ -1146,17 +1153,19 @@ local function buildModel(info: MushroomInfo, parent: Instance?, fit: Vector2?):
 	end
 
 	local fxParts: { BasePart } = {}
-	local aura, classLight = buildAura(model, info, origin, shape, capColor, capTop, fxParts)
+	local aura, classLight = buildAura(model, info, origin, shape, capColor, capTop, fxParts, glow)
 
 	local light: PointLight? = nil
-	if neon or classLight then
+	if glow <= 0 then
+		-- Bez własnego światła (gablota: kilkanaście grzybów na kilku studsach)
+	elseif neon or classLight then
 		local newLight = Instance.new("PointLight")
 		newLight.Color = if info.variant == "cosmic"
 			then COSMIC_GLOW
 			elseif neon then (if glowTint and rank < 2 then glowTint else capColor)
 			else classLight :: Color3
-		newLight.Range = if rank >= 2 then 10 else 8
-		newLight.Brightness = if neon then 1.2 else 0.9 -- 1,6 przy kilku złotych obok przepalało otoczenie
+		newLight.Range = (if rank >= 2 then 10 else 8) * (0.7 + 0.3 * glow)
+		newLight.Brightness = (if neon then 1.2 else 0.9) * glow -- 1,6 przy kilku złotych obok przepalało otoczenie
 		newLight.Parent = mainCap
 		light = newLight
 	elseif pumpkin then
@@ -1164,7 +1173,7 @@ local function buildModel(info: MushroomInfo, parent: Instance?, fit: Vector2?):
 		local newLight = Instance.new("PointLight")
 		newLight.Color = rgb(255, 150, 50)
 		newLight.Range = 8
-		newLight.Brightness = 1.3
+		newLight.Brightness = 1.3 * glow
 		newLight.Parent = mainCap
 		light = newLight
 	elseif frost then
@@ -1172,7 +1181,7 @@ local function buildModel(info: MushroomInfo, parent: Instance?, fit: Vector2?):
 		local newLight = Instance.new("PointLight")
 		newLight.Color = rgb(170, 225, 255)
 		newLight.Range = 7
-		newLight.Brightness = 0.9
+		newLight.Brightness = 0.9 * glow
 		newLight.Parent = mainCap
 		light = newLight
 	end
@@ -1243,7 +1252,8 @@ function MushroomView.add(list: { MushroomInfo }, options: AddOptions?)
 				targetId = nil
 			end
 		end
-		local model, parts, animated, rainbow, aura, fxParts, extras = buildModel(info, parent, if options then options.fit else nil)
+		local glow = math.clamp(if options and options.glow then options.glow else 1, 0, 1)
+		local model, parts, animated, rainbow, aura, fxParts, extras = buildModel(info, parent, if options then options.fit else nil, glow)
 		-- Pozycję spoczynkową bierzemy przed animacją wyrastania (potem części są pod ziemią)
 		local basePivot = model:GetPivot()
 		if grow then
