@@ -20,6 +20,7 @@ local UiFx = require(script.Parent.UiFx)
 local UiKit = require(script.Parent.UiKit)
 local AnnounceView = require(script.Parent.AnnounceView)
 local UiScale = require(script.Parent.UiScale)
+local CinemaMode = require(script.Parent.CinemaMode)
 
 local DevPanel = {}
 
@@ -240,6 +241,35 @@ local CATEGORIES: { Category } = {
 		},
 	},
 	{
+		id = "cinema",
+		name = "🎬 Tryb filmowy",
+		sections = {
+			{ name = "Ekran (L czysty ekran · K stop · J ramka 9:16 · U powtórz)", actions = {
+				{ id = "cine:clean", label = "Czysty ekran: graj bez UI (L)" },
+				{ id = "cine:guide", label = "Ramka 9:16 do kadru (J)" },
+				{ id = "cine:look", label = "Wygląd: filmowy / jaśniej / naturalny" },
+				{ id = "cine:labels", label = "Napisy nad głowami: ukryj / pokaż" },
+				{ id = "cine:replay", label = "Powtórz ostatnie ujęcie (U)" },
+				{ id = "cine:stop", label = "Zatrzymaj i pokaż UI (K)" },
+			} },
+			{ name = "Ujęcia przy postaci (ustaw się i odwróć w stronę drogi w czasie 3-2-1)", actions = {
+				{ id = "cine:shot:orbit", label = "Orbita wokół postaci (20 s)" },
+				{ id = "cine:shot:walkFront", label = "Spacer na kamerę z latarnią (12 s)" },
+				{ id = "cine:shot:walkLow", label = "Spacer: nisko od tyłu (12 s)" },
+				{ id = "cine:shot:drone", label = "Dron w górę nad postacią (14 s)" },
+				{ id = "cine:shot:macro", label = "Makro najbliższego grzyba (10 s)" },
+			} },
+			{ name = "Przeloty (teleport + odliczanie)", actions = {
+				{ id = "cine:shot:forest", label = "Przelot przez las nocą (24 s)" },
+				{ id = "cine:shot:grove", label = "Najazd: gniazdo Leszego (12 s)" },
+				{ id = "cine:shot:cabin", label = "Dźwig: chatka i ogródki (16 s)" },
+				{ id = "cine:shot:portal", label = "Najazd: portal do jaskini (10 s)" },
+				{ id = "cine:shot:lair", label = "Najazd: skarbiec Skarbnika (12 s)" },
+				{ id = "cine:shot:pond", label = "Najazd: staw Utopca (12 s)" },
+			} },
+		},
+	},
+	{
 		id = "danger",
 		name = "Strefa zagrożenia",
 		sections = {
@@ -252,7 +282,8 @@ local CATEGORIES: { Category } = {
 
 -- Czy akcja działa tutaj (serwer: wszystko w Studio; na żywo teleporty i Config.DevLiveActions)
 local function liveOk(id: string): boolean
-	return string.sub(id, 1, 2) == "tp" or Config.DevLiveActions[id] == true
+	-- Tryb filmowy działa tylko u nagrywającego (klient), więc też na żywej grze
+	return string.sub(id, 1, 2) == "tp" or string.sub(id, 1, 5) == "cine:" or Config.DevLiveActions[id] == true
 end
 local function allowed(id: string): boolean
 	return STUDIO or liveOk(id)
@@ -559,6 +590,8 @@ local function addLog(line: string)
 	end
 end
 
+local setOpen: (boolean) -> () -- niżej (otwieranie okna); przyciski trybu filmowego zamykają panel
+
 local function clock(): string
 	local t = os.date("*t")
 	return string.format("%02d:%02d", t.hour, t.min)
@@ -604,6 +637,13 @@ local function actionButton(parent: Instance, action: Action, order: number): Te
 			return
 		end
 		armedAt = -math.huge
+		if string.sub(action.id, 1, 5) == "cine:" then
+			-- Tryb filmowy: bez serwera; panel się zamyka, żeby nie wejść w kadr
+			addLog("🎬 " .. clock() .. " · " .. action.label)
+			setOpen(false)
+			task.defer(CinemaMode.action, action.id)
+			return
+		end
 		if action.id == "announce" then
 			-- Okienko z polem tekstowym (AnnounceView), wysyła serwer po sprawdzeniu i filtrze
 			AnnounceView.openInput()
@@ -802,7 +842,7 @@ end
 
 -- ===== Otwieranie, skala, położenie =====
 
-local function setOpen(open: boolean)
+setOpen = function(open: boolean)
 	if open == panel.Visible then
 		return
 	end
@@ -870,6 +910,10 @@ task.spawn(function()
 end)
 
 function DevPanel.setEnabled(enabled: boolean)
+	CinemaMode.setAllowed(enabled)
+	if CinemaMode.isActive() then
+		return -- tryb filmowy trzyma interfejs schowany; panel wróci po wyjściu z niego
+	end
 	gui.Enabled = enabled
 	if not enabled then
 		setOpen(false)
