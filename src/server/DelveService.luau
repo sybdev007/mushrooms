@@ -872,7 +872,6 @@ local function refreshShelf(garden: Model)
 	end
 	local folder = Instance.new("Folder")
 	folder.Name = "Relics"
-	local owned = 0
 	for index, def in Delve.RELICS do
 		local state = save.relics[def.id]
 		local slot = shelf:FindFirstChild("RelicSlot" .. index, true)
@@ -903,7 +902,6 @@ local function refreshShelf(garden: Model)
 			end
 			continue
 		end
-		owned += 1
 		local color = Color3.fromRGB(def.color[1], def.color[2], def.color[3])
 		-- Delikatny pierścień na płytce i małe światło tylko na własny postument. Osiem lamp o jasności 3
 		-- (zasięg 7) na kilku studsach i pełny neon przepalały podest na żółto-białą plamę (zrzut Toma 4.11).
@@ -945,30 +943,6 @@ local function refreshShelf(garden: Model)
 			sparkle.SparkleColor = Color3.fromRGB(255, 220, 120)
 			sparkle.Parent = model.PrimaryPart
 		end
-	end
-	-- Nad podestem: ile reliktów z całej kolekcji ma właściciel
-	local board = shelf:FindFirstChild("ShelfBoard")
-	if board and board:IsA("BasePart") then
-		local header = Instance.new("BillboardGui")
-		header.Name = "Count"
-		header.Size = UDim2.fromOffset(120, 34)
-		header.StudsOffset = Vector3.new(0, 5.6, 0)
-		header.MaxDistance = 60
-		header.LightInfluence = 0
-		local text = Instance.new("TextLabel")
-		text.BackgroundTransparency = 1
-		text.Size = UDim2.fromScale(1, 1)
-		text.Text = string.format("🏺 %d/%d", owned, #Delve.RELICS)
-		text.TextScaled = true
-		text.Font = Enum.Font.FredokaOne
-		text.TextColor3 = Color3.fromRGB(255, 214, 90)
-		text.Parent = header
-		local outline = Instance.new("UIStroke")
-		outline.Color = Color3.fromRGB(43, 27, 18)
-		outline.Thickness = 2
-		outline.Parent = text
-		header.Adornee = board
-		header.Parent = folder
 	end
 	folder.Parent = shelf
 end
