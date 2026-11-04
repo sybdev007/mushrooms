@@ -31,6 +31,7 @@ export type SpeciesDef = {
 	guardian: string?, -- rośnie tylko w legowisku tego strażnika (np. "utopiec"); zerwanie go budzi
 	mimic: boolean?, -- błędny ognik udający grzyb: zerwanie kradnie olej, nic nie trafia do koszyka
 	puff: boolean?, -- purchawka: przy zerwaniu wypuszcza chmurę zarodników (tylko wygląd)
+	forgeOnly: boolean?, -- powstaje tylko w Moździerzu Zielarki (Config.Forge): nie rośnie, nie da się go posadzić
 }
 
 export type UpgradeDef = {
@@ -513,6 +514,14 @@ Config.Species = {
 	{ id = "night_eye", key = "MUSH_NIGHT_EYE", zone = 17, value = 52000, weight = 15, cap = { 60, 40, 110 } },
 	-- Ogródek Baby Jagi za chatką na kurzej stopce: zerwanie budzi Babę Jagę
 	{ id = "jaga_toadstool", key = "MUSH_JAGA_TOADSTOOL", zone = 17, value = 115000, weight = 0, cap = { 150, 60, 210 }, guardian = "jaga" },
+	-- Kuźnia Grzybów (Moździerz Zielarki): tylko z przepisów Config.Forge, zawsze na końcu listy (ranking
+	-- tygodnia koduje gatunek numerem pozycji). Strefa = świat przepisu (tylko opis); w lesie nie rosną.
+	{ id = "forge_mossbell", key = "MUSH_FORGE_MOSSBELL", zone = 11, value = 1100, weight = 0, cap = { 96, 170, 90 }, forgeOnly = true },
+	{ id = "forge_emberpearl", key = "MUSH_FORGE_EMBERPEARL", zone = 13, value = 5100, weight = 0, cap = { 255, 120, 60 }, forgeOnly = true },
+	{ id = "forge_glasscap", key = "MUSH_FORGE_GLASSCAP", zone = 12, value = 4100, weight = 0, cap = { 210, 240, 236 }, forgeOnly = true },
+	{ id = "forge_runemorel", key = "MUSH_FORGE_RUNEMOREL", zone = 15, value = 43000, weight = 0, cap = { 120, 60, 170 }, forgeOnly = true },
+	{ id = "forge_mooncoral", key = "MUSH_FORGE_MOONCORAL", zone = 16, value = 57000, weight = 0, cap = { 200, 214, 240 }, forgeOnly = true },
+	{ id = "forge_eclipsestar", key = "MUSH_FORGE_ECLIPSESTAR", zone = 17, value = 39000, weight = 0, cap = { 90, 60, 150 }, forgeOnly = true },
 } :: { SpeciesDef }
 
 Config.Upgrades = {
@@ -752,6 +761,8 @@ Config.Badges = {
 	mountain = 0, -- otwarta Łysa Góra
 	jaga = 0, -- okradziona Baba Jaga
 	cosmic = 0, -- pierwszy kosmiczny grzyb
+	forge_first = 0, -- pierwszy grzyb z Moździerza Zielarki
+	forge_collection = 0, -- wszystkie gatunki z kuźni
 } :: { [string]: number }
 -- ===== Halloween: Noc Dziadów (event) =====
 -- Włącza się sam według daty (os.time, UTC). W tym czasie:
@@ -1021,6 +1032,35 @@ Config.UtopiecLair = {
 -- ===== Chatka Baby Jagi =====
 -- Wiedźma z polskich i słowiańskich baśni: lata w moździerzu, miotłą zamiata za sobą ślady, a jej
 -- chatka stoi na kurzej stopce i sama się obraca. Ogródek z Zielem Baby Jagi jest za chatką na szczycie.
+-- ===== Kuźnia Grzybów: Moździerz Zielarki na Placu Portali =====
+-- Przepis: 3 konkretne grzyby z koszyka (dwa z wymaganą cechą) + opłata w monetach = 1 grzyb z kuźni
+-- z dwiema połączonymi cechami. Wariant wyniku = najsłabszy wariant składników, z szansą upgradeChance
+-- na rangę wyżej (szansa widoczna w oknie). Wynik jest wart ok. 1,3× składników, ale opłata jest zawsze
+-- większa niż zysk (nawet ten szczęśliwy), więc kuźnia zjada monety. Wyniku nie da się posadzić ani
+-- włożyć z powrotem. Plan i liczby: docs/plans/kuznia.md (+ decyzje Toma 4.11: wartość, szansa, miejsce).
+export type ForgeInput = { s: string, tag: string? }
+export type ForgeRecipe = {
+	id: string, -- id gatunku wyniku (forgeOnly)
+	inputs: { ForgeInput }, -- slot i = inputs[i]; gatunki w przepisie są różne
+	fee: number, -- opłata przy zwykłym wyniku; mnożona przez feeRank[ranga]
+	world: string, -- od jakiego świata dostępny ("swamp" / "mountain")
+	jaga: boolean?, -- wymaga choć jednej ucieczki przed Babą Jagą (bestiary.jaga.escaped)
+}
+Config.Forge = {
+	station = { x = -17, z = -69, radius = 7 }, -- moździerz stoi z boku Placu Portali
+	cooldown = 10, -- sekund między połączeniami jednego gracza
+	upgradeChance = 0.1, -- szansa, że wynik wyjdzie o rangę wariantu wyżej (najwyżej kosmiczny)
+	feeRank = { [0] = 1, [1] = 1.5, [2] = 2, [3] = 3, [4] = 5 } :: { [number]: number },
+	recipes = {
+		{ id = "forge_mossbell", inputs = { { s = "bay_bolete", tag = "mossy" }, { s = "porcini", tag = "glowing" }, { s = "bog_bell" } }, fee = 1000000, world = "swamp" },
+		{ id = "forge_emberpearl", inputs = { { s = "pearl", tag = "crystal" }, { s = "obsidian", tag = "abyssal" }, { s = "bog_pearl" } }, fee = 2000000, world = "swamp" },
+		{ id = "forge_glasscap", inputs = { { s = "lantern_shroom", tag = "crystal" }, { s = "glowing_agaric", tag = "glowing" }, { s = "moon_lily" } }, fee = 4000000, world = "swamp" },
+		{ id = "forge_runemorel", inputs = { { s = "witch_hat", tag = "cursed" }, { s = "hex_cluster", tag = "hexed" }, { s = "raven_bracket" } }, fee = 8000000, world = "mountain" },
+		{ id = "forge_mooncoral", inputs = { { s = "sabbath_puffball", tag = "hexed" }, { s = "moon_hat", tag = "moonlit" }, { s = "night_eye" } }, fee = 16000000, world = "mountain" },
+		{ id = "forge_eclipsestar", inputs = { { s = "heart_of_mountain", tag = "abyssal" }, { s = "earthstar", tag = "moonlit" }, { s = "night_eye" } }, fee = 32000000, world = "mountain", jaga = true },
+	} :: { ForgeRecipe },
+}
+
 Config.JagaLair = {
 	centerX = 0,
 	centerZ = 3440, -- środek ogródka (chatka stoi bliżej, na hutZ)

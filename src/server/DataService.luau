@@ -336,7 +336,8 @@ local function reconcile(raw: any): Data
 			if #data.planted >= Config.Garden.maxBeds then
 				break
 			end
-			if typeof(item) == "table" and typeof(item.s) == "string" and Economy.getSpecies(item.s) and typeof(item.t) == "number" then
+			-- Grzyb z kuźni na grządce nie powinien się zdarzyć (GardenService nie pozwala); gdyby był, pomijamy go
+			if typeof(item) == "table" and typeof(item.s) == "string" and Economy.getSpecies(item.s) and not Economy.isForgeOnly(item.s) and typeof(item.t) == "number" then
 				local variant, tags = readMutations(item)
 				local dried = if typeof(item.d) == "number" then math.clamp(item.d, 1, 2) else nil
 				table.insert(data.planted, { s = item.s, v = variant, x = tags, d = dried, t = math.min(math.floor(item.t), now) })

@@ -21,6 +21,7 @@ local Cave = require(World:WaitForChild("Cave"))
 local DelveMap = require(World:WaitForChild("DelveMap"))
 local Swamp = require(World:WaitForChild("Swamp"))
 local MountainWorld = require(World:WaitForChild("Mountain"))
+local ForgeWorld = require(World:WaitForChild("Forge"))
 local Leszy = require(World:WaitForChild("Leszy"))
 local Backdrop = require(World:WaitForChild("Backdrop"))
 
@@ -67,6 +68,7 @@ export type MapInfo = {
 	returnPortal: Vector3?, -- portal powrotny w obozowisku
 	worlds: { [string]: WorldInfo },
 	guardians: { [string]: GuardianInfo },
+	forge: { position: Vector3, prompt: ProximityPrompt }?, -- Moździerz Zielarki (Kuźnia Grzybów) na Placu Portali
 }
 
 -- Las to strefy z world = "forest"; jaskinię buduje World/Cave
@@ -673,6 +675,8 @@ end
 
 -- Plac Portali: okrągły bruk, latarnie dookoła, skrót do jaskini na środku i fundamenty pod kolejne portale.
 -- Zwraca pozycję skrótu.
+local forgeInfo: { position: Vector3, prompt: ProximityPrompt }? = nil
+
 local function buildPortalPlaza(parent: Instance, rng: Random): { [string]: Vector3 }
 	local plaza = Config.PortalPlaza
 	local center = Vector3.new(plaza.center.x, 0, plaza.center.z)
@@ -741,6 +745,11 @@ local function buildPortalPlaza(parent: Instance, rng: Random): { [string]: Vect
 			Props.signBoard(folder, CFrame.new(x, 4.2, z + 5) * CFrame.Angles(0, math.pi, 0), Vector3.new(6, 1.4, 0.3), "SIGN_PORTAL_SOON", Enum.NormalId.Front)
 		end
 	end
+	-- Moździerz Zielarki (Kuźnia Grzybów) z boku placu, z dala od ścieżki z chatki, przodem do środka placu
+	local station = Config.Forge.station
+	local forgeAt = Vector3.new(station.x, 0, station.z)
+	local _, prompt = ForgeWorld.build(folder, CFrame.lookAt(forgeAt, Vector3.new(center.X, 0, center.Z)))
+	forgeInfo = { position = forgeAt, prompt = prompt }
 	folder.Parent = parent
 
 	-- Ścieżka z ganku wzdłuż boku chatki na plac
@@ -950,6 +959,7 @@ function MapBuilder.build(): MapInfo
 			utopiec = { origin = Vector3.new(Config.UtopiecLair.centerX, 0, Config.UtopiecLair.centerZ), statue = utopiecStatue },
 			jaga = { origin = MountainWorld.jagaOrigin(), statue = jagaStatue },
 		},
+		forge = forgeInfo,
 	}
 end
 

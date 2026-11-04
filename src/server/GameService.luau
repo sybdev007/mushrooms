@@ -23,6 +23,7 @@ local MapBuilder = require(script.Parent.MapBuilder)
 local ChaseService = require(script.Parent.ChaseService)
 local HoardService = require(script.Parent.HoardService)
 local RavenService = require(script.Parent.RavenService)
+local ForgeService = require(script.Parent.ForgeService)
 local World = script.Parent:WaitForChild("World")
 local LeszyModel = require(World:WaitForChild("Leszy"))
 local SkarbnikModel = require(World:WaitForChild("Skarbnik"))
@@ -155,6 +156,7 @@ local GUARDIANS: { [string]: GuardianDef } = {
 local chasers: { [string]: ChaseService.Chaser } = {}
 local hoards: { [string]: HoardService.Hoard } = {}
 local ravens: RavenService.Ravens? = nil -- kruki Baby Jagi (Łysa Góra), start w init
+local forge: { open: (Player) -> () }? = nil -- Kuźnia Grzybów (Moździerz Zielarki), start w init
 
 local function stopChases(player: Player)
 	for _, chaser in chasers do
@@ -1502,6 +1504,28 @@ local function onDevAction(player: Player, action: unknown)
 		if ravens then
 			ravens.devNow(player)
 		end
+	elseif action == "forgeOpen" then
+		if forge then
+			forge.open(player)
+		end
+	elseif action == "forgeKit" then
+		-- Składniki do wszystkich przepisów kuźni (zwykłe, z wymaganymi cechami); monety ustawia coinsSet
+		for _, recipe in Config.Forge.recipes do
+			for _, input in recipe.inputs do
+				if #data.basket < basketMax(session) then
+					table.insert(data.basket, { s = input.s, x = if input.tag then { input.tag } else nil })
+				end
+			end
+		end
+	elseif action == "forgeReset" then
+		-- Kolekcja kuźni od zera (testy w Studio na własnym zapisie): wpisy w Grzybopedii i licznik połączeń
+		for _, recipe in Config.Forge.recipes do
+			data.atlas[recipe.id] = nil
+		end
+		data.stats.forged = 0
+	elseif string.match(action, "^coinsSet:%d+$") then
+		-- Studio: przywrócenie salda po testach (devActionAllowed nie wpuszcza tego poza Studio)
+		data.coins = tonumber(string.sub(action, 10)) or data.coins
 	elseif action == "jagaSummon" then
 		-- Baba Jaga wylatuje od razu na gracza (test pościgu bez zrywania Ziela)
 		local chaser = chasers.jaga
@@ -1957,6 +1981,40 @@ function GameService.start(mapInfo: MapBuilder.MapInfo)
 		end,
 		rootOf = getRoot,
 	})
+
+	-- Kuźnia Grzybów: Moździerz Zielarki na Placu Portali
+	local forgeInfo = map.forge
+	if forgeInfo then
+		forge = ForgeService.start(forgeInfo.position, forgeInfo.prompt, {
+			getData = function(player: Player): any?
+				local session = sessions[player]
+				return if session then session.data else nil
+			end,
+			rootOf = getRoot,
+			busy = function(player: Player): boolean
+				local session = sessions[player]
+				return not session or session.downedUntil ~= nil or chasedBy(player) ~= nil or DelveService.reserved(player) > 0
+			end,
+			notify = function(player: Player, key: string, args: { any }?, nameKey: string?, mutation: any?)
+				local session = sessions[player]
+				if session then
+					notify(session, key, args, nameKey, mutation)
+				end
+			end,
+			pushState = function(player: Player)
+				local session = sessions[player]
+				if session then
+					pushState(session)
+				end
+			end,
+			found = function(player: Player, item)
+				ProgressService.found(player, item, "forge")
+			end,
+			event = function(player: Player, kind: string, amount: number)
+				ProgressService.event(player, kind, amount)
+			end,
+		})
+	end
 
 	-- Portrety do zakładki Strażnicy w Grzybopedii: przebudzone modele do klonowania w ViewportFrame
 	-- (klient nie ma dostępu do budowniczych z serwera, a posągi na mapie mogą być poza streamingiem).

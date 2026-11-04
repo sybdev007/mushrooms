@@ -864,3 +864,51 @@ TITLE_JAGA_ESCAPEE,Baba Jaga Escapee,,,Uciekinier Baby Jagi
 TITLE_JAGA_ESCAPEE_HOW,Escape Baba Jaga with her toadstool,,,Ucieknij Babie Jadze z jej Zielem
 TITLE_COSMIC,Cosmic,,,Kosmiczny
 TITLE_COSMIC_HOW,Find a Cosmic mushroom,,,Znajdź kosmicznego grzyba
+MUSH_FORGE_MOSSBELL,Mossbell,,,Mchowy Dzwon
+MUSH_FORGE_EMBERPEARL,Emberpearl,,,Żaroperła
+MUSH_FORGE_GLASSCAP,Glasscap,,,Szkliwiak
+MUSH_FORGE_RUNEMOREL,Runic Morel,,,Runiczny Smardz
+MUSH_FORGE_MOONCORAL,Mooncoral,,,Księżycowy Koral
+MUSH_FORGE_ECLIPSESTAR,Eclipse Earthstar,,,Gwiazdosz Zaćmienia
+FORGE_TITLE,Herbalist's Mortar,,,Moździerz Zielarki
+PROMPT_FORGE,Fuse mushrooms,,,Połącz grzyby
+FORGE_RECIPES,Recipes,,,Przepisy
+FORGE_COLLECTION,Collection: {1}/{2},,,Kolekcja: {1}/{2}
+FORGE_IN_COLLECTION,✅ In your Atlas,,,✅ Masz w Grzybopedii
+FORGE_NEW,✨ Not fused yet,,,✨ Jeszcze nie połączony
+FORGE_NEED_SWAMP,Unlock the Swamp to use this recipe,,,Odblokuj Bagna żeby użyć tego przepisu
+FORGE_NEED_MOUNTAIN,Unlock Bald Mountain to use this recipe,,,Odblokuj Łysą Górę żeby użyć tego przepisu
+FORGE_NEED_JAGA,Escape Baba Jaga once to learn this recipe,,,Ucieknij raz Babie Jadze żeby poznać ten przepis
+FORGE_NEED_SWAMP_SHORT,Needs the Swamp,,,Wymaga Bagien
+FORGE_NEED_MOUNTAIN_SHORT,Needs Bald Mountain,,,Wymaga Łysej Góry
+FORGE_NEED_JAGA_SHORT,Escape Baba Jaga,,,Ucieknij Babie Jadze
+FORGE_ANY_TRAIT,Any traits,,,Dowolne cechy
+FORGE_SLOT_EMPTY,You have none in your basket,,,Nie masz go w koszyku
+FORGE_MORE,{1} fit,,,pasuje: {1}
+FORGE_ODDS,{1}% {2}  ·  {3}% {4},,,{1}% {2}  ·  {3}% {4}
+FORGE_ODDS_ONE,100% {1},,,100% {1}
+FORGE_WORTH,Worth 💰 {1} (ingredients 💰 {2}),,,Wart 💰 {1} (składniki 💰 {2})
+FORGE_LOST,Lost traits: {1},,,Przepadną cechy: {1}
+FORGE_NO_PLANT,Forge mushrooms can be sold but not planted,,,Grzyby z kuźni można sprzedać ale nie posadzić
+FORGE_COST,Fuse for 💰 {1},,,Połącz za 💰 {1}
+FORGE_LOCKED,Can't fuse yet,,,Nie da się połączyć
+FORGE_WORKING,Grinding...,,,Ucieram...
+FORGE_NEED_ITEMS,Pick mushrooms that fit all three slots,,,Zbierz grzyby pasujące do wszystkich trzech miejsc
+FORGE_HINT,Tap a mushroom to swap it for another one from your basket,,,Kliknij grzyb żeby wybrać inny z koszyka
+FORGE_NEED_TAG,This mushroom is missing the required trait,,,Temu grzybowi brakuje wymaganej cechy
+FORGE_WRONG_INPUT,These mushrooms don't fit the recipe,,,Te grzyby nie pasują do przepisu
+FORGE_NO_EVENT,Event mushrooms can't go into the mortar,,,Grzyby z eventów nie wchodzą do moździerza
+FORGE_NO_COINS,Not enough coins: missing 💰 {1},,,Za mało monet: brakuje 💰 {1}
+FORGE_COOLDOWN,The mortar is still cooling: {1} s,,,Moździerz jeszcze stygnie: {1} s
+FORGE_UNSAFE,Not now! Get somewhere safe first,,,Nie teraz! Najpierw schowaj się w bezpiecznym miejscu
+FORGE_FAR,Come closer to the mortar,,,Podejdź bliżej moździerza
+FORGE_CHANGED,Your basket changed. Check the mushrooms again,,,Koszyk się zmienił. Sprawdź grzyby jeszcze raz
+MSG_FORGE_DONE,The mortar gave you {1}{2}!,,,Moździerz dał ci: {1}{2}!
+MSG_FORGE_LUCKY,Lucky grind! {1}{2} came out even better!,,,Szczęśliwe ucieranie! {1}{2} wyszedł jeszcze lepszy!
+ATLAS_PAGE_FORGE,Forge,,,Kuźnia
+ATLAS_FORGE_SUMMARY,Forge species: <b>{1}/{2}</b>  ·  Fuse them in the Herbalist's Mortar on Portal Square,,,Gatunki z kuźni: <b>{1}/{2}</b>  ·  Połącz je w Moździerzu Zielarki na Placu Portali
+ATLAS_FORGE_INFO,These mushrooms come only from the mortar. You can't find or plant them. They don't raise sell prices but collecting all of them earns the Forge Master title.,,,Te grzyby powstają tylko w moździerzu. Nie znajdziesz ich w lesie i nie posadzisz. Nie podnoszą cen ale za całą kolekcję dostaniesz tytuł Mistrz Kuźni.
+TITLE_FORGE_APPRENTICE,Herbalist's Apprentice,,,Uczeń Zielarki
+TITLE_FORGE_APPRENTICE_HOW,Fuse mushrooms in the Herbalist's Mortar,,,Połącz grzyby w Moździerzu Zielarki
+TITLE_FORGE_MASTER,Forge Master,,,Mistrz Kuźni
+TITLE_FORGE_MASTER_HOW,Fuse every forge species,,,Połącz wszystkie gatunki z kuźni

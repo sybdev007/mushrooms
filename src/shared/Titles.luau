@@ -25,6 +25,7 @@ export type Stats = {
 	invites: number, -- gracze, którzy weszli z zaproszenia tego gracza (każdy raz, Social.creditInvite)
 	delves: number, -- ekspedycje do Głębokich Komór z zabezpieczonym znaleziskiem
 	crypts: number, -- trofea wyniesione z Krypty Skarbnika
+	forged: number, -- połączenia w Moździerzu Zielarki (Kuźnia Grzybów)
 }
 
 -- Liczniki z całej gry: rodzaj zdarzenia (jak w ProgressService.event) -> pole w Stats
@@ -42,10 +43,11 @@ Titles.EVENT_STAT = {
 	invite = "invites",
 	delve = "delves",
 	crypt = "crypts",
+	forge = "forged",
 } :: { [string]: string }
 
 function Titles.emptyStats(): Stats
-	return { picked = 0, sold = 0, steals = 0, escapes = 0, revives = 0, planted = 0, deaths = 0, bestStreak = 0, candy = 0, graveyard = 0, owl = 0, invites = 0, delves = 0, crypts = 0 }
+	return { picked = 0, sold = 0, steals = 0, escapes = 0, revives = 0, planted = 0, deaths = 0, bestStreak = 0, candy = 0, graveyard = 0, owl = 0, invites = 0, delves = 0, crypts = 0, forged = 0 }
 end
 
 -- Rzadkości od najsłabszej: kolor napisu nad głową i ramki w oknie (mityczny = tęcza)
@@ -68,7 +70,7 @@ export type TitleDef = {
 	stat: string?, -- licznik ze Stats i cel
 	goal: number?,
 	atlas: { page: string, rank: number }?, -- próg strony Grzybopedii
-	special: string?, -- "tutorial" | "grandmaster" | "rainbow" | "cosmic" | "guardians"
+	special: string?, -- "tutorial" | "grandmaster" | "rainbow" | "cosmic" | "guardians" | "forge"
 	escape: string?, -- strażnik, któremu trzeba choć raz uciec z jego grzybem (Progress.GUARDIANS)
 	event: string?, -- tytuł z eventu (np. "halloween"): po evencie niezdobyty znika z okna
 }
@@ -99,6 +101,8 @@ local LIST: { TitleDef } = {
 	{ id = "TITLE_RAINBOW_HUNTER", rarity = "epic", special = "rainbow" },
 	{ id = "TITLE_JAGA_ESCAPEE", rarity = "epic", escape = "jaga" }, -- uciec Babie Jadze z Zielem
 	{ id = "TITLE_COSMIC", rarity = "legendary", special = "cosmic" }, -- pierwszy kosmiczny grzyb
+	{ id = "TITLE_FORGE_APPRENTICE", rarity = "rare", stat = "forged", goal = 1 }, -- pierwsze połączenie w kuźni
+	{ id = "TITLE_FORGE_MASTER", rarity = "legendary", special = "forge" }, -- wszystkie gatunki z kuźni
 	{ id = "TITLE_GUARDIAN_BANE", rarity = "legendary", special = "guardians" },
 	{ id = "TITLE_MAGNATE", rarity = "legendary", stat = "sold", goal = 10000 },
 	{ id = "TITLE_VETERAN", rarity = "legendary", stat = "bestStreak", goal = 30 },
@@ -155,7 +159,8 @@ end
 -- Czy w Grzybopedii jest choć jeden grzyb w formie tej rangi (3 tęczowy, 4 kosmiczny)
 local function hasForm(atlas: { [string]: any }, rank: number): boolean
 	for _, species in Config.Species do
-		if Progress.has(atlas, species.id, rank) then
+		-- Tylko znaleziska z lasu (grzyby z kuźni mają własne tytuły)
+		if not species.forgeOnly and Progress.has(atlas, species.id, rank) then
 			return true
 		end
 	end
@@ -189,6 +194,8 @@ function Titles.progress(def: TitleDef, ctx: Context): (number, number)
 		return if hasForm(ctx.atlas, 3) then 1 else 0, 1
 	elseif def.special == "cosmic" then
 		return if hasForm(ctx.atlas, 4) then 1 else 0, 1
+	elseif def.special == "forge" then
+		return Progress.forgeFound(ctx.atlas)
 	elseif def.escape then
 		return math.min(Progress.guardianRecord(ctx.bestiary, def.escape).escaped, 1), 1
 	elseif def.special == "guardians" then

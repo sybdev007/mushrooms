@@ -35,6 +35,8 @@ local NAMES = {
 	"AdminAnnounce", -- panel DEV: wyślij ogłoszenie na wszystkie serwery (serwer sprawdza dewelopera i filtruje tekst)
 	"DelveAction", -- ekspedycja: weź / dołącz / opuść zlecenie, renowacja, oprawa, składanie reliktu
 	"OwlCheck", -- gracz zamknął okno dołączenia do grupy Old Owl Studios: sprawdź członkostwo jeszcze raz
+	"ForgeView", -- Kuźnia Grzybów: dostęp do przepisów, kolekcja, wynik połączenia (i czy otworzyć okno)
+	"ForgeAction", -- Kuźnia Grzybów: połącz 3 grzyby z koszyka według przepisu
 }
 
 local folder: Folder

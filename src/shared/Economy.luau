@@ -30,7 +30,10 @@ local guardianLists: { [string]: { Config.SpeciesDef } } = {}
 
 for _, species in Config.Species do
 	speciesById[species.id] = species
-	if species.grove then
+	if species.forgeOnly then
+		-- Gatunki z kuźni nie rosną nigdzie (nie trafiają do żadnej puli losowania)
+		continue
+	elseif species.grove then
 		table.insert(groveSpecies, species)
 	elseif species.lair then
 		table.insert(lairSpecies, species)
@@ -125,6 +128,31 @@ end
 function Economy.variantRank(id: string?): number
 	local variant = Economy.getVariant(id)
 	return if variant then variant.rank else 0
+end
+
+-- Wariant o danej randze (0 = zwykły, bez wariantu)
+function Economy.variantOfRank(rank: number): string?
+	for _, variant in Config.Variants do
+		if variant.rank == rank then
+			return variant.id
+		end
+	end
+	return nil
+end
+
+-- Najwyższa ranga wariantu (dziś kosmiczny = 4)
+function Economy.maxVariantRank(): number
+	local best = 0
+	for _, variant in Config.Variants do
+		best = math.max(best, variant.rank)
+	end
+	return best
+end
+
+-- Gatunek tylko z kuźni (Config.Forge): nie rośnie, nie da się go posadzić ani włożyć z powrotem
+function Economy.isForgeOnly(speciesId: string?): boolean
+	local species = if speciesId then speciesById[speciesId] else nil
+	return species ~= nil and species.forgeOnly == true
 end
 
 -- Wariant dla liczby r z [0, 1). minRank > 0 wymusza co najmniej taką rangę (gwarancja).
@@ -604,6 +632,10 @@ end
 
 -- Ile monet na minutę daje posadzony grzyb. fertilizer: mnożnik z ulepszenia Nawóz (1 = bez).
 function Economy.plantIncome(item: BasketItem, fertilizer: number?): number
+	-- Grzyb z kuźni to okaz do kolekcji: w ogródku nic by nie dawał (i tak nie da się go posadzić)
+	if Economy.isForgeOnly(item.s) then
+		return 0
+	end
 	return Economy.itemValue(item) * Config.Garden.incomeRate * (fertilizer or 1)
 end
 
@@ -694,8 +726,11 @@ end
 export type PlantMove = { basket: number, replace: number? }
 function Economy.planPlanting(basket: { BasketItem }, planted: { PlantItem }, beds: number): { PlantMove }
 	local order = {}
-	for index in basket do
-		table.insert(order, index)
+	for index, item in basket do
+		-- Grzybów z kuźni nie sadzimy (okazy do kolekcji)
+		if not Economy.isForgeOnly(item.s) then
+			table.insert(order, index)
+		end
 	end
 	table.sort(order, function(a, b)
 		local va, vb = Economy.itemValue(basket[a]), Economy.itemValue(basket[b])

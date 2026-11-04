@@ -126,6 +126,13 @@ local SHAPES: { [string]: Shape } = {
 	night_eye = { stemH = 0.5, stemD = 0.8, capW = 2.0, capH = 1.7, cap = rgb(60, 40, 110), stem = rgb(90, 70, 130), eye = true },
 	-- Ziele Baby Jagi: wysoki fioletowy kołpak z runami, świeci w ogródku jak przynęta
 	jaga_toadstool = { stemH = 1.8, stemD = 0.7, capW = 2.6, capH = 2.6, cap = rgb(150, 60, 210), stem = rgb(220, 200, 240), glow = true, cluster = 3, runes = true },
+	-- Kuźnia Grzybów (tylko z Moździerza Zielarki)
+	forge_mossbell = { stemH = 1.9, stemD = 0.45, capW = 2.1, capH = 1.4, cap = rgb(96, 170, 90), stem = rgb(214, 224, 180), spots = true, glow = true, cluster = 3 },
+	forge_emberpearl = { stemH = 0.8, stemD = 0.9, capW = 2.0, capH = 1.8, cap = rgb(255, 120, 60), stem = rgb(70, 46, 40), spots = true, glow = true },
+	forge_glasscap = { stemH = 1.6, stemD = 0.5, capW = 2.2, capH = 1.3, cap = rgb(210, 240, 236), stem = rgb(230, 250, 250), glow = true, cluster = 3 },
+	forge_runemorel = { stemH = 1.1, stemD = 0.8, capW = 1.7, capH = 2.1, cap = rgb(120, 60, 170), stem = rgb(226, 214, 236), glow = true, runes = true },
+	forge_mooncoral = { stemH = 0.8, stemD = 0.9, capW = 2.4, capH = 2.0, cap = rgb(200, 214, 240), stem = rgb(220, 226, 240), glow = true },
+	forge_eclipsestar = { stemH = 0.5, stemD = 0.7, capW = 2.8, capH = 1.3, cap = rgb(90, 60, 150), stem = rgb(255, 208, 90), glow = true },
 }
 local DEFAULT_SHAPE: Shape = { stemH = 1, stemD = 0.5, capW = 1.6, capH = 0.6, cap = rgb(160, 120, 80) }
 
@@ -260,6 +267,8 @@ local FORMS: { [string]: string } = {
 	witch_hat = "cone", moon_hat = "cone", jaga_toadstool = "cone",
 	devil_morel = "morel", raven_bracket = "bracket", devil_fingers = "tentacles", earthstar = "star",
 	sabbath_puffball = "ball", night_eye = "ball", hex_cluster = "bell",
+	forge_mossbell = "bell", forge_emberpearl = "ball", forge_glasscap = "crystal",
+	forge_runemorel = "morel", forge_mooncoral = "tentacles", forge_eclipsestar = "star",
 }
 local RUNE = rgb(150, 255, 90)
 -- Kształty z buzią na trzonie (kula ma buzię na kapeluszu, a huba, gwiazdosz i palce nie mają żadnej)

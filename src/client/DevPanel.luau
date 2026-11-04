@@ -91,6 +91,11 @@ local CATEGORIES: { Category } = {
 				{ id = "jagaSummon", label = "Baba Jaga: pościg teraz" },
 				{ id = "cosmicNear", label = "Grzyby obok: kosmiczne" },
 			} },
+			{ name = "Kuźnia Grzybów", actions = {
+				{ id = "forgeOpen", label = "Otwórz Moździerz Zielarki" },
+				{ id = "forgeKit", label = "Składniki do wszystkich przepisów" },
+				{ id = "forgeReset", label = "Wyczyść kolekcję kuźni" },
+			} },
 		},
 	},
 	{

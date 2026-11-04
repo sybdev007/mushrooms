@@ -392,7 +392,9 @@ function ProgressService.found(player: Player, item: { s: string, v: string?, x:
 		api.notify(player, if newSpecies then "MSG_ATLAS_NEW_SPECIES" else "MSG_ATLAS_NEW_FORM", nil, species and species.key or nil, {
 			variant = item.v,
 		})
-		ProgressService.event(player, "discover", 1)
+		if source ~= "forge" then
+			ProgressService.event(player, "discover", 1)
+		end
 		checkMilestones(player, data)
 	end
 	-- Grzyb strażnika (z legowiska albo ze skarbca) = kradzież, pierwsza odkrywa go w zakładce Strażnicy
@@ -400,12 +402,14 @@ function ProgressService.found(player: Player, item: { s: string, v: string?, x:
 	if guardian then
 		ProgressService.guardianEvent(player, guardian, "steal")
 	end
-	-- Najlepsze znalezisko tygodnia (ranking)
-	local now = os.time()
-	Progress.ensureWeek(data, Progress.weekIndex(now))
-	local score = Progress.encodeFind(item.s, item.v, Economy.itemValue(item :: any))
-	if score > data.weekly.best then
-		data.weekly.best = score
+	-- Najlepsze znalezisko tygodnia (ranking): tylko grzyby znalezione w lesie, nie z kuźni
+	if source ~= "forge" then
+		local now = os.time()
+		Progress.ensureWeek(data, Progress.weekIndex(now))
+		local score = Progress.encodeFind(item.s, item.v, Economy.itemValue(item :: any))
+		if score > data.weekly.best then
+			data.weekly.best = score
+		end
 	end
 	-- Zadania
 	if source == "pick" then

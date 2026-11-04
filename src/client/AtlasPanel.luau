@@ -30,8 +30,10 @@ local ROW = 66
 local TILE = 54
 local SIDE_W = 214 -- kolumna progów po prawej
 local GUARDIANS_TAB = "guardians"
--- Zakładki: strony świata, a na końcu Strażnicy
+local FORGE_TAB = Progress.FORGE_PAGE
+-- Zakładki: strony świata, grzyby z kuźni, a na końcu Strażnicy
 local TAB_IDS = table.clone(Progress.PAGES)
+table.insert(TAB_IDS, FORGE_TAB)
 table.insert(TAB_IDS, GUARDIANS_TAB)
 
 -- Kolor tła kafelka formy (ranga 0 = zwykła)
@@ -159,6 +161,26 @@ for index = 1, #Progress.TIERS do
 	check.Visible = false
 	tierCards[index] = { frame = frame, stroke = tierStroke, label = label, fill = fill, barText = barText, reward = reward, check = check }
 end
+
+-- Strona kuźni: zamiast progów (te grzyby nie dają premii do cen) karta z opisem Moździerza
+local forgeInfo = Instance.new("Frame")
+forgeInfo.Name = "ForgeInfo"
+forgeInfo.Size = UDim2.new(0, SIDE_W, 0, 236)
+forgeInfo.Position = UDim2.new(1, -SIDE_W, 0, 66)
+forgeInfo.BackgroundColor3 = PanelKit.CARD
+forgeInfo.Visible = false
+forgeInfo.ZIndex = 4
+forgeInfo.Parent = content
+PanelKit.corner(forgeInfo, UDim.new(0, 16))
+PanelKit.stroke(forgeInfo, Color3.fromRGB(150, 110, 255), 2.5)
+local forgeIcon = UiKit.icon("fertilizer", forgeInfo, UDim2.fromOffset(44, 44), UDim2.new(0.5, 0, 0, 10), Vector2.new(0.5, 0))
+forgeIcon.ZIndex = 5
+local forgeTitle = PanelKit.label(forgeInfo, "Title", UDim2.new(1, -16, 0, 24), UDim2.fromOffset(8, 58), 19)
+forgeTitle.ZIndex = 5
+local forgeText = PanelKit.label(forgeInfo, "Text", UDim2.new(1, -20, 1, -96), UDim2.fromOffset(10, 86), 15, PanelKit.MUTED, PanelKit.BODY_FONT)
+forgeText.TextWrapped = true
+forgeText.TextYAlignment = Enum.TextYAlignment.Top
+forgeText.ZIndex = 5
 
 -- Zakładka Strażnicy zajmuje miejsce listy i progów
 local guardiansPage = BestiaryPage.new(content, UDim2.new(1, 0, 1, -70), UDim2.fromOffset(0, 66))
@@ -292,6 +314,8 @@ local function render()
 		local found, total
 		if page == GUARDIANS_TAB then
 			found, total = Progress.guardiansFound(bestiary)
+		elseif page == FORGE_TAB then
+			found, total = Progress.forgeFound(atlas)
 		else
 			found, total = Progress.entries(atlas, page)
 		end
@@ -301,9 +325,11 @@ local function render()
 	window.pillText.Text = "+" .. percent(Progress.atlasBonus(atlas)) .. "%"
 
 	local onGuardians = current == GUARDIANS_TAB
+	local onForge = current == FORGE_TAB
 	header.Visible = not onGuardians
 	list.Visible = not onGuardians
-	side.Visible = not onGuardians
+	side.Visible = not onGuardians and not onForge
+	forgeInfo.Visible = onForge
 	guardiansPage.setActive(onGuardians and window.isOpen())
 	if onGuardians then
 		local found, total = Progress.guardiansFound(bestiary)
@@ -319,10 +345,17 @@ local function render()
 
 	local bonus = Progress.atlasBonus(atlas)
 	local titleKey = Progress.title(atlas)
-	summary.Text = Localize.t("ATLAS_SUMMARY", {
-		percent(bonus),
-		if titleKey then Localize.t(titleKey) else Localize.t("ATLAS_NO_TITLE"),
-	})
+	if onForge then
+		local found, total = Progress.forgeFound(atlas)
+		summary.Text = Localize.t("ATLAS_FORGE_SUMMARY", { found, total })
+		forgeTitle.Text = Localize.t("FORGE_TITLE")
+		forgeText.Text = Localize.t("ATLAS_FORGE_INFO")
+	else
+		summary.Text = Localize.t("ATLAS_SUMMARY", {
+			percent(bonus),
+			if titleKey then Localize.t(titleKey) else Localize.t("ATLAS_NO_TITLE"),
+		})
+	end
 
 	-- Wiersze gatunków
 	for _, child in list:GetChildren() do
@@ -363,23 +396,28 @@ local function render()
 		local info = PanelKit.label(row, "Info", UDim2.fromOffset(nameWidth, 18), UDim2.fromOffset(24, 37), 14, PanelKit.MUTED, PanelKit.BODY_FONT)
 		info.TextXAlignment = Enum.TextXAlignment.Left
 		info.ZIndex = 6
+		-- Grzyby z kuźni nie rosną w żadnej strefie: zamiast strefy nazwa Moździerza
 		local zone = Config.Zones[species.zone]
+		local whereText = if species.forgeOnly then Localize.t("FORGE_TITLE") elseif zone then Localize.t(zone.key) else ""
 		if known then
 			name.Text = Localize.t(species.key)
 			-- Nazwa w gradiencie koloru klasy (jak tytuły kart w sklepie)
 			ShopLook.title(name, rgb(class.color):Lerp(Color3.new(1, 1, 1), 0.6), rgb(class.color):Lerp(Color3.new(1, 1, 1), 0.1))
-			info.Text = string.format("%s · %s · 💰 %s", ClassColor.rich(species.id, Localize.t(class.key)), if zone then Localize.t(zone.key) else "", formatCoins(species.value))
+			info.Text = string.format("%s · %s · 💰 %s", ClassColor.rich(species.id, Localize.t(class.key)), whereText, formatCoins(species.value))
 		else
 			name.Text = "???"
 			name.TextColor3 = PanelKit.MUTED
-			info.Text = if zone then Localize.t(zone.key) else ""
+			info.Text = whereText
 		end
 		for rank = 0, 3 do
 			formTile(row, species, rank, Progress.has(atlas, species.id, rank), rank == 3 and Progress.has(atlas, species.id, 4))
 		end
 	end
 
-	-- Progi strony
+	-- Progi strony (strona kuźni ich nie ma)
+	if onForge then
+		return
+	end
 	for index, tier in Progress.TIERS do
 		local card = tierCards[index]
 		local count, total = Progress.tierProgress(atlas, current, tier.rank)
@@ -405,8 +443,12 @@ local function cascade(step: number?)
 		return
 	end
 	local items: { GuiObject } = {}
-	for _, card in tierCards do
-		table.insert(items, card.frame)
+	if current == FORGE_TAB then
+		table.insert(items, forgeInfo)
+	else
+		for _, card in tierCards do
+			table.insert(items, card.frame)
+		end
 	end
 	local rows: { Frame } = {}
 	for _, child in list:GetChildren() do
@@ -495,7 +537,7 @@ Remotes.get("ProgressUpdate").OnClientEvent:Connect(function(payload)
 		end
 	end
 	knownGuardians = foundNow
-	local count = 0
+	local count = (Progress.entries(atlas, FORGE_TAB))
 	for _, page in Progress.PAGES do
 		count += (Progress.entries(atlas, page))
 	end

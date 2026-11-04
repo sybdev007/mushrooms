@@ -49,6 +49,9 @@ local SPECIES_SHAPE: { [string]: string } = {
 	witch_hat = "bell", moon_hat = "bell", devil_morel = "bell", hex_cluster = "cluster",
 	raven_bracket = "oyster", sabbath_puffball = "puffball", earthstar = "puffball", night_eye = "puffball",
 	devil_fingers = "crown", jaga_toadstool = "amanita",
+	-- Kuźnia Grzybów
+	forge_mossbell = "bell", forge_emberpearl = "puffball", forge_glasscap = "crystal",
+	forge_runemorel = "bell", forge_mooncoral = "crown", forge_eclipsestar = "puffball",
 }
 
 local RAINBOW = ColorSequence.new({

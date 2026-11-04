@@ -34,11 +34,14 @@ Achievements.IDS = {
 	"mountain",
 	"jaga",
 	"cosmic",
+	"forge_first",
+	"forge_collection",
 }
 
 local function anyForm(atlas: { [string]: any }, rank: number): boolean
 	for _, species in Config.Species do
-		if Progress.has(atlas, species.id, rank) then
+		-- Znalezisko z lasu: grzyby z kuźni się nie liczą (mają własne osiągnięcia)
+		if not species.forgeOnly and Progress.has(atlas, species.id, rank) then
 			return true
 		end
 	end
@@ -74,6 +77,9 @@ function Achievements.check(source: Source): { [string]: boolean }
 	done.gold = anyForm(source.atlas, 2)
 	done.rainbow = anyForm(source.atlas, 3)
 	done.cosmic = anyForm(source.atlas, 4)
+	done.forge_first = (stats.forged or 0) >= 1
+	local forged, forgeTotal = Progress.forgeFound(source.atlas)
+	done.forge_collection = forgeTotal > 0 and forged >= forgeTotal
 	for _, def in Progress.GUARDIANS do
 		done[def.id] = Progress.guardianRecord(source.bestiary :: any, def.id).found
 	end

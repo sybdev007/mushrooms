@@ -19,6 +19,9 @@ local Progress = {}
 
 -- Strony księgi: po jednej na świat
 Progress.PAGES = { "forest", "cave", "swamp", "mountain" }
+-- Kolekcja z Kuźni Grzybów: osobna zakładka Grzybopedii, poza PAGES (bez premii do ceny, progów stron
+-- i Arcygrzybiarza), żeby kuźnia nie zmieniała ekonomii ani starych tytułów
+Progress.FORGE_PAGE = "forge"
 
 -- Progi każdej strony: wszystkie gatunki co najmniej w danej randze wariantu.
 -- bonus = stały dodatek do ceny przy sprzedaży; każdy próg daje lepszy tytuł nad głową
@@ -45,8 +48,18 @@ function Progress.pageSpecies(page: string): { Config.SpeciesDef }
 		return cached
 	end
 	local list = {}
+	if page == Progress.FORGE_PAGE then
+		-- Kuźnia: w kolejności przepisów (Config.Species ma je na końcu, w tej samej kolejności)
+		for _, species in Config.Species do
+			if species.forgeOnly then
+				table.insert(list, species)
+			end
+		end
+		pageCache[page] = list
+		return list
+	end
 	for _, species in Config.Species do
-		if not species.mimic and Economy.zoneWorld(species.zone) == page then
+		if not species.mimic and not species.forgeOnly and Economy.zoneWorld(species.zone) == page then
 			table.insert(list, species)
 		end
 	end
@@ -65,7 +78,22 @@ function Progress.pageOf(speciesId: string): string?
 	if not species or species.mimic then
 		return nil
 	end
+	if species.forgeOnly then
+		return Progress.FORGE_PAGE
+	end
 	return Economy.zoneWorld(species.zone)
+end
+
+-- Ile gatunków z kuźni gracz już ma (w dowolnej formie) i ile jest wszystkich
+function Progress.forgeFound(atlas: { [string]: any }): (number, number)
+	local list = Progress.pageSpecies(Progress.FORGE_PAGE)
+	local found = 0
+	for _, species in list do
+		if Progress.mask(atlas, species.id) > 0 then
+			found += 1
+		end
+	end
+	return found, #list
 end
 
 -- Maska z zapisu; stare zapisy miały true (= znaleziony zwykły)

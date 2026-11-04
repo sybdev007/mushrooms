@@ -668,6 +668,11 @@ local function onPlantOne(player: Player, basketIndex: unknown, slot: unknown, k
 	if not item or bed < 1 or bed > beds then
 		return
 	end
+	-- Grzyb z kuźni to okaz do kolekcji: nie rośnie w ogródku
+	if Economy.isForgeOnly(item.s) then
+		api.notify(player, "FORGE_NO_PLANT")
+		return
+	end
 	-- Koszyk zmienił się od czasu, gdy klient go pokazał: nic nie robimy, okno dostanie świeży stan
 	if key ~= nil and key ~= Economy.basketKey(data.basket) then
 		api.pushState(player)
