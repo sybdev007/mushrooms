@@ -55,6 +55,7 @@ local GardenPanel = require(script.Parent.GardenPanel)
 local DisplayMushrooms = require(script.Parent.DisplayMushrooms)
 local HalloweenFx = require(script.Parent.HalloweenFx)
 local MutationText = require(script.Parent.MutationText)
+local RareFind = require(script.Parent.RareFind)
 local FontFix = require(script.Parent.FontFix)
 local DelvePanel = require(script.Parent.DelvePanel)
 local ForgePanel = require(script.Parent.ForgePanel)
@@ -219,13 +220,19 @@ Remotes.get("MushroomRemoved").OnClientEvent:Connect(function(id)
 		-- Błędny ognik rozpływa się w zielonym dymie i chichocze
 		Effects.wispTrick(info.position)
 	elseif info then
+		local value = Economy.mushroomValue(info.species, info.variant, info.tags)
 		Effects.collect(
 			info.position,
 			MushroomView.capColor(info.species, info.variant),
-			Economy.mushroomValue(info.species, info.variant, info.tags),
+			value,
 			Economy.variantRank(info.variant),
 			MutationText.rich(info.variant, info.tags)
 		)
+		-- Epicki: napis przez ekran; legendarny, tęczowy, kosmiczny: karta z kręcącym się grzybem
+		local level = RareFind.level(info.species, info.variant)
+		if level then
+			RareFind.show(info.species, info.variant, info.tags, value, if level == "legendary" then MushroomView.snapshot(id) else nil)
+		end
 	end
 	MushroomView.remove(id)
 end)

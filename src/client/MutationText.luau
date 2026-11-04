@@ -65,6 +65,40 @@ function MutationText.rich(variant: string?, tags: { string }?): string
 	return table.concat(parts, " ")
 end
 
+-- Wielkie litery także dla polskich znaków (string.upper zmienia tylko a-z)
+local POLISH_UPPER: { [string]: string } = { ["ą"] = "Ą", ["ć"] = "Ć", ["ę"] = "Ę", ["ł"] = "Ł", ["ń"] = "Ń", ["ó"] = "Ó", ["ś"] = "Ś", ["ź"] = "Ź", ["ż"] = "Ż" }
+function MutationText.upper(text: string): string
+	local out = string.upper(text)
+	for lower, upper in POLISH_UPPER do
+		out = (string.gsub(out, lower, upper))
+	end
+	return out
+end
+
+-- Nazwa wariantu wielkimi literami w jego kolorach („ZŁOTY”, tęcza litera po literze); "" bez wariantu
+function MutationText.variantTitle(variant: string?): string
+	local def = Economy.getVariant(variant)
+	if not def then
+		return ""
+	end
+	local name = MutationText.upper(Localize.t(def.key))
+	return if def.id == "rainbow" then rainbow(name) elseif def.id == "cosmic" then cosmic(name) else colored(name, rgb(def.color))
+end
+
+-- Kolor wariantu (tęcza i kosmos: kolor ich poświaty); nil bez wariantu
+function MutationText.variantColor(variant: string?): Color3?
+	local def = Economy.getVariant(variant)
+	if not def then
+		return nil
+	end
+	if def.id == "rainbow" then
+		return Color3.fromRGB(255, 170, 235)
+	elseif def.id == "cosmic" then
+		return COSMIC[1]
+	end
+	return rgb(def.color)
+end
+
 -- Napis nad grzybem (BillboardGui z jednym TextLabel z RichText i obwódką), bez rodzica
 function MutationText.billboard(name: string, size: UDim2, maxDistance: number): (BillboardGui, TextLabel)
 	local gui = Instance.new("BillboardGui")
