@@ -65,7 +65,9 @@ local window = PanelKit.window({
 })
 local content = window.content
 
-local tabs, selectTab = PanelKit.tabs(content, TAB_IDS, 156)
+-- Zakładki mieszczą się w oknie także przy czterech światach (+ Strażnicy)
+local TAB_W = math.min(156, math.floor((WIDTH - 28 - 8 * (#TAB_IDS - 1)) / #TAB_IDS))
+local tabs, selectTab = PanelKit.tabs(content, TAB_IDS, TAB_W)
 local summary = PanelKit.label(content, "Summary", UDim2.new(1, -20, 0, 20), UDim2.fromOffset(10, 42), 16, PanelKit.MUTED, PanelKit.BODY_FONT)
 
 -- ===== Lista gatunków (lewa część) =====
@@ -212,7 +214,7 @@ local function silhouette(art: Frame)
 end
 
 -- Kafelek formy: pikselowy grzybek w kolorze formy albo czarna sylwetka
-local function formTile(parent: Instance, species: Config.SpeciesDef, rank: number, found: boolean)
+local function formTile(parent: Instance, species: Config.SpeciesDef, rank: number, found: boolean, cosmic: boolean?)
 	local tile = Instance.new("Frame")
 	tile.Name = "Form" .. rank
 	tile.Size = UDim2.fromOffset(TILE, TILE)
@@ -233,6 +235,22 @@ local function formTile(parent: Instance, species: Config.SpeciesDef, rank: numb
 	local variant = VARIANT_BY_RANK[rank]
 	if found and rank == 3 then
 		ShopLook.halo(tile, UDim2.fromScale(0.5, 0.5), if variant then rgb(variant.color) else Color3.new(1, 1, 1), 44, false, 6)
+	end
+	-- Kosmiczny (ponad tęczą) nie ma własnego kafelka: znaczek w rogu kafelka tęczy
+	if cosmic and rank == 3 then
+		local cosmicDef = VARIANT_BY_RANK[4]
+		local badge = Instance.new("TextLabel")
+		badge.Name = "Cosmic"
+		badge.BackgroundColor3 = Color3.fromRGB(40, 30, 110)
+		badge.Size = UDim2.fromOffset(22, 22)
+		badge.AnchorPoint = Vector2.new(0.5, 0.5)
+		badge.Position = UDim2.new(1, -2, 0, 2)
+		badge.Text = if cosmicDef then cosmicDef.icon else "🌌"
+		badge.TextScaled = true
+		badge.ZIndex = 9
+		badge.Parent = tile
+		PanelKit.corner(badge, UDim.new(1, 0))
+		PanelKit.stroke(badge, Color3.fromRGB(170, 140, 255), 2)
 	end
 	local box = Instance.new("Frame")
 	box.Name = "Art"
@@ -357,7 +375,7 @@ local function render()
 			info.Text = if zone then Localize.t(zone.key) else ""
 		end
 		for rank = 0, 3 do
-			formTile(row, species, rank, Progress.has(atlas, species.id, rank))
+			formTile(row, species, rank, Progress.has(atlas, species.id, rank), rank == 3 and Progress.has(atlas, species.id, 4))
 		end
 	end
 

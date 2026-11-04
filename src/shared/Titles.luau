@@ -68,7 +68,8 @@ export type TitleDef = {
 	stat: string?, -- licznik ze Stats i cel
 	goal: number?,
 	atlas: { page: string, rank: number }?, -- próg strony Grzybopedii
-	special: string?, -- "tutorial" | "grandmaster" | "rainbow" | "guardians"
+	special: string?, -- "tutorial" | "grandmaster" | "rainbow" | "cosmic" | "guardians"
+	escape: string?, -- strażnik, któremu trzeba choć raz uciec z jego grzybem (Progress.GUARDIANS)
 	event: string?, -- tytuł z eventu (np. "halloween"): po evencie niezdobyty znika z okna
 }
 
@@ -96,6 +97,8 @@ local LIST: { TitleDef } = {
 	{ id = "TITLE_ELUSIVE", rarity = "epic", stat = "escapes", goal = 10 },
 	{ id = "TITLE_CRYPT_RAIDER", rarity = "epic", stat = "crypts", goal = 10 }, -- trofea z Krypty Skarbnika
 	{ id = "TITLE_RAINBOW_HUNTER", rarity = "epic", special = "rainbow" },
+	{ id = "TITLE_JAGA_ESCAPEE", rarity = "epic", escape = "jaga" }, -- uciec Babie Jadze z Zielem
+	{ id = "TITLE_COSMIC", rarity = "legendary", special = "cosmic" }, -- pierwszy kosmiczny grzyb
 	{ id = "TITLE_GUARDIAN_BANE", rarity = "legendary", special = "guardians" },
 	{ id = "TITLE_MAGNATE", rarity = "legendary", stat = "sold", goal = 10000 },
 	{ id = "TITLE_VETERAN", rarity = "legendary", stat = "bestStreak", goal = 30 },
@@ -149,9 +152,10 @@ function Titles.rarityRank(rarity: string): number
 	return RARITY_RANK[rarity] or 0
 end
 
-local function hasRainbow(atlas: { [string]: any }): boolean
+-- Czy w Grzybopedii jest choć jeden grzyb w formie tej rangi (3 tęczowy, 4 kosmiczny)
+local function hasForm(atlas: { [string]: any }, rank: number): boolean
 	for _, species in Config.Species do
-		if Progress.has(atlas, species.id, 3) then
+		if Progress.has(atlas, species.id, rank) then
 			return true
 		end
 	end
@@ -182,7 +186,11 @@ function Titles.progress(def: TitleDef, ctx: Context): (number, number)
 	elseif def.special == "tutorial" then
 		return if ctx.tutorialDone then 1 else 0, 1
 	elseif def.special == "rainbow" then
-		return if hasRainbow(ctx.atlas) then 1 else 0, 1
+		return if hasForm(ctx.atlas, 3) then 1 else 0, 1
+	elseif def.special == "cosmic" then
+		return if hasForm(ctx.atlas, 4) then 1 else 0, 1
+	elseif def.escape then
+		return math.min(Progress.guardianRecord(ctx.bestiary, def.escape).escaped, 1), 1
 	elseif def.special == "guardians" then
 		return Progress.guardiansFound(ctx.bestiary)
 	elseif def.special == "grandmaster" then

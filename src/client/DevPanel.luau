@@ -88,6 +88,8 @@ local CATEGORIES: { Category } = {
 				{ id = "tpCauldrons", label = "TP: Kotły Sabatu" },
 				{ id = "tpSummit", label = "TP: chatka Baby Jagi" },
 				{ id = "ravenNow", label = "Kruk: atak teraz" },
+				{ id = "jagaSummon", label = "Baba Jaga: pościg teraz" },
+				{ id = "cosmicNear", label = "Grzyby obok: kosmiczne" },
 			} },
 		},
 	},

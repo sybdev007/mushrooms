@@ -860,3 +860,7 @@ BOSS_JAGA_TITLE,Witch of Bald Mountain,,,Wiedźma z Łysej Góry
 BOSS_JAGA_LORE,An old witch with an iron nose. She flies in a mortar and sweeps her tracks away with a broom. Her hut stands on a chicken leg and turns by itself. The toadstools from her garden go into her brews - she never forgives a thief.,,,Stara wiedźma z żelaznym nosem. Lata w moździerzu i miotłą zamiata za sobą ślady. Jej chatka stoi na kurzej stopce i sama się obraca. Ziele z ogródka idzie do jej wywarów - złodziejowi nie wybacza.
 BOSS_JAGA_TIP,Watch the hut door. Turned away = a head start. Looking at you = she flies out at once. Either way you need very fast boots.,,,Patrz na drzwi chatki. Odwrócone = masz przewagę na start. Patrzą na ciebie = Jaga wylatuje od razu. I tak potrzebujesz bardzo szybkich butów.
 SIGN_HUT,Baba Jaga's hut - don't let it see you!,,,Chatka Baby Jagi - nie daj się jej zobaczyć!
+TITLE_JAGA_ESCAPEE,Baba Jaga Escapee,,,Uciekinier Baby Jagi
+TITLE_JAGA_ESCAPEE_HOW,Escape Baba Jaga with her toadstool,,,Ucieknij Babie Jadze z jej Zielem
+TITLE_COSMIC,Cosmic,,,Kosmiczny
+TITLE_COSMIC_HOW,Find a Cosmic mushroom,,,Znajdź kosmicznego grzyba

@@ -319,7 +319,9 @@ function RavenService.start(hooks: Hooks): Ravens
 		local a = rng:NextNumber(0, math.pi * 2)
 		local target = root.Position + Vector3.new(math.cos(a) * spread, 0, math.sin(a) * spread)
 		task.spawn(function()
-			local ok, err = pcall(strike, player, target)
+			local ok, err = pcall(function()
+				strike(player, target)
+			end)
 			if not ok then
 				warn("[RavenService] " .. tostring(err))
 				busy[player] = nil

@@ -1502,6 +1502,29 @@ local function onDevAction(player: Player, action: unknown)
 		if ravens then
 			ravens.devNow(player)
 		end
+	elseif action == "jagaSummon" then
+		-- Baba Jaga wylatuje od razu na gracza (test pościgu bez zrywania Ziela)
+		local chaser = chasers.jaga
+		local place = map.guardians.jaga
+		if chaser and place and chaser.startChase(player, place.origin, 0.5) then
+			notify(session, "MSG_JAGA_WOKE")
+		end
+	elseif action == "cosmicNear" then
+		-- Grzyby w promieniu 40 studs od gracza stają się kosmiczne (podgląd wariantu i zbierania)
+		local root = getRoot(player)
+		if root then
+			local changed = {}
+			for id, state in session.spots do
+				local spot = map.spotById[id]
+				if spot and state.visible and (spot.position - root.Position).Magnitude <= 40 then
+					state.variant = "cosmic"
+					table.insert(changed, { id = id, position = spot.position, species = state.speciesId, variant = state.variant, tags = state.tags })
+				end
+			end
+			if #changed > 0 then
+				MushroomSync:FireClient(player, changed)
+			end
+		end
 	elseif action == "coins1m" then
 		data.coins += 1000000
 	elseif action == "oilFull" then
