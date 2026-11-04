@@ -172,10 +172,11 @@ for index, id in skinIds do
 	skinIcon.Text = def.icon
 	skinIcon.ZIndex = 6
 	ShopLook.bob(skinIcon, 3, 2.4 + index * 0.3)
-	local name = PanelKit.label(frame, "Name", UDim2.new(1, -170, 1, -12), UDim2.fromOffset(58, 6), 18)
+	-- Najwyżej 16 px: „Jack-o'-Lantern” mieści się w jednej linii, a nazwy z dwóch słów łamią się
+	-- między słowami. (TextWrapped = false wyłączyłoby w Robloxie TextScaled.)
+	local name = PanelKit.label(frame, "Name", UDim2.new(1, -170, 1, -12), UDim2.fromOffset(58, 6), 16)
 	name.TextXAlignment = Enum.TextXAlignment.Left
-	-- Jedna linia: długa nazwa („Jack-o'-Lantern”) zmniejsza się zamiast łamać w środku słowa
-	name.TextWrapped = false
+	name.TextWrapped = true
 	name.ZIndex = 6
 	UiKit.outline(name, 2)
 	local button = Instance.new("TextButton")
