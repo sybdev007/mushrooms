@@ -81,6 +81,22 @@ end
 local FOREST_FIRST = Config.Zones[FOREST_ZONES[1]]
 local FOREST_LAST = Config.Zones[FOREST_ZONES[#FOREST_ZONES]]
 
+-- Połowa szerokości strefy lasu (polana przy chatce jest szersza: Config.Zones[i].halfWidth)
+local function zoneHalfWidth(zoneIndex: number): number
+	return Economy.zoneHalfWidth(Config.Zones[zoneIndex])
+end
+
+-- Połowa szerokości lasu na danym z (tam stoją ściany i drzewa z obrzeża)
+local function halfWidthAt(z: number): number
+	for _, zoneIndex in FOREST_ZONES do
+		local zone = Config.Zones[zoneIndex]
+		if z >= zone.startZ and z < zone.endZ then
+			return zoneHalfWidth(zoneIndex)
+		end
+	end
+	return Config.ForestHalfWidth
+end
+
 type Builder = (Instance, Vector3, number, Random, number) -> ()
 
 local MapBuilder = {}
@@ -244,9 +260,9 @@ end
 -- ===== Budowa =====
 
 local function buildGround(parent: Instance)
-	local halfWidth = Config.ForestHalfWidth
 	for _, zoneIndex in FOREST_ZONES do
 		local zone = Config.Zones[zoneIndex]
+		local halfWidth = zoneHalfWidth(zoneIndex)
 		local length = zone.endZ - zone.startZ
 		local ground = Instance.new("Part")
 		ground.Name = "Ground_" .. zone.id
@@ -272,11 +288,8 @@ local function buildGround(parent: Instance)
 end
 
 local function buildWalls(parent: Instance)
-	local halfWidth = Config.ForestHalfWidth
 	local first = FOREST_FIRST
 	local last = FOREST_LAST
-	local totalLength = last.endZ - first.startZ
-	local centerZ = first.startZ + totalLength / 2
 	local function wall(size: Vector3, position: Vector3)
 		local w = Instance.new("Part")
 		w.Name = "InvisibleWall"
@@ -286,12 +299,26 @@ local function buildWalls(parent: Instance)
 		w.Position = position
 		w.Parent = parent
 	end
-	for _, side in { -1, 1 } do
-		wall(Vector3.new(2, 60, totalLength), Vector3.new(side * (halfWidth + 1), 30, centerZ))
+	-- Boki: osobny odcinek dla każdej strefy (polana jest szersza), a tam, gdzie szerokość się zmienia,
+	-- poprzeczna ściana od węższej do szerszej
+	for i, zoneIndex in FOREST_ZONES do
+		local zone = Config.Zones[zoneIndex]
+		local halfWidth = zoneHalfWidth(zoneIndex)
+		local length = zone.endZ - zone.startZ
+		for _, side in { -1, 1 } do
+			wall(Vector3.new(2, 60, length), Vector3.new(side * (halfWidth + 1), 30, zone.startZ + length / 2))
+		end
+		local nextIndex = FOREST_ZONES[i + 1]
+		local nextHalf = if nextIndex then zoneHalfWidth(nextIndex) else halfWidth
+		if nextHalf ~= halfWidth then
+			local inner, outer = math.min(halfWidth, nextHalf), math.max(halfWidth, nextHalf)
+			for _, side in { -1, 1 } do
+				wall(Vector3.new(outer - inner + 2, 60, 2), Vector3.new(side * ((inner + outer) / 2 + 1), 30, zone.endZ))
+			end
+		end
 	end
-	for _, z in { first.startZ - 1, last.endZ + 1 } do
-		wall(Vector3.new(halfWidth * 2, 60, 2), Vector3.new(0, 30, z))
-	end
+	wall(Vector3.new(zoneHalfWidth(FOREST_ZONES[1]) * 2, 60, 2), Vector3.new(0, 30, first.startZ - 1))
+	wall(Vector3.new(zoneHalfWidth(FOREST_ZONES[#FOREST_ZONES]) * 2, 60, 2), Vector3.new(0, 30, last.endZ + 1))
 end
 
 -- Rząd dużych drzew na brzegach mapy: zasłania niewidzialne ściany.
@@ -300,7 +327,6 @@ end
 local function buildBorder(parent: Instance, rng: Random)
 	local folder = Instance.new("Folder")
 	folder.Name = "Border"
-	local halfWidth = Config.ForestHalfWidth
 	local first = FOREST_FIRST
 	local last = FOREST_LAST
 	local function darknessAt(z: number): number
@@ -336,10 +362,14 @@ local function buildBorder(parent: Instance, rng: Random)
 		return true
 	end
 
-	-- Przód i tył mapy (w poprzek), potem boki (wzdłuż); narożniki zajmuje ten, kto pierwszy
-	for _, edge in { { z = first.startZ + 3, dead = false }, { z = last.endZ - 3, dead = true } } do
-		local x = -halfWidth + 2
-		while x < halfWidth - 2 do
+	-- Przód i tył mapy (w poprzek), potem uskoki ściany i boki (wzdłuż); narożniki zajmuje ten, kto pierwszy
+	local edges = {
+		{ z = first.startZ + 3, dead = false, halfWidth = zoneHalfWidth(FOREST_ZONES[1]) },
+		{ z = last.endZ - 3, dead = true, halfWidth = zoneHalfWidth(FOREST_ZONES[#FOREST_ZONES]) },
+	}
+	for _, edge in edges do
+		local x = -edge.halfWidth + 2
+		while x < edge.halfWidth - 2 do
 			local kind = if edge.dead and rng:NextNumber() < 0.4 then "deadTree" else "pine"
 			local scale = rng:NextNumber(1.5, 1.9)
 			local canopy = CANOPY[kind] * scale
@@ -347,12 +377,29 @@ local function buildBorder(parent: Instance, rng: Random)
 			x += canopy * 2 + GAP
 		end
 	end
+	-- Uskok ściany między szerszą polaną a lasem: rząd drzew wzdłuż poprzecznej ściany, od strony szerszej strefy
+	for i = 1, #FOREST_ZONES - 1 do
+		local boundary = Config.Zones[FOREST_ZONES[i]].endZ
+		local a, b = zoneHalfWidth(FOREST_ZONES[i]), zoneHalfWidth(FOREST_ZONES[i + 1])
+		if a ~= b then
+			local z = if a > b then boundary - 3 else boundary + 3
+			for _, side in { -1, 1 } do
+				local x = math.min(a, b) - 3
+				while x < math.max(a, b) - 3 do
+					local scale = rng:NextNumber(1.5, 1.9)
+					local canopy = CANOPY.pine * scale
+					plant("pine", side * (x + canopy), z, scale, darknessAt(z))
+					x += canopy * 2 + GAP
+				end
+			end
+		end
+	end
 	for _, side in { -1, 1 } do
 		local z = first.startZ
 		while z < last.endZ do
 			local scale = rng:NextNumber(1.5, 1.9)
 			local canopy = CANOPY.pine * scale
-			if plant("pine", side * (halfWidth - 3), z + canopy, scale, darknessAt(z)) then
+			if plant("pine", side * (halfWidthAt(z + canopy) - 3), z + canopy, scale, darknessAt(z)) then
 				z += canopy * 2 + GAP
 			else
 				z += 2 -- miejsce zajęte (narożnik): szukamy dalej
@@ -385,6 +432,15 @@ end
 
 local function buildForestBackdrop(parent: Instance, rng: Random)
 	local halfWidth = Config.ForestHalfWidth
+	-- Strefy szersze niż las (polana przy chatce) wchodzą w pierwszy rząd tła
+	local cutouts: { Backdrop.Rect } = {}
+	for _, zoneIndex in FOREST_ZONES do
+		local zone = Config.Zones[zoneIndex]
+		local zoneHalf = zoneHalfWidth(zoneIndex)
+		if zoneHalf > halfWidth then
+			table.insert(cutouts, { x1 = -zoneHalf - 1, x2 = zoneHalf + 1, z1 = zone.startZ - 1, z2 = zone.endZ })
+		end
+	end
 	Backdrop.build(parent, {
 		x1 = -halfWidth - 1,
 		x2 = halfWidth + 1,
@@ -408,6 +464,7 @@ local function buildForestBackdrop(parent: Instance, rng: Random)
 		hillHeight = { 34, 58 },
 		mountain = FOREST_MOUNTAINS,
 		mountainHeight = { 80, 120 },
+		cutouts = cutouts,
 	}, rng)
 end
 
@@ -419,7 +476,7 @@ local function buildZoneDecor(parent: Instance, zoneIndex: number, rng: Random)
 	end
 	local folder = Instance.new("Folder")
 	folder.Name = "Decor_" .. zone.id
-	local halfWidth = Config.ForestHalfWidth - 6
+	local halfWidth = zoneHalfWidth(zoneIndex) - 6
 	local z1, z2 = zone.startZ + 2, zone.endZ - 2
 	local accept: ((number, number) -> boolean)? = nil
 	local treeCount = zone.treeCount
@@ -555,13 +612,14 @@ local function gardenCFrame(plot: { x: number, z: number }): CFrame
 end
 
 local function reserveGardens()
-	local half = Config.Garden.size / 2
+	-- Furtka patrzy wzdłuż X (do środka polany), więc głębokość ogródka idzie wzdłuż X, szerokość wzdłuż Z
+	local halfDepth, halfWidth = Config.Garden.depth / 2, Config.Garden.width / 2
 	for _, plot in Config.Garden.plots do
 		-- Ogródek z zapasem i miejsce przed furtką (od strony środka polany)
 		local toward = if plot.x < 0 then 1 else -1
-		local x1 = math.min(plot.x - half - 2, plot.x + toward * (half + 7))
-		local x2 = math.max(plot.x + half + 2, plot.x + toward * (half + 7))
-		table.insert(reserved, { x1 = x1, x2 = x2, z1 = plot.z - half - 2, z2 = plot.z + half + 2 })
+		local x1 = math.min(plot.x - halfDepth - 2, plot.x + toward * (halfDepth + 7))
+		local x2 = math.max(plot.x + halfDepth + 2, plot.x + toward * (halfDepth + 7))
+		table.insert(reserved, { x1 = x1, x2 = x2, z1 = plot.z - halfWidth - 2, z2 = plot.z + halfWidth + 2 })
 	end
 end
 
@@ -571,7 +629,7 @@ local function buildGardens(parent: Instance): { RackInfo }
 	local rng = Random.new(Config.SpotSeed + 3)
 	local racks: { RackInfo } = {}
 	for index, plot in Config.Garden.plots do
-		local model = Garden.build(folder, gardenCFrame(plot), Config.Garden.size, Config.Garden.maxBeds, rng)
+		local model = Garden.build(folder, gardenCFrame(plot), Config.Garden.width, Config.Garden.depth, Config.Garden.maxBeds, rng)
 		model.Name = "Garden_" .. index
 		table.insert(racks, { id = index, model = model })
 	end

@@ -49,13 +49,16 @@ type GardenState = {
 	id: number,
 	model: Model,
 	hub: BasePart,
+	bounds: CFrame, -- środek działki (trawy) na ziemi
+	halfSize: Vector2, -- połowa szerokości (X) i głębokości (Z) działki
 	chest: BasePart?,
 	soils: { BasePart },
 	slots: { Attachment },
 	lockTags: { BillboardGui },
 	slotLabels: { TextLabel },
 	visuals: Folder,
-	label: TextLabel,
+	label: TextLabel, -- grządki i dochód
+	labelOnSign: boolean, -- label to dolny wiersz tabliczki furtki (imię jest w ownerSign)
 	potLabel: TextLabel?,
 	ownerSign: TextLabel?,
 	owner: Player?,
@@ -192,9 +195,8 @@ end
 
 -- Czy pozycja leży w danym ogródku (z małym zapasem za płotem)
 local function insideGarden(garden: GardenState, position: Vector3): boolean
-	local localPos = garden.model:GetPivot():PointToObjectSpace(position)
-	local half = Config.Garden.size / 2 + 1
-	return math.abs(localPos.X) <= half and math.abs(localPos.Z) <= half
+	local localPos = garden.bounds:PointToObjectSpace(position)
+	return math.abs(localPos.X) <= garden.halfSize.X + 1 and math.abs(localPos.Z) <= garden.halfSize.Y + 1
 end
 
 -- ===== Wygląd =====
@@ -327,7 +329,9 @@ local function lockTag(slot: Attachment): BillboardGui
 	return gui
 end
 
-local function ownerSignLabel(sign: BasePart): TextLabel
+-- Napis na tabliczce nad furtką: imię właściciela, a na wysokiej tabliczce (World/Garden: 2 studa)
+-- pod imieniem grządki i dochód. Wtedy nad furtką nie wisi już osobna tabliczka w powietrzu.
+local function ownerSignLabels(sign: BasePart): (TextLabel, TextLabel?)
 	local gui = Instance.new("SurfaceGui")
 	gui.Name = "OwnerText"
 	gui.Face = Enum.NormalId.Front
@@ -335,20 +339,28 @@ local function ownerSignLabel(sign: BasePart): TextLabel
 	gui.PixelsPerStud = 50
 	gui.LightInfluence = 0.2
 	gui.Parent = sign
-	local label = Instance.new("TextLabel")
-	label.Size = UDim2.new(1, -16, 1, -8)
-	label.Position = UDim2.fromOffset(8, 4)
-	label.BackgroundTransparency = 1
-	label.TextColor3 = Color3.fromRGB(255, 236, 190)
-	label.Font = Enum.Font.FredokaOne
-	label.TextScaled = true
-	label.Text = "🌿"
-	label.Parent = gui
-	local stroke = Instance.new("UIStroke")
-	stroke.Thickness = 2.5
-	stroke.Color = Color3.fromRGB(60, 36, 20)
-	stroke.Parent = label
-	return label
+	local twoLines = sign.Size.Y >= 1.8
+	local function line(top: number, height: number, color: Color3, thickness: number): TextLabel
+		local label = Instance.new("TextLabel")
+		label.Size = UDim2.new(1, -16, height, -6)
+		label.Position = UDim2.new(0, 8, top, 3)
+		label.BackgroundTransparency = 1
+		label.TextColor3 = color
+		label.Font = Enum.Font.FredokaOne
+		label.TextScaled = true
+		label.RichText = true
+		label.Text = ""
+		label.Parent = gui
+		local stroke = Instance.new("UIStroke")
+		stroke.Thickness = thickness
+		stroke.Color = Color3.fromRGB(60, 36, 20)
+		stroke.Parent = label
+		return label
+	end
+	local name = line(0, if twoLines then 0.56 else 1, Color3.fromRGB(255, 236, 190), 2.5)
+	name.Text = "🌿"
+	local stats = if twoLines then line(0.54, 0.44, Color3.fromRGB(255, 226, 140), 2) else nil
+	return name, stats
 end
 
 local function itemKey(item: Economy.PlantItem): string
@@ -448,14 +460,9 @@ local function refreshGarden(garden: GardenState)
 	garden.model:SetAttribute("Beds", beds)
 	garden.stealPrompt.HoldDuration = lockSeconds(owner)
 	if owner and data then
-		garden.label.Text = string.format(
-			'<b>%s</b>\n🍄 %d/%d   <font color="%s">+%s/min</font>',
-			owner.DisplayName,
-			#planted,
-			beds,
-			RATE_COLOR,
-			formatRate(Economy.gardenIncome(planted, fertilizer))
-		)
+		local summary = string.format('🍄 %d/%d   <font color="%s">+%s/min</font>', #planted, beds, RATE_COLOR, formatRate(Economy.gardenIncome(planted, fertilizer)))
+		-- Na tabliczce furtki imię jest wierszem wyżej; tabliczka w powietrzu (własna mapa) ma wszystko
+		garden.label.Text = if garden.labelOnSign then summary else "<b>" .. owner.DisplayName .. "</b>\n" .. summary
 		-- Klient pokazuje nad skrzynią „x2 [G]” i włącza przycisk G, gdy w skrzyni jest dość na ofertę
 		garden.model:SetAttribute("X2Product", Economy.x2Product(data.potMinutes) or "")
 		if garden.potLabel then
@@ -639,7 +646,7 @@ local function nearOwnGarden(player: Player): GardenState?
 	if not root then
 		return nil
 	end
-	if flatDistance(root.Position, garden.hub.Position) > Config.Garden.size then
+	if flatDistance(root.Position, garden.hub.Position) > Config.Garden.depth then
 		return nil
 	end
 	return garden
@@ -1019,13 +1026,13 @@ end
 
 -- ===== Start =====
 
-local function makePrompt(part: BasePart, name: string, key: string, keyCode: Enum.KeyCode, order: number): ProximityPrompt
+local function makePrompt(part: BasePart, name: string, key: string, keyCode: Enum.KeyCode, order: number, distance: number): ProximityPrompt
 	local prompt = Instance.new("ProximityPrompt")
 	prompt.Name = name
 	prompt.ActionText = key -- klient podmienia na tekst w języku gracza
 	prompt.KeyboardKeyCode = keyCode
 	prompt.GamepadKeyCode = if keyCode == Enum.KeyCode.F then Enum.KeyCode.ButtonY else Enum.KeyCode.ButtonX
-	prompt.MaxActivationDistance = Config.Garden.promptDistance
+	prompt.MaxActivationDistance = distance
 	prompt.RequiresLineOfSight = false
 	prompt.UIOffset = Vector2.new(0, order * 72)
 	prompt.Enabled = false -- klient włącza lokalnie właściwe przyciski
@@ -1065,45 +1072,54 @@ function GardenService.start(gardenInfos: { { id: number, model: Model } }, serv
 		local chestPart = model:FindFirstChild("Chest", true)
 		local chest = if chestPart and chestPart:IsA("BasePart") then chestPart else nil
 
-		local plant = makePrompt(hub, "Plant", "GARDEN_PLANT", Enum.KeyCode.E, 0)
-		local steal = makePrompt(hub, "Steal", "GARDEN_STEAL", Enum.KeyCode.E, 0)
+		local plant = makePrompt(hub, "Plant", "GARDEN_PLANT", Enum.KeyCode.E, 0, Config.Garden.promptDistance)
+		local steal = makePrompt(hub, "Steal", "GARDEN_STEAL", Enum.KeyCode.E, 0, Config.Garden.promptDistance)
 		steal.HoldDuration = lockSeconds(nil)
 		steal:SetAttribute("Thief", true)
 		plant:SetAttribute("Owner", true)
 		local collect: ProximityPrompt? = nil
 		local collectX2: ProximityPrompt? = nil
 		if chest then
-			collect = makePrompt(chest, "Collect", "GARDEN_COLLECT", Enum.KeyCode.F, 0)
+			collect = makePrompt(chest, "Collect", "GARDEN_COLLECT", Enum.KeyCode.F, 0, Config.Garden.chestPromptDistance)
 			;(collect :: ProximityPrompt):SetAttribute("Owner", true)
 			-- G: odbierz i od razu kup x2 (klient włącza go, gdy w skrzyni jest dość na ofertę).
 			-- Przytrzymanie chroni przed przypadkowym wciśnięciem przy spamowaniu F.
-			local x2 = makePrompt(chest, "CollectX2", "GARDEN_COLLECT_X2", Enum.KeyCode.G, 1)
+			local x2 = makePrompt(chest, "CollectX2", "GARDEN_COLLECT_X2", Enum.KeyCode.G, 1, Config.Garden.chestPromptDistance)
 			x2.GamepadKeyCode = Enum.KeyCode.ButtonR1
 			x2.HoldDuration = 0.4
 			x2:SetAttribute("X2", true)
 			collectX2 = x2
 		end
 
+		-- Napis na furtce: imię i (na wysokiej tabliczce) grządki z dochodem; bez tabliczki furtki
+		-- (własna mapa) podsumowanie wisi w powietrzu nad przyciskami
+		local nameLabel: TextLabel?, statsLabel: TextLabel? = nil, nil
+		if signPart and signPart:IsA("BasePart") then
+			nameLabel, statsLabel = ownerSignLabels(signPart)
+		end
+		-- Granice działki: trawa ogródka (World/Garden), a bez niej prostokąt z Config wokół przycisków
+		local grass = model:FindFirstChild("GardenGrass")
+		local bounds = if grass and grass:IsA("BasePart") then grass.CFrame else hub.CFrame
+		local halfSize = if grass and grass:IsA("BasePart")
+			then Vector2.new(grass.Size.X / 2, grass.Size.Z / 2)
+			else Vector2.new(Config.Garden.width / 2, Config.Garden.depth / 2)
+
 		local garden: GardenState = {
 			id = info.id,
 			model = model,
 			hub = hub,
+			bounds = bounds,
+			halfSize = halfSize,
 			chest = chest,
 			soils = soils,
 			slots = slots,
 			lockTags = lockTags,
 			slotLabels = slotLabels,
 			visuals = visuals,
-			-- Podsumowanie (imię, grządki, dochód) wisi nad furtką, żeby nie zasłaniało tabliczek grządek
-			label = billboard(
-				if signPart and signPart:IsA("BasePart") then signPart else hub,
-				"OwnerTag",
-				UDim2.fromOffset(200, 54),
-				Vector3.new(0, 3, 0),
-				80
-			),
+			label = statsLabel or billboard(hub, "OwnerTag", UDim2.fromOffset(200, 54), Vector3.new(0, 3, 0), 80),
+			labelOnSign = statsLabel ~= nil,
 			potLabel = if chest then billboard(chest, "PotTag", UDim2.fromOffset(210, 36), Vector3.new(0, 3.4, 0), 50) else nil,
-			ownerSign = if signPart and signPart:IsA("BasePart") then ownerSignLabel(signPart) else nil,
+			ownerSign = nameLabel,
 			owner = nil,
 			protectedUntil = 0,
 			stealPrompt = steal,

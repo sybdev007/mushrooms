@@ -778,26 +778,33 @@ test("grządki: od kilku na start do pełnej siatki ogródka", function()
 end)
 
 test("ogródki: na polanie, obok chatki, bez nachodzenia na siebie, drzewa z obrzeża i ścieżkę", function()
-	local half = Config.Garden.size / 2
-	-- Siatka grządek 3 x 3 (12,8 studs) musi się zmieścić z rabatkami po bokach
-	check(half >= 12, "ogródek za mały na grządki")
-	-- Korona drzewa z obrzeża sięga do ok. halfWidth - 3 - 5,2 * 1,9
-	local borderReach = Config.ForestHalfWidth - 3 - 5.2 * 1.9
+	-- Furtka patrzy do środka polany (wzdłuż X): głębokość ogródka leży wzdłuż X, szerokość wzdłuż Z
+	local halfX, halfZ = Config.Garden.depth / 2, Config.Garden.width / 2
+	-- Przed dziedzińcem jest 11,5 studa na ścieżkę, skrzynię i placyk, za nim półka z reliktami (ok. 5)
+	check(Config.Garden.depth >= 11.5 + 19.2 + 5, "ogródek za płytki na grządki i półkę")
+	check(Config.Garden.width >= 19.2 + 6, "ogródek za wąski na dziedziniec z alejkami")
+	-- Korona drzewa z obrzeża polany sięga do ok. halfWidth - 3 - 5,2 * 1,9
+	local clearing = Economy.zoneHalfWidth(Config.Zones[1])
+	check(clearing >= Config.ForestHalfWidth, "polana węższa niż las")
+	local borderReach = clearing - 3 - 5.2 * 1.9
 	for i, plot in Config.Garden.plots do
-		eq(Economy.zoneIndexAt(plot.z - half), 1, "ogródek " .. i .. " (przód) poza polaną")
-		eq(Economy.zoneIndexAt(plot.z + half), 1, "ogródek " .. i .. " (tył) poza polaną")
-		check(math.abs(plot.x) + half < borderReach, "ogródek " .. i .. " pod drzewami z obrzeża")
-		check(math.abs(plot.x) - half > 17, "ogródek " .. i .. " na chatce")
+		eq(Economy.zoneIndexAt(plot.z - halfZ), 1, "ogródek " .. i .. " (przód) poza polaną")
+		eq(Economy.zoneIndexAt(plot.z + halfZ), 1, "ogródek " .. i .. " (tył) poza polaną")
+		check(math.abs(plot.x) + halfX < borderReach, "ogródek " .. i .. " pod drzewami z obrzeża")
+		check(math.abs(plot.x) - halfX > 17, "ogródek " .. i .. " na chatce")
 		-- Przed furtką (od strony środka) zostaje 7 studs wolnego miejsca, ścieżka do lasu biegnie przy x = 0
-		check(math.abs(plot.x) - half - 7 > 4, "furtka ogródka " .. i .. " za blisko ścieżki")
-		check(plot.z + half < Config.Zones[2].startZ - 3, "ogródek " .. i .. " na bramie do lasu")
+		check(math.abs(plot.x) - halfX - 7 > 4, "furtka ogródka " .. i .. " za blisko ścieżki")
+		check(plot.z + halfZ < Config.Zones[2].startZ - 3, "ogródek " .. i .. " na bramie do lasu")
 		for j, other in Config.Garden.plots do
 			if j > i then
-				local apart = math.abs(other.x - plot.x) >= half * 2 + 1 or math.abs(other.z - plot.z) >= half * 2 + 1
+				local apart = math.abs(other.x - plot.x) >= halfX * 2 + 1 or math.abs(other.z - plot.z) >= halfZ * 2 + 1
 				check(apart, string.format("ogródki %d i %d na sobie", i, j))
 			end
 		end
 	end
+	-- Na szerszej polanie da się kupować ulepszenia aż do ściany (obóz liczy szerokość strefy)
+	eq(Economy.upgradeCampAt(clearing - 1, 3, -30), "forest", "obóz przy ścianie polany")
+	eq(Economy.upgradeCampAt(clearing + 2, 3, -30), nil, "obóz za ścianą polany")
 end)
 
 test("kłódka: złodziej trzyma przycisk dłużej z każdym poziomem", function()
@@ -872,21 +879,21 @@ test("portal leśny stoi wyraźnie za gniazdem, skrót za chatką na polanie", f
 	local plaza = Config.PortalPlaza
 	check(plaza.center.z - plaza.radius > Config.Zones[1].startZ + 4, "plac za ścianą mapy")
 	check(plaza.center.z + plaza.radius < -35 - 5, "plac wchodzi na chatkę")
-	-- Ogródek (kwadrat) nie może nachodzić na okrągły bruk placu (z zapasem na płot i kamienie przy furtce)
-	local half = Config.Garden.size / 2
+	-- Ogródek (prostokąt) nie może nachodzić na okrągły bruk placu (z zapasem na płot i kamienie przy furtce)
+	local halfX, halfZ = Config.Garden.depth / 2, Config.Garden.width / 2
 	for _, plot in Config.Garden.plots do
-		local nearX = math.clamp(plaza.center.x, plot.x - half, plot.x + half)
-		local nearZ = math.clamp(plaza.center.z, plot.z - half, plot.z + half)
+		local nearX = math.clamp(plaza.center.x, plot.x - halfX, plot.x + halfX)
+		local nearZ = math.clamp(plaza.center.z, plot.z - halfZ, plot.z + halfZ)
 		local distance = math.sqrt((nearX - plaza.center.x) ^ 2 + (nearZ - plaza.center.z) ^ 2)
 		check(distance > plaza.radius + 2, "plac wchodzi na ogródek")
 	end
 	-- Ogródki nie nachodzą na siebie i nie stoją na chatce
 	for i, a in Config.Garden.plots do
-		check(math.abs(a.x) - half > 18 + 6, "ogródek za blisko chatki")
-		check(math.abs(a.x) + half < Config.ForestHalfWidth - 6, "ogródek w ścianie mapy")
+		check(math.abs(a.x) - halfX > 18 + 6, "ogródek za blisko chatki")
+		check(math.abs(a.x) + halfX < Economy.zoneHalfWidth(Config.Zones[1]) - 6, "ogródek w ścianie mapy")
 		for j, b in Config.Garden.plots do
-			if i < j and math.abs(a.x - b.x) < Config.Garden.size + 4 then
-				check(math.abs(a.z - b.z) >= Config.Garden.size + 4, "ogródki nachodzą na siebie")
+			if i < j and math.abs(a.x - b.x) < Config.Garden.depth + 4 then
+				check(math.abs(a.z - b.z) >= Config.Garden.width + 4, "ogródki nachodzą na siebie")
 			end
 		end
 	end

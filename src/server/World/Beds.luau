@@ -10,7 +10,7 @@ local Beds = {}
 
 local COLS = 3
 local BED = 3.4 -- bok skrzyni
-local GAP = 1.3
+local GAP = 3 -- alejka między skrzyniami (da się przejść, tabliczki nie zachodzą na siebie)
 local HEIGHT = 0.9
 
 Beds.SOIL = Color3.fromRGB(86, 60, 42)
@@ -29,6 +29,9 @@ local function make(parent: Instance, name: string, size: Vector3, cf: CFrame, c
 	p.Parent = parent
 	return p
 end
+
+Beds.BED = BED
+Beds.GAP = GAP
 
 -- Zwraca szerokość całej siatki (żeby ogródek mógł rozmieścić resztę wokół)
 function Beds.width(count: number): number

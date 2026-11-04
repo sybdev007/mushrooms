@@ -456,6 +456,11 @@ function Economy.worldHalfWidth(world: string): number
 	return Config.ForestHalfWidth
 end
 
+-- Połowa szerokości strefy (polana przy chatce jest szersza niż las za nią)
+function Economy.zoneHalfWidth(zone: Config.ZoneDef): number
+	return zone.halfWidth or Economy.worldHalfWidth(zone.world)
+end
+
 -- Następny zakup zależy od poziomu; już kupionych poziomów nigdy nie odbieramy.
 function Economy.upgradeRequiredWorld(id: string, level: number): string
 	local def = Config.Upgrades[id]
@@ -503,7 +508,7 @@ function Economy.upgradeCampAt(x: number, y: number, z: number): string?
 	end
 	for _, zone in Config.Zones do
 		if zone.safe and z >= zone.startZ and z < zone.endZ then
-			if math.abs(x) <= Economy.worldHalfWidth(zone.world) then
+			if math.abs(x) <= Economy.zoneHalfWidth(zone) then
 				return zone.world
 			end
 		end

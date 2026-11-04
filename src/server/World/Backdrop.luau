@@ -21,6 +21,8 @@ export type Style = {
 	mountain: { Color3 }, -- góry na końcach świata
 	mountainHeight: { number },
 	ends: { boolean }?, -- które końce mają góry: { początek (z1), koniec (z2) }; domyślnie oba
+	-- Fragmenty świata wystające poza rect (np. szersza polana): tam nie stawiamy drzew pierwszego rzędu
+	cutouts: { Rect }?,
 }
 
 local TAU = math.pi * 2
@@ -113,9 +115,21 @@ function Backdrop.build(parent: Instance, rect: Rect, style: Style, rng: Random)
 		})
 	end
 
-	-- Pierwszy rząd: pełne drzewa tuż za ścianą (z bliska widać je w szczegółach)
+	-- Pierwszy rząd: pełne drzewa tuż za ścianą (z bliska widać je w szczegółach). Nie w wycięciach:
+	-- tam za ścianą jest jeszcze świat (z zapasem na koronę)
+	local cutouts: { Rect } = style.cutouts or {}
+	local function insideCutout(p: Vector3): boolean
+		for _, c in cutouts do
+			if p.X > c.x1 - 3 and p.X < c.x2 + 3 and p.Z > c.z1 - 3 and p.Z < c.z2 + 3 then
+				return true
+			end
+		end
+		return false
+	end
 	ring(rect, 7, style.nearSpacing, rng, function(base: Vector3)
-		style.near(folder, base, rng)
+		if not insideCutout(base) then
+			style.near(folder, base, rng)
+		end
 	end)
 	-- Drugi i trzeci rząd: wyższe sylwetki, przesunięte, żeby zasłaniały prześwity pierwszego
 	ring(rect, 19, style.farSpacing, rng, function(base: Vector3)

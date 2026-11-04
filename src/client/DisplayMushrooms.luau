@@ -4,7 +4,9 @@
 -- rysuje na nim grzyba kodem z MushroomView: ten sam kształt gatunku, warianty, cechy, aury, snopy
 -- światła i zarodniki. Model trafia do środka znacznika, więc znika razem z nim.
 --   "GardenMushroom" — grządki w ogródkach (zmniejszone, żeby zmieściły się w skrzyni; scenka kradzieży
---                      TheftCutscene kopiuje je jak wcześniej). Tabliczka nad grządką: mutacje w ich
+--                      TheftCutscene kopiuje je jak wcześniej). Tabliczka nad grządką zależy od odległości
+--                      (updateGardenLabels): z daleka nic, bliżej plakietka z dochodem, a jedna grządka
+--                      naraz (najbliższa albo ta na środku ekranu) ma pełną kartę: nazwa, mutacje w ich
 --                      kolorach i w języku gracza, wartość i dochód (atrybuty Value / Rate od serwera).
 --   "HoardMushroom"  — grzyby odebrane przez strażnika (Leszy, Skarbnik, Utopiec) w jego legowisku,
 --                      z napisem mutacji nad grzybem.
@@ -20,6 +22,7 @@
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
 
 local Economy = require(ReplicatedStorage.Shared.Economy)
 local ClassColor = require(script.Parent.ClassColor)
@@ -43,6 +46,16 @@ local KINDS: { [string]: Kind } = {
 
 local RATE_COLOR = "#A6F06A"
 local VALUE_COLOR = Color3.fromRGB(255, 226, 140)
+local RATE_TEXT_COLOR = Color3.fromRGB(166, 240, 106)
+
+-- Poziomy tabliczek grządek (odległość w poziomie od postaci, studs). Stały rozmiar w pikselach i ta
+-- sama wysokość nad każdą grządką sprawiały, że z furtki trzy rzędy kart zlewały się w jedną.
+local CARD_RANGE = 7 -- najbliższa grządka w tym promieniu ma pełną kartę
+local CHIP_RANGE = 22 -- dalej nie ma żadnej tabliczki (widać poświatę grzyba)
+local AIM_ANGLE = math.rad(6) -- albo grządka na środku ekranu (kamera patrzy prawie prosto na nią)
+local CHIP_SIZE = UDim2.fromOffset(76, 22)
+
+type Mode = "card" | "chip" | "hidden"
 
 type Label = {
 	gui: BillboardGui,
@@ -50,6 +63,10 @@ type Label = {
 	value: TextLabel?,
 	info: MushroomView.MushroomInfo,
 	refresh: () -> (),
+	-- Tylko tabliczki grządek: poziom wybiera updateGardenLabels
+	root: BasePart?,
+	setMode: ((Mode) -> ())?,
+	distance: number?,
 }
 
 local ids: { [Instance]: string } = {}
@@ -76,6 +93,27 @@ end
 
 local function formatRate(rate: number): string
 	return if rate < 10 then string.format("%.1f", rate) else tostring(math.floor(rate + 0.5))
+end
+
+-- Krótko na plakietkę: 640, 4,6K, 1,2M (w polskiej wersji przecinek)
+local function compact(value: number): string
+	if value < 1000 then
+		return formatRate(value)
+	end
+	local function one(x: number, suffix: string): string
+		local text = if x < 10 then string.format("%.1f", x) else tostring(math.floor(x))
+		text = text:gsub("%.0$", "")
+		if Localize.getLocale() == "pl" then
+			text = text:gsub("%.", ",")
+		end
+		return text .. suffix
+	end
+	if value >= 1e9 then
+		return one(value / 1e9, "B")
+	elseif value >= 1e6 then
+		return one(value / 1e6, "M")
+	end
+	return one(value / 1e3, "K")
 end
 
 local function formatCoins(value: number): string
@@ -124,8 +162,9 @@ local function infoOf(marker: Model): MushroomView.MushroomInfo?
 	}
 end
 
--- Tabliczka nad grządką: nazwa gatunku w kolorze klasy / [mutacje w kolorach] / 💰 wartość / +dochód/min,
--- obwódka w kolorze klasy (klasę mówi kolor nazwy, bez osobnych znaków)
+-- Tabliczka nad grządką. Pełna karta: nazwa gatunku w kolorze klasy / [mutacje w kolorach] /
+-- 💰 wartość  +dochód/min, obwódka w kolorze klasy (klasę mówi kolor nazwy, bez osobnych znaków).
+-- Plakietka: kropka w kolorze wariantu (bez wariantu: klasy) i sam dochód.
 local function gardenLabel(marker: Model, root: BasePart, info: MushroomView.MushroomInfo): Label
 	local gui = Instance.new("BillboardGui")
 	gui.Name = "GardenSlotTag"
@@ -135,54 +174,156 @@ local function gardenLabel(marker: Model, root: BasePart, info: MushroomView.Mus
 	gui.AlwaysOnTop = false
 	gui.ResetOnSpawn = false
 	gui.Adornee = root
+	gui.Size = CHIP_SIZE
+	gui.Enabled = false -- poziom ustawia updateGardenLabels
+	local classColor = ClassColor.of(info.species)
+
 	local box = Instance.new("Frame")
 	box.Size = UDim2.fromScale(1, 1)
 	box.BackgroundColor3 = Color3.fromRGB(40, 28, 20)
 	box.BackgroundTransparency = 0.25
+	box.Visible = false
 	box.Parent = gui
 	local corner = Instance.new("UICorner")
 	corner.CornerRadius = UDim.new(0, 8)
 	corner.Parent = box
 	local border = Instance.new("UIStroke")
 	border.Thickness = 1.5
-	border.Color = ClassColor.of(info.species)
+	border.Color = classColor
 	border.Parent = box
 	local name = textLabel(box, UDim2.new(1, -8, 0, 17), UDim2.fromOffset(4, 3), Color3.new(1, 1, 1))
 	ClassColor.paint(name, info.species)
 	local mutations = textLabel(box, UDim2.new(1, -8, 0, 15), UDim2.fromOffset(4, 21), Color3.new(1, 1, 1))
-	local value = textLabel(box, UDim2.new(1, -8, 0, 34), UDim2.fromOffset(4, 21), VALUE_COLOR)
+	local value = textLabel(box, UDim2.new(1, -8, 0, 16), UDim2.fromOffset(4, 21), VALUE_COLOR)
+
+	local chip = Instance.new("Frame")
+	chip.Size = UDim2.fromScale(1, 1)
+	chip.BackgroundColor3 = Color3.fromRGB(40, 28, 20)
+	chip.BackgroundTransparency = 0.25
+	chip.Visible = false
+	chip.Parent = gui
+	local chipCorner = Instance.new("UICorner")
+	chipCorner.CornerRadius = UDim.new(0, 7)
+	chipCorner.Parent = chip
+	local chipBorder = Instance.new("UIStroke")
+	chipBorder.Thickness = 1.5
+	chipBorder.Color = classColor
+	chipBorder.Parent = chip
+	local variant = Economy.getVariant(info.variant)
+	local dot = Instance.new("Frame")
+	dot.Size = UDim2.fromOffset(9, 9)
+	dot.Position = UDim2.new(0, 7, 0.5, -4)
+	dot.BackgroundColor3 = if variant then Color3.fromRGB(variant.color[1], variant.color[2], variant.color[3]) else classColor
+	dot.BorderSizePixel = 0
+	dot.Parent = chip
+	local dotCorner = Instance.new("UICorner")
+	dotCorner.CornerRadius = UDim.new(1, 0)
+	dotCorner.Parent = dot
+	local chipRate = textLabel(chip, UDim2.new(1, -24, 1, -6), UDim2.fromOffset(20, 3), RATE_TEXT_COLOR)
+
+	local hasMutations = false
+	local function layout(mode: Mode)
+		gui.Enabled = mode ~= "hidden"
+		box.Visible = mode == "card"
+		chip.Visible = mode == "chip"
+		if mode == "card" then
+			-- Z mutacjami karta jest wyższa (nazwa, mutacje w kolorach, wartość z dochodem)
+			gui.Size = if hasMutations then UDim2.fromOffset(136, 58) else UDim2.fromOffset(136, 42)
+		elseif mode == "chip" then
+			gui.Size = CHIP_SIZE
+		end
+	end
 
 	local function refresh()
 		local species = Economy.getSpecies(info.species)
 		name.Text = if species then Localize.t(species.key) else "?"
 		local text = MutationText.rich(info.variant, info.tags)
-		local hasMutations = text ~= ""
+		hasMutations = text ~= ""
 		mutations.Text = text
 		mutations.Visible = hasMutations
-		-- Z mutacjami tabliczka jest wyższa (nazwa, mutacje w kolorach, wartość)
-		gui.Size = if hasMutations then UDim2.fromOffset(124, 76) else UDim2.fromOffset(112, 60)
 		value.Position = UDim2.fromOffset(4, if hasMutations then 38 else 21)
 		local amount = marker:GetAttribute("Value")
 		local rate = marker:GetAttribute("Rate")
 		value.Text = string.format(
-			'💰 %s\n<font color="%s">+%s/min</font>',
+			'💰 %s  <font color="%s">+%s/min</font>',
 			if typeof(amount) == "number" then formatCoins(amount) else "…",
 			RATE_COLOR,
 			if typeof(rate) == "number" then formatRate(rate) else "…"
 		)
+		chipRate.Text = "+" .. (if typeof(rate) == "number" then compact(rate) else "…") .. "/min"
 	end
-	local entry: Label = { gui = gui, mutations = mutations, value = value, info = info, refresh = refresh }
+
+	local mode: Mode = "hidden"
+	local entry: Label = {
+		gui = gui,
+		mutations = mutations,
+		value = value,
+		info = info,
+		refresh = function()
+			refresh()
+			layout(mode)
+		end,
+		root = root,
+		setMode = function(next: Mode)
+			if next ~= mode then
+				mode = next
+				layout(mode)
+			end
+		end,
+	}
 	refresh()
 	track(
 		marker,
-		marker.AttributeChanged:Connect(function(name)
-			if name == "Value" or name == "Rate" then
+		marker.AttributeChanged:Connect(function(attribute)
+			if attribute == "Value" or attribute == "Rate" then
 				refresh()
 			end
 		end)
 	)
 	gui.Parent = playerGui
 	return entry
+end
+
+-- Poziomy tabliczek grządek: jedna pełna karta (najbliższa grządka w CARD_RANGE, a bez takiej ta, na
+-- którą patrzy kamera), plakietki do CHIP_RANGE, dalej nic
+local function updateGardenLabels()
+	local camera = Workspace.CurrentCamera
+	local character = Players.LocalPlayer.Character
+	local body = character and character:FindFirstChild("HumanoidRootPart")
+	local origin: Vector3? = if body and body:IsA("BasePart") then body.Position elseif camera then camera.CFrame.Position else nil
+	if not origin then
+		return
+	end
+	local eye = if camera then camera.CFrame.Position else origin
+	local look = if camera then camera.CFrame.LookVector else Vector3.new(0, 0, -1)
+	local nearest: Label?, nearestDistance = nil, CARD_RANGE
+	local aimed: Label?, aimedAngle = nil, AIM_ANGLE
+	for _, entry in labels do
+		local root = entry.root
+		if entry.setMode and root then
+			local p = root.Position
+			local distance = Vector2.new(p.X - origin.X, p.Z - origin.Z).Magnitude
+			entry.distance = distance
+			if distance < nearestDistance then
+				nearest, nearestDistance = entry, distance
+			end
+			local to = p + Vector3.new(0, 1.5, 0) - eye
+			if distance <= CHIP_RANGE and to.Magnitude > 0.1 then
+				local angle = math.acos(math.clamp(look:Dot(to.Unit), -1, 1))
+				if angle < aimedAngle then
+					aimed, aimedAngle = entry, angle
+				end
+			end
+		end
+	end
+	local focus = nearest or aimed
+	for _, entry in labels do
+		local setMode = entry.setMode
+		local distance = entry.distance
+		if setMode and distance then
+			setMode(if entry == focus then "card" elseif distance <= CHIP_RANGE then "chip" else "hidden")
+		end
+	end
 end
 
 -- Napis z mutacjami nad grzybem w skarbcu (tylko gdy ma mutacje)
@@ -293,6 +434,12 @@ function DisplayMushrooms.start()
 	Localize.onChanged(function()
 		for _, entry in labels do
 			entry.refresh()
+		end
+	end)
+	task.spawn(function()
+		while true do
+			updateGardenLabels()
+			task.wait(0.15)
 		end
 	end)
 	for tag, kind in KINDS do

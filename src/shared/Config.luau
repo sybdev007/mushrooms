@@ -17,6 +17,7 @@ export type ZoneDef = {
 	fog: { number }?, -- kolor mgły w mroku (domyślnie nocny granat lasu)
 	fireflies: number?, -- świetliki (w jaskini: pyłki) na sekundę wokół gracza
 	mist: number?, -- mgiełka przy ziemi
+	halfWidth: number?, -- połowa szerokości tej strefy, gdy inna niż świata (Economy.zoneHalfWidth)
 }
 
 export type SpeciesDef = {
@@ -69,6 +70,8 @@ Config.Zones = {
 		safe = true,
 		fireflies = 5,
 		mist = 0,
+		-- Polana jest szersza niż las (ForestHalfWidth): z tyłu ogródków zostaje miejsce na drzewa z obrzeża
+		halfWidth = 80,
 	},
 	{
 		id = "edge",
@@ -1151,7 +1154,11 @@ Config.Leszy = {
 -- siedzenie AFK nie daje więcej niż jedna pełna skrzynia, a powrót co kilka godzin się opłaca. Inni gracze mogą wyrwać ci posadzony grzyb, ale muszą go
 -- donieść do swojego ogródka, niosąc go nad głową wolniej niż zwykle. Dogonisz złodzieja = grzyb wraca.
 Config.Garden = {
-	size = 26, -- bok ogródka (studs)
+	-- Prostokąt: szerokość wzdłuż płotu z furtką, głębokość od furtki do tylnego płotu (studs).
+	-- Za furtką ścieżka i placyk z przyciskami, dalej żwirowy dziedziniec z grządkami (alejki co 3 study),
+	-- pod tylnym płotem półka z reliktami (World/Garden).
+	width = 28,
+	depth = 36,
 	maxBeds = 9, -- tyle grządek stoi w ogródku; odblokowane są pierwsze upgradeStat("beds")
 	incomeRate = 0.04, -- posadzony grzyb daje co minutę taką część swojej wartości (oddaje się w 25 min)
 	-- Offline: pełny dochód przez offlineFullMinutes, dalej offlineSlowRate dochodu, łącznie najwyżej
@@ -1163,7 +1170,9 @@ Config.Garden = {
 	stealCooldown = 25, -- po kradzieży ogródek jest chroniony przez tyle sekund
 	thiefCooldown = 8, -- ten sam złodziej może kraść co tyle sekund
 	guardRadius = 10, -- właściciel bliżej przycisków = nie da się kraść
-	promptDistance = 10,
+	promptDistance = 6, -- przyciski na placyku (sadzenie, kradzież)
+	chestPromptDistance = 5, -- odbiór ze skrzyni przy furtce
+	shelfPromptDistance = 10, -- półka z reliktami (mierzone od środka półki, ma 21 studs)
 	carry = {
 		-- Prędkość złodzieja z łupem względem zwykłej, według rangi wariantu (0 = bez wariantu)
 		speedByRank = { [0] = 0.85, [1] = 0.8, [2] = 0.7, [3] = 0.6, [4] = 0.55 },
@@ -1171,16 +1180,17 @@ Config.Garden = {
 		tagRadius = 6, -- właściciel bliżej złodzieja = odbiera łup
 		timeout = 60, -- po tylu sekundach łup wraca do właściciela
 	},
-	-- Ogródki na mapie: po trzy z każdej strony chatki, furtką do środka polany (dwa ostatnie za chatką,
-	-- po bokach Placu Portali). Ile ogródków, tylu graczy ma grządki, więc rozmiar serwera w ustawieniach
-	-- gry (Max Players) musi być taki sam: 6.
+	-- Ogródki na mapie (środki działek): po trzy z każdej strony chatki, furtką do środka polany (dwa
+	-- ostatnie za chatką, po bokach Placu Portali). Furtki stoją przy x = ±27 i ±31; ogródek rośnie w głąb,
+	-- w stronę lasu (polana jest tu szersza, Zones[1].halfWidth). Ile ogródków, tylu graczy ma grządki,
+	-- więc rozmiar serwera w ustawieniach gry (Max Players) musi być taki sam: 6.
 	plots = {
-		{ x = -40, z = -30 },
-		{ x = 40, z = -30 },
-		{ x = -40, z = 10 },
-		{ x = 40, z = 10 },
-		{ x = -44, z = -62 }, -- trochę dalej od środka niż reszta: róg nie może wejść na okrągły bruk placu
-		{ x = 44, z = -62 },
+		{ x = -45, z = -30 },
+		{ x = 45, z = -30 },
+		{ x = -45, z = 10 },
+		{ x = 45, z = 10 },
+		{ x = -49, z = -62 }, -- trochę dalej od środka niż reszta: róg nie może wejść na okrągły bruk placu
+		{ x = 49, z = -62 },
 	},
 }
 

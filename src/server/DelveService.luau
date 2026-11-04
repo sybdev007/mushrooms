@@ -20,6 +20,7 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
+local Config = require(ReplicatedStorage.Shared.Config)
 local Delve = require(ReplicatedStorage.Shared.Delve)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local World = script.Parent:WaitForChild("World")
@@ -833,7 +834,7 @@ local function nearBoard(player: Player): boolean
 	return near(player, entrances.board, BOARD_DISTANCE)
 end
 
--- Podest z reliktami w ogródku (World/Garden: relicDais): nad postumentami unoszą się modele reliktów
+-- Półka z reliktami w ogródku (World/Garden: relicShelf): nad postumentami unoszą się modele reliktów
 -- właściciela (World/RelicArt), odnowione w kolorach i ze światłem, zakurzone szare. Płytka postumentu
 -- ma kolor oprawy. Obrót, kołysanie i tabliczki z nazwą robi klient (RelicDisplay, tag "RelicDisplay").
 local FRAME_COLORS: { [number]: Color3 } = {
@@ -1405,7 +1406,7 @@ function DelveService.start(gardenModels: { Model }, serviceApi: Api)
 			p.Enabled = false
 			p.KeyboardKeyCode = Enum.KeyCode.F
 			p.GamepadKeyCode = Enum.KeyCode.ButtonY
-			p.MaxActivationDistance = 8
+			p.MaxActivationDistance = Config.Garden.shelfPromptDistance
 			p.RequiresLineOfSight = false
 			p.Parent = board
 			p.Triggered:Connect(function(player)

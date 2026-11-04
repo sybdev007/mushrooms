@@ -1,9 +1,12 @@
 --!strict
--- Ogródek gracza na polanie przy chatce: kwadrat trawy ogrodzony żerdziami, furtka z tabliczką
--- z imieniem właściciela, siatka grządek na grzyby, skrzynia na monety, kwiaty i krzaki.
+-- Ogródek gracza na polanie przy chatce: prostokąt trawy ogrodzony żerdziami, furtka z tabliczką
+-- (imię właściciela i podsumowanie), za nią skrzynia na monety i ścieżka do okrągłego placyku
+-- z przyciskami, dalej żwirowy dziedziniec z grządkami (alejki między nimi, lampki na skrzyżowaniach),
+-- a pod tylnym płotem półka z reliktami. Kwiaty w przednich rogach, krzaki w tylnych.
 -- Lokalne -Z ogródka to strona furtki (patrzy na ścieżkę przy chatce).
--- Zwraca model ogródka. GardenService szuka w nim: "OwnerSign" (imię na furtce),
--- "Hub" (przyciski sadzenia i kradzieży), "Chest" (monety z grządek) i grządek "Bed<i>".
+-- Zwraca model ogródka. GardenService szuka w nim: "GardenGrass" (granice działki), "OwnerSign"
+-- (napis na furtce), "Hub" (przyciski sadzenia i kradzieży), "Chest" (monety z grządek) i grządek
+-- "Bed<i>"; DelveService: "RelicShelf" z "ShelfBoard" i "Plate<i>"/"RelicSlot<i>".
 
 local Palette = require(script.Parent.Palette)
 local Props = require(script.Parent.Props)
@@ -165,122 +168,196 @@ local function chest(parent: Instance, cf: CFrame): Part
 	return body
 end
 
--- Podest z reliktami z ekspedycji (DelveService stawia nad postumentami modele reliktów właściciela):
--- kamienne podwyższenie w przedniej części ogródka (po drugiej stronie dróżki niż skrzynia), 8 postumentów
--- w dwóch rzędach — przedni rząd: Pamiątki górników, tylny, wyższy: Dary głębin. Na szczycie każdego
--- postumentu jest płytka (kolor oprawy) i Attachment "RelicSlot<i>" (tu unosi się relikt).
--- cf: środek podestu na ziemi, -Z w stronę furtki.
-local function relicDais(parent: Instance, cf: CFrame)
+-- Półka z reliktami z ekspedycji (DelveService stawia nad postumentami modele reliktów właściciela):
+-- kamienna podmurówka pod tylnym płotem z murkiem z tyłu i 8 postumentów w jednym rzędzie, po cztery
+-- z każdej strony (patrząc od furtki: z lewej Pamiątki górników 1-4, z prawej Dary głębin 5-8). Postumenty
+-- są wysokie, żeby relikty było widać z furtki ponad grzybami na grządkach. Na szczycie każdego jest
+-- płytka (kolor oprawy) i Attachment "RelicSlot<i>" (tu unosi się relikt).
+-- cf: środek półki na ziemi, -Z w stronę furtki.
+local SHELF_LENGTH = 21.6
+local SHELF_DEPTH = 3.4
+local function relicShelf(parent: Instance, cf: CFrame)
 	local m = Instance.new("Model")
 	m.Name = "RelicShelf"
 	local stone = Color3.fromRGB(128, 120, 112)
 	local stoneDark = Color3.fromRGB(96, 90, 86)
 	local base = make(m, {
 		Name = "ShelfBoard",
-		Size = Vector3.new(10, 0.5, 7.2),
+		Size = Vector3.new(SHELF_LENGTH, 0.5, SHELF_DEPTH),
 		CFrame = cf * CFrame.new(0, 0.25, 0),
 		Color = stoneDark,
 		Material = Enum.Material.Cobblestone,
 	})
 	base.CanCollide = true
-	-- Tylny rząd stoi na drugim stopniu (lepiej widać relikty zza przednich)
+	-- Murek za postumentami: tło dla reliktów, zasłania płot
 	make(m, {
-		Name = "DaisStep",
-		Size = Vector3.new(10, 0.5, 3.4),
-		CFrame = cf * CFrame.new(0, 0.75, 1.9),
+		Name = "ShelfWall",
+		Size = Vector3.new(SHELF_LENGTH, 3.6, 0.5),
+		CFrame = cf * CFrame.new(0, 0.5 + 1.8, SHELF_DEPTH / 2 - 0.25),
 		Color = stone,
 		Material = Enum.Material.Cobblestone,
 	})
-	for row = 1, 2 do
-		local z = if row == 1 then -1.6 else 1.9
-		local height = if row == 1 then 2 else 2.5
-		local floor = if row == 1 then 0.5 else 1
-		for col = 1, 4 do
-			local index = (row - 1) * 4 + col
-			local x = -3.75 + (col - 1) * 2.5
-			local at = cf * CFrame.new(x, floor, z)
-			make(m, {
-				Name = "Pedestal",
-				Size = Vector3.new(1.2, height, 1.2),
-				CFrame = at * CFrame.new(0, height / 2, 0),
-				Color = stone,
-				Material = Enum.Material.Slate,
-			})
-			local plate = make(m, {
-				Name = "Plate" .. index,
-				Size = Vector3.new(1.6, 0.22, 1.6),
-				CFrame = at * CFrame.new(0, height + 0.11, 0),
-				Color = stoneDark,
-				Material = Enum.Material.Slate,
-			})
-			local slot = Instance.new("Attachment")
-			slot.Name = "RelicSlot" .. index
-			slot.CFrame = CFrame.new(0, 0.11, 0)
-			slot.Parent = plate
-		end
+	make(m, {
+		Name = "ShelfCap",
+		Size = Vector3.new(SHELF_LENGTH + 0.4, 0.3, 0.8),
+		CFrame = cf * CFrame.new(0, 0.5 + 3.6 + 0.15, SHELF_DEPTH / 2 - 0.25),
+		Color = stoneDark,
+		Material = Enum.Material.Slate,
+	})
+	local height = 2.8
+	local z = -0.3
+	for index = 1, 8 do
+		-- 1 skrajnie z lewej patrząc od furtki (+X), 8 skrajnie z prawej; przerwa w środku między grupami
+		local k = if index <= 4 then 4 - index else index - 5
+		local side = if index <= 4 then 1 else -1
+		local x = side * (1.6 + k * 2.5)
+		local at = cf * CFrame.new(x, 0.5, z)
+		make(m, {
+			Name = "Pedestal",
+			Size = Vector3.new(1.2, height, 1.2),
+			CFrame = at * CFrame.new(0, height / 2, 0),
+			Color = stone,
+			Material = Enum.Material.Slate,
+		})
+		local plate = make(m, {
+			Name = "Plate" .. index,
+			Size = Vector3.new(1.6, 0.22, 1.6),
+			CFrame = at * CFrame.new(0, height + 0.11, 0),
+			Color = stoneDark,
+			Material = Enum.Material.Slate,
+		})
+		local slot = Instance.new("Attachment")
+		slot.Name = "RelicSlot" .. index
+		slot.CFrame = CFrame.new(0, 0.11, 0)
+		slot.Parent = plate
 	end
 	m.Parent = parent
 end
 
--- cf: środek ogródka na ziemi, -Z w stronę furtki. size: bok kwadratu. beds: ile grządek zbudować.
-function Garden.build(parent: Instance, cf: CFrame, size: number, beds: number, rng: Random): Model
+-- Niska lampka na skrzyżowaniu alejek między grządkami
+local function gardenLamp(parent: Instance, cf: CFrame)
+	decor(make(parent, {
+		Name = "LampPost",
+		Size = Vector3.new(0.35, 3.2, 0.35),
+		CFrame = cf * CFrame.new(0, 1.6, 0),
+		Color = Palette.plankDark,
+	}))
+	decor(make(parent, {
+		Name = "LampCap",
+		Size = Vector3.new(0.9, 0.2, 0.9),
+		CFrame = cf * CFrame.new(0, 3.95, 0),
+		Color = Palette.metal,
+	}))
+	local glass = decor(make(parent, {
+		Name = "LampGlass",
+		Size = Vector3.new(0.6, 0.65, 0.6),
+		CFrame = cf * CFrame.new(0, 3.5, 0),
+		Color = Palette.lanternGlow,
+		Material = Enum.Material.Neon,
+	}))
+	local light = Instance.new("PointLight")
+	light.Color = Palette.lanternGlow
+	light.Range = 9
+	light.Brightness = 0.9
+	light.Shadows = false
+	light.Parent = glass
+end
+
+-- Płaski krążek żwiru (placyk)
+local function gravelDisc(parent: Instance, cf: CFrame, diameter: number)
+	decor(make(parent, {
+		Name = "GardenPlaza",
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(0.2, diameter, diameter),
+		CFrame = cf * VERTICAL,
+		Color = GRAVEL,
+	}))
+end
+
+-- Układ działki (lokalne Z od furtki): ścieżka i placyk, dziedziniec z grządkami, półka pod tylnym płotem
+local YARD = 11.5 -- od furtki do dziedzińca: ścieżka, skrzynia, placyk z przyciskami
+local PLAZA_FROM_GATE = 7
+local PLAZA_DIAMETER = 7
+local COURT_MARGIN = 1.5 -- żwir dookoła siatki grządek
+
+-- cf: środek ogródka na ziemi, -Z w stronę furtki. width: bok z furtką, depth: od furtki do tyłu.
+-- beds: ile grządek zbudować (siatka po 3 w rzędzie).
+function Garden.build(parent: Instance, cf: CFrame, width: number, depth: number, beds: number, rng: Random): Model
 	local m = Instance.new("Model")
 	m.Name = "Garden"
-	local half = size / 2
+	local halfW, halfD = width / 2, depth / 2
 
-	-- Trawa ogródka, żwirowa dróżka od furtki do grządek
+	-- Trawa ogródka (jej prostokąt to granice działki dla GardenService)
 	make(m, {
 		Name = "GardenGrass",
-		Size = Vector3.new(size, 0.2, size),
+		Size = Vector3.new(width, 0.2, depth),
 		CFrame = cf * CFrame.new(0, -0.02, 0),
 		Color = GRASS,
 		CanQuery = false,
 	})
+
+	-- Żwir: ścieżka od furtki, placyk z przyciskami, dziedziniec z grządkami. Każda warstwa minimalnie
+	-- wyżej od poprzedniej, żeby nie migotały tam, gdzie na siebie zachodzą.
+	local courtFront = -halfD + YARD
+	local rows = math.ceil(beds / 3)
+	local gridWidth = Beds.width(beds)
+	local gridDepth = rows * Beds.BED + (rows - 1) * Beds.GAP
+	local gridZ = courtFront + COURT_MARGIN + gridDepth / 2
 	decor(make(m, {
 		Name = "GardenPath",
-		Size = Vector3.new(GATE_HALF * 2 - 0.4, 0.2, half - 6),
-		CFrame = cf * CFrame.new(0, 0.01, -half + (half - 6) / 2),
+		Size = Vector3.new(GATE_HALF * 2 - 0.4, 0.2, YARD),
+		CFrame = cf * CFrame.new(0, 0.01, -halfD + YARD / 2),
 		Color = GRAVEL,
 	}))
+	decor(make(m, {
+		Name = "GardenCourt",
+		Size = Vector3.new(gridWidth + COURT_MARGIN * 2, 0.2, gridDepth + COURT_MARGIN * 2),
+		CFrame = cf * CFrame.new(0, 0.04, gridZ),
+		Color = GRAVEL,
+	}))
+	local plazaZ = -halfD + PLAZA_FROM_GATE
+	gravelDisc(m, cf * CFrame.new(0, 0.07, plazaZ), PLAZA_DIAMETER)
 
 	-- Płot z furtką pośrodku boku -Z
 	local function at(x: number, z: number): Vector3
 		return (cf * CFrame.new(x, 0, z)).Position
 	end
-	fence(m, at(-half, -half), at(-GATE_HALF, -half))
-	fence(m, at(GATE_HALF, -half), at(half, -half))
-	fence(m, at(-half, half), at(half, half))
-	fence(m, at(-half, -half), at(-half, half))
-	fence(m, at(half, -half), at(half, half))
+	fence(m, at(-halfW, -halfD), at(-GATE_HALF, -halfD))
+	fence(m, at(GATE_HALF, -halfD), at(halfW, -halfD))
+	fence(m, at(-halfW, halfD), at(halfW, halfD))
+	fence(m, at(-halfW, -halfD), at(-halfW, halfD))
+	fence(m, at(halfW, -halfD), at(halfW, halfD))
 
-	-- Furtka: dwa wyższe słupki, belka i tabliczka z imieniem (napis dokłada GardenService)
+	-- Furtka: dwa wyższe słupki, belka i tabliczka (imię i podsumowanie dokłada GardenService)
 	local gateH = 11.2 -- wysoka brama (wcześniej 5,6)
 	for _, side in { -1, 1 } do
-		post(m, at(side * GATE_HALF, -half), gateH, 0.75)
-		collider(m, "GateCollider", Vector3.new(0.95, gateH, 0.95), cf * CFrame.new(side * GATE_HALF, gateH / 2, -half))
+		post(m, at(side * GATE_HALF, -halfD), gateH, 0.75)
+		collider(m, "GateCollider", Vector3.new(0.95, gateH, 0.95), cf * CFrame.new(side * GATE_HALF, gateH / 2, -halfD))
 	end
 	make(m, {
 		Name = "GateBeam",
 		Size = Vector3.new(GATE_HALF * 2 + 1.2, 0.5, 0.5),
-		CFrame = cf * CFrame.new(0, gateH - 0.25, -half),
+		CFrame = cf * CFrame.new(0, gateH - 0.25, -halfD),
 		Color = Palette.log,
 		CanCollide = false,
 		CanTouch = false,
 	})
-	collider(m, "GateCollider", Vector3.new(GATE_HALF * 2 + 1.2, 0.6, 0.8), cf * CFrame.new(0, gateH - 0.25, -half))
+	collider(m, "GateCollider", Vector3.new(GATE_HALF * 2 + 1.2, 0.6, 0.8), cf * CFrame.new(0, gateH - 0.25, -halfD))
+	-- Dwa wiersze: imię właściciela i grządki z dochodem
 	local sign = make(m, {
 		Name = "OwnerSign",
-		Size = Vector3.new(GATE_HALF * 2 - 0.2, 1.2, 0.22),
-		CFrame = cf * CFrame.new(0, gateH - 1.2, -half - 0.1),
+		Size = Vector3.new(GATE_HALF * 2 - 0.2, 2, 0.22),
+		CFrame = cf * CFrame.new(0, gateH - 1.6, -halfD - 0.1),
 		Color = Palette.signWood,
 		CanCollide = false,
 	})
-	Props.hangingLantern(m, at(GATE_HALF + 0.9, -half - 0.6) + Vector3.new(0, gateH - 0.3, 0), 18)
+	Props.hangingLantern(m, at(GATE_HALF + 0.9, -halfD - 0.6) + Vector3.new(0, gateH - 0.3, 0), 18)
 
-	-- Rabatki z kwiatami wzdłuż boków (w tylnej części, przód zostaje na skrzynię) i krzaki w rogach
+	-- Kwiaty w przednich rogach (przy ścieżce jest dość miejsca), krzaki w tylnych za półką
+	local flowerLength = YARD - 3
 	for _, side in { -1, 1 } do
-		flowerBed(m, cf * CFrame.new(side * (half - 1.3), 0, 2.5) * CFrame.Angles(0, math.rad(90), 0), size - 12, rng)
-		Props.bush(m, at(side * (half - 1.8), half - 1.8), rng:NextNumber(0.75, 0.95), rng, 0)
+		flowerBed(m, cf * CFrame.new(side * (halfW - 1.3), 0, -halfD + 1.5 + flowerLength / 2) * CFrame.Angles(0, math.rad(90), 0), flowerLength, rng)
+		Props.bush(m, at(side * (halfW - 1.6), halfD - 1.9), rng:NextNumber(0.75, 0.95), rng, 0)
 	end
 
 	-- Kilka kamieni przed furtką, żeby było widać, którędy wejść
@@ -290,24 +367,34 @@ function Garden.build(parent: Instance, cf: CFrame, size: number, beds: number, 
 			Name = "PathStone",
 			Shape = Enum.PartType.Cylinder,
 			Size = Vector3.new(0.3, d, d * 0.9),
-			CFrame = cf * CFrame.new(rng:NextNumber(-0.4, 0.4), -0.04, -half - 0.6 - i * 2.2) * VERTICAL,
+			CFrame = cf * CFrame.new(rng:NextNumber(-0.4, 0.4), -0.04, -halfD - 0.6 - i * 2.2) * VERTICAL,
 			Color = Palette.stone:Lerp(Palette.ground[1], rng:NextNumber(0.3, 0.5)),
 		}))
 	end
 
-	-- Grządki w tylnej części ogródka
-	Beds.build(m, cf * CFrame.new(0, 0, 3), beds)
+	-- Grządki na dziedzińcu, lampki na skrzyżowaniach alejek
+	Beds.build(m, cf * CFrame.new(0, 0, gridZ), beds)
+	local step = Beds.BED + Beds.GAP
+	local cols = math.min(3, beds)
+	for gapX = 1, cols - 1 do
+		for gapZ = 1, rows - 1 do
+			local x = -gridWidth / 2 + gapX * step - Beds.GAP / 2
+			local z = gridZ - gridDepth / 2 + gapZ * step - Beds.GAP / 2
+			gardenLamp(m, cf * CFrame.new(x, 0, z))
+		end
+	end
 
-	-- Skrzynia na monety po lewej od furtki (patrząc od wejścia), latarnia nad nią
-	chest(m, cf * CFrame.new(-(half - 3.2), 0, -half + 3.2) * CFrame.Angles(0, math.rad(20), 0))
+	-- Skrzynia zaraz za furtką, z boku ścieżki, wiekiem w stronę placyku
+	local chestAt = Vector3.new(-(GATE_HALF + 4.9), 0, -halfD + 2.5)
+	chest(m, cf * CFrame.lookAt(chestAt, Vector3.new(0, 0, plazaZ - 0.5)))
 
-	relicDais(m, cf * CFrame.new(half - 5.4, 0, -half + 4.6))
+	relicShelf(m, cf * CFrame.new(0, 0, halfD - 0.6 - SHELF_DEPTH / 2))
 
-	-- Niewidoczny punkt między furtką a grządkami: przyciski sadzenia i kradzieży, tabliczka z dochodem
+	-- Niewidoczny punkt na placyku: przyciski sadzenia i kradzieży
 	local hub = make(m, {
 		Name = "Hub",
 		Size = Vector3.new(1, 1, 1),
-		CFrame = cf * CFrame.new(0, 2.4, -half + 6.5),
+		CFrame = cf * CFrame.new(0, 2.4, plazaZ),
 		Transparency = 1,
 		CanCollide = false,
 		CanQuery = false,
