@@ -185,7 +185,7 @@ resultNote.ZIndex = 5
 
 local fuse = Instance.new("TextButton")
 fuse.Name = "Fuse"
-fuse.Size = UDim2.fromOffset(300, 50)
+fuse.Size = UDim2.fromOffset(296, 50)
 fuse.Position = UDim2.fromOffset(RIGHT_X, 40 + CARD_H + 12 + 132 + 12)
 fuse.Font = PanelKit.TITLE_FONT
 fuse.TextScaled = true
@@ -201,7 +201,8 @@ fusePad.Parent = fuse
 local fuseSize = Instance.new("UITextSizeConstraint")
 fuseSize.MaxTextSize = 24
 fuseSize.Parent = fuse
-local status = PanelKit.label(content, "Status", UDim2.fromOffset(3 * CARD_W + 36 - 312, 50), UDim2.fromOffset(RIGHT_X + 312, 40 + CARD_H + 12 + 132 + 12), 15, PanelKit.MUTED, PanelKit.BODY_FONT)
+-- Podpowiedź obok przycisku z zapasem: przycisk rośnie przy najechaniu (UiKit)
+local status = PanelKit.label(content, "Status", UDim2.fromOffset(3 * CARD_W + 36 - 324, 50), UDim2.fromOffset(RIGHT_X + 324, 40 + CARD_H + 12 + 132 + 12), 15, PanelKit.MUTED, PanelKit.BODY_FONT)
 status.TextXAlignment = Enum.TextXAlignment.Left
 status.TextWrapped = true
 

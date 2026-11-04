@@ -1523,6 +1523,13 @@ local function onDevAction(player: Player, action: unknown)
 			data.atlas[recipe.id] = nil
 		end
 		data.stats.forged = 0
+		-- Tytuły kuźni znów „nowe” (lista widzianych tytułów), żeby komunikat o zdobyciu dało się przetestować
+		for _, id in { "TITLE_FORGE_APPRENTICE", "TITLE_FORGE_MASTER" } do
+			local at = if data.titles then table.find(data.titles, id) else nil
+			if at then
+				table.remove(data.titles, at)
+			end
+		end
 	elseif string.match(action, "^coinsSet:%d+$") then
 		-- Studio: przywrócenie salda po testach (devActionAllowed nie wpuszcza tego poza Studio)
 		data.coins = tonumber(string.sub(action, 10)) or data.coins

@@ -1,6 +1,7 @@
 # Kuźnia Grzybów — projekt Moździerza Zielarki
 
-Status: propozycja do decyzji Toma; **wyłącznie projekt, bez implementacji gry**. Analiza 4 listopada 2026.
+Status: **wdrożone na gałęzi `kuznia`** (4 listopada 2026) w lżejszej wersji — patrz „Stan wdrożenia” niżej.
+Pierwotnie: propozycja do decyzji Toma (analiza Codexa, 4 listopada 2026).
 Baza: `lysa-gora`, commit `a59487f10d96a2d7caf81965c02b591723597133`; gałąź dokumentu: `kuznia-plan`.
 Wartości oznaczone jako stan wynikają z tej rewizji; wszystkie receptury, opłaty i ograniczenia kuźni są propozycją.
 
@@ -9,6 +10,26 @@ jeden nowy gatunek z dwiema połączonymi cechami. Gatunek, cechy i wariant są 
 wariant wyniku jest najsłabszym wariantem składników. Sześć gatunków wyłącznie z kuźni, osobna kolekcja,
 bez dochodu z ogrodu, suszenia, ponownego wkładania i bonusów płatnych produktów. To cel na zbieranie
 konkretnych okazów i wydawanie nadwyżki monet. Maszyna nie emituje monet przy tworzeniu.
+
+## Stan wdrożenia (gałąź `kuznia`)
+
+Decyzje Toma (4.11): wynik wart **więcej niż składniki** (~1,3×, opłata zawsze większa niż zysk — zlew
+monet), **10% szansy na wariant o rangę wyżej** (szanse widać w oknie), maszyna na **Placu Portali**.
+
+- Liczby i przepisy: `Config.Forge` (R1–R3 z Bagien, R4–R6 z Łysej Góry, R6 po ucieczce Babie Jadze).
+- Logika wspólna (podgląd = serwer): `src/shared/Forge.luau`; serwer: `src/server/ForgeService.luau`;
+  model: `src/server/World/Forge.luau`; okno: `src/client/ForgePanel.luau`.
+- Różnice względem planu poniżej: **bez nowej wersji zapisu (v8) i bez tokenów potwierdzenia** —
+  połączenie jest atomowe w pamięci sesji ProfileStore, jak sprzedaż (opłata, 3 grzyby, wynik w jednym
+  kroku); dochodzi tylko licznik `stats.forged` i wpisy Grzybopedii. Okno samo podpowiada najtańsze
+  pasujące grzyby (klik w miejsce = następny). Grzyby z eventów nie wchodzą do moździerza.
+- Grzybopedia: zakładka „Kuźnia” poza stronami świata (bez premii do cen i progów); tytuły
+  Uczeń Zielarki (1 połączenie) i Mistrz Kuźni (6 gatunków); odznaki `forge_first`, `forge_collection`
+  czekają na ID w `Config.Badges`.
+- DEV (tylko Studio): `forgeOpen`, `forgeKit`, `forgeReset`, `coinsSet:N`.
+- Testy: `tests/economy.spec.luau` (przepisy, 750 kombinacji rang: opłata > zysk, pule losowania,
+  pasowanie, podgląd i wynik, napisy). Sprawdzone w Studio: połączenie R1 i R2, odmowy (zmieniony
+  koszyk, złe indeksy, brak Jagi, przerwa, za daleko), zakładka w Grzybopedii.
 
 Główny komplet to **6 gatunków w dowolnej formie**; na bagnach dostępne są pierwsze 3. Pozostałe formy
 są opcjonalną kolekcją. Model pokazuje około **54 min na 3 gatunki po bagnach i 92 min na 6 po górze**,
