@@ -268,6 +268,12 @@ function NightForecast.start()
 	arrowTip.BorderSizePixel = 0
 	arrowTip.ZIndex = 0
 	arrowTip.Parent = tip
+	-- Podpowiedź przywrócona (panel DEV → „Podpowiedź prognozy od nowa”): dymek od razu
+	player:GetAttributeChangedSignal("ForecastSeen"):Connect(function()
+		if player:GetAttribute("ForecastSeen") == false then
+			showBubble()
+		end
+	end)
 	local function tipLabel()
 		tipText.Text = "🔮 " .. Localize.t("FORECAST_HINT")
 	end

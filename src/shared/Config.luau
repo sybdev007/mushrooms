@@ -717,6 +717,7 @@ Config.DevLiveActions = {
 	spiritNight = true,
 	pumpkinBoom = true,
 	frostBoom = true, -- Zima: „Zamieć” (tylko w czasie eventu)
+	forecastHint = true, -- podpowiedź Prognozy nocy od nowa (tylko własne ustawienie, nic nie daje)
 } :: { [string]: boolean }
 
 -- Admin abuse z panelu DEV: wydarzenia dla całego serwera, ogłaszane wszystkim, z banerem i odliczaniem.

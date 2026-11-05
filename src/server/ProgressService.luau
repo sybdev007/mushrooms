@@ -650,6 +650,10 @@ function ProgressService.dev(player: Player, action: string): boolean
 		api.applyStats(player)
 	elseif action == "flakes50" then
 		ProgressService.addFlakes(player, 50, "MSG_FLAKES_SOLD")
+	elseif action == "forecastHint" then
+		-- Podpowiedź Prognozy nocy od nowa (pulsujący 🔮 i dymek), żeby sprawdzić ją na własnym koncie
+		data.settings.forecastSeen = false
+		applySettings(player, data)
 	elseif action == "winterReset" then
 		-- Zima od nowa: płatki, ścieżka, kalendarz i skórki z Zimy (skórki z Halloween zostają)
 		data.stats.snowflakes = 0

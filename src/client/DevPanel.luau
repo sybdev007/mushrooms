@@ -175,6 +175,9 @@ local CATEGORIES: { Category } = {
 				{ id = "tutorialNext", label = "Samouczek: następny krok" },
 				{ id = "tutorialSkip", label = "Pomiń samouczek" },
 			} },
+			{ name = "Podpowiedzi", actions = {
+				{ id = "forecastHint", label = "🔮 Podpowiedź prognozy od nowa" },
+			} },
 		},
 	},
 	{
