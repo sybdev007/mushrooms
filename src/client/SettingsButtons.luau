@@ -351,12 +351,16 @@ local function callSocial(names: { string }, ...: any): (boolean, any)
 	return false, nil
 end
 
-invite.Activated:Connect(function()
+-- Okno zaproszenia znajomych Robloxa (przycisk Invite i „Zaproś znajomego” w ekipie ekspedycji)
+local function promptInvite()
 	local ok, can = callSocial({ "CanSendGameInviteAsync" }, player)
 	if ok and can then
 		callSocial({ "PromptGameInvite", "PromptGameInviteAsync" }, player)
 	end
-end)
+end
+SettingsButtons.promptInvite = promptInvite
+
+invite.Activated:Connect(promptInvite)
 
 -- ===== Układ =====
 

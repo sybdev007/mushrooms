@@ -80,6 +80,16 @@ local function steps(run: any): { Step }
 	local list: { Step } = {}
 	if run.state == "prepare" or not run.inside then
 		table.insert(list, { text = Localize.t(if run.secured then "DELVE_STEP_TOO_LATE" else "DELVE_STEP_GO"), done = false })
+		-- Zbiórka: kto już stoi przy szczelinie (wejście jednej osoby zabiera gotowych ze sobą)
+		if run.state == "prepare" and typeof(run.crew) == "table" and #run.crew > 1 then
+			for i, m in run.crew do
+				if i > #lines - 1 then
+					break
+				end
+				local key = if m.ready then "DELVE_STEP_READY" else "DELVE_STEP_ON_WAY"
+				table.insert(list, { text = Localize.t(key, { tostring(m.name) }), done = m.ready == true })
+			end
+		end
 		return list
 	end
 	local kind = Delve.kind(run.kind)

@@ -19,6 +19,7 @@ local NAMES = {
 	"AnnounceShow", -- ogłoszenie admina na środku ekranu (ze wszystkich serwerów, MessagingService)
 	"DelveState", -- ekspedycja: zlecenia na tablicy, ekipa, postęp w komorach, kolekcja reliktów (i które okno otworzyć)
 	"FindCard", -- karta zdobyczy: nowa rzadka forma w Grzybopedii (FindCard.luau, jeden odbiorca)
+	"DelveCall", -- zbiórka do ekspedycji: „X zbiera ekipę” z przyciskiem Dołącz (DelveCall.luau, jeden odbiorca)
 	-- klient -> serwer
 	"PickMushroom",
 	"SellBasket",

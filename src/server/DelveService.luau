@@ -28,6 +28,7 @@ local DelveMap = require(World:WaitForChild("DelveMap"))
 local SkarbnikModel = require(World:WaitForChild("Skarbnik"))
 local RelicArt = require(World:WaitForChild("RelicArt"))
 local Ledger = require(script.Parent.Ledger)
+local Analytics = require(script.Parent.Analytics)
 
 local DelveService = {}
 
@@ -100,6 +101,10 @@ local gardens: { Model } = {}
 
 local BOARD_DISTANCE = 14
 local PROMPT_SLACK = 4 -- serwer jest łagodniejszy od przycisku (opóźnienie sieci)
+-- Zbiórka: członek ekipy „gotowy” = stoi tak blisko szczeliny; kto wchodzi, zabiera gotowych ze sobą
+local READY_RADIUS = 20
+local DelveCall = Remotes.get("DelveCall")
+local lastReady: { [number]: string } = {} -- ekipa -> odcisk gotowości (wysyłamy stan tylko po zmianie)
 local GUARD_CATCH = 3
 
 -- ===== Pomocnicze =====
@@ -198,10 +203,17 @@ end
 
 -- ===== Stan dla klienta =====
 
+-- Członek ekipy stoi przy szczelinie (gotowy do wspólnego zejścia)
+local function atPassage(player: Player): boolean
+	return entrances ~= nil and near(player, entrances.passage, READY_RADIUS)
+end
+
 local function runPayload(run: Run, player: Player, member: Member?): any
 	local names = {}
+	local crew = {}
 	for _, m in activeMembers(run) do
 		table.insert(names, m.player.DisplayName)
+		table.insert(crew, { name = m.player.DisplayName, ready = m.inside or atPassage(m.player), inside = m.inside })
 	end
 	local kind = Delve.kind(run.offer.kind)
 	return {
@@ -209,6 +221,7 @@ local function runPayload(run: Run, player: Player, member: Member?): any
 		leader = run.leader.DisplayName,
 		isLeader = run.leader == player,
 		members = names,
+		crew = crew, -- imię, gotowość (przy szczelinie albo już w komorach), czy w komorach
 		state = run.state,
 		kind = run.offer.kind,
 		set = run.offer.set,
@@ -288,6 +301,38 @@ end
 local function notifyRun(run: Run, key: string, args: { any }?, nameKey: string?)
 	for _, member in activeMembers(run) do
 		api.notify(member.player, key, args, nameKey)
+	end
+end
+
+-- Koniec zbiórki (ekipa zeszła, zlecenie odwołane albo wygasło): karta znika u wszystkich
+local function endCall(run: Run)
+	for _, player in Players:GetPlayers() do
+		DelveCall:FireClient(player, { id = run.id, closed = true })
+	end
+	lastReady[run.id] = nil
+end
+
+-- Zbiórka: karta „X zbiera ekipę” u graczy z otwartą Jaskinią, którzy nie są w żadnej ekipie
+-- (client/DelveCall). Przy zmianie liczby osób karta się odświeża; pełna ekipa zamyka zbiórkę.
+local function callCrew(run: Run)
+	if run.state ~= "prepare" then
+		return
+	end
+	local count = #activeMembers(run)
+	local full = count >= Delve.MAX_PARTY
+	for _, player in Players:GetPlayers() do
+		local data = api.getData(player)
+		if player ~= run.leader and data and data.caveUnlocked and not runOf(player) then
+			DelveCall:FireClient(player, {
+				id = run.id,
+				leader = run.leader.DisplayName,
+				kind = run.offer.kind,
+				modifier = run.offer.modifier,
+				count = count,
+				max = Delve.MAX_PARTY,
+				closed = full,
+			})
+		end
 	end
 end
 
@@ -422,6 +467,10 @@ local function closeRun(run: Run)
 	if slotRun[run.slot] == run then
 		slotRun[run.slot] = nil
 	end
+	if run.state == "prepare" then
+		endCall(run)
+	end
+	lastReady[run.id] = nil
 	local camp = api.campCFrame()
 	for _, member in run.members do
 		if member.inside and not member.done and member.player.Parent then
@@ -494,6 +543,10 @@ local function memberLeaves(run: Run, member: Member, failed: boolean)
 	if player.Parent then
 		makeOffers(player)
 		sendState(player)
+	end
+	-- Zwolniło się miejsce przed zejściem: zbiórka znowu otwarta (z aktualną liczbą osób)
+	if run.state == "prepare" then
+		callCrew(run)
 	end
 end
 
@@ -793,7 +846,21 @@ local function startRun(run: Run)
 	run.startedAt = os.time()
 	run.nextRock = os.clock() + 4
 	setupCopy(run)
+	endCall(run)
+	-- Analityka: ile osób schodzi razem (Milestone_DelveCrew, wartość = liczba osób w ekipie)
+	Analytics.milestone(run.leader, "DelveCrew", #activeMembers(run))
 	broadcast()
+end
+
+-- Zejście jednej osoby do komór (przez szczelinę albo razem z kimś z ekipy)
+local function enterChambers(run: Run, member: Member)
+	member.inside = true
+	member.entered = true
+	local player = member.player
+	local spawn = copyFor(run.slot).spawn
+	-- Komory leżą daleko w bok: najpierw wczytujemy je wokół miejsca lądowania (StreamingEnabled)
+	pcall(player.RequestStreamAroundAsync, player, spawn.Position, 10)
+	api.travel(player, spawn, "MSG_DELVE_ENTER")
 end
 
 local function onPassage(player: Player)
@@ -819,12 +886,13 @@ local function onPassage(player: Player)
 	if run.state == "prepare" then
 		startRun(run)
 	end
-	member.inside = true
-	member.entered = true
-	local spawn = copyFor(run.slot).spawn
-	-- Komory leżą daleko w bok: najpierw wczytujemy je wokół miejsca lądowania (StreamingEnabled)
-	pcall(player.RequestStreamAroundAsync, player, spawn.Position, 10)
-	api.travel(player, spawn, "MSG_DELVE_ENTER")
+	enterChambers(run, member)
+	-- Wspólne zejście: kto z ekipy stoi przy szczelinie (i nikt go nie goni), schodzi razem z nami
+	for _, other in activeMembers(run) do
+		if other ~= member and not other.inside and atPassage(other.player) and not api.isChased(other.player) then
+			enterChambers(run, other)
+		end
+	end
 	sendRun(run)
 end
 
@@ -1025,8 +1093,11 @@ local function onAction(player: Player, action: unknown, arg: unknown)
 		slotRun[slot] = run
 		api.notify(player, "MSG_DELVE_TAKEN")
 		broadcast()
+		callCrew(run)
 	elseif action == "join" then
-		if typeof(arg) ~= "number" or not nearBoard(player) or not data.caveUnlocked then
+		-- Z tablicy albo z karty zbiórki (client/DelveCall), więc z dowolnego miejsca: dołączenie tylko
+		-- dopisuje do ekipy, do komór i tak schodzi się przez szczelinę w Otchłani
+		if typeof(arg) ~= "number" or not data.caveUnlocked then
 			return
 		end
 		if runOf(player) then
@@ -1042,6 +1113,9 @@ local function onAction(player: Player, action: unknown, arg: unknown)
 		table.insert(run.members, { player = player, inside = false, entered = false, done = false, secured = false })
 		notifyRun(run, "MSG_DELVE_JOINED", { player.DisplayName })
 		broadcast()
+		callCrew(run)
+		-- Karta zbiórki u tego, kto dołączył, znika (jest już w ekipie)
+		DelveCall:FireClient(player, { id = run.id, closed = true })
 	elseif action == "leave" then
 		local run, member = runOf(player)
 		-- W komorach nie da się zrezygnować (inaczej byłby to darmowy powrót do obozu z pełnym koszykiem)
@@ -1323,6 +1397,17 @@ local function step(dt: number)
 		end
 		if everySecond then
 			local t = os.time()
+			-- Gotowość ekipy (kto stoi przy szczelinie): stan do okna i karty celu tylko po zmianie
+			if run.state == "prepare" then
+				local mark = ""
+				for _, member in activeMembers(run) do
+					mark ..= if atPassage(member.player) then "1" else "0"
+				end
+				if lastReady[run.id] ~= mark then
+					lastReady[run.id] = mark
+					sendRun(run)
+				end
+			end
 			if run.state == "prepare" and t > run.createdAt + Delve.PREPARE_SECONDS then
 				notifyRun(run, "MSG_DELVE_EXPIRED")
 				closeRun(run)

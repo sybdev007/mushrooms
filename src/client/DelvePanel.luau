@@ -14,6 +14,7 @@ local Delve = require(Shared:WaitForChild("Delve"))
 local Remotes = require(Shared:WaitForChild("Remotes"))
 local Localize = require(script.Parent.Localize)
 local PanelKit = require(script.Parent.PanelKit)
+local SettingsButtons = require(script.Parent.SettingsButtons)
 local ShopLook = require(script.Parent.ShopLook)
 local UiFx = require(script.Parent.UiFx)
 local UiKit = require(script.Parent.UiKit)
@@ -217,10 +218,31 @@ local partyText = PanelKit.label(partyFrame, "Text", UDim2.new(1, -230, 0, 76), 
 partyText.TextWrapped = true
 partyText.TextXAlignment = Enum.TextXAlignment.Left
 partyText.TextYAlignment = Enum.TextYAlignment.Top
-local leaveButton, leaveLabel = button(partyFrame, "Leave", UiKit.COLORS.red, UDim2.fromOffset(190, 42), UDim2.new(1, -202, 0, 40), 17)
+local leaveButton, leaveLabel = button(partyFrame, "Leave", UiKit.COLORS.red, UDim2.fromOffset(190, 34), UDim2.new(1, -202, 0, 36), 16)
 leaveButton.Activated:Connect(function()
 	DelveAction:FireServer("leave")
 end)
+-- Zaproszenie znajomego z Robloxa do gry (to samo okno co przycisk Invite)
+local inviteButton, inviteLabel = button(partyFrame, "Invite", Color3.fromRGB(70, 130, 220), UDim2.fromOffset(190, 34), UDim2.new(1, -202, 0, 76), 16)
+inviteButton.Visible = false
+inviteButton.Activated:Connect(function()
+	local prompt = (SettingsButtons :: any).promptInvite
+	if prompt then
+		prompt()
+	end
+end)
+
+-- Ekipa z gotowością: „Tom ✅, Miłosz 🚶” (✅ = przy szczelinie albo już w komorach)
+local function crewText(run: any): string
+	if typeof(run.crew) ~= "table" then
+		return table.concat(run.members or {}, ", ")
+	end
+	local parts = {}
+	for _, m in run.crew do
+		table.insert(parts, tostring(m.name) .. " " .. (if m.ready then "✅" else "🚶"))
+	end
+	return table.concat(parts, ", ")
+end
 
 type JoinRow = { frame: Frame, text: TextLabel, join: TextButton, joinLabel: TextLabel, id: number }
 local joinRows: { JoinRow } = {}
@@ -295,12 +317,14 @@ local function renderBoard()
 		local kind = Delve.kind(run.kind)
 		partyTitle.Text = Localize.t("DELVE_YOUR_RUN", { if kind then Localize.t(kind.key) else run.kind })
 		local left = run.expiresAt - os.time()
-		local members = table.concat(run.members, ", ")
+		local members = crewText(run)
 		partyText.Text = if run.state == "prepare"
 			then Localize.t("DELVE_PARTY_PREPARE", { members :: any, #run.members, Delve.MAX_PARTY, formatTime(left) })
 			else Localize.t("DELVE_PARTY_ACTIVE", { members, formatTime(left) })
 		leaveButton.Visible = run.state == "prepare"
 		leaveLabel.Text = if run.isLeader then Localize.t("DELVE_CANCEL") else Localize.t("DELVE_LEAVE")
+		inviteButton.Visible = run.state == "prepare" and #run.members < Delve.MAX_PARTY
+		inviteLabel.Text = "👥 " .. Localize.t("DELVE_INVITE")
 		for _, row in joinRows do
 			row.frame.Visible = false
 		end
@@ -308,6 +332,7 @@ local function renderBoard()
 	else
 		partyTitle.Text = Localize.t("DELVE_OPEN_RUNS")
 		leaveButton.Visible = false
+		inviteButton.Visible = false
 		local list = state.openRuns or {}
 		partyText.Visible = #list == 0
 		partyText.Text = Localize.t("DELVE_NO_OPEN_RUNS")
