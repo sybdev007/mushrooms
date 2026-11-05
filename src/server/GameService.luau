@@ -1099,6 +1099,11 @@ local function saveSession(session: Session)
 	end
 end
 
+-- Studio: stan zapisu sprzed testu z panelu DEV (patrz DEV_SNAPSHOT_KEYS). Zadeklarowane PRZED
+-- onPlayerRemoving: deklaracja niżej w pliku robiła z tej nazwy globalną nil i każde wyjście gracza
+-- wywalało się przed ostatnim zapisem i zwolnieniem sesji.
+local devSnapshots: { [Player]: { [string]: any } } = {}
+
 local function onPlayerRemoving(player: Player)
 	local session = sessions[player]
 	if not session then
@@ -1512,7 +1517,6 @@ local DEV_TELEPORTS: { [string]: () -> CFrame? } = {
 local LIVE_DEV_ACTIONS: { [string]: boolean } = Config.DevLiveActions
 -- Studio: stan zapisu zapamiętany przed testem (np. kuźni) i przywracany po nim. Tylko w pamięci serwera.
 local DEV_SNAPSHOT_KEYS = { "coins", "earned", "basket", "atlas", "atlasDone", "bestiary", "daily", "streak", "weekly", "stats", "titles" }
-local devSnapshots: { [Player]: { [string]: any } } = {}
 local function deepCopy(value: any): any
 	if typeof(value) ~= "table" then
 		return value
