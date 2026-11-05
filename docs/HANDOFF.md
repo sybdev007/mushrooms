@@ -10,7 +10,7 @@ Tu: co jest w grze, co zrobiliśmy ostatnio, co jest otwarte. Aktualizuj ten pli
   Gałęzie `petla`, `lysa-gora`, `feat/tryb-filmowy` itd. są już w `main`; nie pracuj na nich.
 - PC Toma: `T:\lantern\mushrooms` (Rojo serwuje stąd). MacBook: `~/coding/mushrooms` (Intel: `selene` z Rokit
   to wersja na ARM i się nie uruchamia, lint rób na PC; `lune` i `rojo` działają).
-- **Kuźnia v3 (runa) jest w `main`, ale jeszcze NIE opublikowana** (zadanie 1 niżej).
+- **Kuźnia v3 (runa)** z `fcc1f0f` opublikowana 5.11 (Tom: działa na żywo).
 - Notatki: `docs/plans/loop-research.md` (plan pętli, gabloty i Znaleziska) i `docs/plans/review-petla.md`
   (przegląd gałęzi `petla` od Codexa) są w repo od `8bc2c69`.
 - Gra: universe 10772830253, place 72216132547990, grupa Old Owl Studios 463484833.
@@ -71,9 +71,9 @@ Magazyn `LanternForager_Profiles_v1`, klucz `player_1293490018`.
 
 ## Otwarte zadania
 
-1. **Opublikować `main` z kuźnią v3** (Rojo → Publish → Restart Servers) i sprawdzić na żywo: łączenie
-   przy moździerzu (zwykła trójka, przepis), komunikat po odsłonięciu, F9 → Server bez czerwonych linii.
-   W Studio sprawdzone 5.11: trójka z góry (gorszy 0,53×), przepis (dzwonek mszysty 1,21×), tania trójka
+1. ~~Opublikować `main` z kuźnią v3~~: opublikowane 5.11, Tom potwierdził, że działa. Do obserwacji przez kilka
+   dni: Analytics kuźni (ile połączeń, które progi), czy gracze nie narzekają na skuchy przy drogich trójkach.
+   Lint `selene src` na PC jeszcze nie puszczony. W Studio sprawdzone 5.11: trójka z góry (gorszy 0,53×), przepis (dzwonek mszysty 1,21×), tania trójka
    (skucha), po polsku i po angielsku, konsola czysta. Zapis Toma po teście przywrócony („Przywróć stan”).
    Nowych pól zapisu nie ma, `DATA_VERSION` bez zmian (8).
 2. **Odznaki z id = 0** w `Config.Badges`: `grandmaster`, `cosmic`, `forge_collection`, `winter2026`
