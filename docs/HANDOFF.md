@@ -71,6 +71,10 @@ Magazyn `LanternForager_Profiles_v1`, klucz `player_1293490018`.
 
 ## Otwarte zadania
 
+0. **PILNE: opublikować `51d208e` + `af8fa4f`** (i Restart Servers). `51d208e`: od kuźni v3 każde wyjście gracza
+   wywalało `onPlayerRemoving` (devSnapshots przed deklaracją), bez ostatniego zapisu i zwolnienia sesji.
+   `af8fa4f`: Baba Jaga 43 → 36 studs/s, bo doganiała na butach 16. Po publikacji: wyjść i wejść
+   (postęp z ostatnich minut został?), F9 → Server bez czerwonych linii, ucieczka przed Jagą na butach 14+.
 1. ~~Opublikować `main` z kuźnią v3~~: opublikowane 5.11, Tom potwierdził, że działa. Do obserwacji przez kilka
    dni: Analytics kuźni (ile połączeń, które progi), czy gracze nie narzekają na skuchy przy drogich trójkach.
    Lint `selene src` na PC jeszcze nie puszczony. W Studio sprawdzone 5.11: trójka z góry (gorszy 0,53×), przepis (dzwonek mszysty 1,21×), tania trójka
