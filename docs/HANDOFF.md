@@ -56,7 +56,9 @@ las → jaskinia (30 000 monet) → bagna (1 000 000) → **Łysa Góra** (10 00
   kapliczka na Placu Portali naprzeciw moździerza (`ShrineService`, `ShrinePanel`, `Shared/Shrine`): wpłaty
   1 / 10 / 100 mln / 1 mld z potwierdzeniem, serwer sprawdza wszystko (bez tokenów), `stats.leszyOffered`,
   tytuły 100 mln – 20 mld, obwódka tabliczki ogródka od 1 / 5 / 10 mld. Globalny ranking: osobny etap po pilotażu.
-  Test w Studiu 5.11: OK (telefonu i obwódki nie sprawdzano). **Do publikacji: Restart Servers obowiązkowo.**
+  Test w Studiu 5.11: OK; opublikowane i sprawdzone na żywo (kapliczka, wpłata, górska półka). Do obejrzenia
+  później: okno gabloty na telefonie i obwódka tabliczki od 1 mld. Za tydzień w Analytics: `LeszyOffering`,
+  `Milestone_LeszyFirstOffering`, `Milestone_MountainShowcaseFirst/Complete`; potem decyzja o rankingu.
 - Eventy (daty w `Config`, UTC): **Halloween do 10.11 00:00** (cukierki, kocioł, Noc Dziadów),
   **Zima 1.12 – 7.01** (płatki, choinka, kalendarz adwentowy). Zima jeszcze nie była na żywo:
   sprawdzić w Studio przed 1.12 (panel DEV).
