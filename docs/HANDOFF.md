@@ -33,6 +33,9 @@ las → jaskinia (30 000 monet) → bagna (1 000 000) → **Łysa Góra** (10 00
   Zasady: `src/shared/Forge.luau`, `docs/plans/kuznia.md` (sekcja „wersja 3”), symulator `tools/forge_odds.luau`.
 - **Ekspedycja do Głębokich Komór** (tablica zleceń w Obozie, relikty, regał). `docs/plans/cave-expedition.md`.
 - Grzybopedia, tytuły, zadania dzienne (odbiór ręczny), seria logowań, rankingi, wyprawy grupowe.
+- **Ścieżka grzybiarza** (od 5.11, `src/shared/ForagerPath.luau`): po samouczku karta misji prowadzi przez
+  6 celów do otwarcia Jaskini (buty 3, 8 gatunków, mutacja, Korona Leszego, ucieczka, 30 000 monet i portal).
+  Bez nagród i nowych pól zapisu; analityka `Milestone_Path_<id>` pokazuje, gdzie nowi gracze odpadają.
 - Eventy (daty w `Config`, UTC): **Halloween do 10.11 00:00** (cukierki, kocioł, Noc Dziadów),
   **Zima 1.12 – 7.01** (płatki, choinka, kalendarz adwentowy). Zima jeszcze nie była na żywo:
   sprawdzić w Studio przed 1.12 (panel DEV).
@@ -102,6 +105,9 @@ Magazyn `LanternForager_Profiles_v1`, klucz `player_1293490018`.
    Przed zimą 2027 wyzerować `advent`, `stats.snowflakes` i `winterClaimed` (zapis nie pamięta roku).
    Drobiazg spoza zimy: `StateUpdate` ma dwóch odbiorców (ExpeditionView i Main.client), zasada 4.
 5. ~~Dodać do repo `loop-research.md` i `review-petla.md`~~: zrobione (`8bc2c69`).
+7. Pomysły z researchu hitów (`docs/plans/hit-research.md`, Codex 5.11). Zrobione: Ścieżka grzybiarza.
+   Następne w jego rankingu: wyeksponowany zegar nocy + Roblox Events, prezentacja zdobyczy i gabloty,
+   wskazówki do przepisów kuźni, zbiórka do ekspedycji. Za ok. tydzień sprawdzić `Path_*` w Analytics.
 6. Monetyzacja (`docs/plans/monetization-research.md`): NIE dla stałego x2 monet, gatunków za Robux, x2 za monety.
    Do pilotażu po tygodniu obserwacji Analytics: kod 0,25 S raz na konto, kosmetyczny VIP 249 R$.
 
