@@ -18,7 +18,7 @@ Gra na Robloxie: nocne zbieranie grzybów z latarnią. Kod Luau `--!strict`, syn
 
 ```
 rokit install                      # raz: rojo 7.7.1, selene 0.31.0, lune 0.11.1
-lune run tests/economy.spec.luau   # testy logiki (1367 ok); MUSZĄ przechodzić przed commitem
+lune run tests/economy.spec.luau   # testy logiki (1368 ok); MUSZĄ przechodzić przed commitem
 selene src                         # lint
 rojo serve                         # synchronizacja ze Studiem
 lune run tools/economy_sim.luau    # symulator ekonomii

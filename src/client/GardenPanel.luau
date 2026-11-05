@@ -438,6 +438,13 @@ local function buildCard(index: number, item: Item): Card
 	local rate = label(pill, UDim2.new(1, -8, 1, -4), UDim2.fromOffset(4, 2), TITLE_FONT, 16, Color3.fromRGB(166, 240, 106))
 	rate.ZIndex = 4
 	rate.Text = formatRate(Economy.plantIncome(item, fertilizer))
+	-- Grzyb z kuźni (np. Oko Welesa) to okaz do kolekcji: nie rośnie w ogródku (serwer i tak odmówi).
+	-- Zamiast „0.0/s” kłódka i przygaszona karta; kliknięcie mówi dlaczego (wireCard).
+	if Economy.isForgeOnly(item.s) then
+		rate.Text = "🔒 " .. t("GP_COLLECTION")
+		rate.TextColor3 = Color3.fromRGB(230, 214, 190)
+		frame.BackgroundColor3 = frame.BackgroundColor3:Lerp(Color3.fromRGB(70, 60, 54), 0.5)
+	end
 	return { frame = frame, scale = scale, stroke = cardStroke, index = index }
 end
 
@@ -581,6 +588,14 @@ end
 local function wireCard(card: Card)
 	card.frame.InputBegan:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			-- Grzyba z kuźni nie da się podnieść na grządkę: potrząśnięcie i podpowiedź
+			local item = basket[card.index]
+			if item and Economy.isForgeOnly(item.s) then
+				UiKit.shake(card.frame)
+				Audio.play("warn", { volume = 0.5 })
+				hint.Text = t("FORGE_NO_PLANT")
+				return
+			end
 			dragging = card.index
 			dragStart = Vector2.new(input.Position.X, input.Position.Y)
 			dragMoved = false
