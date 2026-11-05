@@ -18,6 +18,7 @@ local NAMES = {
 	"ChestOffer", -- x2 skrzyni: okno „Witaj z powrotem”, karta po odbiorze, zakup po G, wypłata premii
 	"AnnounceShow", -- ogłoszenie admina na środku ekranu (ze wszystkich serwerów, MessagingService)
 	"DelveState", -- ekspedycja: zlecenia na tablicy, ekipa, postęp w komorach, kolekcja reliktów (i które okno otworzyć)
+	"FindCard", -- karta zdobyczy: nowa rzadka forma w Grzybopedii (FindCard.luau, jeden odbiorca)
 	-- klient -> serwer
 	"PickMushroom",
 	"SellBasket",

@@ -15,6 +15,7 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Showcase = require(ReplicatedStorage.Shared.Showcase)
 local Ledger = require(script.Parent.Ledger)
+local Analytics = require(script.Parent.Analytics)
 local Palette = require(script.Parent.World.Palette)
 
 export type Api = {
@@ -100,6 +101,32 @@ local function buildCabinet(garden: Model): Model?
 		make(m, { Name = "Post", Size = Vector3.new(0.5, HEIGHT, DEPTH), CFrame = cf * CFrame.new(side * (LENGTH / 2 - 0.25), HEIGHT / 2, 0), Color = wood })
 	end
 	make(m, { Name = "Crown", Size = Vector3.new(LENGTH + 0.6, 0.5, DEPTH + 0.4), CFrame = cf * CFrame.new(0, HEIGHT + 0.25, 0), Color = woodDark })
+	-- Tablica nad regałem z imieniem właściciela (tekst ustawia refresh)
+	local board = decor(make(m, { Name = "Board", Size = Vector3.new(7, 1.3, 0.2), CFrame = cf * CFrame.new(0, HEIGHT + 1.15, -0.2), Color = woodDark }))
+	local sign = Instance.new("SurfaceGui")
+	sign.Name = "OwnerSign"
+	sign.Face = Enum.NormalId.Front
+	sign.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	sign.PixelsPerStud = 50
+	sign.LightInfluence = 0
+	sign.MaxDistance = 60
+	sign.Enabled = false
+	sign.Parent = board
+	local signText = Instance.new("TextLabel")
+	signText.BackgroundTransparency = 1
+	signText.Size = UDim2.fromScale(1, 1)
+	signText.Font = Enum.Font.FredokaOne
+	signText.TextScaled = true
+	signText.TextColor3 = Color3.fromRGB(255, 226, 150)
+	signText.TextStrokeTransparency = 0.3
+	signText.Text = ""
+	signText.Parent = sign
+	local signPad = Instance.new("UIPadding")
+	signPad.PaddingLeft = UDim.new(0.04, 0)
+	signPad.PaddingRight = UDim.new(0.04, 0)
+	signPad.PaddingTop = UDim.new(0.1, 0)
+	signPad.PaddingBottom = UDim.new(0.1, 0)
+	signPad.Parent = signText
 	for series, y in SHELF_Y do
 		if series > 1 then
 			make(m, { Name = "Shelf", Size = Vector3.new(LENGTH - 1, 0.3, DEPTH - 0.3), CFrame = cf * CFrame.new(0, y - 0.15, -0.15), Color = wood })
@@ -230,6 +257,20 @@ local function refresh(garden: Model, freshSlot: number?)
 		end
 	end
 	folder.Parent = cabinet
+	-- Tabliczka na górze regału: czyja to kolekcja i ile w niej stoi (bez tekstu do tłumaczenia)
+	local board = cabinet:FindFirstChild("Board")
+	local sign = board and board:FindFirstChild("OwnerSign")
+	local label = sign and sign:FindFirstChildWhichIsA("TextLabel")
+	if label then
+		local count = 0
+		if save then
+			for _ in save.items do
+				count += 1
+			end
+		end
+		label.Text = if owner then string.format("🏆 %s  ·  %d 🍄", owner.DisplayName, count) else ""
+		;(sign :: SurfaceGui).Enabled = owner ~= nil
+	end
 end
 
 function ShowcaseService.refreshOf(player: Player, freshSlot: number?)
@@ -285,11 +326,29 @@ local function onAction(player: Player, payload: unknown)
 	end
 	lastAction[player] = now
 	local data = api.getData(player)
-	if not data or typeof(payload) ~= "table" or not near(player) then
+	if not data or typeof(payload) ~= "table" then
 		return
 	end
 	local request = payload :: any
 	local save: Showcase.Save = data.showcase
+	-- Z karty zdobyczy (client/FindCard), z dowolnego miejsca: tylko forma z Grzybopedii i tylko na
+	-- pierwsze wolne kupione miejsce (Showcase.quickSlot). Nic nie kosztuje i nic nie daje poza wystawą.
+	if request.op == "quick" then
+		local exhibit = Showcase.readExhibit(request.item)
+		local slot = if exhibit then Showcase.quickSlot(save, data.atlas, exhibit) else nil
+		if not exhibit or not slot then
+			api.notify(player, "MSG_SHOWCASE_QUICK_FULL")
+			return
+		end
+		save.items[tostring(slot)] = exhibit
+		ShowcaseService.refreshOf(player, slot)
+		api.notify(player, "MSG_SHOWCASE_QUICK", { slot })
+		Analytics.milestone(player, "FindCardShowcase")
+		return
+	end
+	if not near(player) then
+		return
+	end
 	if request.op == "buy" then
 		local slot, price, reason = Showcase.nextSlot(save, flags(data))
 		-- Klient mówi, które miejsce kupuje: podwójne kliknięcie nie kupi dwóch

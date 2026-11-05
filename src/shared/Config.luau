@@ -451,6 +451,10 @@ Config.Showcase = {
 	} :: { { id: string, key: string, icon: string, color: { number }, unlock: string? } },
 	maxTrophies = 40, -- tyle trofeów ze Znaleziska Nocy trzyma zapis (najstarsze wypadają)
 	promptDistance = 8,
+	-- Karta zdobyczy (FindCard): nowa forma w Grzybopedii od tej rangi wariantu (2 = Złoty) albo grzyb
+	-- strażnika; z karty można od razu wystawić grzyb na wolnym miejscu gabloty (bez podchodzenia)
+	cardRank = 2,
+	cardSeconds = 8,
 }
 
 -- Cechy tylko z pogody w ogródku (nie losują się w lesie). Liczą się w wartości i zapisie (Economy.getTag).

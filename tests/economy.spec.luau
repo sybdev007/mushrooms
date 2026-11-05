@@ -4247,6 +4247,44 @@ test("ścieżka grzybiarza: kolejność celów po samouczku, pomijanie zaliczony
 	check(csvHas("PATH_HEAD") and csvHas("PATH_CAVE_GO"), "brak w CSV: PATH_HEAD / PATH_CAVE_GO")
 end)
 
+test("karta zdobyczy: tylko wyjątkowe nowe formy; wystawienie z daleka tylko z Grzybopedii na wolne miejsce", function()
+	local common: string? = nil
+	for _, species in Config.Species do
+		if not species.guardian and not species.forgeOnly and not species.mimic and Economy.guardianOf(species.id) == nil then
+			common = species.id
+			break
+		end
+	end
+	local id = common :: string
+	check(not Showcase.cardWorthy({ s = id }), "zwykła forma bez karty")
+	check(not Showcase.cardWorthy({ s = id, v = Economy.variantOfRank(1) }), "srebrna bez karty")
+	check(Showcase.cardWorthy({ s = id, v = Economy.variantOfRank(Config.Showcase.cardRank) }), "złota z kartą")
+	check(Showcase.cardWorthy({ s = id, v = Economy.variantOfRank(Economy.maxVariantRank()) }), "kosmiczna z kartą")
+	check(Showcase.cardWorthy({ s = "leszy_crown" }), "korona Leszego z kartą")
+	check(Showcase.cardWorthy({ s = "forge_glasscap" }), "grzyb z kuźni z kartą")
+	check(not Showcase.cardWorthy({ s = "nie_ma_takiego" }), "nieznany gatunek")
+	for _, species in Config.Species do
+		if species.mimic then
+			check(not Showcase.cardWorthy({ s = species.id, v = Economy.variantOfRank(4) }), "błędny ognik bez karty")
+		end
+	end
+	-- Wystawienie z karty: forma musi być w Grzybopedii, trofea (z datą) nie, tylko pierwsze wolne miejsce
+	local gold = Economy.variantOfRank(2)
+	local atlas = {}
+	Progress.discover(atlas, id, gold)
+	local save = Showcase.emptySave()
+	eq(Showcase.quickSlot(save, atlas, { s = id, v = gold }), 1)
+	eq(Showcase.quickSlot(save, atlas, { s = id, v = Economy.variantOfRank(3) }), nil, "forma spoza Grzybopedii")
+	eq(Showcase.quickSlot(save, atlas, { s = id, v = gold, t = 123 }), nil, "trofeum nie z karty")
+	save.items["1"] = { s = id, v = gold }
+	eq(Showcase.quickSlot(save, atlas, { s = id, v = gold }), 2, "następne wolne")
+	save.items["2"] = { s = id }
+	eq(Showcase.quickSlot(save, atlas, { s = id, v = gold }), nil, "brak wolnego kupionego miejsca")
+	for _, key in { "FINDCARD_NEW_FORM", "FINDCARD_NEW_SPECIES", "FINDCARD_SHOW", "FINDCARD_FULL", "MSG_SHOWCASE_QUICK", "MSG_SHOWCASE_QUICK_FULL" } do
+		check(csvHas(key), "brak w CSV: " .. key)
+	end
+end)
+
 print(string.format("\n%d ok, %d błędów", passed, failed))
 if failed > 0 then
 	process.exit(1)

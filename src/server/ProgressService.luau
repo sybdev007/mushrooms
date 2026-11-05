@@ -21,6 +21,7 @@ local Titles = require(Shared.Titles)
 local Halloween = require(Shared.Halloween)
 local Winter = require(Shared.Winter)
 local Skins = require(Shared.Skins)
+local Showcase = require(Shared.Showcase)
 local DataService = require(script.Parent.DataService)
 local Ledger = require(script.Parent.Ledger)
 
@@ -42,6 +43,7 @@ local QuestClaim = Remotes.get("QuestClaim")
 local SelectTitle = Remotes.get("SelectTitle")
 local SaveSettings = Remotes.get("SaveSettings")
 local AdventOpen = Remotes.get("AdventOpen")
+local FindCard = Remotes.get("FindCard")
 
 -- Ustawienia dźwięku jako atrybuty gracza (klient czyta je w SettingsButtons)
 local function applySettings(player: Player, data: Data)
@@ -462,6 +464,18 @@ function ProgressService.found(player: Player, item: { s: string, v: string?, x:
 		})
 		if source ~= "forge" then
 			ProgressService.event(player, "discover", 1)
+		end
+		-- Wyjątkowa zdobycz: karta z modelem i przyciskiem „Wystaw w gablocie” (client/FindCard)
+		if Showcase.cardWorthy(item) then
+			local save = data.showcase
+			FindCard:FireClient(player, {
+				s = item.s,
+				v = item.v,
+				x = item.x,
+				newSpecies = newSpecies,
+				value = Economy.itemValue(item :: any),
+				canShow = save ~= nil and Showcase.firstEmpty(save) ~= nil,
+			})
 		end
 		checkMilestones(player, data)
 	end

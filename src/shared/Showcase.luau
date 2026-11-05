@@ -191,6 +191,27 @@ function Showcase.firstEmpty(save: Save): number?
 	return nil
 end
 
+-- Karta zdobyczy: czy ta nowa forma w Grzybopedii jest dość wyjątkowa (Złoty i lepsze, grzyb strażnika).
+-- Grzyby z kuźni (forgeOnly) też, bo to ich jedyne źródło; zwykłe i srebrne formy zostają przy powiadomieniu.
+function Showcase.cardWorthy(item: { s: string, v: string? }): boolean
+	local species = Economy.getSpecies(item.s)
+	if not species or species.mimic then
+		return false
+	end
+	return Economy.variantRank(item.v) >= Config.Showcase.cardRank
+		or Economy.guardianOf(item.s) ~= nil
+		or (species :: any).forgeOnly == true
+end
+
+-- Wystawienie z karty zdobyczy (z dowolnego miejsca): tylko forma z Grzybopedii, tylko na pierwsze
+-- wolne posiadane miejsce. Zwraca numer miejsca albo nil.
+function Showcase.quickSlot(save: Save, atlas: { [string]: any }, exhibit: Exhibit): number?
+	if exhibit.t or not Showcase.allowed(atlas, {}, exhibit) then
+		return nil
+	end
+	return Showcase.firstEmpty(save)
+end
+
 -- Wydatki na całą serię (testy, symulacje)
 function Showcase.seriesCost(series: number): number
 	local total = 0

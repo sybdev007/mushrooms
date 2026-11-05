@@ -1075,3 +1075,9 @@ PATH_CROWN,Steal the Leshy's Crown from his grove,,,Ukradnij Koronę Leszego z j
 PATH_ESCAPE,Escape the Leshy to the cabin with his crown,,,Ucieknij Leszemu do chatki z koroną
 PATH_CAVE,Save up for the Cave: {1}/{2} coins,,,Uzbieraj na Jaskinię: {1}/{2} monet
 PATH_CAVE_GO,You can open the Cave! Head to the portal,,,Stać cię na Jaskinię! Idź do portalu
+FINDCARD_NEW_FORM,NEW FORM IN THE ATLAS!,,,NOWA FORMA W GRZYBOPEDII!
+FINDCARD_NEW_SPECIES,NEW SPECIES IN THE ATLAS!,,,NOWY GATUNEK W GRZYBOPEDII!
+FINDCARD_SHOW,Put it in my showcase,,,Wystaw w gablocie
+FINDCARD_FULL,No free showcase spot - buy one at the shelf in your garden,,,Brak wolnego miejsca w gablocie - kupisz je przy regale w ogródku
+MSG_SHOWCASE_QUICK,🏆 It stands in your garden showcase (spot {1}),,,🏆 Stoi w gablocie w twoim ogródku (miejsce {1})
+MSG_SHOWCASE_QUICK_FULL,No free showcase spot - buy one at the shelf in your garden,,,Brak wolnego miejsca w gablocie - kupisz je przy regale w ogródku
