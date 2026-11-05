@@ -41,7 +41,8 @@ export type Data = {
 	invited: { number }, -- UserId graczy, którzy weszli z zaproszenia tego gracza (już zaliczeni, Social)
 	-- muzyka i dźwięki włączone oraz głośność z suwaków (0..1); wyłączone = głośność 0
 	-- x2Card: karta z ofertą x2 po odbiorze przy skrzyni (gracz może ją wyłączyć)
-	settings: { music: boolean, sfx: boolean, musicVolume: number, sfxVolume: number, x2Card: boolean },
+	-- forecastSeen: gracz otworzył już Prognozę nocy (do tego czasu dymek i pulsujący przycisk 🔮)
+	settings: { music: boolean, sfx: boolean, musicVolume: number, sfxVolume: number, x2Card: boolean, forecastSeen: boolean },
 	basket: { Economy.BasketItem },
 	planted: { Economy.PlantItem }, -- grzyby na grządkach w ogródku
 	pot: number, -- monety z grządek czekające w skrzyni (z ułamkiem)
@@ -81,8 +82,9 @@ local LEGACY_STORE_NAME = "LanternForager_Prototype_v1" -- stary zapis bez bloka
 local PROFILE_STORE_NAME = "LanternForager_Profiles_v1"
 -- 7: Łysa Góra (mountainUnlocked, nowe poziomy ulepszeń)
 -- 8: gablota (showcase, trophies), pogoda w ogródku (weatherNight), Znalezisko Nocy, Zima.
+-- 9: settings.forecastSeen (podpowiedź Prognozy nocy).
 -- Podnoś przy każdym nowym polu zapisu: serwer ze starszą wersją nie otworzy nowszego zapisu (load).
-local DATA_VERSION = 8
+local DATA_VERSION = 9
 local MAX_ATTEMPTS = 3
 -- Ile czekamy na otwarcie zapisu. Przy awarii DataStore Robloxa ProfileStore z własnym Cancel
 -- ponawia w nieskończoność, a gracz stał w grze bez danych (wszędzie „Label”, nic nie działa).
@@ -139,7 +141,7 @@ function DataService.defaultData(): Data
 		titles = {},
 		badges = {},
 		invited = {},
-		settings = { music = true, sfx = true, musicVolume = 1, sfxVolume = 1, x2Card = true },
+		settings = { music = true, sfx = true, musicVolume = 1, sfxVolume = 1, x2Card = true, forecastSeen = false },
 		basket = {},
 		planted = {},
 		pot = 0,
@@ -349,6 +351,7 @@ local function reconcile(raw: any): Data
 		data.settings.musicVolume = Progress.normalizeVolume(raw.settings.musicVolume) or 1
 		data.settings.sfxVolume = Progress.normalizeVolume(raw.settings.sfxVolume) or 1
 		data.settings.x2Card = raw.settings.x2Card ~= false
+		data.settings.forecastSeen = raw.settings.forecastSeen == true
 	end
 	if typeof(raw.basket) == "table" then
 		for _, item in raw.basket do

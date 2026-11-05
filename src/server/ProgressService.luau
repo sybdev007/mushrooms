@@ -52,6 +52,7 @@ local function applySettings(player: Player, data: Data)
 	player:SetAttribute("MusicVolume", data.settings.musicVolume)
 	player:SetAttribute("SfxVolume", data.settings.sfxVolume)
 	player:SetAttribute("X2Card", data.settings.x2Card)
+	player:SetAttribute("ForecastSeen", data.settings.forecastSeen)
 end
 
 local api: Api
@@ -797,6 +798,10 @@ function ProgressService.start(serviceApi: Api)
 			applySettings(player, data)
 		elseif key == "x2Card" and typeof(value) == "boolean" then
 			settings.x2Card = value
+			applySettings(player, data)
+		elseif key == "forecastSeen" and value == true then
+			-- Gracz otworzył Prognozę nocy: podpowiedź przy 🔮 znika na zawsze (tylko w jedną stronę)
+			settings.forecastSeen = true
 			applySettings(player, data)
 		elseif key == "musicVolume" or key == "sfxVolume" then
 			-- Suwak: 0..1 co 5%, śmieci odrzucamy; 0 = wyłączone

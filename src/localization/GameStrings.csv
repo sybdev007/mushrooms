@@ -1092,3 +1092,4 @@ FORECAST_REGROW,Regrows {1}x faster,,,Odrasta {1}× szybciej
 FORECAST_DARK,Lantern reaches less,,,Latarnia sięga bliżej
 FORECAST_BRIGHT,Lantern reaches further,,,Latarnia sięga dalej
 FORECAST_NONE,No changes,,,Bez zmian
+FORECAST_HINT,Night forecast! Click here or press N,,,Prognoza nocy! Kliknij albo naciśnij N

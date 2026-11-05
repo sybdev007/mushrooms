@@ -190,6 +190,7 @@ Remotes.get("StateUpdate").OnClientEvent:Connect(function(state)
 		introStarted = false
 	end
 	Tutorial.update(state)
+	NightForecast.update(state)
 end)
 
 -- Ekspedycja: tablica, kolekcja i karta celu dostają ten sam stan

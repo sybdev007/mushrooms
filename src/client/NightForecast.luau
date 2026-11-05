@@ -8,11 +8,14 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared:WaitForChild("Config"))
 local Cycle = require(Shared:WaitForChild("Cycle"))
+local Remotes = require(Shared:WaitForChild("Remotes"))
 local Hud = require(script.Parent.Hud)
 local Localize = require(script.Parent.Localize)
 local PanelKit = require(script.Parent.PanelKit)
@@ -152,11 +155,56 @@ local function render()
 	end
 end
 
+-- ===== Podpowiedź: „tu jest prognoza” =====
+-- Dopóki gracz ani razu nie otworzył prognozy (ustawienie forecastSeen w zapisie, atrybut gracza
+-- ForecastSeen), przycisk 🔮 pulsuje, a obok co jakiś czas wyskakuje dymek: po wejściu do gry i o każdym
+-- świcie, na HINT_SECONDS. W trakcie samouczka nic (NightForecast.update dostaje stan gracza).
+local HINT_SECONDS = 12
+local player = Players.LocalPlayer
+local tutorialDone = false
+local orbScale = Instance.new("UIScale")
+local bubbleUntil = 0
+local hintShownOnce = false
+
+local function seen(): boolean
+	return player:GetAttribute("ForecastSeen") == true
+end
+
+local function hintActive(): boolean
+	-- Atrybut przychodzi z serwera po wczytaniu zapisu; zanim przyjdzie, nic nie pokazujemy
+	return tutorialDone and player:GetAttribute("ForecastSeen") == false
+end
+
+local function showBubble()
+	if hintActive() then
+		bubbleUntil = os.clock() + HINT_SECONDS
+	end
+end
+
 local function setOpen(open: boolean)
 	panel.Visible = open
 	if open then
 		render()
+		bubbleUntil = 0
+		if not seen() then
+			-- Pierwsze otwarcie: podpowiedź znika na zawsze (serwer zapisuje forecastSeen)
+			player:SetAttribute("ForecastSeen", true)
+			Remotes.get("SaveSettings"):FireServer("forecastSeen", true)
+		end
 	end
+end
+
+-- Stan gracza ze StateUpdate (Main.client): podpowiedź dopiero po samouczku
+function NightForecast.update(state: any)
+	local done = typeof(state) == "table" and typeof(state.tutorial) == "number" and state.tutorial >= Config.Tutorial.done
+	if done and not tutorialDone then
+		tutorialDone = true
+		if not hintShownOnce then
+			hintShownOnce = true
+			task.delay(4, showBubble)
+		end
+	end
+	tutorialDone = done
 end
 
 function NightForecast.toggle()
@@ -197,6 +245,49 @@ function NightForecast.start()
 	PanelKit.corner(orb, UDim.new(1, 0))
 	PanelKit.stroke(orb, PanelKit.OUTLINE, 2)
 	orb.Activated:Connect(NightForecast.toggle)
+	orbScale.Parent = orb
+	-- Dymek z podpowiedzią po prawej stronie przycisku
+	local tip = Instance.new("Frame")
+	tip.Name = "ForecastHint"
+	tip.Size = UDim2.fromOffset(250, 30)
+	tip.Position = UDim2.new(1, 40, 0, -1)
+	tip.BackgroundColor3 = Color3.fromRGB(70, 46, 120)
+	tip.Visible = false
+	tip.Parent = zone
+	PanelKit.corner(tip, UDim.new(0, 10))
+	PanelKit.stroke(tip, PanelKit.GOLD, 2)
+	local tipText = PanelKit.label(tip, "Text", UDim2.new(1, -14, 1, -6), UDim2.fromOffset(7, 3), 16, PanelKit.TEXT)
+	UiKit.outline(tipText, 1.5)
+	local arrowTip = Instance.new("Frame")
+	arrowTip.Name = "Arrow"
+	arrowTip.Size = UDim2.fromOffset(12, 12)
+	arrowTip.AnchorPoint = Vector2.new(0.5, 0.5)
+	arrowTip.Position = UDim2.fromScale(0, 0.5)
+	arrowTip.Rotation = 45
+	arrowTip.BackgroundColor3 = Color3.fromRGB(70, 46, 120)
+	arrowTip.BorderSizePixel = 0
+	arrowTip.ZIndex = 0
+	arrowTip.Parent = tip
+	local function tipLabel()
+		tipText.Text = "🔮 " .. Localize.t("FORECAST_HINT")
+	end
+	tipLabel()
+	Localize.onChanged(tipLabel)
+	-- Pulsowanie i dymek (co klatkę; tanie: dwie właściwości)
+	local lastPhase: string? = nil
+	RunService.RenderStepped:Connect(function()
+		local active = hintActive()
+		orbScale.Scale = if active then 1 + 0.12 * math.abs(math.sin(os.clock() * 3)) else 1
+		tip.Visible = active and os.clock() < bubbleUntil and not panel.Visible
+		-- O świcie dymek wraca (gracz stoi i czeka na odrost: dobry moment na prognozę)
+		local phase = Cycle.at(Workspace:GetServerTimeNow()).phase
+		if phase ~= lastPhase then
+			if phase == "dawn" and lastPhase ~= nil then
+				showBubble()
+			end
+			lastPhase = phase
+		end
+	end)
 	close.Activated:Connect(function()
 		setOpen(false)
 	end)

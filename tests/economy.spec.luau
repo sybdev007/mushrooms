@@ -287,7 +287,7 @@ test("DataService ładuje v5 jako v8 bez utraty ekwipunku i kupionych poziomów"
 	})
 	local migrated, canSave = DataService.load({ UserId = 1234, Parent = players })
 	check(canSave, "profil otwarty")
-	eq(migrated.version, 8)
+	eq(migrated.version, 9)
 	eq(migrated.coins, 43210)
 	eq(migrated.upgrades.boots, 8)
 	eq(migrated.upgrades.oil, 10)
@@ -306,10 +306,16 @@ test("DataService ładuje v5 jako v8 bez utraty ekwipunku i kupionych poziomów"
 	eq(migrated.pot, 123456, "ponowna migracja nie obcina skrzyni v5")
 	eq(migrated.potMinutes, 240)
 	eq(migrated.luckUntil, profile.Data.luckUntil)
+	eq(migrated.settings.forecastSeen, false, "stary zapis: podpowiedź Prognozy nocy jeszcze się pokaże")
+	migrated.settings.forecastSeen = true
 	local again = DataService.load({ UserId = 1234, Parent = players })
-	eq(again.version, 8)
+	eq(again.version, 9)
 	eq(again.upgrades.boots, 8, "migracja idempotentna")
 	eq(again.coins, 43210)
+	eq(again.settings.forecastSeen, true, "forecastSeen przetrwa ponowne wczytanie")
+	profile.Data.settings.forecastSeen = "tak"
+	eq(DataService.load({ UserId = 1234, Parent = players }).settings.forecastSeen, false, "śmieci = nie widział")
+	profile.Data.settings.forecastSeen = true
 	-- Zapis z nowszej wersji gry na starym serwerze: bez nadpisania, gracz wyrzucony (review-petla P0)
 	local newer = { version = 99, coins = 5, showcase = { n = 7 }, futureField = true }
 	profile.Data = newer
@@ -377,7 +383,7 @@ test("DataService: zupełnie nowy gracz (pusty profil, bez starego zapisu) dosta
 	end })
 	check(ok, "load nie wywala się na nowym graczu: " .. tostring(data))
 	check(canSave and not kicked, "nowy gracz gra i zapisuje")
-	eq(data.version, 8)
+	eq(data.version, 9)
 	eq(data.tutorial, 0, "nowy gracz zaczyna od samouczka")
 end)
 
