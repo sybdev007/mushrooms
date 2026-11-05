@@ -36,6 +36,10 @@ las → jaskinia (30 000 monet) → bagna (1 000 000) → **Łysa Góra** (10 00
 - **Ścieżka grzybiarza** (od 5.11, `src/shared/ForagerPath.luau`): po samouczku karta misji prowadzi przez
   6 celów do otwarcia Jaskini (buty 3, 8 gatunków, mutacja, Korona Leszego, ucieczka, 30 000 monet i portal).
   Bez nagród i nowych pól zapisu; analityka `Milestone_Path_<id>` pokazuje, gdzie nowi gracze odpadają.
+- **Karta zdobyczy** (od 5.11, `src/client/FindCard.luau`): nowa forma w Grzybopedii Złota+, grzyb strażnika
+  albo z kuźni (`Showcase.cardWorthy`) = karta u góry ekranu z modelem 3D i przyciskiem „Wystaw w gablocie”
+  (z dowolnego miejsca, tylko na wolne kupione miejsce, `Showcase.quickSlot`). Nad regałem tabliczka
+  „🏆 imię · N 🍄”. Analityka `Milestone_FindCardShowcase`.
 - Eventy (daty w `Config`, UTC): **Halloween do 10.11 00:00** (cukierki, kocioł, Noc Dziadów),
   **Zima 1.12 – 7.01** (płatki, choinka, kalendarz adwentowy). Zima jeszcze nie była na żywo:
   sprawdzić w Studio przed 1.12 (panel DEV).
@@ -107,9 +111,10 @@ Magazyn `LanternForager_Profiles_v1`, klucz `player_1293490018`.
 5. ~~Dodać do repo `loop-research.md` i `review-petla.md`~~: zrobione (`8bc2c69`).
 6. Monetyzacja (`docs/plans/monetization-research.md`): NIE dla stałego x2 monet, gatunków za Robux, x2 za monety.
    Do pilotażu po tygodniu obserwacji Analytics: kod 0,25 S raz na konto, kosmetyczny VIP 249 R$.
-7. Pomysły z researchu hitów (`docs/plans/hit-research.md`, Codex 5.11). Zrobione: Ścieżka grzybiarza.
-   Następne w jego rankingu: wyeksponowany zegar nocy + Roblox Events, prezentacja zdobyczy i gabloty,
-   wskazówki do przepisów kuźni, zbiórka do ekspedycji. Za ok. tydzień sprawdzić `Path_*` w Analytics.
+7. Pomysły z researchu hitów (`docs/plans/hit-research.md`, Codex 5.11). Zrobione: Ścieżka grzybiarza,
+   karta zdobyczy i tabliczka gabloty. Następne w jego rankingu: wyeksponowany zegar nocy + Roblox Events,
+   wskazówki do przepisów kuźni, zbiórka do ekspedycji. Za ok. tydzień sprawdzić w Analytics `Path_*`
+   i `FindCardShowcase`.
 
 ## Numery
 
