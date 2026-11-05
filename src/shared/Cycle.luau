@@ -94,6 +94,58 @@ function Cycle.activeEvent(t: number): Config.NightEventDef?
 	return if phase.phase == "night" then phase.event else nil
 end
 
+-- ===== Prognoza (okno „Prognoza nocy”, tools/night_forecast.luau) =====
+-- Noce liczymy z zegara, więc każdą przyszłą noc znamy już teraz, tak samo na każdym serwerze.
+
+export type Night = { index: number, startsAt: number, event: Config.NightEventDef }
+
+-- Początek nocy numer `index` (os.time)
+function Cycle.nightStart(index: number): number
+	return index * Cycle.length()
+end
+
+-- `count` nocy, które się jeszcze nie zaczęły (od najbliższej)
+function Cycle.upcoming(t: number, count: number): { Night }
+	local list: { Night } = {}
+	local first = math.floor(t / Cycle.length()) + 1
+	for index = first, first + count - 1 do
+		table.insert(list, { index = index, startsAt = Cycle.nightStart(index), event = Cycle.eventFor(index) })
+	end
+	return list
+end
+
+-- Najbliższa noc z tym zdarzeniem, która się jeszcze nie zaczęła (szukamy najwyżej `limit` nocy naprzód)
+function Cycle.nextOf(t: number, eventId: string, limit: number?): Night?
+	local first = math.floor(t / Cycle.length()) + 1
+	for index = first, first + (limit or 500) - 1 do
+		local event = Cycle.eventFor(index)
+		if event.id == eventId then
+			return { index = index, startsAt = Cycle.nightStart(index), event = event }
+		end
+	end
+	return nil
+end
+
+-- Działanie zdarzenia do opisu: klucz tekstu (CSV) i liczba do wstawienia (nil = bez liczby)
+function Cycle.effects(event: Config.NightEventDef): { { key: string, value: number? } }
+	local list: { { key: string, value: number? } } = {}
+	if event.luck > 1 then
+		table.insert(list, { key = "FORECAST_LUCK", value = event.luck })
+	end
+	if event.regrow < 1 then
+		table.insert(list, { key = "FORECAST_REGROW", value = math.floor(100 / event.regrow + 0.5) / 100 })
+	end
+	if event.lantern < 1 then
+		table.insert(list, { key = "FORECAST_DARK", value = nil })
+	elseif event.lantern > 1 then
+		table.insert(list, { key = "FORECAST_BRIGHT", value = nil })
+	end
+	if #list == 0 then
+		table.insert(list, { key = "FORECAST_NONE", value = nil })
+	end
+	return list
+end
+
 -- Pokolenie lasu z kalendarza = numer ostatniego świtu (las odrasta wszystkim o świcie)
 function Cycle.generation(t: number): number
 	local phase = Cycle.at(t)

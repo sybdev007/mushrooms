@@ -4285,6 +4285,51 @@ test("karta zdobyczy: tylko wyjątkowe nowe formy; wystawienie z daleka tylko z 
 	end
 end)
 
+test("prognoza nocy: następne noce, najbliższy Krwawy księżyc i działanie zdarzeń", function()
+	local length = Cycle.length()
+	local t = 1800000000 + 123 -- w środku jakiejś nocy
+	local index = math.floor(t / length)
+	local list = Cycle.upcoming(t, 5)
+	eq(#list, 5)
+	for i, night in list do
+		eq(night.index, index + i, "kolejne noce")
+		eq(night.startsAt, (index + i) * length, "start nocy")
+		check(night.startsAt > t, "tylko noce, które się jeszcze nie zaczęły")
+		eq(night.event.id, Cycle.eventFor(index + i).id, "to samo zdarzenie co w grze")
+		eq(Cycle.at(night.startsAt).phase, "night", "w chwili startu jest noc")
+		eq(Cycle.at(night.startsAt).index, night.index)
+		eq(Cycle.at(night.startsAt - 1).phase, "dawn", "sekundę wcześniej świt")
+	end
+	local blood = Cycle.nextOf(t, "blood_moon") :: any
+	check(blood ~= nil, "Krwawy księżyc w zasięgu")
+	eq(blood.event.id, "blood_moon")
+	check(blood.startsAt > t)
+	for i = index + 1, blood.index - 1 do
+		check(Cycle.eventFor(i).id ~= "blood_moon", "wcześniejszy Krwawy księżyc pominięty")
+	end
+	eq(Cycle.nextOf(t, "nie_ma_takiego", 50), nil)
+	-- Działanie: tylko to, co naprawdę zmienia noc
+	local byId: { [string]: any } = {}
+	for _, event in Config.Cycle.events do
+		byId[event.id] = event
+	end
+	local function keys(id: string): string
+		local out = {}
+		for _, e in Cycle.effects(byId[id]) do
+			table.insert(out, e.key .. (if e.value then "=" .. tostring(e.value) else ""))
+		end
+		return table.concat(out, ",")
+	end
+	eq(keys("calm"), "FORECAST_NONE")
+	eq(keys("full_moon"), "FORECAST_LUCK=1.5,FORECAST_BRIGHT")
+	eq(keys("rain"), "FORECAST_REGROW=2")
+	eq(keys("mist"), "FORECAST_LUCK=1.3,FORECAST_DARK")
+	eq(keys("blood_moon"), "FORECAST_LUCK=2.5,FORECAST_REGROW=1.25,FORECAST_DARK")
+	for _, key in { "FORECAST_TITLE", "FORECAST_NOW", "FORECAST_DAWN", "FORECAST_DAWN_INFO", "FORECAST_RARE", "FORECAST_TOMORROW", "FORECAST_LUCK", "FORECAST_REGROW", "FORECAST_DARK", "FORECAST_BRIGHT", "FORECAST_NONE" } do
+		check(csvHas(key), "brak w CSV: " .. key)
+	end
+end)
+
 print(string.format("\n%d ok, %d błędów", passed, failed))
 if failed > 0 then
 	process.exit(1)

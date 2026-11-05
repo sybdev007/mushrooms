@@ -1081,3 +1081,14 @@ FINDCARD_SHOW,Put it in my showcase,,,Wystaw w gablocie
 FINDCARD_FULL,No free showcase spot - buy one at the shelf in your garden,,,Brak wolnego miejsca w gablocie - kupisz je przy regale w ogródku
 MSG_SHOWCASE_QUICK,🏆 It stands in your garden showcase (spot {1}),,,🏆 Stoi w gablocie w twoim ogródku (miejsce {1})
 MSG_SHOWCASE_QUICK_FULL,No free showcase spot - buy one at the shelf in your garden,,,Brak wolnego miejsca w gablocie - kupisz je przy regale w ogródku
+FORECAST_TITLE,NIGHT FORECAST,,,PROGNOZA NOCY
+FORECAST_NOW,Now: {1} {2} - {3} left,,,Teraz: {1} {2} - zostało {3}
+FORECAST_DAWN,Now: 🌅 Dawn - {1} left,,,Teraz: 🌅 Świt - zostało {1}
+FORECAST_DAWN_INFO,The forest regrows for everyone at dawn,,,O świcie las odrasta wszystkim od nowa
+FORECAST_RARE,Next {1} {2}: {3} (in {4}),,,Najbliższy {1} {2}: {3} (za {4})
+FORECAST_TOMORROW,tomorrow {1},,,jutro {1}
+FORECAST_LUCK,Luck x{1},,,Szczęście ×{1}
+FORECAST_REGROW,Regrows {1}x faster,,,Odrasta {1}× szybciej
+FORECAST_DARK,Lantern reaches less,,,Latarnia sięga bliżej
+FORECAST_BRIGHT,Lantern reaches further,,,Latarnia sięga dalej
+FORECAST_NONE,No changes,,,Bez zmian

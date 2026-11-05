@@ -1102,8 +1102,10 @@ local function cycleText(): string
 	return "🌙 " .. clock .. " · "
 end
 
--- Następna noc: pokazujemy o świcie i w ostatnich minutach nocy (Config.Cycle, atrybuty z serwera)
+-- Następna noc: pokazujemy o świcie i w ostatnich minutach nocy (Config.Cycle, atrybuty z serwera).
+-- Krwawy księżyc zapowiadamy wcześniej (rzadki, warto zdążyć wrócić do lasu).
 local FORECAST_BEFORE = 180
+local FORECAST_BEFORE_RARE: { [string]: number } = { blood_moon = 600 }
 local function forecastText(): string?
 	local phase = Workspace:GetAttribute("CyclePhase")
 	local endsAt = Workspace:GetAttribute("CycleEndsAt")
@@ -1113,7 +1115,8 @@ local function forecastText(): string?
 	end
 	local now = Workspace:GetServerTimeNow()
 	local startsAt = if phase == "dawn" then endsAt else endsAt + Config.Cycle.dawnSeconds
-	if phase ~= "dawn" and endsAt - now > FORECAST_BEFORE then
+	local lead = if typeof(nextId) == "string" then FORECAST_BEFORE_RARE[nextId] or FORECAST_BEFORE else FORECAST_BEFORE
+	if phase ~= "dawn" and endsAt - now > lead then
 		return nil
 	end
 	for _, def in Config.Cycle.events do
@@ -1291,6 +1294,15 @@ function Hud.setTutorialFocus(id: string?)
 end
 
 -- Panel monet i koszyka w lewym górnym rogu oraz pasek oleju (do podświetlania w samouczku)
+-- Pasek strefy z zegarem nocy i zapowiedź następnej nocy (klik otwiera Prognozę nocy, NightForecast)
+function Hud.zonePill(): GuiObject
+	return zonePill
+end
+
+function Hud.forecastPill(): GuiObject
+	return forecastPill
+end
+
 function Hud.statsPanel(): GuiObject
 	return stats
 end
