@@ -1261,6 +1261,10 @@ Config.Forge = {
 	-- Gorąco = Σ (ranga + tagHeat × liczba cech) trzech grzybów / heatFull, najwyżej 1.
 	mutation = { base = 0.5, gain = { 4, 8, 20, 40 }, heatFull = 9, tagHeat = 0.5 },
 	recipeOdds = { hit = 0.7, lucky = 0.08 }, -- przepis trafia w 70% (w tym 8% o rangę wyżej), reszta to runa
+	-- Wskazówki do ukrytych przepisów (Forge.hints): co tyle połączeń w moździerzu Grzybopedia odsłania
+	-- kolejny składnik (gatunek) nieodkrytego przepisu; trzeci składnik zostaje „❔” (szuka się go „Ciepło!”)
+	hintEvery = 5,
+	hintSlots = 2,
 	feeShare = 0.08, -- opłata = taka część wartości trzech wrzuconych grzybów
 	minFee = 5,
 	-- Średni wynik nigdy nie przekracza tej części (wrzucone + opłata): gdy trójka może dać więcej, niż jest

@@ -1093,3 +1093,8 @@ FORECAST_DARK,Lantern reaches less,,,Latarnia sięga bliżej
 FORECAST_BRIGHT,Lantern reaches further,,,Latarnia sięga dalej
 FORECAST_NONE,No changes,,,Bez zmian
 FORECAST_HINT,Night forecast! Click here or press N,,,Prognoza nocy! Kliknij albo naciśnij N
+FORGE_STATUS_WARM,🔥 Warm! Two of the three match a hidden recipe. Swap the third one.,,,🔥 Ciepło! Dwa z trzech pasują do ukrytego przepisu. Wymień trzeci.
+FORGE_STATUS_WARM_MORE,🔥 Warm! These two match a hidden recipe. Find the third one.,,,🔥 Ciepło! Te dwa pasują do ukrytego przepisu. Znajdź trzeci.
+ATLAS_HINT_SECRET_JAGA,Three rainbow guardians - and one of them is Baba Jaga...,,,Trzech tęczowych strażników - a wśród nich Baba Jaga...
+ATLAS_FORGE_NEXT_HINT,📜 Next hint after {1} more fusions in the mortar.,,,📜 Następna wskazówka po {1} połączeniach w moździerzu.
+ATLAS_FORGE_ALL_HINTS,📜 All hints revealed. The last ingredient you find yourself: the mortar says Warm!,,,📜 Wszystkie wskazówki odkryte. Ostatni składnik znajdziesz sam: moździerz powie Ciepło!

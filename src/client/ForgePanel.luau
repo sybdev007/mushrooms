@@ -1231,6 +1231,18 @@ local function renderButton(preview: Forge.Preview?)
 	barUi.fuseGlow.Transparency = if active then 0.5 else 1
 end
 
+-- „Ciepło”: ile wybranych grzybów pasuje naraz do ukrytego, jeszcze nieodkrytego przepisu (Forge.warmth)
+local function warmth(): number
+	local discovered: { [string]: boolean } = {}
+	for id, mask in found do
+		if (tonumber(mask) or 0) > 0 then
+			discovered[id] = true
+		end
+	end
+	local count = Forge.warmth(chosenItems(), access, discovered)
+	return count
+end
+
 local function statusText(preview: Forge.Preview?): string
 	local now = os.clock()
 	if hint and now < hint.untilAt then
@@ -1245,6 +1257,9 @@ local function statusText(preview: Forge.Preview?): string
 	if picked == 0 then
 		return t("FORGE_STATUS_PICK", { Config.Forge.maxTags })
 	elseif not preview then
+		if picked == Forge.SLOTS - 1 and warmth() >= 2 then
+			return t("FORGE_STATUS_WARM_MORE")
+		end
 		return t("FORGE_STATUS_MORE", { picked, Forge.SLOTS - picked })
 	elseif coins < preview.fee then
 		return t("FORGE_NO_COINS", { formatCoins(preview.fee - coins) })
@@ -1257,6 +1272,10 @@ local function statusText(preview: Forge.Preview?): string
 			return t("FORGE_STATUS_RECIPE", { speciesName(match.id), percent(preview.recipeHit), percent(preview.recipeLucky) })
 		end
 		return t("FORGE_STATUS_SENSE")
+	end
+	-- Dwa z trzech pasują do ukrytego przepisu: podpowiedź za darmo, przed połączeniem
+	if warmth() >= 2 then
+		return t("FORGE_STATUS_WARM")
 	end
 	-- Wkład droższy niż wszystko, co rośnie: runa prawie zawsze odda mniej
 	if (preview.odds.similar or 0) + (preview.odds.better or 0) + (preview.odds.great or 0) < 0.05 then

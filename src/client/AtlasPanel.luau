@@ -11,6 +11,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared.Config)
 local Economy = require(Shared.Economy)
+local Forge = require(Shared.Forge)
 local Progress = require(Shared.Progress)
 local Remotes = require(Shared.Remotes)
 local ProgressFeed = require(script.Parent.ProgressFeed)
@@ -216,19 +217,42 @@ local function rgb(color: { number }): Color3
 	return Color3.fromRGB(color[1], color[2], color[3])
 end
 
--- Podpowiedź do nieodkrytego grzyba z kuźni: cechy z ukrytego przepisu i świat, a przy strażnikach tylko opis
+-- Połączenia w moździerzu (stats.forged z ProgressFeed): od nich zależy, ile wskazówek widać
+local forgedCount = 0
+
+-- Odkryte gatunki z kuźni (forma w Grzybopedii)
+local function forgeDiscovered(): { [string]: boolean }
+	local discovered: { [string]: boolean } = {}
+	for _, recipe in Config.Forge.recipes do
+		if Progress.mask(atlas, recipe.id) > 0 then
+			discovered[recipe.id] = true
+		end
+	end
+	return discovered
+end
+
+-- Podpowiedź do nieodkrytego grzyba z kuźni: cechy z ukrytego przepisu i świat; co Config.Forge.hintEvery
+-- połączeń kolejny składnik z nazwy (Forge.hints). Oko Welesa: po Kwiecie Paproci wiadomo, że z Jagą.
 local function forgeHint(species: Config.SpeciesDef): string
 	if species.class == "secret" then
-		return Localize.t("ATLAS_HINT_SECRET")
+		local fern = Progress.mask(atlas, "fern_flower") > 0
+		return Localize.t(if fern then "ATLAS_HINT_SECRET_JAGA" else "ATLAS_HINT_SECRET")
 	elseif species.class then
 		return Localize.t("ATLAS_HINT_MYTHIC")
 	end
+	local revealed = Forge.hints(forgedCount, forgeDiscovered())
 	for _, recipe in Config.Forge.recipes do
 		if recipe.id == species.id then
+			local named = revealed[recipe.id] or 0
 			local parts = {}
-			for _, input in recipe.inputs do
+			for slot, input in recipe.inputs do
 				local tag = if input.tag then Economy.getTag(input.tag) else nil
-				table.insert(parts, if tag then tag.icon else "❔")
+				local def = Economy.getSpecies(input.s)
+				if slot <= named and def then
+					table.insert(parts, Localize.t(def.key) .. (if tag then " " .. tag.icon else ""))
+				else
+					table.insert(parts, if tag then tag.icon else "❔")
+				end
 			end
 			return Localize.t("ATLAS_HINT_RECIPE", { table.concat(parts, " + "), Localize.t("ATLAS_PAGE_" .. string.upper(recipe.world)) })
 		end
@@ -370,7 +394,10 @@ local function render()
 		local found, total = Progress.forgeFound(atlas, true)
 		summary.Text = Localize.t("ATLAS_FORGE_SUMMARY", { found, total })
 		forgeTitle.Text = Localize.t("FORGE_TITLE")
+		local _, nextIn = Forge.hints(forgedCount, forgeDiscovered())
 		forgeText.Text = Localize.t("ATLAS_FORGE_INFO")
+			.. "\n\n"
+			.. (if nextIn then Localize.t("ATLAS_FORGE_NEXT_HINT", { nextIn }) else Localize.t("ATLAS_FORGE_ALL_HINTS"))
 	else
 		summary.Text = Localize.t("ATLAS_SUMMARY", {
 			percent(bonus),
@@ -546,6 +573,7 @@ ProgressFeed.subscribe(function(payload)
 	end
 	atlas = payload.atlas
 	bestiary = if typeof(payload.bestiary) == "table" then payload.bestiary else {}
+	forgedCount = if typeof(payload.stats) == "table" then tonumber(payload.stats.forged) or 0 else 0
 	-- Strażnicy odkryci od poprzedniej paczki (pierwsza paczka po wejściu to tylko stan)
 	local foundNow: { [string]: boolean } = {}
 	for _, def in Progress.GUARDIANS do

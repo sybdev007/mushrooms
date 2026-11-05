@@ -4336,6 +4336,56 @@ test("prognoza nocy: następne noce, najbliższy Krwawy księżyc i działanie z
 	end
 end)
 
+test("kuźnia: „Ciepło!” przy 2 z 3 składnikach i wskazówki co kilka połączeń", function()
+	local open = { swampUnlocked = true, mountainUnlocked = true, jagaEscapes = 1 }
+	local recipe = Config.Forge.recipes[1]
+	local function item(input: any): any
+		return { s = input.s, x = if input.tag then { input.tag } else nil }
+	end
+	local a, b, c = item(recipe.inputs[1]), item(recipe.inputs[2]), item(recipe.inputs[3])
+	local other = { s = "honey" }
+	eq((Forge.warmth({ a, b, other }, open, {})), 2, "dwa z trzech")
+	eq((Forge.warmth({ other, c, a }, open, {})), 2, "kolejność bez znaczenia")
+	eq((Forge.warmth({ a, b }, open, {})), 2, "dwa wybrane")
+	eq((Forge.warmth({ a, other, other }, open, {})), 1)
+	eq((Forge.warmth({ a, b, c }, open, {})), 3, "komplet")
+	local _, id = Forge.warmth({ a, b, other }, open, {})
+	eq(id, recipe.id)
+	-- Bez wymaganej cechy składnik nie pasuje
+	if recipe.inputs[1].tag then
+		eq((Forge.warmth({ { s = recipe.inputs[1].s }, b, other }, open, {})), 1, "bez cechy")
+	end
+	-- Odkryty przepis i przepis bez dostępu nie grzeją
+	eq((Forge.warmth({ a, b, other }, open, { [recipe.id] = true })), 0, "odkryty")
+	eq((Forge.warmth({ a, b, other }, {}, {})), 0, "bez Bagien")
+	eq((Forge.warmth({}, open, {})), 0)
+	-- Wskazówki: co hintEvery połączeń jeden składnik, najpierw pierwszy składnik każdego przepisu
+	local every, n = Config.Forge.hintEvery, #Config.Forge.recipes
+	local r0, next0 = Forge.hints(0, {})
+	eq(r0[recipe.id], 0)
+	eq(next0, every)
+	local r1, next1 = Forge.hints(every, {})
+	eq(r1[recipe.id], 1, "po hintEvery: pierwszy składnik pierwszego przepisu")
+	eq(r1[Config.Forge.recipes[2].id], 0)
+	eq(next1, every)
+	local r2 = Forge.hints(every * (n + 1) + 2, {})
+	eq(r2[recipe.id], 2, "drugi składnik po pierwszej rundzie")
+	eq(r2[Config.Forge.recipes[n].id], 1)
+	local rAll, nextAll = Forge.hints(10 ^ 6, {})
+	for _, r in Config.Forge.recipes do
+		eq(rAll[r.id], Config.Forge.hintSlots, "najwyżej hintSlots składników: " .. r.id)
+	end
+	eq(nextAll, nil, "wszystko odkryte")
+	-- Odkryty przepis nie zabiera kolejki: pierwszą wskazówkę dostaje następny
+	local skip = Forge.hints(every, { [recipe.id] = true })
+	eq(skip[recipe.id], nil)
+	eq(skip[Config.Forge.recipes[2].id], 1)
+	eq(select(2, Forge.hints(every - 2, {})), 2, "ile połączeń do następnej")
+	for _, key in { "FORGE_STATUS_WARM", "FORGE_STATUS_WARM_MORE", "ATLAS_HINT_SECRET_JAGA", "ATLAS_FORGE_NEXT_HINT", "ATLAS_FORGE_ALL_HINTS" } do
+		check(csvHas(key), "brak w CSV: " .. key)
+	end
+end)
+
 print(string.format("\n%d ok, %d błędów", passed, failed))
 if failed > 0 then
 	process.exit(1)

@@ -209,6 +209,64 @@ function Forge.match(items: { Item }, access: Access): Match?
 	return nil
 end
 
+-- ===== Wskazówki do ukrytych przepisów =====
+
+local function inputFits(input: Config.ForgeInput, item: Item): boolean
+	return item.s == input.s and (input.tag == nil or hasTag(item, input.tag))
+end
+
+-- „Ciepło”: najwięcej grzybów z `items` (1..3 wybrane), które naraz pasują do składników jednego
+-- przepisu, do którego gracz ma dostęp, a którego jeszcze nie odkrył (discovered[id] = true = odkryty).
+-- Zwraca liczbę (0..3) i id przepisu. Moździerz mówi „Ciepło!” przy 2 (przy 3 działa już przepis).
+function Forge.warmth(items: { Item }, access: Access, discovered: { [string]: boolean }): (number, string?)
+	local best, bestId = 0, nil
+	if #items == 0 or #items > Forge.SLOTS then
+		return 0, nil
+	end
+	for _, recipe in Config.Forge.recipes do
+		if not discovered[recipe.id] and Forge.unlocked(recipe, access) then
+			for _, perm in PERMS do
+				local count = 0
+				for index, item in items do
+					if inputFits(recipe.inputs[perm[index]], item) then
+						count += 1
+					end
+				end
+				if count > best then
+					best, bestId = count, recipe.id
+				end
+			end
+		end
+	end
+	return best, bestId
+end
+
+-- Ile składników każdego nieodkrytego przepisu Grzybopedia już podaje z nazwy (0..hintSlots).
+-- Co hintEvery połączeń odsłania się jeden składnik, po kolei: pierwszy składnik każdego przepisu
+-- (w kolejności z Config), potem drugi. Odkryte przepisy nie zabierają kolejki.
+-- Zwraca mapę id -> liczba składników i ile połączeń zostało do następnej wskazówki (nil = wszystkie).
+function Forge.hints(forged: number, discovered: { [string]: boolean }): ({ [string]: number }, number?)
+	local every, slots = Config.Forge.hintEvery, Config.Forge.hintSlots
+	local open: { Config.ForgeRecipe } = {}
+	for _, recipe in Config.Forge.recipes do
+		if not discovered[recipe.id] then
+			table.insert(open, recipe)
+		end
+	end
+	local revealed: { [string]: number } = {}
+	for _, recipe in open do
+		revealed[recipe.id] = 0
+	end
+	local total = #open * slots
+	local pieces = math.clamp(math.floor(math.max(forged, 0) / every), 0, total)
+	for piece = 1, pieces do
+		local recipe = open[(piece - 1) % #open + 1]
+		revealed[recipe.id] += 1
+	end
+	local nextIn = if pieces < total then (pieces + 1) * every - math.floor(math.max(forged, 0)) else nil
+	return revealed, nextIn
+end
+
 -- Połączone cechy trzech grzybów (posortowane, bez powtórzeń)
 function Forge.unionTags(items: { Item }): { string }
 	local tags = {}
