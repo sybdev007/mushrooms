@@ -105,11 +105,11 @@ Magazyn `LanternForager_Profiles_v1`, klucz `player_1293490018`.
    Przed zimą 2027 wyzerować `advent`, `stats.snowflakes` i `winterClaimed` (zapis nie pamięta roku).
    Drobiazg spoza zimy: `StateUpdate` ma dwóch odbiorców (ExpeditionView i Main.client), zasada 4.
 5. ~~Dodać do repo `loop-research.md` i `review-petla.md`~~: zrobione (`8bc2c69`).
+6. Monetyzacja (`docs/plans/monetization-research.md`): NIE dla stałego x2 monet, gatunków za Robux, x2 za monety.
+   Do pilotażu po tygodniu obserwacji Analytics: kod 0,25 S raz na konto, kosmetyczny VIP 249 R$.
 7. Pomysły z researchu hitów (`docs/plans/hit-research.md`, Codex 5.11). Zrobione: Ścieżka grzybiarza.
    Następne w jego rankingu: wyeksponowany zegar nocy + Roblox Events, prezentacja zdobyczy i gabloty,
    wskazówki do przepisów kuźni, zbiórka do ekspedycji. Za ok. tydzień sprawdzić `Path_*` w Analytics.
-6. Monetyzacja (`docs/plans/monetization-research.md`): NIE dla stałego x2 monet, gatunków za Robux, x2 za monety.
-   Do pilotażu po tygodniu obserwacji Analytics: kod 0,25 S raz na konto, kosmetyczny VIP 249 R$.
 
 ## Numery
 
