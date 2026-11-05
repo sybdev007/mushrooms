@@ -14,12 +14,14 @@ local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local ForagerPath = require(ReplicatedStorage.Shared.ForagerPath)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Audio = require(script.Parent.Audio)
 local Hud = require(script.Parent.Hud)
 local IntroCutscene = require(script.Parent.IntroCutscene)
 local CutsceneKit = require(script.Parent.CutsceneKit)
 local GardenPanel = require(script.Parent.GardenPanel)
+local ProgressFeed = require(script.Parent.ProgressFeed)
 local TheftCutscene = require(script.Parent.TheftCutscene)
 local Localize = require(script.Parent.Localize)
 local MushroomView = require(script.Parent.MushroomView)
@@ -136,11 +138,38 @@ trackerFill.BackgroundColor3 = Color3.fromRGB(120, 220, 90)
 trackerFill.Parent = trackerBar
 corner(trackerFill, UDim.new(1, 0))
 
+-- „×” na karcie: chowa Ścieżkę grzybiarza do końca sesji (samouczka nie da się schować)
+local pathHidden = false
+local trackerClose = Instance.new("TextButton")
+trackerClose.Name = "Close"
+trackerClose.Size = UDim2.fromOffset(26, 26)
+trackerClose.AnchorPoint = Vector2.new(0.5, 0.5)
+trackerClose.Position = UDim2.new(1, -4, 0, 4)
+trackerClose.BackgroundColor3 = Color3.fromRGB(196, 44, 40)
+trackerClose.Text = "X" -- FredokaOne nie ma znaku „✕” (rysował się pusty przycisk)
+trackerClose.TextScaled = true
+trackerClose.Font = TITLE_FONT
+trackerClose.TextColor3 = Color3.new(1, 1, 1)
+trackerClose.ZIndex = 5
+trackerClose.Visible = false
+trackerClose.Parent = tracker
+corner(trackerClose, UDim.new(1, 0))
+stroke(trackerClose, OUTLINE, 2)
+trackerClose.Activated:Connect(function()
+	pathHidden = true
+end)
+
 local lastMission = ""
 local lastProgress = -1
 
-local function setMission(icon: string?, textValue: string?, progress: number?)
+-- id: która to misja (karta wjeżdża od nowa tylko przy nowej misji; zmiana licznika w tekście jej nie
+-- przesuwa, np. monety do Jaskini). head: klucz nagłówka (domyślnie „Misja”).
+local function setMission(icon: string?, textValue: string?, progress: number?, head: string?, id: string?)
 	if not textValue then
+		-- Wołane co klatkę: chowamy tylko raz (inaczej animacja zaczynałaby się od nowa w każdej klatce)
+		if lastMission == "" then
+			return
+		end
 		if tracker.Visible then
 			tween(tracker, 0.3, { Position = UDim2.new(0, -320, 0.45, 0) }, Enum.EasingStyle.Back, Enum.EasingDirection.In)
 			task.delay(0.3, function()
@@ -152,13 +181,15 @@ local function setMission(icon: string?, textValue: string?, progress: number?)
 		lastMission = ""
 		return
 	end
-	trackerHead.Text = t("TUT_MISSION")
+	trackerHead.Text = t(head or "TUT_MISSION")
 	trackerText.Text = textValue
 	UiKit.setIcon(trackerIcon, icon or "mushroom")
+	trackerClose.Visible = head == "PATH_HEAD"
 	local p = math.clamp(progress or 0, 0, 1)
 	trackerFill.Size = UDim2.fromScale(p, 1)
 	trackerFill.BackgroundColor3 = if p >= 1 then GOLD else Color3.fromRGB(120, 220, 90)
-	if textValue ~= lastMission then
+	local missionId = id or textValue
+	if missionId ~= lastMission then
 		-- Nowa misja wjeżdża z lewej
 		tracker.Visible = true
 		tracker.Position = UDim2.new(0, -320, 0.45, 0)
@@ -168,7 +199,7 @@ local function setMission(icon: string?, textValue: string?, progress: number?)
 		trackerScale.Scale = UiScale.get() * 1.08
 		tween(trackerScale, 0.3, { Scale = UiScale.get() }, Enum.EasingStyle.Back)
 	end
-	lastMission = textValue
+	lastMission = missionId
 	lastProgress = progress or 0
 end
 
@@ -551,6 +582,8 @@ local stepNow = -2
 local sellRule: string? = nil
 local basketCount = 0
 local basketMax = 5
+-- Ścieżka grzybiarza po samouczku (Shared/ForagerPath): stan z StateUpdate i ProgressFeed
+local pathCtx: ForagerPath.Context = { tutorialDone = false, caveUnlocked = true, coins = 0, boots = 0 }
 local seen: { [string]: boolean } = {}
 local busy = false -- trwa okno albo cutscenka
 
@@ -664,9 +697,45 @@ local function enterStep(step: number)
 	end
 end
 
+local function formatCoins(value: number): string
+	local s = tostring(math.floor(value + 0.5))
+	local formatted = s:reverse():gsub("(%d%d%d)", "%1 "):reverse()
+	return (formatted:gsub("^ ", ""))
+end
+
+-- Po samouczku: bieżący cel Ścieżki grzybiarza na tej samej karcie (strzałka tylko tam, gdzie pomaga:
+-- do Gniazda Leszego po koronę i do portalu Jaskini, kiedy monet już wystarczy)
+local function updatePath()
+	local status = if pathHidden then nil else ForagerPath.current(pathCtx)
+	if not status then
+		setTarget(nil)
+		setMission(nil)
+		return
+	end
+	local goal = status.goal
+	local have, need = status.have, status.need
+	local text = if goal.id == "cave" and have >= need
+		then t("PATH_CAVE_GO")
+		elseif goal.id == "cave" then t(goal.key, { formatCoins(have), formatCoins(need) })
+		else t(goal.key, { have, need })
+	setMission(goal.icon, text, have / need, "PATH_HEAD", goal.id)
+	if goal.target == "grove" then
+		setTarget(Vector3.new(Config.Grove.centerX, 0, Config.Grove.centerZ))
+	elseif goal.target == "cave" and have >= need then
+		setTarget(Vector3.new(Config.Cave.portal.x, 0, Config.Cave.portal.z))
+	else
+		setTarget(nil)
+	end
+end
+
 -- Co klatkę: cel na mapie, misja i podświetlenia zależnie od kroku
 local function update()
 	local step = stepNow
+	if step >= DONE and not (busy or TutorialWindow.isOpen() or IntroCutscene.isPlaying() or CutsceneKit.isPlaying()) then
+		setSpotlight(nil)
+		updatePath()
+		return
+	end
 	if step <= 0 or step >= DONE or IntroCutscene.isPlaying() or CutsceneKit.isPlaying() then
 		setTarget(nil)
 		setSpotlight(nil)
@@ -785,6 +854,10 @@ trackerScale.Scale = UiScale.get()
 
 function Tutorial.update(state: any)
 	local step = if typeof(state.tutorial) == "number" then state.tutorial else DONE
+	pathCtx.tutorialDone = step >= DONE
+	pathCtx.caveUnlocked = state.caveUnlocked == true
+	pathCtx.coins = tonumber(state.coins) or 0
+	pathCtx.boots = if typeof(state.upgrades) == "table" then tonumber(state.upgrades.boots) or 0 else 0
 	local previousCount = basketCount
 	basketCount = state.basketCount or 0
 	basketMax = state.basketMax or 5
@@ -812,6 +885,19 @@ function Tutorial.update(state: any)
 		})
 	end
 end
+
+-- Grzybopedia i strażnicy do Ścieżki grzybiarza (jedno wspólne podłączenie: zasada 4 w CLAUDE.md)
+ProgressFeed.subscribe(function(payload: any)
+	if typeof(payload) ~= "table" then
+		return
+	end
+	if typeof(payload.atlas) == "table" then
+		pathCtx.atlas = payload.atlas
+	end
+	if typeof(payload.bestiary) == "table" then
+		pathCtx.bestiary = payload.bestiary
+	end
+end)
 
 -- Po cutscence na start (krok 1 przychodzi od serwera, kiedy scena się skończy)
 function Tutorial.afterIntro()

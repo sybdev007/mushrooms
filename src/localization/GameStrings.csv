@@ -1067,3 +1067,11 @@ SHOWCASE_REMOVE,Remove,,,Zdejmij
 MSG_SHOWCASE_BOUGHT,New showcase spot ({1}/{2})!,,,Nowe miejsce w gablocie ({1}/{2})!
 MSG_SHOWCASE_NO_COINS,Not enough coins for this spot,,,Za mało monet na to miejsce
 MSG_SHOWCASE_WORLD,Unlock the world of this shelf first,,,Najpierw odblokuj świat tej półki
+PATH_HEAD,FORAGER'S PATH,,,ŚCIEŻKA GRZYBIARZA
+PATH_BOOTS,Upgrade your boots {1}/{2} to outrun the Leshy,,,Ulepsz buty {1}/{2} żeby uciec Leszemu
+PATH_SPECIES,Discover {1}/{2} species in the Atlas,,,Odkryj {1}/{2} gatunków w Grzybopedii
+PATH_MUTATION,Find a mushroom with a mutation (Silver or better),,,Znajdź grzyb z mutacją (Srebrny lub lepszy)
+PATH_CROWN,Steal the Leshy's Crown from his grove,,,Ukradnij Koronę Leszego z jego Gniazda
+PATH_ESCAPE,Escape the Leshy to the cabin with his crown,,,Ucieknij Leszemu do chatki z koroną
+PATH_CAVE,Save up for the Cave: {1}/{2} coins,,,Uzbieraj na Jaskinię: {1}/{2} monet
+PATH_CAVE_GO,You can open the Cave! Head to the portal,,,Stać cię na Jaskinię! Idź do portalu

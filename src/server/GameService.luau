@@ -17,6 +17,7 @@ local Economy = require(Shared.Economy)
 local Remotes = require(Shared.Remotes)
 local Cycle = require(Shared.Cycle)
 local Expedition = require(Shared.Expedition)
+local ForagerPath = require(Shared.ForagerPath)
 local Halloween = require(Shared.Halloween)
 local Skins = require(Shared.Skins)
 local Winter = require(Shared.Winter)
@@ -81,6 +82,7 @@ type Session = {
 	downed: { Instance }?, -- przycisk „Podnieś” i napis SOS nad głową
 	debugGroupUntil: number?, -- panel DEV: udawana grupa 3 graczy do tej chwili (os.clock)
 	tutorialSpots: { [string]: Vector3 }?, -- grzyby samouczka tego gracza (TutorialService)
+	pathStage: number?, -- Ścieżka grzybiarza: bieżący cel przy ostatnim pushState (analityka, Shared/ForagerPath)
 }
 
 type Rescue = {
@@ -327,8 +329,38 @@ end
 
 local LEADERSTAT_COINS = "💰" -- kolumna na liście graczy; emoji, żeby działała w obu językach
 
+-- Ścieżka grzybiarza (Shared/ForagerPath): zaliczony cel = kamień milowy „Path_<id>” w analityce,
+-- żeby w Creator Hub było widać, na którym celu nowi gracze odpadają. Pierwszy odczyt w sesji to
+-- tylko punkt odniesienia (wejście do gry nie loguje celów zaliczonych wcześniej).
+local function trackPath(session: Session)
+	local data = session.data
+	local ctx: ForagerPath.Context = {
+		tutorialDone = data.tutorial >= Config.Tutorial.done,
+		caveUnlocked = data.caveUnlocked,
+		coins = data.coins,
+		boots = data.upgrades.boots or 0,
+		atlas = data.atlas,
+		bestiary = data.bestiary,
+	}
+	local stage = ForagerPath.stage(ctx)
+	local before = session.pathStage
+	session.pathStage = stage
+	if not before or stage <= before then
+		return
+	end
+	for index = math.max(before, 1), math.min(stage - 1, #ForagerPath.GOALS) do
+		local goal = ForagerPath.GOALS[index]
+		local have, need = ForagerPath.progress(ctx, goal.id)
+		-- Otwarcie Jaskini kończy ścieżkę: niespełnionych wcześniejszych celów nie liczymy jako zaliczone
+		if have >= need then
+			milestone(session, "Path_" .. goal.id)
+		end
+	end
+end
+
 local function pushState(session: Session)
 	local data = session.data
+	trackPath(session)
 	local leaderstats = session.player:FindFirstChild("leaderstats")
 	local coinsStat = leaderstats and leaderstats:FindFirstChild(LEADERSTAT_COINS)
 	if coinsStat and coinsStat:IsA("IntValue") then

@@ -4176,6 +4176,77 @@ test("napisy nad częściami świata nie zostają przed chatką (BillboardGuard)
 	check(string.find(fs.readFile("src/client/TitleView.luau"), "BillboardGuard.bind", 1, true) ~= nil, "TitleView bez strażnika")
 end)
 
+-- Ścieżka grzybiarza: cele po samouczku do otwarcia Jaskini (karta misji, analityka Path_<id>)
+local ForagerPath = loadModule("src/shared/ForagerPath.luau", {
+	script = { Parent = { Config = Config, Progress = Progress } },
+	require = function(module)
+		return module
+	end,
+})
+
+test("ścieżka grzybiarza: kolejność celów po samouczku, pomijanie zaliczonych, koniec na Jaskini", function()
+	eq(ForagerPath.BOOTS, Progress.bootsToEscape(Progress.getGuardian("leszy") :: any), "buty = próg ucieczki przed Leszym")
+	check(ForagerPath.BOOTS >= 1 and ForagerPath.BOOTS <= Economy.upgradeCap("boots", "forest"), "buty do kupienia w lesie")
+	local function ctx(over: { [string]: any }): any
+		local base = { tutorialDone = true, caveUnlocked = false, coins = 0, boots = 0, atlas = {}, bestiary = {} }
+		for k, v in over do
+			base[k] = v
+		end
+		return base
+	end
+	local function currentId(c: any): string?
+		local status = ForagerPath.current(c)
+		return status and status.goal.id
+	end
+	-- W trakcie samouczka i po otwarciu Jaskini nic się nie pokazuje
+	eq(currentId(ctx({ tutorialDone = false })), nil, "samouczek trwa")
+	eq(ForagerPath.stage(ctx({ tutorialDone = false })), 0)
+	eq(currentId(ctx({ caveUnlocked = true })), nil, "Jaskinia otwarta")
+	eq(ForagerPath.stage(ctx({ caveUnlocked = true })), #ForagerPath.GOALS + 1)
+	-- Po kolei
+	eq(currentId(ctx({})), "boots")
+	local status = ForagerPath.current(ctx({ boots = 1 })) :: any
+	eq(status.have, math.min(1, ForagerPath.BOOTS))
+	eq(status.need, ForagerPath.BOOTS)
+	local atlas: { [string]: any } = {}
+	local ids = {}
+	for _, species in Config.Species do
+		if not species.guardian and not species.forgeOnly and #ids < ForagerPath.SPECIES then
+			table.insert(ids, species.id)
+		end
+	end
+	for i = 1, ForagerPath.SPECIES - 1 do
+		atlas[ids[i]] = 1 -- zwykła forma (bit 0)
+	end
+	local s = ForagerPath.current(ctx({ boots = ForagerPath.BOOTS, atlas = atlas })) :: any
+	eq(s.goal.id, "species")
+	eq(s.have, ForagerPath.SPECIES - 1)
+	atlas[ids[ForagerPath.SPECIES]] = true -- stary zapis: `true` = zwykła forma
+	eq(currentId(ctx({ boots = ForagerPath.BOOTS, atlas = atlas })), "mutation")
+	atlas[ids[1]] = 1 + 2 -- zwykła i srebrna
+	eq(currentId(ctx({ boots = ForagerPath.BOOTS, atlas = atlas })), "crown")
+	local leszy = { found = true, stolen = 1, escaped = 0, caught = 1 }
+	eq(currentId(ctx({ boots = ForagerPath.BOOTS, atlas = atlas, bestiary = { leszy = leszy } })), "escape")
+	leszy.escaped = 2
+	local cave = ForagerPath.current(ctx({ boots = ForagerPath.BOOTS, atlas = atlas, bestiary = { leszy = leszy }, coins = 12345.6 })) :: any
+	eq(cave.goal.id, "cave")
+	eq(cave.have, 12345)
+	eq(cave.need, Config.Cave.unlockCoins)
+	eq(cave.goal.target, "cave")
+	-- Monety ponad próg: karta zostaje (pełny pasek), dopóki gracz nie wejdzie do portalu Jaskini
+	local ready = ForagerPath.current(ctx({ boots = ForagerPath.BOOTS, atlas = atlas, bestiary = { leszy = leszy }, coins = 10 ^ 9 })) :: any
+	eq(ready.goal.id, "cave")
+	eq(ready.have, ready.need)
+	eq(ForagerPath.stage(ctx({ boots = ForagerPath.BOOTS, atlas = atlas, bestiary = { leszy = leszy }, coins = 10 ^ 9 })), #ForagerPath.GOALS)
+	-- Starszy gracz z koroną i dużymi butami, ale bez mutacji: od razu cel „mutacja”, bez cofania
+	eq(currentId(ctx({ boots = 99, atlas = { [ids[1]] = 1, [ids[2]] = 1, [ids[3]] = 1, [ids[4]] = 1, [ids[5]] = 1, [ids[6]] = 1, [ids[7]] = 1, [ids[8]] = 1 }, bestiary = { leszy = leszy } })), "mutation")
+	-- Każdy cel ma tłumaczenie, ikonę i nagłówek karty
+	for _, goal in ForagerPath.GOALS do
+		check(csvHas(goal.key), "brak w CSV: " .. goal.key)
+	end
+	check(csvHas("PATH_HEAD") and csvHas("PATH_CAVE_GO"), "brak w CSV: PATH_HEAD / PATH_CAVE_GO")
+end)
+
 print(string.format("\n%d ok, %d błędów", passed, failed))
 if failed > 0 then
 	process.exit(1)
