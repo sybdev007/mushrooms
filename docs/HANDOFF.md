@@ -47,6 +47,10 @@ las → jaskinia (30 000 monet) → bagna (1 000 000) → **Łysa Góra** (10 00
 - **Wskazówki do przepisów kuźni** (od 5.11, `Forge.warmth` / `Forge.hints`): w moździerzu „🔥 Ciepło!”, gdy
   2 z 3 grzybów pasują do nieodkrytego przepisu; w Grzybopedii co `Config.Forge.hintEvery` (5) połączeń kolejny
   składnik z nazwy (najwyżej 2 z 3), licznik do następnej; Oko Welesa po Kwiecie Paproci: „wśród nich Baba Jaga”.
+- **Zbiórka do ekspedycji** (od 5.11, `client/DelveCall.luau`, `DelveService.callCrew`): wzięte zlecenie =
+  karta „X zbiera ekipę” z „Dołącz” u graczy z Jaskinią (dołączenie z dowolnego miejsca); gotowość ✅/🚶
+  (20 studów od szczeliny) w oknie tablicy i karcie celu; kto wchodzi, zabiera gotowych; „Zaproś znajomego”.
+  Analityka `Milestone_DelveCrew` (liczba osób przy starcie). Sprawdzone na dwóch kontach.
 - Eventy (daty w `Config`, UTC): **Halloween do 10.11 00:00** (cukierki, kocioł, Noc Dziadów),
   **Zima 1.12 – 7.01** (płatki, choinka, kalendarz adwentowy). Zima jeszcze nie była na żywo:
   sprawdzić w Studio przed 1.12 (panel DEV).
@@ -119,8 +123,9 @@ Magazyn `LanternForager_Profiles_v1`, klucz `player_1293490018`.
 6. Monetyzacja (`docs/plans/monetization-research.md`): NIE dla stałego x2 monet, gatunków za Robux, x2 za monety.
    Do pilotażu po tygodniu obserwacji Analytics: kod 0,25 S raz na konto, kosmetyczny VIP 249 R$.
 7. Pomysły z researchu hitów (`docs/plans/hit-research.md`, Codex 5.11). Zrobione: Ścieżka grzybiarza,
-   karta zdobyczy i tabliczka gabloty, Prognoza nocy, wskazówki do przepisów kuźni. Zostało z jego rankingu:
-   zbiórka do ekspedycji. Za ok. tydzień sprawdzić w Analytics `Path_*` i `FindCardShowcase`.
+   karta zdobyczy i tabliczka gabloty, Prognoza nocy, wskazówki do przepisów kuźni, zbiórka do ekspedycji
+   (cały ranking z punktów 1–6). Za ok. tydzień sprawdzić w Analytics `Path_*`, `FindCardShowcase` i `DelveCrew`.
+   Z jego listy zostają: tygodniowe tematy (np. „Tydzień Leszego”) i kosmetyczny VIP — po danych z Analytics.
    Roblox Events (Tom, Creator Hub): wieczorne Krwawe księżyce z `lune run tools/night_forecast.luau`.
 
 ## Numery
