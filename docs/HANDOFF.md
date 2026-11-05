@@ -77,6 +77,9 @@ Magazyn `LanternForager_Profiles_v1`, klucz `player_1293490018`.
    za łatwa, 37–38 też da się przebiec na butach 15–16 (test „Baba Jaga: zapas”).
    `831bd15` (opublikowane i sprawdzone 5.11): napisy „Znalezisko Nocy”, tytuły graczy, Dawca Wysypu i x2
    skrzyni wisiały przed chatką, gdy ich część wypadła ze streamingu. Teraz `BillboardGuard` (zasada 11 w `CLAUDE.md`).
+   `43f7fdd` (opublikowane i sprawdzone 5.11): poprawki kuźni v3 z przeglądu Codexa. Wyjście w trakcie animacji
+   nie gubi Grzybopedii i licznika, `Forge.preview` liczy średni zwrot dokładnie (maxReturn 0,9 trzymany),
+   `devSnapshot`/`devRestore` najpierw rozliczają kuźnię. Codex nie znalazł P0 ani trójki z zyskiem.
 1. ~~Opublikować `main` z kuźnią v3~~: opublikowane 5.11, Tom potwierdził, że działa. Do obserwacji przez kilka
    dni: Analytics kuźni (ile połączeń, które progi), czy gracze nie narzekają na skuchy przy drogich trójkach.
    Lint `selene src` na PC jeszcze nie puszczony. W Studio sprawdzone 5.11: trójka z góry (gorszy 0,53×), przepis (dzwonek mszysty 1,21×), tania trójka
