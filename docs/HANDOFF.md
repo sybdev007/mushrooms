@@ -5,12 +5,12 @@ Tu: co jest w grze, co zrobiliśmy ostatnio, co jest otwarte. Aktualizuj ten pli
 
 ## Gdzie co jest
 
-- Repo `sybdev007/mushrooms`, gałąź **`main`** (wszystko scalone, ostatni commit z poprawką nowych graczy: `ef4ae0a`).
+- Repo `sybdev007/mushrooms`, gałąź **`main`** (wszystko scalone, ostatni commit z poprawką nowych graczy: `ef4ae0a`,
+  opublikowany 5.11 ok. 01:00 i sprawdzony na żywo).
   Gałęzie `petla`, `lysa-gora`, `feat/tryb-filmowy` itd. są już w `main`; nie pracuj na nich.
 - PC Toma: `T:\lantern\mushrooms` (Rojo serwuje stąd). MacBook: `~/coding/mushrooms`.
-- Notatki poza repo: `docs/plans/loop-research.md` (nieśledzony plik w `T:\lantern\mushrooms`) i
-  `docs/plans/review-petla.md` (przegląd Codexa, leży w drugiej kopii `C:\Users\twojs\Documents\ChatGPT\mushrooms\docs\plans`).
-  Do dodania do repo (skopiuj review-petla.md do `T:`, `git add` oba, commit).
+- Notatki: `docs/plans/loop-research.md` (plan pętli, gabloty i Znaleziska) i `docs/plans/review-petla.md`
+  (przegląd gałęzi `petla` od Codexa) są w repo od `8bc2c69`.
 - Gra: universe 10772830253, place 72216132547990, grupa Old Owl Studios 463484833.
 
 ## Co jest w grze
@@ -55,8 +55,8 @@ Objawy: biały ekran przy wejściu, w oknach Zadań / Tytułów / Grzybopedii sa
 | `40cf7fc` | błąd w `GardenService.assign` / `ProgressService.join` przerywał resztę wejścia | `joinStep` z xpcall i śladem w konsoli serwera |
 | `d28c371` | przy awarii DataStore Robloxa („Access forbidden”) ProfileStore ponawiał bez końca, gracz w grze bez danych | po 60 s (z ponowieniami ok. 70 s) wyrzucenie z wyjaśnieniem; ekran wczytywania czeka do 90 s i po 12 s pisze „Roblox odpowiada wolno” |
 
-**Do sprawdzenia po publikacji `ef4ae0a`:** wejście nowym kontem (samouczek, zadania), pierwsze wejście Toma na
-świeży serwer (Zadania od razu wypełnione), F9 → Server bez czerwonych linii.
+**Sprawdzone po publikacji `ef4ae0a` (5.11):** wejście nowym kontem (samouczek, zadania), pierwsze wejście Toma na
+świeży serwer (Zadania od razu wypełnione), F9 → Server bez czerwonych linii. Wszystko działa.
 
 ### Zapis Toma (incydent 4.11)
 O 18:59 UTC serwer ze starą wersją (DATA_VERSION 6) zgubił mu pola zapisu; przywrócony ręcznie
@@ -66,14 +66,14 @@ Magazyn `LanternForager_Profiles_v1`, klucz `player_1293490018`.
 
 ## Otwarte zadania
 
-1. **Opublikować `main`** (Rojo Connect → synchronizacja → Publish → Restart Servers) i sprawdzić listę wyżej.
+1. ~~Opublikować `main`~~ i sprawdzić listę wyżej: zrobione 5.11.
 2. **Odznaki z id = 0** w `Config.Badges`: `grandmaster`, `cosmic`, `forge_collection`, `winter2026`
    (Tom zakłada w Creator Hub, 5 dziennie za darmo; numery z
    `https://badges.roblox.com/v1/universes/10772830253/badges`). Opisy i obrazki: `docs/Odznaki.md`, `assets/badges/`.
 3. **Produkty z id = 0** w `Config.Products`: `x2s / x2m / x2l / x2xl` (19/39/79/149 R$, Unlisted),
    `boomSolo` (Twój Wysyp, zwykły produkt, roboczo 49 R$). Bez numeru karta jest ukryta na żywo.
 4. Zima: przegląd i test w Studio przed 1.12.
-5. Dodać do repo `loop-research.md` i `review-petla.md` (patrz „Gdzie co jest”).
+5. ~~Dodać do repo `loop-research.md` i `review-petla.md`~~: zrobione (`8bc2c69`).
 6. Monetyzacja (`docs/plans/monetization-research.md`): NIE dla stałego x2 monet, gatunków za Robux, x2 za monety.
    Do pilotażu po tygodniu obserwacji Analytics: kod 0,25 S raz na konto, kosmetyczny VIP 249 R$.
 
