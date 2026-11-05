@@ -59,6 +59,9 @@ las → jaskinia (30 000 monet) → bagna (1 000 000) → **Łysa Góra** (10 00
   Test w Studiu 5.11: OK; opublikowane i sprawdzone na żywo (kapliczka, wpłata, górska półka). Do obejrzenia
   później: okno gabloty na telefonie i obwódka tabliczki od 1 mld. Za tydzień w Analytics: `LeszyOffering`,
   `Milestone_LeszyFirstOffering`, `Milestone_MountainShowcaseFirst/Complete`; potem decyzja o rankingu.
+- **Tytuły twórców** (`0512f2b`): Twórca Gry, Architekt Lasu, Strażnik Latarni (mityczne, `special = "dev"`),
+  tylko `Config.DevUserIds` (`Titles.isDev`); inni ich nie widzą ani nie wybiorą. Opublikowane i sprawdzone.
+- Ogródek (`7271e76`): grzyby z kuźni w oknie sadzenia jako „🔒 Do kolekcji” (sadzić się ich nie da z założenia).
 - Eventy (daty w `Config`, UTC): **Halloween do 10.11 00:00** (cukierki, kocioł, Noc Dziadów),
   **Zima 1.12 – 7.01** (płatki, choinka, kalendarz adwentowy). Zima jeszcze nie była na żywo:
   sprawdzić w Studio przed 1.12 (panel DEV).
