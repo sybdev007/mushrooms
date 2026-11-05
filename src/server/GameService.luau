@@ -1109,6 +1109,7 @@ local function onPlayerRemoving(player: Player)
 		forge.flush(player)
 	end
 	sessions[player] = nil
+	devSnapshots[player] = nil
 	stopChases(player)
 	if ravens then
 		ravens.forget(player)
@@ -1509,6 +1510,20 @@ local DEV_TELEPORTS: { [string]: () -> CFrame? } = {
 -- usunąć wynik z rankingu i odpalić dwa ogłaszane wydarzenia „admin abuse” (Noc Dziadów, Dyniowy wysyp).
 -- Wszystko, co zmienia monety, cukierki, ulepszenia, zadania, postęp albo porę dnia, działa tylko w Studio.
 local LIVE_DEV_ACTIONS: { [string]: boolean } = Config.DevLiveActions
+-- Studio: stan zapisu zapamiętany przed testem (np. kuźni) i przywracany po nim. Tylko w pamięci serwera.
+local DEV_SNAPSHOT_KEYS = { "coins", "earned", "basket", "atlas", "atlasDone", "bestiary", "daily", "streak", "weekly", "stats", "titles" }
+local devSnapshots: { [Player]: { [string]: any } } = {}
+local function deepCopy(value: any): any
+	if typeof(value) ~= "table" then
+		return value
+	end
+	local out = {}
+	for key, inner in value do
+		out[key] = deepCopy(inner)
+	end
+	return out
+end
+
 local function devActionAllowed(action: string): boolean
 	if RunService:IsStudio() then
 		return true
@@ -1578,6 +1593,21 @@ local function onDevAction(player: Player, action: unknown)
 		if forge then
 			forge.open(player)
 		end
+	elseif action == "devSnapshot" then
+		local snapshot = {}
+		for _, key in DEV_SNAPSHOT_KEYS do
+			snapshot[key] = deepCopy((data :: any)[key])
+		end
+		devSnapshots[player] = snapshot
+	elseif action == "devRestore" then
+		local snapshot = devSnapshots[player]
+		if not snapshot then
+			return
+		end
+		for _, key in DEV_SNAPSHOT_KEYS do
+			(data :: any)[key] = deepCopy(snapshot[key])
+		end
+		session.basketKey = nil
 	elseif action == "forgeKit" then
 		-- Składniki do wszystkich ukrytych przepisów kuźni (zwykłe, z wymaganymi cechami); monety: coinsSet
 		for _, recipe in Config.Forge.recipes do

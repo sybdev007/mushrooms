@@ -11,7 +11,58 @@ wariant wyniku jest najsłabszym wariantem składników. Sześć gatunków wył�
 bez dochodu z ogrodu, suszenia, ponownego wkładania i bonusów płatnych produktów. To cel na zbieranie
 konkretnych okazów i wydawanie nadwyżki monet. Maszyna nie emituje monet przy tworzeniu.
 
-## Stan wdrożenia (gałąź `kuznia`) — wersja 2 (losowanie z ekwipunku)
+## Stan wdrożenia — wersja 3: runa (5.11, `main`)
+
+Projekt Toma „Kuźnia Grzybów UI” (artefakt z ekranem fuse, 5.11): wygląd, animacja i zasady. Wersja 2 niżej
+zostaje jako historia; obowiązują liczby z `Config.Forge` i logika z `src/shared/Forge.luau`.
+
+**Losowanie (serwer, `Forge.roll`).** Wkład = suma wartości trzech grzybów (cena sprzedaży bez premii).
+1. Próg i cel: wynik celuje w ułamek wkładu (logarytmicznie równomiernie w przedziale progu).
+
+| Próg | Szansa | Cel × wkład |
+|---|---:|---|
+| Skucha | 22% | 0,05–0,4 |
+| Gorszy | 36% | 0,4–0,85 |
+| Podobny | 25% | 0,85–1,25 |
+| Lepszy | 14% | 1,25–2,5 |
+| Wielki | 3% | 2,5–6 |
+
+2. Wariant: szansa na rangę k = szansa z lasu × (0,5 + gorąco × [4, 8, 20, 40][k]); gorąco = Σ (ranga + 0,5 ×
+   liczba cech) trzech grzybów / 9, najwyżej 1. Górna granica: o rangę ponad najlepszy grzyb wkładu.
+   Gdy w wylosowanej randze nawet najdroższy gatunek nie sięga progu (drogi wkład z mutacjami), ranga rośnie,
+   ale nie ponad najlepszy grzyb wkładu. W projekcie „szansa na mutację” była tylko napisem (losowanie jej nie
+   używało); w grze naprawdę decyduje o wariancie.
+3. Gatunek: jeden z 3 zwykłych gatunków **ze wszystkich światów** (bez kuźni, strażników i podróbek ogników)
+   o wartości najbliższej celowi, z tym wariantem i cechami wkładu.
+4. Cechy: najwyżej 4 najcenniejsze z trzech grzybów przechodzą na wynik (cechy podnoszą wartość wszystkich
+   kandydatów jednakowo, więc nie pompują wyniku ponad cel).
+5. Rodzaj wyniku (plakietka, komunikat) = próg, w który naprawdę wpadł stosunek wartości wyniku do wkładu.
+
+**Przepisy i trójki strażników** działają dalej: w 70% prób dają swój gatunek (wariant najsłabszego z trzech,
+w 8% o rangę wyżej), w pozostałych 30% losuje runa.
+
+**Opłata** 8% wkładu (min 5). Strażnik zwrotu z wersji 2 zostaje: gdy średni wynik przekroczyłby 90%
+(wkład + opłata), opłata rośnie do tej granicy. Dotyczy głównie przepisów (wtedy ok. 28–30%).
+
+**Szanse w oknie są liczone dla konkretnej trójki** (`Forge.preview`: siatka 12 punktów na próg × rangi), bo
+na górze cen nie ma zwykłego gatunku w podobnej cenie: trzy Oczy Nocy dają prawie zawsze skuchę i okno to
+pokazuje („Te grzyby są warte więcej niż wszystko co rośnie”). Dla zwykłych trójek wychodzi ok. 58–66% /
+13–25% / 16–33%. Podgląd zgadza się z losowaniem (test na 20 000 rzutów, `tools/forge_odds.luau`).
+Średni zwrot (EV / (wkład + opłata)): losowe trójki z wypraw ok. 0,74, najwyżej 0,90; przepisy średnio 0,5–0,65.
+
+**Okno (`src/client/ForgePanel.luau`)** według projektu, w układzie 1280 × 720 zmniejszonym do 75%:
+opis z plakietkami szans, runa (dwa obracające się pierścienie run rysowanych kreskami, bo czcionki Robloxa
+nie mają znaków runicznych), trójkąt z miejscami I / II / III i wkładem w środku, pasek z opłatą i przyciskiem,
+koszyk po prawej. Po „Połącz”: ładowanie (1,1 s, trzy obroty trójkąta), zlot grzybów do środka (0,8 s), bęben
+(17 kroków, zwalnia, obwódka w kolorze progu), błysk z dwiema falami i potrząśnięciem (0,55 s), odsłonięcie:
+grzyb wyskakuje i obraca się jak karta, plakietka progu ze stosunkiem („LEPSZY · 1,85×”), wartość, wkład,
+mutacja, opłata, przekazane cechy i znacznik na skali wkładu. „Zbierz do koszyka” wraca do wyboru.
+Komunikaty i Grzybopedia po animacji: `Config.Forge.revealDelay = 5.8`, odstęp między połączeniami 6 s.
+
+Test w Studio (5.11): panel DEV → Kuźnia → „Zapamiętaj stan”, składniki, połączenia, „Przywróć zapamiętany
+stan” (koszyk, monety, Grzybopedia, liczniki i zadania wracają; tylko w Studio).
+
+## Stan wdrożenia (gałąź `kuznia`) — wersja 2 (losowanie z ekwipunku, zastąpiona przez wersję 3)
 
 Decyzje Toma (4.11, druga runda): do moździerza wrzucasz z ekwipunku **dowolne 3 grzyby**, kręci się
 bęben i wychodzi **losowy grzyb z tych trzech z połączonymi cechami**. Może być **skucha** (gorszy grzyb),

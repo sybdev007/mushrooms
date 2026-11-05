@@ -97,6 +97,8 @@ local CATEGORIES: { Category } = {
 				{ id = "forgeKit", label = "Składniki do wszystkich przepisów" },
 				{ id = "forgeKitGuardians", label = "Tęczowi strażnicy (mityczny/sekretny)" },
 				{ id = "forgeReset", label = "Wyczyść kolekcję kuźni" },
+				{ id = "devSnapshot", label = "Zapamiętaj stan (koszyk, monety, Grzybopedia)" },
+				{ id = "devRestore", label = "Przywróć zapamiętany stan" },
 			} },
 		},
 	},

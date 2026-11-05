@@ -1,12 +1,15 @@
 --!strict
 -- Kuźnia Grzybów (Moździerz Zielarki): wspólna logika serwera i klienta, bez API Robloxa (testy w Lune).
--- Klient liczy z tego podgląd w oknie, serwer to samo sprawdza jeszcze raz i losuje wynik.
--- Zasady (Config.Forge): dowolne 3 grzyby z koszyka, mała opłata, bęben losuje skuchę / zwykły / szczęście.
---   skucha: losowy z wrzuconych, bez cech, z najsłabszym wariantem z trzech;
---   zwykły: losowy z wrzuconych (z jego wariantem) ze wszystkimi cechami trzech grzybów;
---   szczęście: jak zwykły, ale wariant o rangę wyżej.
--- Gdy trzy grzyby to ukryty przepis albo trójka strażników, zwykły i szczęście dają gatunek z kuźni
--- (wariant = najsłabszy z trzech, w szczęściu o rangę wyżej). Skucha zawsze działa tak samo.
+-- Klient liczy z tego podgląd w oknie (szanse, opłata), serwer to samo sprawdza jeszcze raz i losuje wynik.
+-- Runa (Config.Forge): wkład = suma wartości trzech grzybów. Losowanie w czterech krokach:
+--   1. próg (tiers) i cel w jego przedziale × wkład (logarytmicznie równomiernie);
+--   2. wariant: szansa na mutację z gorąca wkładu, najwyżej o rangę ponad najlepszy grzyb wkładu; gdy w tej
+--      randze żaden gatunek nie mieści się w progu, ranga rośnie, ale nie ponad najlepszy grzyb wkładu;
+--   3. gatunek: jeden z `nearest` zwykłych gatunków gry o wartości najbliższej celowi (z cechami wkładu);
+--   4. rodzaj wyniku = próg, w który naprawdę wpadł stosunek wartości wyniku do wkładu.
+-- Ukryty przepis albo trójka strażników: z szansą recipeOdds.hit gatunek z kuźni, inaczej runa jak wyżej.
+-- Podgląd liczy szanse rodzajów wyniku, szansę na mutację i średni wynik dla tej konkretnej trójki
+-- (na siatce punktów w każdym progu), więc okno pokazuje to, co naprawdę może wypaść.
 
 local Config = require(script.Parent.Config)
 local Economy = require(script.Parent.Economy)
@@ -14,24 +17,42 @@ local Economy = require(script.Parent.Economy)
 local Forge = {}
 
 Forge.SLOTS = 3
+local STEPS = 12 -- punktów na próg przy liczeniu szans i średniego wyniku
 
 export type Item = { s: string, v: string?, x: { string }?, d: number? }
 export type Access = { swampUnlocked: boolean?, mountainUnlocked: boolean?, jagaEscapes: number? }
-export type Outcome = "bust" | "normal" | "lucky"
 -- Co pasuje do trzech grzybów: gatunek wyniku i rodzaj ("recipe" | "mythic" | "secret")
 export type Match = { id: string, kind: string }
+-- Liczby z [0, 1) od serwera: przepis, próg, miejsce celu w progu, mutacja, wybór z najbliższych
+export type Rolls = { recipe: number, tier: number, spread: number, mutation: number, pick: number }
+export type Candidate = { s: string, value: number }
 
 export type Preview = {
 	fee: number,
-	feeRaised: boolean, -- opłata podniesiona, bo wynik może być wart dużo więcej niż wrzucone grzyby
-	inputValue: number, -- ile byłyby warte 3 grzyby przy sprzedaży (bez premii)
-	bust: number, -- szansa na skuchę
-	normal: number,
-	lucky: number,
-	minRank: number, -- najsłabszy wariant z trzech
-	tags: { string }, -- połączone cechy (posortowane, bez powtórzeń)
+	feeRaised: boolean, -- opłata podniesiona, bo średni wynik byłby wart prawie tyle co wkład z opłatą
+	inputValue: number, -- wkład: ile byłyby warte 3 grzyby przy sprzedaży (bez premii)
+	tags: { string }, -- cechy, które przejdą na wynik (posortowane)
+	heat: number, -- gorąco wkładu 0..1
+	minRank: number, -- najsłabszy wariant z trzech (przepisy)
+	bestRank: number, -- najlepszy wariant z trzech
+	cap: number, -- najwyższy wariant, jaki może wypaść
+	mutationRanks: { number }, -- [ranga] = szansa wylosowania tej rangi (1..cap)
 	match: Match?,
+	recipeHit: number, -- szansa trafienia przepisu (0 bez przepisu)
+	recipeLucky: number, -- z tego o rangę wyżej
+	odds: { [string]: number }, -- szansa każdego rodzaju wyniku (id progów i "recipe"), razem 1
+	mutation: number, -- szansa, że wynik ma wariant
+	expected: number, -- średnia wartość wyniku
+	ladder: { { Candidate } }, -- [ranga + 1] = gatunki z tym wariantem i cechami wkładu, rosnąco wartością
 }
+
+local TIERS = Config.Forge.tiers
+local tierById: { [string]: Config.ForgeTier } = {}
+local tierTotal = 0
+for _, tier in TIERS do
+	tierById[tier.id] = tier
+	tierTotal += tier.chance
+end
 
 local recipeById: { [string]: Config.ForgeRecipe } = {}
 for _, recipe in Config.Forge.recipes do
@@ -42,12 +63,48 @@ for _, special in Config.Forge.specials do
 	specialById[special.id] = special
 end
 
+-- Gatunki, z których runa wyłania wynik: zwykłe grzyby ze wszystkich światów (bez kuźni, strażników
+-- i ogników-podróbek), od najtańszego
+local POOL: { string } = {}
+for _, species in Config.Species do
+	if not species.forgeOnly and not species.mimic and Economy.guardianOf(species.id) == nil and species.value > 0 then
+		table.insert(POOL, species.id)
+	end
+end
+Forge.POOL = POOL
+
 function Forge.recipe(id: unknown): Config.ForgeRecipe?
 	return if typeof(id) == "string" then recipeById[id] else nil
 end
 
 function Forge.special(id: unknown): Config.ForgeSpecial?
 	return if typeof(id) == "string" then specialById[id] else nil
+end
+
+function Forge.tier(id: string): Config.ForgeTier?
+	return tierById[id]
+end
+
+-- Próg, w który wpada stosunek wartości wyniku do wkładu
+function Forge.tierOf(ratio: number): Config.ForgeTier
+	for _, tier in TIERS do
+		if ratio < tier.hi then
+			return tier
+		end
+	end
+	return TIERS[#TIERS]
+end
+
+local function tierOfRoll(r: number): Config.ForgeTier
+	local at = r * tierTotal
+	local acc = 0
+	for _, tier in TIERS do
+		acc += tier.chance
+		if at < acc then
+			return tier
+		end
+	end
+	return TIERS[#TIERS]
 end
 
 -- Czy gracz ma już dostęp do ukrytego przepisu. Zwraca też klucz tekstu z powodem, gdy nie.
@@ -133,8 +190,8 @@ local function specialFits(special: Config.ForgeSpecial, items: { Item }): boole
 	return false
 end
 
--- Ukryty przepis albo trójka strażników pasująca do trzech grzybów (nil = zwykłe losowanie).
--- Przepis, do którego gracz nie ma jeszcze dostępu, nie działa (wtedy zwykłe losowanie).
+-- Ukryty przepis albo trójka strażników pasująca do trzech grzybów (nil = sama runa).
+-- Przepis, do którego gracz nie ma jeszcze dostępu, nie działa (wtedy sama runa).
 function Forge.match(items: { Item }, access: Access): Match?
 	if #items ~= Forge.SLOTS then
 		return nil
@@ -153,7 +210,7 @@ function Forge.match(items: { Item }, access: Access): Match?
 	return nil
 end
 
--- Połączone cechy trzech grzybów
+-- Połączone cechy trzech grzybów (posortowane, bez powtórzeń)
 function Forge.unionTags(items: { Item }): { string }
 	local tags = {}
 	for _, item in items do
@@ -167,8 +224,186 @@ function Forge.unionTags(items: { Item }): { string }
 	return tags
 end
 
+-- Cechy, które przejdą na wynik: najwyżej maxTags najcenniejszych z trzech grzybów
+function Forge.resultTags(items: { Item }): { string }
+	local tags = Forge.unionTags(items)
+	local limit = Config.Forge.maxTags
+	if #tags <= limit then
+		return tags
+	end
+	local function mult(id: string): number
+		local def = Economy.getTag(id)
+		return if def then def.mult else 1
+	end
+	table.sort(tags, function(a, b)
+		if mult(a) ~= mult(b) then
+			return mult(a) > mult(b)
+		end
+		return a < b
+	end)
+	local kept = table.move(tags, 1, limit, 1, {})
+	table.sort(kept)
+	return kept
+end
+
+-- Gorąco wkładu: rangi wariantów i cechy trzech grzybów (0..1)
+function Forge.heat(items: { Item }): number
+	local rules = Config.Forge.mutation
+	local points = 0
+	for _, item in items do
+		points += Economy.variantRank(item.v) + rules.tagHeat * #((item.x or {}) :: { string })
+	end
+	return math.min(1, points / rules.heatFull)
+end
+
+-- [ranga] = szansa wariantu tej rangi przy danym gorącu, od srebra do górnej granicy; razem najwyżej 1
+function Forge.mutationOdds(heat: number, cap: number): { number }
+	local rules = Config.Forge.mutation
+	local odds: { number } = {}
+	local total = 0
+	for rank = 1, cap do
+		local variant = Economy.getVariant(Economy.variantOfRank(rank))
+		local gain = rules.gain[rank] or rules.gain[#rules.gain]
+		local chance = if variant then variant.chance * (rules.base + heat * gain) else 0
+		odds[rank] = chance
+		total += chance
+	end
+	if total > 1 then
+		for rank = 1, cap do
+			odds[rank] /= total
+		end
+	end
+	return odds
+end
+
+local function mutationRank(odds: { number }, r: number): number
+	local acc = 0
+	for rank = #odds, 1, -1 do
+		acc += odds[rank]
+		if r < acc then
+			return rank
+		end
+	end
+	return 0
+end
+
 function Forge.fee(inputValue: number): number
 	return math.max(Config.Forge.minFee, math.floor(inputValue * Config.Forge.feeShare + 0.5))
+end
+
+function Forge.upRank(rank: number): number
+	return math.min(rank + 1, Economy.maxVariantRank())
+end
+
+-- Drabina wyników: dla każdej rangi do `cap` wszystkie gatunki z tym wariantem i cechami, rosnąco wartością
+local function ladderFor(cap: number, tags: { string }): { { Candidate } }
+	local ladder: { { Candidate } } = {}
+	local x = if #tags > 0 then tags else nil
+	for rank = 0, cap do
+		local variant = Economy.variantOfRank(rank)
+		local list: { Candidate } = {}
+		for _, id in POOL do
+			table.insert(list, { s = id, value = Economy.mushroomValue(id, variant, x) })
+		end
+		table.sort(list, function(a, b)
+			if a.value ~= b.value then
+				return a.value < b.value
+			end
+			return a.s < b.s
+		end)
+		ladder[rank + 1] = list
+	end
+	return ladder
+end
+
+-- `count` gatunków z drabiny najbliższych celowi (odległość w skali logarytmicznej), od najbliższego
+local function nearest(list: { Candidate }, target: number, count: number): { Candidate }
+	local lo, hi = 1, #list + 1
+	while lo < hi do
+		local mid = (lo + hi) // 2
+		if list[mid].value < target then
+			lo = mid + 1
+		else
+			hi = mid
+		end
+	end
+	local left, right = lo - 1, lo
+	local out: { Candidate } = {}
+	while #out < count and (left >= 1 or right <= #list) do
+		local useLeft: boolean
+		if left < 1 then
+			useLeft = false
+		elseif right > #list then
+			useLeft = true
+		else
+			useLeft = math.log(target / list[left].value) <= math.log(list[right].value / target)
+		end
+		if useLeft then
+			table.insert(out, list[left])
+			left -= 1
+		else
+			table.insert(out, list[right])
+			right += 1
+		end
+	end
+	return out
+end
+
+-- Ranga i najbliższe gatunki dla celu: wylosowana ranga, chyba że nawet najcenniejszy gatunek z tym
+-- wariantem nie sięga progu (drogi wkład z mutacjami). Wtedy ranga rośnie, najwyżej do najlepszego grzyba wkładu.
+local function choose(preview: Preview, rank: number, target: number, tier: Config.ForgeTier): (number, { Candidate })
+	local floor = preview.inputValue * tier.lo
+	local top = math.max(rank, preview.bestRank)
+	local r = rank
+	while r < top do
+		local ladder = preview.ladder[r + 1]
+		if ladder[#ladder].value >= floor then
+			break
+		end
+		r += 1
+	end
+	return r, nearest(preview.ladder[r + 1], target, Config.Forge.nearest)
+end
+
+local function targetFor(inputValue: number, tier: Config.ForgeTier, spread: number): number
+	return inputValue * tier.lo * (tier.hi / tier.lo) ^ math.clamp(spread, 0, 1)
+end
+
+-- Szanse rodzajów wyniku, szansa na wariant i średnia wartość samej runy (bez przepisu)
+local function runaStats(preview: Preview): ({ [string]: number }, number, number)
+	local inputValue = preview.inputValue
+	local odds: { [string]: number } = {}
+	for _, tier in TIERS do
+		odds[tier.id] = 0
+	end
+	local rankChance: { [number]: number } = { [0] = 1 }
+	for rank, chance in preview.mutationRanks do
+		rankChance[rank] = chance
+		rankChance[0] -= chance
+	end
+	local mutation, expected = 0, 0
+	for _, tier in TIERS do
+		local weight = tier.chance / tierTotal / STEPS
+		for step = 1, STEPS do
+			local target = targetFor(inputValue, tier, (step - 0.5) / STEPS)
+			for rolled = 0, preview.cap do
+				local w = weight * (rankChance[rolled] or 0)
+				if w > 0 then
+					local rank, list = choose(preview, rolled, target, tier)
+					local share = w / #list
+					for _, candidate in list do
+						local id = Forge.tierOf(candidate.value / inputValue).id
+						odds[id] += share
+						expected += share * candidate.value
+					end
+					if rank > 0 then
+						mutation += w
+					end
+				end
+			end
+		end
+	end
+	return odds, mutation, expected
 end
 
 -- Podgląd połączenia trzech grzybów. nil + klucz powodu, gdy się nie da.
@@ -177,30 +412,58 @@ function Forge.preview(items: { Item }, access: Access): (Preview?, string?)
 		return nil, "FORGE_NEED_ITEMS"
 	end
 	local inputValue = 0
-	local minRank = math.huge
+	local minRank, bestRank = math.huge, 0
 	for _, item in items do
 		local ok, why = Forge.eligible(item)
 		if not ok then
 			return nil, why
 		end
 		inputValue += Economy.itemValue(item :: any)
-		minRank = math.min(minRank, Economy.variantRank(item.v))
+		local rank = Economy.variantRank(item.v)
+		minRank = math.min(minRank, rank)
+		bestRank = math.max(bestRank, rank)
 	end
-	local odds = Config.Forge.odds
+	local cap = math.min(Economy.maxVariantRank(), bestRank + 1)
+	local heat = Forge.heat(items)
+	local tags = Forge.resultTags(items)
+	local match = Forge.match(items, access)
+	local hit = if match then Config.Forge.recipeOdds.hit else 0
+	local lucky = if match then Config.Forge.recipeOdds.lucky else 0
 	local preview: Preview = {
 		fee = Forge.fee(inputValue),
 		feeRaised = false,
 		inputValue = inputValue,
-		bust = odds.bust,
-		normal = 1 - odds.bust - odds.lucky,
-		lucky = odds.lucky,
+		tags = tags,
+		heat = heat,
 		minRank = minRank,
-		tags = Forge.unionTags(items),
-		match = Forge.match(items, access),
+		bestRank = bestRank,
+		cap = cap,
+		mutationRanks = Forge.mutationOdds(heat, cap),
+		match = match,
+		recipeHit = hit,
+		recipeLucky = lucky,
+		odds = {},
+		mutation = 0,
+		expected = 0,
+		ladder = ladderFor(cap, tags),
 	}
-	-- Kuźnia nie może zarabiać: gdy średni wynik przekroczyłby maxReturn × (wrzucone + opłata),
-	-- opłata rośnie do tej granicy (np. wiele cech doklejonych do drogiego grzyba)
-	local floor = math.ceil(Forge.expectedValue(preview, items) / Config.Forge.maxReturn - inputValue)
+	local odds, mutation, expected = runaStats(preview)
+	local runa = 1 - hit
+	for id, chance in odds do
+		preview.odds[id] = chance * runa
+	end
+	preview.mutation = mutation * runa
+	preview.expected = expected * runa
+	if match then
+		local x = if #tags > 0 then tags else nil
+		local up = Forge.upRank(minRank)
+		preview.odds.recipe = hit
+		preview.expected += (hit - lucky) * Economy.mushroomValue(match.id, Economy.variantOfRank(minRank), x)
+			+ lucky * Economy.mushroomValue(match.id, Economy.variantOfRank(up), x)
+		preview.mutation += (if minRank > 0 then hit - lucky else 0) + (if up > 0 then lucky else 0)
+	end
+	-- Kuźnia nie może zarabiać: gdy średni wynik przekroczyłby maxReturn × (wkład + opłata), opłata rośnie
+	local floor = math.ceil(preview.expected / Config.Forge.maxReturn - inputValue)
 	if floor > preview.fee then
 		preview.fee = floor
 		preview.feeRaised = true
@@ -208,61 +471,22 @@ function Forge.preview(items: { Item }, access: Access): (Preview?, string?)
 	return preview, nil
 end
 
-function Forge.upRank(rank: number): number
-	return math.min(rank + 1, Economy.maxVariantRank())
-end
-
--- Rodzaj wyniku z liczby z [0, 1): [0, bust) skucha, [bust, bust + lucky) szczęście, reszta zwykły
-function Forge.outcome(preview: Preview, r: number): Outcome
-	if r < preview.bust then
-		return "bust" :: Outcome
-	elseif r < preview.bust + preview.lucky then
-		return "lucky" :: Outcome
-	end
-	return "normal" :: Outcome
-end
-
--- Wynik połączenia. rOutcome i rPick z [0, 1). Zwraca grzyb, rodzaj wyniku i numer wylosowanego grzyba.
-function Forge.roll(preview: Preview, items: { Item }, rOutcome: number, rPick: number): (Item, Outcome, number)
-	local outcome = Forge.outcome(preview, rOutcome)
-	local pick = math.clamp(math.floor(rPick * #items) + 1, 1, #items)
-	local picked = items[pick]
-	if outcome == "bust" then
-		return { s = picked.s, v = Economy.variantOfRank(preview.minRank) }, outcome, pick
-	end
+-- Wynik połączenia z liczb od serwera. Zwraca grzyb i rodzaj wyniku (id progu albo rodzaj przepisu:
+-- "recipe" / "recipeLucky" / "mythic" / "secret").
+function Forge.roll(preview: Preview, rolls: Rolls): (Item, string)
 	local x = if #preview.tags > 0 then table.clone(preview.tags) else nil
 	local match = preview.match
-	if match then
-		local rank = if outcome == "lucky" then Forge.upRank(preview.minRank) else preview.minRank
-		return { s = match.id, v = Economy.variantOfRank(rank), x = x }, outcome :: Outcome, pick
+	if match and rolls.recipe < preview.recipeHit then
+		local lucky = rolls.recipe < preview.recipeLucky
+		local rank = if lucky then Forge.upRank(preview.minRank) else preview.minRank
+		local kind = if match.kind == "recipe" then (if lucky then "recipeLucky" else "recipe") else match.kind
+		return { s = match.id, v = Economy.variantOfRank(rank), x = x }, kind
 	end
-	local rank = Economy.variantRank(picked.v)
-	if outcome == "lucky" then
-		rank = Forge.upRank(rank)
-	end
-	return { s = picked.s, v = Economy.variantOfRank(rank), x = x }, outcome :: Outcome, pick
-end
-
--- Średnia wartość wyniku (do opłaty przy drogich trójkach, testów i symulacji szans)
-function Forge.expectedValue(preview: Preview, items: { Item }): number
-	local total = 0
-	local n = #items
-	-- Środek przedziału każdego wyniku: [0, bust) skucha, [bust, bust + lucky) szczęście, reszta zwykły
-	local cases: { { chance: number, at: number } } = {
-		{ chance = preview.bust, at = preview.bust / 2 },
-		{ chance = preview.lucky, at = preview.bust + preview.lucky / 2 },
-		{ chance = preview.normal, at = preview.bust + preview.lucky + preview.normal / 2 },
-	}
-	for pick = 1, n do
-		local r = (pick - 0.5) / n
-		for _, case in cases do
-			if case.chance > 0 then
-				local item = Forge.roll(preview, items, case.at, r)
-				total += case.chance / n * Economy.itemValue(item :: any)
-			end
-		end
-	end
-	return total
+	local tier = tierOfRoll(rolls.tier)
+	local target = targetFor(preview.inputValue, tier, rolls.spread)
+	local rank, list = choose(preview, mutationRank(preview.mutationRanks, rolls.mutation), target, tier)
+	local pick = list[math.clamp(math.floor(rolls.pick * #list) + 1, 1, #list)]
+	return { s = pick.s, v = Economy.variantOfRank(rank), x = x }, Forge.tierOf(pick.value / preview.inputValue).id
 end
 
 return Forge

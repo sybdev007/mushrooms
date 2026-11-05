@@ -18,7 +18,7 @@ Gra na Robloxie: nocne zbieranie grzybów z latarnią. Kod Luau `--!strict`, syn
 
 ```
 rokit install                      # raz: rojo 7.7.1, selene 0.31.0, lune 0.11.1
-lune run tests/economy.spec.luau   # testy logiki (1268 ok); MUSZĄ przechodzić przed commitem
+lune run tests/economy.spec.luau   # testy logiki (1286 ok); MUSZĄ przechodzić przed commitem
 selene src                         # lint
 rojo serve                         # synchronizacja ze Studiem
 lune run tools/economy_sim.luau    # symulator ekonomii
@@ -34,7 +34,8 @@ każdy klucz z `Localize.t` musi tu być; test to sprawdza). Liczby gry są w `s
 
 1. **Play w Studiu pisze do PRAWDZIWEGO DataStore** i otwiera sesję zapisu gracza. Jeśli Tom gra w tym czasie
    na żywo, wyrzuci go z gry („dane otwarte na innym serwerze”). Przed Play zapytaj, czy nie gra. Po testach,
-   które zmieniły jego zapis (monety, śmierci, ucieczki), przywróć stan.
+   które zmieniły jego zapis (monety, śmierci, ucieczki), przywróć stan. Najprościej: na starcie akcja DEV
+   `devSnapshot`, na końcu `devRestore` (koszyk, monety, Grzybopedia, liczniki, zadania; tylko w Studio).
 2. **Każde nowe pole zapisu = podbij `DATA_VERSION`** w `src/server/DataService.luau` (teraz 8). Serwer ze starszą
    wersją wyrzuca gracza z nowszym zapisem, zamiast go nadpisać. Po publikacji zawsze Restart Servers.
 3. **Gracz bez zapisu** (`profile.Data = {}`, brak starego zapisu → `raw = nil`) musi przejść przez `DataService.load`.

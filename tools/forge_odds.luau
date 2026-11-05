@@ -1,7 +1,7 @@
--- Szanse i opłacalność Kuźni Grzybów (Moździerz Zielarki), do sprawdzenia balansu (np. przez Codexa).
+-- Szanse i opłacalność Kuźni Grzybów (Moździerz Zielarki, runa), do sprawdzenia balansu.
 -- Uruchom z katalogu projektu: lune run tools/forge_odds.luau
 -- Ładuje te same pliki co gra (Config, Economy, Shared/Forge). Wartości to cena sprzedaży bez premii
--- (Grzybopedia, x2), tak jak opłata w grze. Wskaźnik „EV/(wrzucone+opłata)”: średnia wartość wyniku
+-- (Grzybopedia, x2), tak jak opłata w grze. Wskaźnik „EV/(wkład+opłata)”: średnia wartość wyniku
 -- podzielona przez to, co gracz oddaje; poniżej 1 = kuźnia średnio zjada monety (zamierzone).
 
 local fs = require("@lune/fs")
@@ -21,20 +21,69 @@ local Forge = loadModule("src/shared/Forge.luau", { script = { Parent = { Config
 
 local OPEN = { swampUnlocked = true, mountainUnlocked = true, jagaEscapes = 1 }
 local MAX_RANK = Economy.maxVariantRank()
+local F = Config.Forge
 
-local function ratioOf(items: { any }): (number, any)
+local function pct(x: number): string
+	return string.format("%5.1f%%", x * 100)
+end
+
+local function grouped(preview: any): (number, number, number, number)
+	local o = preview.odds
+	return (o.bust or 0) + (o.worse or 0), o.similar or 0, (o.better or 0) + (o.great or 0), o.recipe or 0
+end
+
+local function describe(label: string, items: { any })
 	local preview = Forge.preview(items, OPEN)
-	return Forge.expectedValue(preview, items) / (preview.inputValue + preview.fee), preview
+	if not preview then
+		print(label, "nie da się")
+		return
+	end
+	local worse, similar, better, recipe = grouped(preview)
+	local ratio = preview.expected / (preview.inputValue + preview.fee)
+	print(string.format(
+		"%-34s wkład %9d  opłata %8d%s  gorszy %s podobny %s lepszy %s%s  mutacja %s  EV %.3f",
+		label,
+		preview.inputValue,
+		preview.fee,
+		if preview.feeRaised then "↑" else " ",
+		pct(worse),
+		pct(similar),
+		pct(better),
+		if recipe > 0 then "  przepis " .. pct(recipe) else "",
+		pct(preview.mutation),
+		ratio
+	))
 end
 
 print("== Ustawienia ==")
-local odds = Config.Forge.odds
-print(string.format("skucha %.0f%%  zwykły %.0f%%  szczęście %.0f%%  opłata %.0f%% wartości (min %d), średni wynik najwyżej %.0f%% wkładu z opłatą", odds.bust * 100, (1 - odds.bust - odds.lucky) * 100, odds.lucky * 100, Config.Forge.feeShare * 100, Config.Forge.minFee, Config.Forge.maxReturn * 100))
+local tierLine = {}
+for _, tier in F.tiers do
+	table.insert(tierLine, string.format("%s %.0f%% [%.2f; %.2f)", tier.id, tier.chance * 100, tier.lo, tier.hi))
+end
+print(table.concat(tierLine, "  "))
+print(string.format("opłata %.0f%% (min %d), średni wynik najwyżej %.0f%% wkładu z opłatą, przepis %.0f%% (w tym %.0f%% wyżej), pula %d gatunków",
+	F.feeShare * 100, F.minFee, F.maxReturn * 100, F.recipeOdds.hit * 100, F.recipeOdds.lucky * 100, #Forge.POOL))
 
-print("\n== Ukryte przepisy: wynik/składniki (zwykłe) i EV/(wrzucone+opłata) po 125 kombinacjach rang ==")
-for _, recipe in Config.Forge.recipes do
-	local worst, sum, n, at = 0, 0, 0, ""
-	local base = 0
+print("\n== Przykładowe trójki ==")
+local function g(s: string, v: string?, x: { string }?): any
+	return { s = s, v = v, x = x }
+end
+describe("3 miodówki", { g("honey"), g("honey"), g("honey") })
+describe("3 prawdziwki", { g("porcini"), g("porcini"), g("porcini") })
+describe("złoty prawdziwek + 2 zwykłe", { g("porcini", "gold"), g("porcini"), g("porcini") })
+describe("3 złote miodówki", { g("honey", "gold"), g("honey", "gold"), g("honey", "gold") })
+describe("3 złote prawdziwki", { g("porcini", "gold"), g("porcini", "gold"), g("porcini", "gold") })
+describe("projekt: złoty prawdz.+ametyst+perła", { g("porcini", "gold", { "glowing" }), g("amethyst", "silver", { "crystal" }), g("pearl", "gold") })
+describe("3 tęczowe kurki", { g("chanterelle", "rainbow"), g("chanterelle", "rainbow"), g("chanterelle", "rainbow") })
+describe("3 bagienne dzwonki", { g("bog_bell"), g("bog_bell"), g("bog_bell") })
+describe("3 czapki wiedźmy", { g("witch_hat"), g("witch_hat"), g("witch_hat") })
+describe("3 oczy nocy (szczyt cen)", { g("night_eye"), g("night_eye"), g("night_eye") })
+describe("3 kosmiczne oczy nocy", { g("night_eye", "cosmic"), g("night_eye", "cosmic"), g("night_eye", "cosmic") })
+describe("wiele cech (przegląd Codexa)", { g("night_eye", "rainbow"), g("ember", nil, { "mossy", "glowing", "crystal", "abyssal" }), g("earthstar", nil, { "cursed", "hexed", "moonlit" }) })
+
+print("\n== Ukryte przepisy: EV/(wkład+opłata) po 125 kombinacjach rang ==")
+for _, recipe in F.recipes do
+	local worst, sum, n, raised = 0, 0, 0, 0
 	for r1 = 0, MAX_RANK do
 		for r2 = 0, MAX_RANK do
 			for r3 = 0, MAX_RANK do
@@ -43,156 +92,114 @@ for _, recipe in Config.Forge.recipes do
 				for i, input in recipe.inputs do
 					table.insert(items, { s = input.s, v = Economy.variantOfRank(ranks[i]), x = if input.tag then { input.tag } else nil })
 				end
-				local ratio, preview = ratioOf(items)
-				if r1 + r2 + r3 == 0 then
-					base = Economy.mushroomValue(recipe.id, nil, preview.tags) / preview.inputValue
-				end
+				local preview = Forge.preview(items, OPEN) :: any
+				local ratio = preview.expected / (preview.inputValue + preview.fee)
 				sum += ratio
 				n += 1
-				if ratio > worst then
-					worst, at = ratio, string.format("%d/%d/%d", r1, r2, r3)
+				worst = math.max(worst, ratio)
+				if preview.feeRaised then
+					raised += 1
 				end
 			end
 		end
 	end
-	print(string.format("%-18s wartość %6d  wynik/składniki %.2f  EV średnio %.3f  najwyżej %.3f (rangi %s)", recipe.id, Economy.getSpecies(recipe.id).value, base, sum / n, worst, at))
+	print(string.format("%-18s EV średnio %.3f  najwyżej %.3f  podniesiona opłata %d/125", recipe.id, sum / n, worst, raised))
 end
 
-print("\n== Trójki strażników (każdy co najmniej tęczowy) ==")
-for _, special in Config.Forge.specials do
-	for _, set in special.sets do
-		local worst = 0
-		for r1 = special.minRank, MAX_RANK do
-			for r2 = special.minRank, MAX_RANK do
-				for r3 = special.minRank, MAX_RANK do
-					local items = { { s = set[1], v = Economy.variantOfRank(r1) }, { s = set[2], v = Economy.variantOfRank(r2) }, { s = set[3], v = Economy.variantOfRank(r3) } }
-					worst = math.max(worst, (ratioOf(items)))
-				end
-			end
+print("\n== Losowe trójki z wypraw (rangi i cechy jak w lesie) ==")
+math.randomseed(2026)
+local rng = {
+	NextNumber = function(_self): number
+		return math.random()
+	end,
+	NextInteger = function(_self, a: number, b: number): number
+		return math.random(a, b)
+	end,
+}
+local function randomItem(): any
+	local id = Forge.POOL[rng:NextInteger(1, #Forge.POOL)]
+	local species = Economy.getSpecies(id)
+	local rank = 0
+	local r = rng:NextNumber()
+	local acc = 0
+	for k = MAX_RANK, 1, -1 do
+		local variant = Economy.getVariant(Economy.variantOfRank(k))
+		acc += variant.chance * 3 -- trochę częściej niż w lesie: do kuźni trafiają lepsze okazy
+		if r < acc then
+			rank = k
+			break
 		end
-		local rainbow = { { s = set[1], v = "rainbow" }, { s = set[2], v = "rainbow" }, { s = set[3], v = "rainbow" } }
-		local r, preview = ratioOf(rainbow)
-		print(string.format("%-11s %-50s tęcza: wrzucone %9d  wynik %9d  EV %.3f  najwyżej %.3f  szansa %.0f%%/próbę", special.id, table.concat(set, "+"), preview.inputValue, Economy.mushroomValue(special.id, "rainbow", nil), r, worst, (1 - odds.bust) * 100))
 	end
+	local x = {}
+	for _, tag in Economy.tagsForZone(species.zone) do
+		if rng:NextNumber() < tag.chance * 2 then
+			table.insert(x, tag.id)
+		end
+	end
+	return { s = id, v = Economy.variantOfRank(rank), x = if #x > 0 then x else nil }
+end
+local count, sumRatio, maxRatio, raised, sumMut = 4000, 0, 0, 0, 0
+local sumWorse, sumSimilar, sumBetter = 0, 0, 0
+local worstItems
+local started = os.clock()
+for _ = 1, count do
+	local items = { randomItem(), randomItem(), randomItem() }
+	local preview = Forge.preview(items, OPEN) :: any
+	local ratio = preview.expected / (preview.inputValue + preview.fee)
+	sumRatio += ratio
+	if ratio > maxRatio then
+		maxRatio, worstItems = ratio, items
+	end
+	if preview.feeRaised then
+		raised += 1
+	end
+	sumMut += preview.mutation
+	local worse, similar, better = grouped(preview)
+	sumWorse += worse
+	sumSimilar += similar
+	sumBetter += better
+end
+local elapsed = os.clock() - started
+print(string.format("%d trójek: EV średnio %.3f, najwyżej %.3f, podniesiona opłata %d, mutacja średnio %s", count, sumRatio / count, maxRatio, raised, pct(sumMut / count)))
+print(string.format("średnio gorszy %s podobny %s lepszy %s; podgląd liczy się %.2f ms", pct(sumWorse / count), pct(sumSimilar / count), pct(sumBetter / count), elapsed / count * 1000))
+if worstItems then
+	local parts = {}
+	for _, item in worstItems do
+		table.insert(parts, string.format("%s/%s/%s", item.s, item.v or "-", table.concat(item.x or {}, "+")))
+	end
+	print("najwyższe EV: " .. table.concat(parts, ", "))
 end
 
--- Losowe koszyki: grzyby z jednej strefy jak z wyprawy (gatunek wg wag, wariant i cecha wg szans gry)
-math.randomseed(20261104)
-local function rollItem(zone: number): any?
-	local species = Economy.rollSpecies(zone, math.random())
-	if not species or species.mimic then
-		return nil
-	end
-	local v = Economy.rollVariant(math.random())
-	local x = nil
-	for _, tag in Economy.tagsForZone(zone) do
-		if math.random() < tag.chance then
-			x = { tag.id }
+print("\n== Podgląd a prawdziwe losowanie (50 000 rzutów) ==")
+local function check(label: string, items: { any })
+	local preview = Forge.preview(items, OPEN) :: any
+	local seen: { [string]: number } = {}
+	local value, mutated = 0, 0
+	local n = 50000
+	for _ = 1, n do
+		local result, kind = Forge.roll(preview, {
+			recipe = rng:NextNumber(),
+			tier = rng:NextNumber(),
+			spread = rng:NextNumber(),
+			mutation = rng:NextNumber(),
+			pick = rng:NextNumber(),
+		})
+		local key = if kind == "recipeLucky" or kind == "mythic" or kind == "secret" then "recipe" else kind
+		seen[key] = (seen[key] or 0) + 1
+		value += Economy.itemValue(result)
+		if result.v then
+			mutated += 1
 		end
 	end
-	return { s = species.id, v = v, x = x }
+	local parts = {}
+	for _, id in { "bust", "worse", "similar", "better", "great", "recipe" } do
+		if (preview.odds[id] or 0) > 0 or (seen[id] or 0) > 0 then
+			table.insert(parts, string.format("%s %s/%s", id, pct(preview.odds[id] or 0), pct((seen[id] or 0) / n)))
+		end
+	end
+	print(string.format("%-26s %s  mutacja %s/%s  średnio %.0f/%.0f", label, table.concat(parts, "  "), pct(preview.mutation), pct(mutated / n), preview.expected, value / n))
 end
-
-print("\n== Losowe trójki z wypraw (bez przepisów), 20 000 prób na świat ==")
-for _, world in { "forest", "cave", "swamp", "mountain" } do
-	local zones = {}
-	for index, zone in Config.Zones do
-		if Economy.zoneWorld(index) == world and not Economy.isSafeZone(index) then
-			table.insert(zones, index)
-		end
-	end
-	local ratios = {}
-	local above = 0
-	local best, bestItems = 0, nil
-	while #ratios < 20000 do
-		local items = {}
-		while #items < 3 do
-			local item = rollItem(zones[math.random(1, #zones)])
-			if item then
-				table.insert(items, item)
-			end
-		end
-		local preview = Forge.preview(items, OPEN)
-		if preview and not preview.match then
-			local ratio = Forge.expectedValue(preview, items) / (preview.inputValue + preview.fee)
-			table.insert(ratios, ratio)
-			if ratio >= 1 then
-				above += 1
-			end
-			if ratio > best then
-				best, bestItems = ratio, items
-			end
-		end
-	end
-	table.sort(ratios)
-	local mean = 0
-	for _, r in ratios do
-		mean += r
-	end
-	local function describe(items: { any }): string
-		local out = {}
-		for _, item in items do
-			table.insert(out, item.s .. (if item.v then ":" .. item.v else "") .. (if item.x then "+" .. table.concat(item.x, "+") else ""))
-		end
-		return table.concat(out, ", ")
-	end
-	print(string.format("%-9s EV średnio %.3f  mediana %.3f  90%% %.3f  najwyżej %.3f  z zyskiem %.2f%%", world, mean / #ratios, ratios[#ratios // 2], ratios[math.floor(#ratios * 0.9)], best, above / #ratios * 100))
-	if bestItems then
-		print("          najlepsza: " .. describe(bestItems))
-	end
-end
-
--- Najlepszy „wzmacniacz”: drogi grzyb + dwa tanie z mocnymi cechami (dokładanie cech do drogiego)
-print("\n== Dokładanie cech do drogiego grzyba (1 drogi + 2 tanie z cechą) ==")
-local worstAmp, worstLabel = 0, ""
-for _, species in Config.Species do
-	if not species.forgeOnly and not species.mimic and not species.grove and not species.lair and not species.guardian then
-		for rank = 0, MAX_RANK do
-			for _, tagA in Config.Tags do
-				for _, tagB in Config.Tags do
-					if tagA.id < tagB.id then
-						local cheapA = Economy.speciesForZone(tagA.zone)[1]
-						local cheapB = Economy.speciesForZone(tagB.zone)[1]
-						if cheapA and cheapB then
-							local items = { { s = species.id, v = Economy.variantOfRank(rank) }, { s = cheapA.id, x = { tagA.id } }, { s = cheapB.id, x = { tagB.id } } }
-							local preview = Forge.preview(items, OPEN)
-							if preview and not preview.match then
-								local ratio = Forge.expectedValue(preview, items) / (preview.inputValue + preview.fee)
-								if ratio > worstAmp then
-									worstAmp = ratio
-									worstLabel = string.format("%s %s + %s(%s) + %s(%s)", species.id, Economy.variantOfRank(rank) or "zwykły", cheapA.id, tagA.id, cheapB.id, tagB.id)
-								end
-							end
-						end
-					end
-				end
-			end
-		end
-	end
-end
-print(string.format("najwyżej EV %.3f: %s", worstAmp, worstLabel))
-
--- Dawcy z wcześniej połączonymi cechami (przypadek z przeglądu Codexa, kuznia-szanse.md): bez podwyżki
--- opłaty EV wynosił 1,57; teraz opłata rośnie do granicy Config.Forge.maxReturn
-print("\n== Dawcy z wieloma cechami (przegląd Codexa) ==")
-do
-	local items = {
-		{ s = "night_eye", v = "rainbow" },
-		{ s = "ember", x = { "mossy", "glowing", "crystal", "abyssal" } },
-		{ s = "earthstar", x = { "cursed", "hexed", "moonlit" } },
-	}
-	local preview = Forge.preview(items, OPEN)
-	local ev = Forge.expectedValue(preview, items)
-	print(string.format("wrzucone %d  opłata %d (zwykła %d, podniesiona: %s)  średni wynik %d  EV %.3f (granica %.2f)", preview.inputValue, preview.fee, Forge.fee(preview.inputValue), tostring(preview.feeRaised), math.floor(ev), ev / (preview.inputValue + preview.fee), Config.Forge.maxReturn))
-end
-
-print("\n== Warianty z kuźni a z lasu (Grzybopedia) ==")
-for rank = 1, MAX_RANK do
-	local lower = Economy.getVariant(Economy.variantOfRank(rank - 1))
-	local upper = Economy.getVariant(Economy.variantOfRank(rank)) :: any
-	-- Trzy grzyby rangi rank-1 jednego gatunku: forma rangi rank tylko przy szczęściu
-	local perAttempt = odds.lucky
-	local inputsPerHit = 3 / perAttempt
-	local natural = if lower then lower.chance / upper.chance else 1 / upper.chance
-	print(string.format("%-8s z kuźni: %.0f grzybów rangi niżej na sztukę;  w lesie na jeden wypada średnio %.1f rangi niżej", upper.id, inputsPerHit, natural))
-end
+check("3 prawdziwki", { g("porcini"), g("porcini"), g("porcini") })
+check("projekt (3 z mutacją)", { g("porcini", "gold", { "glowing" }), g("amethyst", "silver", { "crystal" }), g("pearl", "gold") })
+check("3 oczy nocy", { g("night_eye"), g("night_eye"), g("night_eye") })
+check("przepis forge_mossbell", { g("bay_bolete", nil, { "mossy" }), g("porcini", nil, { "glowing" }), g("bog_bell") })

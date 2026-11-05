@@ -1,6 +1,6 @@
 --!strict
 -- Kuźnia Grzybów: Moździerz Zielarki na Placu Portali (World/Forge). Gracz wrzuca dowolne 3 grzyby
--- z koszyka i płaci małą opłatę, a serwer w jednym kroku (bez czekania) losuje wynik, zabiera opłatę
+-- z koszyka i płaci opłatę, a serwer w jednym kroku (bez czekania) losuje wynik runy, zabiera opłatę
 -- i 3 grzyby i wkłada wynik do koszyka. Zasady i liczby: Shared/Forge, Config.Forge, docs/plans/kuznia.md.
 -- Klient (ForgePanel) tylko pokazuje podgląd; wszystko sprawdzamy tu jeszcze raz.
 -- Bezpieczeństwo jak przy sprzedaży: dane gracza żyją w jednej sesji ProfileStore, więc połączenie
@@ -31,11 +31,13 @@ local ForgeService = {}
 
 local REACH = 6 -- ile studs poza obwódką moździerza można jeszcze stać
 
--- Komunikat po połączeniu według rodzaju wyniku
+-- Komunikat po połączeniu według rodzaju wyniku (próg runy albo przepis)
 local MESSAGE: { [string]: string } = {
 	bust = "MSG_FORGE_BUST",
-	normal = "MSG_FORGE_DONE",
-	lucky = "MSG_FORGE_LUCKY",
+	worse = "MSG_FORGE_DONE",
+	similar = "MSG_FORGE_DONE",
+	better = "MSG_FORGE_BETTER",
+	great = "MSG_FORGE_GREAT",
 	recipe = "MSG_FORGE_RECIPE",
 	recipeLucky = "MSG_FORGE_RECIPE",
 	mythic = "MSG_FORGE_MYTHIC",
@@ -94,8 +96,8 @@ function ForgeService.start(station: Vector3, prompt: ProximityPrompt?, hooks: H
 	end
 
 	-- Stan okna u gracza: dostęp do przepisów i formy z kolekcji (maski Grzybopedii), a po połączeniu
-	-- wynik z rodzajem (do animacji bębna)
-	local function send(player: Player, open: boolean, result: Forge.Item?, roll: { outcome: string, kind: string, pick: number }?)
+	-- wynik z rodzajem (do animacji runy)
+	local function send(player: Player, open: boolean, result: Forge.Item?, kind: string?)
 		local data = hooks.getData(player)
 		if not data then
 			return
@@ -108,9 +110,7 @@ function ForgeService.start(station: Vector3, prompt: ProximityPrompt?, hooks: H
 			access = access(data),
 			found = found,
 			result = result,
-			outcome = roll and roll.outcome,
-			kind = roll and roll.kind,
-			pick = roll and roll.pick,
+			kind = kind,
 			readyIn = math.max(0, (nextAt[player] or 0) - os.clock()),
 		}, open)
 	end
@@ -203,7 +203,13 @@ function ForgeService.start(station: Vector3, prompt: ProximityPrompt?, hooks: H
 		end
 
 		-- Połączenie: opłata, 3 grzyby (od końca, żeby indeksy się nie przesuwały), wynik do koszyka
-		local result, outcome, pick = Forge.roll(preview, items, rng:NextNumber(), rng:NextNumber())
+		local result, kind = Forge.roll(preview, {
+			recipe = rng:NextNumber(),
+			tier = rng:NextNumber(),
+			spread = rng:NextNumber(),
+			mutation = rng:NextNumber(),
+			pick = rng:NextNumber(),
+		})
 		Ledger.spend(player, data, preview.fee, "Gameplay", "Forge")
 		table.sort(indices, function(a, b)
 			return a > b
@@ -215,14 +221,8 @@ function ForgeService.start(station: Vector3, prompt: ProximityPrompt?, hooks: H
 		nextAt[player] = now + Config.Forge.cooldown
 
 		hooks.pushState(player)
-		-- Rodzaj do animacji i komunikatu: skucha / zwykły / szczęście, a przy przepisie jego klasa
-		local match = preview.match
-		local kind: string = outcome
-		if outcome ~= "bust" and match then
-			kind = if match.kind == "recipe" then (if outcome == "lucky" then "recipeLucky" else "recipe") else match.kind
-		end
-		send(player, false, result, { outcome = outcome, kind = kind, pick = pick })
-		-- Grzybopedia, tytuły i komunikat po animacji bębna w oknie (ForgePanel), żeby nie zdradzały wyniku
+		send(player, false, result, kind)
+		-- Grzybopedia, tytuły i komunikat po animacji runy w oknie (ForgePanel), żeby nie zdradzały wyniku
 		local species = Economy.getSpecies(result.s)
 		local key = MESSAGE[kind] or "MSG_FORGE_DONE"
 		later(player, function()

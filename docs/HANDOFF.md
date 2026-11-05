@@ -1,6 +1,6 @@
 # Handoff — Midnight Mushroom Hunt
 
-Stan na **5.11.2026, ok. 01:00** (czas polski). Zasady pracy i komendy są w `CLAUDE.md` (Claude Code czyta go sam).
+Stan na **5.11.2026, po przeróbce kuźni na runę** (czas polski). Zasady pracy i komendy są w `CLAUDE.md` (Claude Code czyta go sam).
 Tu: co jest w grze, co zrobiliśmy ostatnio, co jest otwarte. Aktualizuj ten plik po większych zmianach.
 
 ## Gdzie co jest
@@ -8,7 +8,9 @@ Tu: co jest w grze, co zrobiliśmy ostatnio, co jest otwarte. Aktualizuj ten pli
 - Repo `sybdev007/mushrooms`, gałąź **`main`** (wszystko scalone, ostatni commit z poprawką nowych graczy: `ef4ae0a`,
   opublikowany 5.11 ok. 01:00 i sprawdzony na żywo).
   Gałęzie `petla`, `lysa-gora`, `feat/tryb-filmowy` itd. są już w `main`; nie pracuj na nich.
-- PC Toma: `T:\lantern\mushrooms` (Rojo serwuje stąd). MacBook: `~/coding/mushrooms`.
+- PC Toma: `T:\lantern\mushrooms` (Rojo serwuje stąd). MacBook: `~/coding/mushrooms` (Intel: `selene` z Rokit
+  to wersja na ARM i się nie uruchamia, lint rób na PC; `lune` i `rojo` działają).
+- **Kuźnia v3 (runa) jest w `main`, ale jeszcze NIE opublikowana** (zadanie 1 niżej).
 - Notatki: `docs/plans/loop-research.md` (plan pętli, gabloty i Znaleziska) i `docs/plans/review-petla.md`
   (przegląd gałęzi `petla` od Codexa) są w repo od `8bc2c69`.
 - Gra: universe 10772830253, place 72216132547990, grupa Old Owl Studios 463484833.
@@ -24,8 +26,11 @@ las → jaskinia (30 000 monet) → bagna (1 000 000) → **Łysa Góra** (10 00
 - Ogródki (6 na serwer): dochód, skrzynia z limitem, dochód offline, kradzież z cudzych ogródków (scenka),
   pogoda nocy zmienia grzyby w ogródku (`GardenWeather`), **gablota** na kopie z Grzybopedii i trofea.
 - **Znalezisko Nocy**: jeden legendarny grzyb na noc na serwer, donieść do chatki; trofea i tytuły.
-- **Moździerz Zielarki (kuźnia)**: 3 grzyby → bęben 30% skucha / 62% zwykły / 8% szczęście, ukryte przepisy
-  i trójki strażników (Kwiat Paproci, Oko Welesa). Zasady: `src/shared/Forge.luau`, `docs/plans/kuznia.md`.
+- **Moździerz Zielarki (kuźnia, wersja 3: runa)**: 3 dowolne grzyby → runa sumuje wkład i wyłania grzyb
+  ze wszystkich światów w progu skucha 22% / gorszy 36% / podobny 25% / lepszy 14% / wielki 3% wkładu,
+  wariant z „gorąca” wkładu, do 4 cech, opłata 8%. Ukryte przepisy i trójki strażników (Kwiat Paproci,
+  Oko Welesa) działają w 70%. Okno i animacja według projektu Toma (krąg run, trójkąt, bęben, błysk).
+  Zasady: `src/shared/Forge.luau`, `docs/plans/kuznia.md` (sekcja „wersja 3”), symulator `tools/forge_odds.luau`.
 - **Ekspedycja do Głębokich Komór** (tablica zleceń w Obozie, relikty, regał). `docs/plans/cave-expedition.md`.
 - Grzybopedia, tytuły, zadania dzienne (odbiór ręczny), seria logowań, rankingi, wyprawy grupowe.
 - Eventy (daty w `Config`, UTC): **Halloween do 10.11 00:00** (cukierki, kocioł, Noc Dziadów),
@@ -66,7 +71,11 @@ Magazyn `LanternForager_Profiles_v1`, klucz `player_1293490018`.
 
 ## Otwarte zadania
 
-1. ~~Opublikować `main`~~ i sprawdzić listę wyżej: zrobione 5.11.
+1. **Opublikować `main` z kuźnią v3** (Rojo → Publish → Restart Servers) i sprawdzić na żywo: łączenie
+   przy moździerzu (zwykła trójka, przepis), komunikat po odsłonięciu, F9 → Server bez czerwonych linii.
+   W Studio sprawdzone 5.11: trójka z góry (gorszy 0,53×), przepis (dzwonek mszysty 1,21×), tania trójka
+   (skucha), po polsku i po angielsku, konsola czysta. Zapis Toma po teście przywrócony („Przywróć stan”).
+   Nowych pól zapisu nie ma, `DATA_VERSION` bez zmian (8).
 2. **Odznaki z id = 0** w `Config.Badges`: `grandmaster`, `cosmic`, `forge_collection`, `winter2026`
    (Tom zakłada w Creator Hub, 5 dziennie za darmo; numery z
    `https://badges.roblox.com/v1/universes/10772830253/badges`). Opisy i obrazki: `docs/Odznaki.md`, `assets/badges/`.

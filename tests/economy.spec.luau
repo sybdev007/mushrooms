@@ -3166,8 +3166,49 @@ test("kuźnia: ukryte przepisy i trójki strażników z istniejących gatunków,
 			eq(species.weight, 0, species.id .. " nie losuje się")
 		end
 	end
-	local odds = Config.Forge.odds
-	check(odds.bust > 0 and odds.lucky > 0 and odds.bust + odds.lucky < 1, "szanse skucha + szczęście < 100%")
+	local odds = Config.Forge.recipeOdds
+	check(odds.lucky > 0 and odds.lucky < odds.hit and odds.hit < 1, "przepis: trafienie < 100%, w tym szczęście")
+end)
+
+test("kuźnia: progi runy, pula gatunków i wzór mutacji", function()
+	local tiers = Config.Forge.tiers
+	local total = 0
+	for i, tier in tiers do
+		total += tier.chance
+		check(tier.lo > 0 and tier.lo < tier.hi, tier.id .. ": przedział")
+		if i > 1 then
+			eq(tier.lo, tiers[i - 1].hi, tier.id .. ": progi stykają się")
+		end
+		eq(Forge.tier(tier.id), tier)
+	end
+	check(math.abs(total - 1) < 1e-9, "szanse progów razem 100%")
+	eq(Forge.tierOf(0).id, "bust")
+	eq(Forge.tierOf(1).id, "similar")
+	eq(Forge.tierOf(100).id, "great")
+	-- Pula: zwykłe gatunki ze wszystkich światów, bez kuźni, strażników i podróbek
+	for _, id in Forge.POOL do
+		local species = Economy.getSpecies(id)
+		check(species ~= nil and not species.forgeOnly and not species.mimic and Economy.guardianOf(id) == nil, "pula: " .. id)
+	end
+	check(table.find(Forge.POOL, "honey") ~= nil and table.find(Forge.POOL, "night_eye") ~= nil, "pula od lasu po Łysą Górę")
+	-- Gorąco wkładu: rangi + pół punktu za cechę, pełne przy 9 punktach
+	eq(Forge.heat({ { s = "honey" }, { s = "honey" }, { s = "honey" } }), 0)
+	local hot = { { s = "porcini", v = "gold", x = { "glowing" } }, { s = "amethyst", v = "silver", x = { "crystal" } }, { s = "pearl", v = "gold" } }
+	check(math.abs(Forge.heat(hot) - 6 / 9) < 1e-9, "gorąco trójki z projektu")
+	eq(Forge.heat({ { s = "honey", v = "cosmic" }, { s = "honey", v = "cosmic" }, { s = "honey", v = "cosmic" } }), 1)
+	-- Szansa wariantu = szansa z lasu × (0,5 + gorąco × wzmocnienie rangi)
+	local cold = Forge.mutationOdds(0, 1)
+	eq(#cold, 1, "zwykłe grzyby: najwyżej srebro")
+	check(math.abs(cold[1] - Economy.getVariant("silver").chance * 0.5) < 1e-12, "srebro bez gorąca")
+	local full = Forge.mutationOdds(1, Economy.maxVariantRank())
+	local sum = 0
+	for rank, chance in full do
+		local variant = Economy.getVariant(Economy.variantOfRank(rank))
+		check(math.abs(chance - variant.chance * (0.5 + Config.Forge.mutation.gain[rank])) < 1e-12, "wzór rangi " .. rank)
+		sum += chance
+	end
+	check(sum < 1, "razem poniżej 100%")
+	check(Config.Forge.nearest >= 1 and Config.Forge.maxTags >= 1, "liczby runy")
 end)
 
 test("kuźnia: co można wrzucić do moździerza", function()
@@ -3217,82 +3258,170 @@ test("kuźnia: trzech tęczowych strażników = mityczny, z Babą Jagą = sekret
 	end
 end)
 
-test("kuźnia: skucha, zwykły i szczęście (losowy z trzech, połączone cechy)", function()
-	local items = {
-		{ s = "porcini", v = "gold", x = { "glowing" } },
-		{ s = "bay_bolete", v = "silver", x = { "mossy" } },
-		{ s = "chanterelle" },
-	}
-	local preview = Forge.preview(items, OPEN_ALL)
+-- Liczby od serwera, które wybierają środek progu `tier` (bez przepisu)
+local function forgeRolls(tier: string, spread: number, mutation: number, pick: number): any
+	local acc = 0
+	for _, t in Config.Forge.tiers do
+		if t.id == tier then
+			return { recipe = 0.99, tier = acc + t.chance / 2, spread = spread, mutation = mutation, pick = pick }
+		end
+		acc += t.chance
+	end
+	error("nie ma progu " .. tier)
+end
+
+test("kuźnia: runa wyłania grzyb z całej gry w progu wkładu, z cechami trzech grzybów", function()
+	local items = { { s = "porcini" }, { s = "porcini" }, { s = "porcini" } }
+	local preview = Forge.preview(items, OPEN_ALL) :: any
 	check(preview ~= nil, "podgląd")
-	eq(preview.match, nil, "zwykłe losowanie")
-	eq(preview.minRank, 0)
-	eq(table.concat(preview.tags, ","), "glowing,mossy")
-	eq(preview.fee, math.max(Config.Forge.minFee, math.floor(preview.inputValue * Config.Forge.feeShare + 0.5)))
-	-- Granice szans
-	eq(Forge.outcome(preview, 0), "bust")
-	eq(Forge.outcome(preview, Config.Forge.odds.bust - 1e-9), "bust")
-	eq(Forge.outcome(preview, Config.Forge.odds.bust), "lucky")
-	eq(Forge.outcome(preview, Config.Forge.odds.bust + Config.Forge.odds.lucky), "normal")
-	eq(Forge.outcome(preview, 0.999), "normal")
-	-- Skucha: wylosowany (tu pierwszy), bez cech, najsłabszy wariant z trzech
-	local bust, kind, pick = Forge.roll(preview, items, 0, 0)
-	eq(kind, "bust")
-	eq(pick, 1)
-	eq(bust.s, "porcini")
-	eq(bust.v, nil)
-	eq(bust.x, nil)
-	-- Zwykły: drugi grzyb ze swoim wariantem i wszystkimi cechami
-	local normal, kind2, pick2 = Forge.roll(preview, items, 0.9, 0.5)
-	eq(kind2, "normal")
-	eq(pick2, 2)
-	eq(normal.s, "bay_bolete")
-	eq(normal.v, "silver")
-	eq(table.concat(normal.x, ","), "glowing,mossy")
-	-- Szczęście: trzeci grzyb, wariant o rangę wyżej
-	local lucky, kind3, pick3 = Forge.roll(preview, items, Config.Forge.odds.bust, 0.99)
-	eq(kind3, "lucky")
-	eq(pick3, 3)
-	eq(lucky.s, "chanterelle")
-	eq(lucky.v, "silver")
-	-- Kosmiczny wyżej nie skoczy
-	local top = Forge.preview({ { s = "porcini", v = "cosmic" }, { s = "porcini", v = "cosmic" }, { s = "porcini", v = "cosmic" } }, OPEN_ALL)
-	eq((Forge.roll(top :: any, { { s = "porcini", v = "cosmic" }, { s = "porcini", v = "cosmic" }, { s = "porcini", v = "cosmic" } }, 0.3, 0)).v, "cosmic")
+	eq(preview.match, nil, "sama runa")
+	eq(preview.inputValue, 225)
+	eq(preview.fee, Forge.fee(225))
+	eq(preview.feeRaised, false, "zwykła trójka płaci zwykłą opłatę")
+	eq(preview.cap, 1, "z trzech zwykłych najwyżej srebro")
+	-- Podobny: zwykły gatunek wart tyle co wkład (± próg)
+	local similar, kind = Forge.roll(preview, forgeRolls("similar", 0.5, 0.99, 0))
+	eq(similar.v, nil, "bez mutacji")
+	eq(kind, "similar")
+	local ratio = Economy.itemValue(similar) / 225
+	check(ratio >= 0.85 and ratio < 1.25, string.format("w progu: %.2f", ratio))
+	check(table.find(Forge.POOL, similar.s) ~= nil and similar.s ~= "porcini", "inny gatunek z puli: " .. similar.s)
+	-- Skucha i wielki los
+	local bust, bustKind = Forge.roll(preview, forgeRolls("bust", 0, 0.99, 0))
+	eq(bustKind, "bust")
+	check(Economy.itemValue(bust) < 225 * 0.4, "skucha jest tania")
+	local great, greatKind = Forge.roll(preview, forgeRolls("great", 0.5, 0.99, 0))
+	eq(greatKind, "great")
+	check(Economy.itemValue(great) >= 225 * 2.5, "wielki los jest drogi")
+	-- Mutacja: rzut poniżej szansy srebra daje srebrny wynik, dalej blisko celu
+	local silver = Forge.roll(preview, forgeRolls("similar", 0.5, 0, 0))
+	eq(silver.v, "silver")
+	local silverRatio = Economy.itemValue(silver) / 225
+	check(silverRatio >= 0.85 and silverRatio < 1.25, string.format("srebrny w progu: %.2f", silverRatio))
+	-- Wynik to jeden z trzech najbliższych gatunków
+	local seen = {}
+	for _, pick in { 0, 0.4, 0.8 } do
+		seen[(Forge.roll(preview, forgeRolls("similar", 0.5, 0.99, pick))).s] = true
+	end
+	local distinct = 0
+	for _ in seen do
+		distinct += 1
+	end
+	eq(distinct, Config.Forge.nearest, "trzy gatunki do wyboru")
+	-- Cechy wkładu przechodzą na wynik
+	local tagged = { { s = "porcini", x = { "glowing" } }, { s = "bay_bolete", x = { "mossy" } }, { s = "chanterelle" } }
+	local tp = Forge.preview(tagged, OPEN_ALL) :: any
+	eq(table.concat((Forge.roll(tp, forgeRolls("similar", 0.5, 0.99, 0))).x, ","), "glowing,mossy")
+	-- Szanse z podglądu razem 100%, mutacja zwykłej trójki = srebro 6% × 0,5
+	local total = 0
+	for _, chance in preview.odds do
+		total += chance
+	end
+	check(math.abs(total - 1) < 1e-6, "szanse razem 100%")
+	check(math.abs(preview.mutation - 0.03) < 1e-9, string.format("mutacja %.4f", preview.mutation))
 	-- Za mało grzybów / zły grzyb
 	eq(select(2, Forge.preview({ items[1], items[2] }, OPEN_ALL)), "FORGE_NEED_ITEMS")
 	eq(select(2, Forge.preview({ items[1], items[2], { s = "forge_glasscap" } }, OPEN_ALL)), "FORGE_NO_FORGE_ITEM")
 	eq(Forge.fee(0), Config.Forge.minFee)
 end)
 
-test("kuźnia: przepis i strażnicy dają gatunek z kuźni (wariant najsłabszy, w szczęściu wyżej), skucha nie", function()
+test("kuźnia: podgląd mówi prawdę — szanse i średnia zgadzają się z losowaniem", function()
+	local items = { { s = "porcini", v = "gold", x = { "glowing" } }, { s = "amethyst", v = "silver", x = { "crystal" } }, { s = "pearl", v = "gold" } }
+	local preview = Forge.preview(items, OPEN_ALL) :: any
+	-- Wariant najwyżej o rangę ponad najlepszy grzyb (złoto → tęcza), szansa ze wzoru
+	eq(preview.cap, 3)
+	local formula = 0
+	for _, chance in Forge.mutationOdds(6 / 9, 3) do
+		formula += chance
+	end
+	check(math.abs(preview.mutation - formula) < 1e-9, string.format("mutacja %.4f = wzór %.4f", preview.mutation, formula))
+	math.randomseed(11)
+	local n = 20000
+	local seen: { [string]: number } = {}
+	local value, mutated = 0, 0
+	for _ = 1, n do
+		local result, kind = Forge.roll(preview, { recipe = math.random(), tier = math.random(), spread = math.random(), mutation = math.random(), pick = math.random() })
+		seen[kind] = (seen[kind] or 0) + 1
+		value += Economy.itemValue(result)
+		if result.v then
+			mutated += 1
+			check(Economy.variantRank(result.v) <= 3, "nie ponad granicę")
+		end
+	end
+	for _, tier in Config.Forge.tiers do
+		local got = (seen[tier.id] or 0) / n
+		check(math.abs(got - preview.odds[tier.id]) < 0.015, string.format("%s: podgląd %.3f, losowanie %.3f", tier.id, preview.odds[tier.id], got))
+	end
+	check(math.abs(mutated / n - preview.mutation) < 0.015, "mutacja jak w podglądzie")
+	check(math.abs(value / n / preview.expected - 1) < 0.03, string.format("średnia %.0f / %.0f", value / n, preview.expected))
+	-- Drogi wkład bez zwykłego gatunku w podobnej cenie: podgląd uczciwie pokazuje skuchę
+	local top = Forge.preview({ { s = "night_eye" }, { s = "night_eye" }, { s = "night_eye" } }, OPEN_ALL) :: any
+	check(top.odds.bust > 0.9, "trzy najdroższe zwykłe grzyby: prawie zawsze skucha")
+	-- Mutacje we wkładzie, a w randze wylosowanej nic nie sięga progu: ranga rośnie do najlepszego grzyba
+	local rich = { { s = "night_eye", v = "gold" }, { s = "night_eye", v = "gold" }, { s = "night_eye", v = "gold" } }
+	local rp = Forge.preview(rich, OPEN_ALL) :: any
+	local lifted = Forge.roll(rp, forgeRolls("similar", 0.5, 0.99, 0))
+	eq(lifted.v, "gold", "wartość nie przepada przez brak droższych gatunków")
+end)
+
+test("kuźnia: na wynik przechodzą najwyżej 4 najcenniejsze cechy, a wartość dalej celuje we wkład", function()
+	local items = {
+		{ s = "night_eye", v = "rainbow" },
+		{ s = "ember", x = { "mossy", "glowing", "crystal", "abyssal" } },
+		{ s = "earthstar", x = { "cursed", "hexed", "moonlit" } },
+	}
+	local preview = Forge.preview(items, OPEN_ALL) :: any
+	eq(#Forge.unionTags(items), 7, "wszystkie cechy trzech grzybów")
+	eq(table.concat(preview.tags, ","), "abyssal,crystal,hexed,moonlit", "cztery najcenniejsze")
+	local result = Forge.roll(preview, forgeRolls("similar", 0.5, 0.99, 0))
+	eq(table.concat(result.x, ","), "abyssal,crystal,hexed,moonlit")
+	local ratio = Economy.itemValue(result) / preview.inputValue
+	check(ratio < 1.25, string.format("cechy nie pompują wartości ponad próg: %.2f", ratio))
+	check(preview.expected / (preview.inputValue + preview.fee) <= Config.Forge.maxReturn + 1e-6, "EV")
+end)
+
+test("kuźnia: przepis i strażnicy dają gatunek z kuźni w 70% (w tym 8% o rangę wyżej), inaczej runa", function()
 	local items = { { s = "bay_bolete", v = "gold", x = { "mossy" } }, { s = "porcini", v = "rainbow", x = { "glowing" } }, { s = "bog_bell", v = "silver" } }
 	local preview = Forge.preview(items, OPEN_ALL) :: any
 	eq(preview.match.id, "forge_mossbell")
-	local normal = Forge.roll(preview, items, 0.9, 0)
+	eq(preview.odds.recipe, Config.Forge.recipeOdds.hit)
+	local function with(recipe: number): any
+		return { recipe = recipe, tier = 0.5, spread = 0.5, mutation = 0.99, pick = 0 }
+	end
+	local normal, kind = Forge.roll(preview, with(0.5))
+	eq(kind, "recipe")
 	eq(normal.s, "forge_mossbell")
-	eq(normal.v, "silver")
+	eq(normal.v, "silver", "wariant najsłabszego z trzech")
 	eq(table.concat(normal.x, ","), "glowing,mossy")
-	local lucky = Forge.roll(preview, items, Config.Forge.odds.bust, 0)
-	eq(lucky.s, "forge_mossbell")
+	local lucky, kind2 = Forge.roll(preview, with(0))
+	eq(kind2, "recipeLucky")
 	eq(lucky.v, "gold")
-	local bust = Forge.roll(preview, items, 0, 0.5)
-	eq(bust.s, "porcini", "skucha: losowy z wrzuconych")
-	eq(bust.v, "silver")
+	local miss, kind3 = Forge.roll(preview, with(0.95))
+	check(Forge.tier(kind3) ~= nil, "poza przepisem losuje runa: " .. kind3)
+	check(not Economy.isForgeOnly(miss.s), "runa nie daje gatunków z kuźni")
 	local guardians = { { s = "leszy_crown", v = "rainbow" }, { s = "skarbnik_truffle", v = "rainbow" }, { s = "utopiec_chalice", v = "cosmic" } }
 	local gp = Forge.preview(guardians, {}) :: any
 	eq(gp.match.kind, "mythic")
-	eq((Forge.roll(gp, guardians, 0.9, 0)).s, "fern_flower")
-	eq((Forge.roll(gp, guardians, 0.9, 0)).v, "rainbow")
-	eq((Forge.roll(gp, guardians, Config.Forge.odds.bust, 0)).v, "cosmic")
+	local myth, mythKind = Forge.roll(gp, with(0.5))
+	eq(myth.s, "fern_flower")
+	eq(myth.v, "rainbow")
+	eq(mythKind, "mythic")
+	eq((Forge.roll(gp, with(0))).v, "cosmic")
+	-- Runa nie wyłania grzybów strażników (ich trójki to przepis)
+	math.randomseed(3)
+	for _ = 1, 500 do
+		local result = Forge.roll(gp, { recipe = 0.9 + math.random() * 0.099, tier = math.random(), spread = math.random(), mutation = math.random(), pick = math.random() })
+		check(Economy.guardianOf(result.s) == nil and not Economy.isForgeOnly(result.s), "runa: " .. result.s)
+	end
 end)
 
-test("kuźnia: średnio nie zarabia — przepisy i strażnicy przy każdej randze, trójki jednego gatunku", function()
+test("kuźnia: średnio nie zarabia — przepisy i strażnicy przy każdej randze, trójki jednego gatunku, losowe trójki", function()
 	local maxRank = Economy.maxVariantRank()
 	local worst = 0
 	local function checkSink(items: { any }, label: string)
 		local preview = Forge.preview(items, OPEN_ALL)
 		check(preview ~= nil, label .. ": podgląd")
-		local ev = Forge.expectedValue(preview :: any, items)
+		local ev = (preview :: any).expected
 		local ratio = ev / ((preview :: any).inputValue + (preview :: any).fee)
 		worst = math.max(worst, ratio)
 		check(ratio <= Config.Forge.maxReturn + 1e-6, string.format("%s: średni wynik %.0f > %.2f × (wrzucone + opłata) (%.3f)", label, ev, Config.Forge.maxReturn, ratio))
@@ -3336,35 +3465,40 @@ test("kuźnia: średnio nie zarabia — przepisy i strażnicy przy każdej randz
 			end
 		end
 	end
+	-- Losowe trójki z całej puli: dowolne rangi i cechy swoich stref
+	math.randomseed(2026)
+	for _ = 1, 600 do
+		local items = {}
+		for _ = 1, 3 do
+			local id = Forge.POOL[math.random(1, #Forge.POOL)]
+			local tags = {}
+			for _, tag in Economy.tagsForZone((Economy.getSpecies(id) :: any).zone) do
+				if math.random() < 0.4 then
+					table.insert(tags, tag.id)
+				end
+			end
+			table.insert(items, { s = id, v = Economy.variantOfRank(math.random(0, maxRank)), x = if #tags > 0 then tags else nil })
+		end
+		checkSink(items, "losowa trójka " .. items[1].s .. "+" .. items[2].s .. "+" .. items[3].s)
+	end
 	check(worst > 0.5, string.format("najlepszy przypadek %.2f: kuźnia nie powinna być też zupełnie bez sensu", worst))
 end)
 
-test("kuźnia: wiele cech doklejonych do drogiego grzyba podnosi opłatę (przypadek z przeglądu Codexa)", function()
-	local items = {
-		{ s = "night_eye", v = "rainbow" },
-		{ s = "ember", x = { "mossy", "glowing", "crystal", "abyssal" } },
-		{ s = "earthstar", x = { "cursed", "hexed", "moonlit" } },
-	}
-	local preview = Forge.preview(items, OPEN_ALL) :: any
-	check(preview ~= nil, "podgląd")
-	eq(preview.match, nil)
-	eq(#preview.tags, 7, "wszystkie cechy")
-	eq(preview.feeRaised, true, "opłata podniesiona")
-	check(preview.fee > Forge.fee(preview.inputValue), "wyższa niż 30% wkładu")
-	local ratio = Forge.expectedValue(preview, items) / (preview.inputValue + preview.fee)
-	check(ratio <= Config.Forge.maxReturn + 1e-6, string.format("EV %.3f", ratio))
-	-- Zwykłe trójki płacą zwykłą opłatę
+test("kuźnia: zwykłe trójki płacą 8%, a przepis (wart więcej niż wkład) podnosi opłatę", function()
 	local plain = { { s = "porcini", v = "gold", x = { "glowing" } }, { s = "bay_bolete", x = { "mossy" } }, { s = "chanterelle" } }
 	local pp = Forge.preview(plain, OPEN_ALL) :: any
 	eq(pp.feeRaised, false)
 	eq(pp.fee, Forge.fee(pp.inputValue))
-	-- Przepis z podstawowych składników też zwykła opłata
+	eq(Forge.fee(1000), 80)
 	local recipe = Config.Forge.recipes[1]
 	local rItems = {}
 	for _, input in recipe.inputs do
 		table.insert(rItems, forgeInput(input, 0))
 	end
-	eq((Forge.preview(rItems, OPEN_ALL) :: any).feeRaised, false, "przepis bez podwyżki")
+	local rp = Forge.preview(rItems, OPEN_ALL) :: any
+	eq(rp.feeRaised, true, "przepis: wyższa opłata")
+	check(rp.fee > Forge.fee(rp.inputValue), "więcej niż 8% wkładu")
+	check(rp.expected / (rp.inputValue + rp.fee) <= Config.Forge.maxReturn + 1e-6, "EV przepisu")
 end)
 
 test("kuźnia: gatunki z kuźni nie rosną, nie sadzą się i nie liczą do stron Grzybopedii", function()
@@ -3416,11 +3550,27 @@ test("kuźnia: tytuły, odznaki i napisy w CSV", function()
 	for _, key in { "FORGE_TITLE", "PROMPT_FORGE", "ATLAS_PAGE_FORGE", "ATLAS_FORGE_SUMMARY", "ATLAS_FORGE_INFO", "ATLAS_HINT_RECIPE", "ATLAS_HINT_MYTHIC", "ATLAS_HINT_SECRET", "FORGE_NO_PLANT", "FORGE_WRONG_INPUT", "FORGE_NO_EVENT", "FORGE_NO_DRIED", "FORGE_NO_FORGE_ITEM", "FORGE_NO_COINS", "FORGE_COOLDOWN", "FORGE_UNSAFE", "FORGE_FAR", "FORGE_CHANGED", "FORGE_NEED_ITEMS" } do
 		has(key)
 	end
-	for _, kind in { "BUST", "DONE", "LUCKY", "RECIPE", "MYTHIC", "SECRET" } do
+	for _, kind in { "BUST", "DONE", "BETTER", "GREAT", "RECIPE", "MYTHIC", "SECRET" } do
 		has("MSG_FORGE_" .. kind)
 	end
-	for _, kind in { "BUST", "NORMAL", "LUCKY", "RECIPE", "RECIPE_LUCKY", "MYTHIC", "SECRET" } do
+	for _, kind in { "RECIPE", "RECIPE_LUCKY", "MYTHIC", "SECRET" } do
 		has("FORGE_OUT_" .. kind)
+	end
+	for _, tier in Config.Forge.tiers do
+		has(tier.key)
+	end
+	-- Okno kuźni woła teksty przez lokalne t("…")
+	local panel = fs.readFile("src/client/ForgePanel.luau")
+	local used = 0
+	for key in string.gmatch(panel, '%f[%w_]t%("([%u%d_]+)"') do
+		has(key)
+		used += 1
+	end
+	check(used > 20, "skan okna kuźni znalazł klucze")
+	-- Każdy rodzaj wyniku z ForgeService ma komunikat
+	local service = fs.readFile("src/server/ForgeService.luau")
+	for _, tier in Config.Forge.tiers do
+		check(string.find(service, "\t" .. tier.id .. " = \"MSG_FORGE_", 1, true) ~= nil, "komunikat dla progu " .. tier.id)
 	end
 	for _, id in { "TITLE_FORGE_APPRENTICE", "TITLE_FORGE_MASTER", "TITLE_FERN_FLOWER", "TITLE_VELES" } do
 		has(id)

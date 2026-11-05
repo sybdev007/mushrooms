@@ -1,5 +1,8 @@
 # Balans szans Kuźni Grzybów
 
+> Dotyczy wersji 2 (skucha / zwykły / szczęście). Od 5.11 obowiązuje runa (wersja 3): zasady i liczby
+> w [planie Kuźni](kuznia.md), sekcja „Stan wdrożenia — wersja 3”.
+
 Gałąź `kuznia`, zasady z sekcji „Stan wdrożenia — wersja 2” w [planie Kuźni](kuznia.md).
 Kolumna „Po” pokazuje przetestowaną propozycję. **Wprowadzone do gry** (sekcja „Decyzja” na końcu).
 EV oznacza średnią wartość sprzedaży wyniku podzieloną przez wartość wkładu i opłatę łącznie, według cen bazowych.

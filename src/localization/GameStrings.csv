@@ -882,8 +882,6 @@ FORGE_NEED_SWAMP,Unlock the Swamp to use this recipe,,,Odblokuj Bagna żeby uży
 FORGE_NEED_MOUNTAIN,Unlock Bald Mountain to use this recipe,,,Odblokuj Łysą Górę żeby użyć tego przepisu
 FORGE_NEED_JAGA,Escape Baba Jaga once to learn this recipe,,,Ucieknij raz Babie Jadze żeby poznać ten przepis
 FORGE_NO_PLANT,Forge mushrooms can be sold but not planted,,,Grzyby z kuźni można sprzedać ale nie posadzić
-FORGE_COST,Fuse for 💰 {1},,,Połącz za 💰 {1}
-FORGE_WORKING,Grinding...,,,Ucieram...
 FORGE_NEED_ITEMS,Pick mushrooms that fit all three slots,,,Zbierz grzyby pasujące do wszystkich trzech miejsc
 FORGE_WRONG_INPUT,These mushrooms don't fit the recipe,,,Te grzyby nie pasują do przepisu
 FORGE_NO_EVENT,Event mushrooms can't go into the mortar,,,Grzyby z eventów nie wchodzą do moździerza
@@ -893,7 +891,6 @@ FORGE_UNSAFE,Not now! Get somewhere safe first,,,Nie teraz! Najpierw schowaj si�
 FORGE_FAR,Come closer to the mortar,,,Podejdź bliżej moździerza
 FORGE_CHANGED,Your basket changed. Check the mushrooms again,,,Koszyk się zmienił. Sprawdź grzyby jeszcze raz
 MSG_FORGE_DONE,The mortar gave you {1}{2}!,,,Moździerz dał ci: {1}{2}!
-MSG_FORGE_LUCKY,Lucky grind! {1}{2} came out even better!,,,Szczęśliwe ucieranie! {1}{2} wyszedł jeszcze lepszy!
 ATLAS_PAGE_FORGE,Forge,,,Kuźnia
 ATLAS_FORGE_SUMMARY,Forge species: <b>{1}/{2}</b>  ·  Fuse them in the Herbalist's Mortar on Portal Square,,,Gatunki z kuźni: <b>{1}/{2}</b>  ·  Połącz je w Moździerzu Zielarki na Placu Portali
 TITLE_FORGE_APPRENTICE,Herbalist's Apprentice,,,Uczeń Zielarki
@@ -905,36 +902,54 @@ MUSH_FERN_FLOWER,Fern Flower,,,Kwiat Paproci
 MUSH_VELES_EYE,Eye of Veles,,,Oko Welesa
 CLASS_MYTHIC,Mythic,,,Mityczny
 CLASS_SECRET,Secret,,,Sekretny
-FORGE_INVENTORY,Inventory ({1} of {2} usable),,,Ekwipunek ({1} z {2} do wrzucenia)
 FORGE_INVENTORY_EMPTY,Your basket is empty. Go pick some mushrooms!,,,Koszyk jest pusty. Zbierz grzyby w lesie!
-FORGE_SLOT_PICK,Click a mushroom in your inventory,,,Kliknij grzyb w ekwipunku
-FORGE_HEAD_EMPTY,Drop in any 3 mushrooms,,,Wrzuć 3 dowolne grzyby
-FORGE_RULE_1,💀 Bust: a random one of the three without traits,,,💀 Skucha: losowy z trzech bez cech
-FORGE_RULE_2,🍄 Normal: a random one with all their traits,,,🍄 Zwykły: losowy z trzech ze wszystkimi cechami
-FORGE_RULE_3,🍀 Lucky: and one variant higher,,,🍀 Szczęście: do tego wariant o rangę wyżej
-FORGE_HEAD_RANDOM,🎲 A random one of the three,,,🎲 Losowy z trzech
-FORGE_HEAD_KNOWN,📜 Recipe: {1},,,📜 Przepis: {1}
-FORGE_HEAD_SENSE,✨ The mortar senses something...,,,✨ Moździerz coś wyczuwa...
-FORGE_LINE_BUST,💀 Bust {1}% · no traits · {2},,,💀 Skucha {1}% · bez cech · {2}
-FORGE_LINE_NORMAL,🍄 Normal {1}% · traits: {2},,,🍄 Zwykły {1}% · cechy: {2}
-FORGE_LINE_LUCKY,🍀 Lucky {1}% · one variant higher,,,🍀 Szczęście {1}% · wariant o rangę wyżej
-FORGE_INPUT_VALUE,You put in mushrooms worth 💰 {1},,,Wrzucasz grzyby warte 💰 {1}
-FORGE_INPUT_VALUE_HIGH,You put in 💰 {1} · a rich result means a higher fee,,,Wrzucasz 💰 {1} · cenny wynik = wyższa opłata
-FORGE_ROLLING,Rolling...,,,Bęben się kręci...
-FORGE_AGAIN,Drop in 3 more to fuse again,,,Wrzuć kolejne 3 grzyby
-FORGE_NO_TRAITS,No traits,,,Bez cech
-FORGE_NEED_THREE,Drop in 3 mushrooms,,,Wrzuć 3 grzyby
-FORGE_HINT_PICK,Click mushrooms in the inventory on the left,,,Kliknij grzyby w ekwipunku po lewej
-FORGE_HINT_REMOVE,Click a slot to take a mushroom out,,,Kliknij miejsce żeby wyjąć grzyb
 FORGE_NO_FORGE_ITEM,Forge mushrooms can't go back in,,,Grzybów z kuźni nie wrzucisz z powrotem
 FORGE_NO_DRIED,Dried mushrooms can't go in,,,Suszonych grzybów nie wrzucisz
-FORGE_OUT_BUST,Bust!,,,Skucha!
-FORGE_OUT_NORMAL,Done!,,,Gotowe!
-FORGE_OUT_LUCKY,Lucky!,,,Szczęście!
-FORGE_OUT_RECIPE,Hidden recipe!,,,Ukryty przepis!
-FORGE_OUT_RECIPE_LUCKY,Recipe and luck!,,,Przepis i szczęście!
-FORGE_OUT_MYTHIC,MYTHIC!,,,MITYCZNY!
-FORGE_OUT_SECRET,SECRET!,,,SEKRETNY!
+FORGE_OUT_RECIPE,HIDDEN RECIPE,,,UKRYTY PRZEPIS
+FORGE_OUT_RECIPE_LUCKY,RECIPE AND LUCK,,,PRZEPIS I SZCZĘŚCIE
+FORGE_OUT_MYTHIC,MYTHIC,,,MITYCZNY
+FORGE_OUT_SECRET,SECRET,,,SEKRETNY
+FORGE_DESC,Drop in any three mushrooms. The rune adds up their value and draws a new mushroom from the whole forest at a similar price or better.,,,Wrzuć trzy dowolne grzyby. Runa zsumuje ich wartość i wyłoni nowy grzyb z całego lasu w podobnej cenie albo lepszy.
+FORGE_CHIP_WORSE,Worse {1},,,Gorszy {1}
+FORGE_CHIP_SIMILAR,Similar {1},,,Podobny {1}
+FORGE_CHIP_BETTER,Better {1},,,Lepszy {1}
+FORGE_CHIP_MUTATION,Mutation chance: {1},,,Szansa na mutację: {1}
+FORGE_CHIP_RECIPE,📜 {1} {2},,,📜 {1} {2}
+FORGE_CHIP_SENSE,✨ The mortar senses something {1},,,✨ Moździerz coś wyczuwa {1}
+FORGE_CHIP_RUNE,Rune {1},,,Runa {1}
+FORGE_SLOT_DROP,DROP,,,WRZUĆ
+FORGE_INPUT,INPUT,,,WKŁAD
+FORGE_CENTER_READY,click FUSE,,,kliknij POŁĄCZ
+FORGE_CENTER_PICK,drop in 3 mushrooms,,,wrzuć 3 grzyby
+FORGE_BASKET,Basket,,,Koszyk
+FORGE_BASKET_INFO,Mushrooms: {1} · picked {2}/3,,,Grzyby: {1} · wybrano {2}/3
+FORGE_FEE,FEE {1},,,OPŁATA {1}
+FORGE_FUSE,FUSE,,,POŁĄCZ
+FORGE_FUSING,FUSING…,,,ŁĄCZENIE…
+FORGE_COLLECT,COLLECT TO BASKET,,,ZBIERZ DO KOSZYKA
+FORGE_STATUS_PICK,Pick three mushrooms from the basket on the right. Up to {1} of their traits pass to the result.,,,Wybierz trzy grzyby z koszyka po prawej. Do {1} ich cech przejdzie na wynik.
+FORGE_STATUS_MORE,Picked {1} of 3 mushrooms. Add {2} more.,,,Wybrano {1} z 3 grzybów. Dołóż jeszcze {2}.
+FORGE_STATUS_READY,Mutations in the input raise the mutation chance of the result. The best mushroom in the input sets the top variant.,,,Mutacje we wkładzie podnoszą szansę na mutację wyniku. Najlepszy grzyb we wkładzie wyznacza górną granicę wariantu.
+FORGE_STATUS_RECIPE,📜 Recipe: {1}! It works in {2} of tries ({3} one variant higher).,,,📜 Przepis: {1}! Działa w {2} prób ({3} o rangę wyżej).
+FORGE_STATUS_SENSE,✨ The mortar senses something... This trio may give something special.,,,✨ Moździerz coś wyczuwa... Ta trójka może dać coś wyjątkowego.
+FORGE_STATUS_TOO_RICH,These mushrooms are worth more than anything that grows: the rune will almost surely give less.,,,Te grzyby są warte więcej niż wszystko co rośnie: runa prawie na pewno odda mniej.
+FORGE_STATUS_BUSY,The rune is working… the result was already drawn on the server.,,,Runa pracuje… wynik został już wylosowany po stronie serwera.
+FORGE_STATUS_DONE,Done! The mushroom and its traits are already in your basket.,,,Gotowe! Grzyb i jego cechy są już w twoim koszyku.
+FORGE_TIER_BUST,BUST,,,SKUCHA
+FORGE_TIER_WORSE,WORSE,,,GORSZY
+FORGE_TIER_SIMILAR,SIMILAR,,,PODOBNY
+FORGE_TIER_BETTER,BETTER,,,LEPSZY
+FORGE_TIER_GREAT,JACKPOT,,,WIELKI
+FORGE_RES_VALUE,VALUE,,,WARTOŚĆ
+FORGE_RES_INPUT,INPUT (3 MUSHROOMS),,,WKŁAD (3 GRZYBY)
+FORGE_RES_MUTATION,MUTATION,,,MUTACJA
+FORGE_RES_FEE,FEE,,,OPŁATA
+FORGE_RES_TAGS,TRAITS PASSED FROM THE INPUT,,,CECHY PRZEKAZANE Z WKŁADU
+FORGE_RES_NO_TAGS,none,,,brak
+FORGE_RES_SCALE,RESULT ON THE INPUT SCALE,,,WYNIK NA SKALI WKŁADU
+FORGE_RES_NO_VARIANT,none (normal),,,brak (zwykły)
+MSG_FORGE_BETTER,Better! The rune gave you {1}{2}!,,,Lepszy! Runa dała ci: {1}{2}!
+MSG_FORGE_GREAT,JACKPOT! The rune gave you {1}{2}!,,,WIELKI LOS! Runa dała ci: {1}{2}!
 MSG_FORGE_BUST,Bust! The mortar only gave back {1}{2},,,Skucha! Moździerz oddał tylko {1}{2}
 MSG_FORGE_RECIPE,Hidden recipe! The mortar gave you {1}{2}!,,,Ukryty przepis! Moździerz dał ci: {1}{2}!
 MSG_FORGE_MYTHIC,MYTHIC! You forged {1}{2}!,,,MITYCZNY! Wytopiłeś {1}{2}!

@@ -1210,14 +1210,22 @@ Config.UtopiecLair = {
 -- Wiedźma z polskich i słowiańskich baśni: lata w moździerzu, miotłą zamiata za sobą ślady, a jej
 -- chatka stoi na kurzej stopce i sama się obraca. Ogródek z Zielem Baby Jagi jest za chatką na szczycie.
 -- ===== Kuźnia Grzybów: Moździerz Zielarki na Placu Portali =====
--- Gracz wrzuca z ekwipunku DOWOLNE 3 grzyby i płaci małą opłatę (feeShare wartości wrzuconych).
--- Bęben losuje jeden z trzech wyników (decyzje Toma 4.11, szanse do sprawdzenia przez Codexa):
---   skucha  (odds.bust):  losowy z wrzuconych, bez cech, z najsłabszym wariantem z trzech;
---   zwykły  (reszta):     losowy z wrzuconych (jego wariant) ze WSZYSTKIMI cechami trzech grzybów;
---   szczęście (odds.lucky): jak zwykły, ale wariant o rangę wyżej (najwyżej kosmiczny).
--- Ukryte przepisy (recipes) i trójki strażników (specials): dokładny zestaw daje w „zwykłym” i „szczęściu”
--- gatunek tylko z kuźni (wariant = najsłabszy z trzech, w szczęściu o rangę wyżej); skucha jak wyżej.
--- Grzybów z kuźni nie da się posadzić ani wrzucić z powrotem. Wynik zawsze trafia do koszyka.
+-- Wersja 3 (runa, projekt „Kuźnia Grzybów UI” z 5.11): gracz wrzuca DOWOLNE 3 grzyby i płaci opłatę
+-- (feeShare wkładu). Runa sumuje ich wartość (wkład), losuje próg (tiers: ułamek wkładu) i wyłania grzyb
+-- ze wszystkich zwykłych gatunków gry o wartości najbliższej celowi (jeden z `nearest` najbliższych).
+-- Wariant wyniku: szansa na mutację rośnie z „gorącem” wkładu (rangi i cechy trzech grzybów), a najlepszy
+-- grzyb wkładu wyznacza górną granicę (o rangę wyżej). Cechy trzech grzybów przechodzą na wynik (maxTags).
+-- Ukryte przepisy (recipes) i trójki strażników (specials) działają dalej: z szansą recipeOdds.hit dają
+-- gatunek tylko z kuźni (wariant = najsłabszy z trzech, w recipeOdds.lucky o rangę wyżej), a w pozostałych
+-- przypadkach runa losuje jak zwykle. Grzybów z kuźni nie da się posadzić ani wrzucić z powrotem.
+export type ForgeTier = {
+	id: string,
+	key: string, -- nazwa progu (CSV)
+	lo: number, -- cel losowany w przedziale [lo, hi) × wkład (logarytmicznie równomiernie)
+	hi: number,
+	chance: number,
+	color: { number },
+}
 export type ForgeInput = { s: string, tag: string? }
 export type ForgeRecipe = {
 	id: string, -- id gatunku wyniku (forgeOnly)
@@ -1232,13 +1240,26 @@ export type ForgeSpecial = {
 }
 Config.Forge = {
 	station = { x = -17, z = -69, radius = 7 }, -- moździerz stoi z boku Placu Portali
-	cooldown = 5, -- sekund między połączeniami jednego gracza (animacja bębna trwa ok. 3 s)
-	revealDelay = 3.2, -- po tylu sekundach serwer wysyła komunikaty o wyniku (po animacji bębna w oknie)
-	odds = { bust = 0.3, lucky = 0.08 }, -- reszta to wynik zwykły (szanse po przeglądzie Codexa: kuznia-szanse.md)
-	feeShare = 0.3, -- opłata = taka część wartości trzech wrzuconych grzybów
-	minFee = 25,
-	-- Średni wynik nigdy nie przekracza tej części (wrzucone + opłata): gdy trójka może dać dużo więcej
-	-- niż jest warta (np. wiele cech doklejonych do drogiego grzyba), opłata rośnie (Forge.preview)
+	cooldown = 6, -- sekund między połączeniami jednego gracza (animacja runy trwa ok. 5,5 s)
+	revealDelay = 5.8, -- po tylu sekundach serwer wysyła komunikaty o wyniku (po odsłonięciu w oknie)
+	-- Progi runy: wynik celuje w [lo, hi) × wkład. Średnio ok. 0,88 wkładu, więc z opłatą kuźnia zjada monety.
+	tiers = {
+		{ id = "bust", key = "FORGE_TIER_BUST", lo = 0.05, hi = 0.4, chance = 0.22, color = { 139, 143, 148 } },
+		{ id = "worse", key = "FORGE_TIER_WORSE", lo = 0.4, hi = 0.85, chance = 0.36, color = { 192, 138, 84 } },
+		{ id = "similar", key = "FORGE_TIER_SIMILAR", lo = 0.85, hi = 1.25, chance = 0.25, color = { 239, 232, 210 } },
+		{ id = "better", key = "FORGE_TIER_BETTER", lo = 1.25, hi = 2.5, chance = 0.14, color = { 95, 211, 138 } },
+		{ id = "great", key = "FORGE_TIER_GREAT", lo = 2.5, hi = 6, chance = 0.03, color = { 201, 139, 255 } },
+	} :: { ForgeTier },
+	nearest = 3, -- wynik to losowy z tylu gatunków najbliższych celowi
+	maxTags = 4, -- najwyżej tyle cech przechodzi na wynik (najcenniejsze)
+	-- Szansa na wariant rangi k (do górnej granicy): szansa z Config.Variants × (base + gorąco × gain[k]).
+	-- Gorąco = Σ (ranga + tagHeat × liczba cech) trzech grzybów / heatFull, najwyżej 1.
+	mutation = { base = 0.5, gain = { 4, 8, 20, 40 }, heatFull = 9, tagHeat = 0.5 },
+	recipeOdds = { hit = 0.7, lucky = 0.08 }, -- przepis trafia w 70% (w tym 8% o rangę wyżej), reszta to runa
+	feeShare = 0.08, -- opłata = taka część wartości trzech wrzuconych grzybów
+	minFee = 5,
+	-- Średni wynik nigdy nie przekracza tej części (wrzucone + opłata): gdy trójka może dać więcej, niż jest
+	-- warta (przepisy, tanie grzyby z mutacjami), opłata rośnie do tej granicy (Forge.preview)
 	maxReturn = 0.9,
 	recipes = {
 		{ id = "forge_mossbell", inputs = { { s = "bay_bolete", tag = "mossy" }, { s = "porcini", tag = "glowing" }, { s = "bog_bell" } }, world = "swamp" },
