@@ -268,6 +268,8 @@ local function context(): Titles.Context?
 		bestiary = if typeof(state.bestiary) == "table" then state.bestiary else {},
 		stats = stats,
 		tutorialDone = state.tutorialDone == true,
+		-- Tylko do okna (pokazać tytuły twórców); wybór i tak sprawdza serwer
+		dev = Titles.isDev(Players.LocalPlayer.UserId),
 	}
 end
 
@@ -283,6 +285,10 @@ local function eventActive(event: string): boolean
 end
 
 local function visible(def: Titles.TitleDef, earned: { [string]: boolean }): boolean
+	-- Tytuły twórców gry (special "dev") widzą tylko ci, którzy je mają
+	if def.special == "dev" then
+		return earned[def.id] == true
+	end
 	return earned[def.id] == true or def.event == nil or eventActive(def.event)
 end
 

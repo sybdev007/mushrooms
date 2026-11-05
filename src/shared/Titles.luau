@@ -78,7 +78,7 @@ export type TitleDef = {
 	stat: string?, -- licznik ze Stats i cel
 	goal: number?,
 	atlas: { page: string, rank: number }?, -- próg strony Grzybopedii
-	special: string?, -- "tutorial" | "grandmaster" | "rainbow" | "cosmic" | "guardians" | "forge" | id gatunku z kuźni
+	special: string?, -- "tutorial" | "grandmaster" | "rainbow" | "cosmic" | "guardians" | "forge" | "dev" | id gatunku z kuźni
 	escape: string?, -- strażnik, któremu trzeba choć raz uciec z jego grzybem (Progress.GUARDIANS)
 	event: string?, -- tytuł z eventu (np. "halloween"): po evencie niezdobyty znika z okna
 }
@@ -88,7 +88,13 @@ export type Context = {
 	bestiary: { [string]: any },
 	stats: Stats,
 	tutorialDone: boolean,
+	dev: boolean?, -- konto z Config.DevUserIds (Tom, Miłosz): tylko ono ma tytuły twórców (special "dev")
 }
+
+-- Czy konto należy do twórców gry (tytuły „dev”). Serwer liczy to sam z UserId, klient tylko do okna.
+function Titles.isDev(userId: number): boolean
+	return table.find(Config.DevUserIds, userId) ~= nil
+end
 
 -- Kolejność = kolejność w oknie (w każdej rzadkości od najłatwiejszego)
 local LIST: { TitleDef } = {
@@ -151,6 +157,10 @@ table.insert(LIST, { id = "TITLE_ADVENT", rarity = "epic", stat = "advent", goal
 for _, step in Config.NightFind.titles do
 	table.insert(LIST, { id = step.id, rarity = step.rarity, stat = "nightFinds", goal = step.goal })
 end
+-- Tytuły twórców gry: tylko konta z Config.DevUserIds (inni ich nie widzą w oknie i nie mogą wybrać)
+table.insert(LIST, { id = "TITLE_DEV_CREATOR", rarity = "mythic", special = "dev" }) -- Twórca Gry
+table.insert(LIST, { id = "TITLE_DEV_ARCHITECT", rarity = "mythic", special = "dev" }) -- Architekt Lasu
+table.insert(LIST, { id = "TITLE_DEV_LANTERN", rarity = "mythic", special = "dev" }) -- Strażnik Latarni
 -- Ofiara dla Leszego: tytuły za łączną sumę wpłat (Config.Shrine.tiers)
 for _, tier in Config.Shrine.tiers do
 	table.insert(LIST, { id = tier.title, rarity = tier.rarity, stat = "leszyOffered", goal = tier.goal })
@@ -215,6 +225,8 @@ function Titles.progress(def: TitleDef, ctx: Context): (number, number)
 		return Progress.tierProgress(ctx.atlas, def.atlas.page, def.atlas.rank)
 	elseif def.special == "tutorial" then
 		return if ctx.tutorialDone then 1 else 0, 1
+	elseif def.special == "dev" then
+		return if ctx.dev == true then 1 else 0, 1
 	elseif def.special == "rainbow" then
 		return if hasForm(ctx.atlas, 3) then 1 else 0, 1
 	elseif def.special == "cosmic" then

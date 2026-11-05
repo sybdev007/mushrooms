@@ -67,13 +67,15 @@ local function grantLuck(data: Data, seconds: number)
 	data.luckUntil = math.max(os.time(), data.luckUntil) + seconds
 end
 
-local function titleContext(data: Data): Titles.Context
+-- player: do tytułów twórców (Titles.isDev); bez gracza (np. sam samouczek) tytułów „dev” nie ma
+local function titleContext(data: Data, player: Player?): Titles.Context
 	local tutorial = data.tutorial
 	return {
 		atlas = data.atlas,
 		bestiary = data.bestiary,
 		stats = data.stats,
 		tutorialDone = typeof(tutorial) == "number" and tutorial >= Config.Tutorial.done,
+		dev = player ~= nil and Titles.isDev(player.UserId),
 	}
 end
 
@@ -129,7 +131,7 @@ end
 -- Tytuł nad głową: klient czyta atrybut i tłumaczy klucz (TitleView).
 -- Wybrany przez gracza z listy zdobytych, a bez wyboru najlepszy. Nowo zdobyte: komunikat.
 local function refreshTitle(player: Player, data: Data)
-	local earned = Titles.earned(titleContext(data))
+	local earned = Titles.earned(titleContext(data, player))
 	local seen = data.titles
 	if seen then
 		for _, id in Titles.newlyEarned(earned, seen) do
@@ -763,7 +765,7 @@ local function onSelectTitle(player: Player, id: unknown)
 	if not data or typeof(id) ~= "string" then
 		return
 	end
-	if id ~= "" and id ~= Titles.NONE and not Titles.earned(titleContext(data))[id] then
+	if id ~= "" and id ~= Titles.NONE and not Titles.earned(titleContext(data, player))[id] then
 		return
 	end
 	data.titleChoice = id

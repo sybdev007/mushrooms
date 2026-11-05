@@ -4566,6 +4566,32 @@ test("Ofiara dla Leszego: tytuły i obwódka na progach, suma rośnie dalej", fu
 	end
 end)
 
+test("tytuły twórców: tylko konta z DevUserIds, inni ich nie zdobędą ani nie wybiorą", function()
+	local devTitles = {}
+	for _, def in Titles.LIST do
+		if def.special == "dev" then
+			table.insert(devTitles, def.id)
+			eq(def.rarity, "mythic", def.id)
+			check(csvHas(def.id) and csvHas(def.id .. "_HOW"), "tekst w CSV: " .. def.id)
+		end
+	end
+	eq(#devTitles, 3)
+	check(Titles.isDev(1293490018), "Tom")
+	check(Titles.isDev(7532199310), "Miłosz")
+	check(not Titles.isDev(1), "zwykły gracz")
+	local base: any = { atlas = {}, bestiary = {}, stats = Titles.emptyStats(), tutorialDone = true }
+	local player = Titles.earned(base)
+	base.dev = true
+	local dev = Titles.earned(base)
+	for _, id in devTitles do
+		eq(player[id], nil, "gracz nie ma " .. id)
+		eq(dev[id], true, "dev ma " .. id)
+		-- Wybór zwykłego gracza nie przejdzie (serwer: SelectTitle sprawdza Titles.earned)
+		eq(Titles.resolve(id, player), Titles.resolve("", player), "bez tytułu twórcy u gracza")
+		eq(Titles.resolve(id, dev), id)
+	end
+end)
+
 print(string.format("\n%d ok, %d błędów", passed, failed))
 if failed > 0 then
 	process.exit(1)
