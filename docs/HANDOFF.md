@@ -75,6 +75,8 @@ Magazyn `LanternForager_Profiles_v1`, klucz `player_1293490018`.
    F9 → Server czysto, ucieczka przed Jagą). `51d208e`: od kuźni v3 każde wyjście gracza wywalało
    `onPlayerRemoving` (devSnapshots przed deklaracją). `af8fa4f`: Baba Jaga 43 → 36 studs/s. Jeśli okaże się
    za łatwa, 37–38 też da się przebiec na butach 15–16 (test „Baba Jaga: zapas”).
+   `831bd15` (opublikowane i sprawdzone 5.11): napisy „Znalezisko Nocy”, tytuły graczy, Dawca Wysypu i x2
+   skrzyni wisiały przed chatką, gdy ich część wypadła ze streamingu. Teraz `BillboardGuard` (zasada 11 w `CLAUDE.md`).
 1. ~~Opublikować `main` z kuźnią v3~~: opublikowane 5.11, Tom potwierdził, że działa. Do obserwacji przez kilka
    dni: Analytics kuźni (ile połączeń, które progi), czy gracze nie narzekają na skuchy przy drogich trójkach.
    Lint `selene src` na PC jeszcze nie puszczony. W Studio sprawdzone 5.11: trójka z góry (gorszy 0,53×), przepis (dzwonek mszysty 1,21×), tania trójka
