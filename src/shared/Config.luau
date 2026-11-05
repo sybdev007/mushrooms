@@ -1284,6 +1284,7 @@ Config.JagaLair = {
 	centerX = 0,
 	centerZ = 3440, -- środek ogródka (chatka stoi bliżej, na hutZ)
 	hutZ = 3418,
+	chaseFromZ = 3412, -- Jaga wylatuje spod drzwi chatki, czyli bliżej polany niż ogródek (Mountain.jagaOrigin)
 	radius = 16,
 	spots = 3,
 	spotRadius = 5,
@@ -1293,11 +1294,16 @@ Config.JagaLair = {
 }
 
 Config.Jaga = {
-	speed = 43, -- lata w moździerzu: przy chatce odwróconej ucieka się od butów 13 (droga 400 studs do polany)
+	-- Lata w moździerzu. Było 43 (szybciej niż buty 16 = 40): na zboczu, przy ognisku w kręgu kamieni
+	-- i na kotłach gracz traci ok. 10% prędkości i Jaga doganiała go tuż przed polaną nawet na butach 16.
+	-- Przy 36 butami 14+ ucieka się z zapasem także z tą stratą (symulacja w teście „Baba Jaga: zapas”).
+	speed = 36,
 	wakeDelay = 2.5, -- chatka odwrócona: Jaga potrzebuje chwili, żeby wylecieć
 	wakeDelayWatched = 0.3, -- chatka patrzy na gracza: Jaga wylatuje od razu
 	catchRadius = 4,
 	giveUpSeconds = 55,
+	-- O tyle studs bliżej polany niż środek ogródka startuje (spod drzwi chatki); Economy.escapes to odejmuje
+	lead = Config.JagaLair.centerZ - Config.JagaLair.chaseFromZ,
 }
 
 -- Kruki Baby Jagi (Wiedźmi Las i Kotły): kruk wybiera gracza, nad nim cień, po chwili nurkuje.

@@ -1920,6 +1920,45 @@ test("próg butów do ucieczki rośnie ze światem i zgadza się z testami pośc
 	eq(Progress.escapeDistance(Progress.getGuardian("leszy") :: any), groveDistance, "droga ucieczki przed Leszym")
 end)
 
+-- Pościg krok po kroku jak w ChaseService (oś z): gracz z najdalszej grządki biegnie do polany, Jaga
+-- wylatuje spod drzwi chatki po wakeDelay i leci prosto na niego. Zwraca true = złapana ucieczka.
+local function jagaCatches(jagaSpeed: number, playerSpeed: number): boolean
+	local lair, jaga = Config.JagaLair, Config.Jaga
+	local safeEnd = Config.Zones[Progress.safeZone("mountain") :: number].endZ
+	local dt, t = 0.01, 0
+	local playerZ, jagaZ = lair.centerZ + lair.radius, lair.chaseFromZ
+	while playerZ > safeEnd do
+		t += dt
+		playerZ -= playerSpeed * dt
+		if t >= jaga.wakeDelay then
+			local gap = jagaZ - playerZ
+			jagaZ -= math.min(jagaSpeed * dt, math.abs(gap)) * math.sign(gap)
+			if math.abs(jagaZ - playerZ) <= jaga.catchRadius then
+				return true
+			end
+		end
+	end
+	return false
+end
+
+test("Baba Jaga: zapas na najlepszych butach (start spod chatki, 10% straty na zboczu)", function()
+	local def = Progress.getGuardian("jaga") :: any
+	eq(Config.Jaga.lead, Config.JagaLair.centerZ - Config.JagaLair.chaseFromZ, "lead = start Jagi przed ogródkiem")
+	local first = Progress.bootsToEscape(def) :: number
+	check(first <= 14, "próg z Grzybopedii za wysoki: " .. first)
+	for level = 14, Config.Upgrades.boots.maxLevel do
+		local speed = Economy.upgradeStat("boots", level)
+		check(not jagaCatches(Config.Jaga.speed, speed * 0.9), "buty " .. level .. " przy 90% prędkości nie uciekają")
+	end
+	-- Stara prędkość 43 łapała na butach 16 przy 90% (zgłoszenie Toma 5.11): symulacja musi to widzieć
+	check(jagaCatches(43, Economy.upgradeStat("boots", 16) * 0.9), "symulacja nie odtwarza zgłoszonego błędu")
+	-- Model Grzybopedii z `lead` zgadza się z symulacją przy pełnej prędkości (od progu w górę)
+	for level = first, Config.Upgrades.boots.maxLevel do
+		check(not jagaCatches(Config.Jaga.speed, Economy.upgradeStat("boots", level)) or level == first,
+			"model i symulacja różnią się na butach " .. level)
+	end
+end)
+
 print("Codzienne zadania i seria logowań (Progress)")
 
 test("trzy różne zadania, ten sam dzień = ten sam zestaw, inny gracz = zwykle inny", function()

@@ -1353,7 +1353,7 @@ end
 -- Skąd wylatuje Baba Jaga w pościgu: spod drzwi chatki (na płaskim szczycie)
 function Mountain.jagaOrigin(): Vector3
 	local lair = Config.JagaLair
-	return Vector3.new(lair.centerX, Terrain.TOP, lair.hutZ - 6)
+	return Vector3.new(lair.centerX, Terrain.TOP, lair.chaseFromZ)
 end
 
 return Mountain

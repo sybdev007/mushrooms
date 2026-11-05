@@ -815,16 +815,22 @@ function Economy.escapesLeszy(distance: number, speed: number): boolean
 	return Economy.escapes(distance, speed, Config.Leszy)
 end
 
--- To samo dla dowolnego strażnika (Leszy, Skarbnik): ustawienia speed, wakeDelay, catchRadius
-function Economy.escapes(distance: number, speed: number, leszy: { speed: number, wakeDelay: number, catchRadius: number }): boolean
+-- To samo dla dowolnego strażnika (Leszy, Skarbnik): ustawienia speed, wakeDelay, catchRadius.
+-- lead: o ile studs bliżej bezpiecznej strefy strażnik startuje od gracza (Baba Jaga wylatuje spod drzwi
+-- chatki, przed ogródkiem). Gracz musi ją minąć, zanim wyleci.
+function Economy.escapes(distance: number, speed: number, leszy: { speed: number, wakeDelay: number, catchRadius: number, lead: number? }): boolean
 	if speed <= 0 then
 		return false
+	end
+	local lead = leszy.lead or 0
+	if lead > 0 and speed * leszy.wakeDelay <= lead + leszy.catchRadius then
+		return false -- strażnik budzi się, zanim gracz go minie
 	end
 	if leszy.speed <= speed then
 		return true
 	end
-	-- Leszy w chwili t jest na L*(t - delay), gracz na v*t. Łapie, gdy różnica <= catchRadius.
-	local catchTime = (leszy.speed * leszy.wakeDelay - leszy.catchRadius) / (leszy.speed - speed)
+	-- Leszy w chwili t jest na L*(t - delay) - lead, gracz na v*t. Łapie, gdy różnica <= catchRadius.
+	local catchTime = (leszy.speed * leszy.wakeDelay - lead - leszy.catchRadius) / (leszy.speed - speed)
 	return distance / speed < catchTime
 end
 
