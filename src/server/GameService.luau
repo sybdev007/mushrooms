@@ -45,6 +45,7 @@ local HalloweenService = require(script.Parent.HalloweenService)
 local WinterService = require(script.Parent.WinterService)
 local NightFindService = require(script.Parent.NightFindService)
 local ShowcaseService = require(script.Parent.ShowcaseService)
+local ShrineService = require(script.Parent.ShrineService)
 local CommunityService = require(script.Parent.CommunityService)
 local DelveService = require(script.Parent.DelveService)
 local AnnounceService = require(script.Parent.AnnounceService)
@@ -2564,6 +2565,36 @@ function GameService.start(mapInfo: MapBuilder.MapInfo)
 			end
 		end,
 		rootOf = getRoot,
+	})
+	-- Ofiara dla Leszego: kapliczka na Placu Portali (plan docs/plans/endgame-zlew.md)
+	ShrineService.start({
+		getData = function(player: Player)
+			local session = sessions[player]
+			return if session then session.data else nil
+		end,
+		notify = function(player: Player, key: string, args: { any }?)
+			local session = sessions[player]
+			if session then
+				notify(session, key, args)
+			end
+		end,
+		pushState = function(player: Player)
+			local session = sessions[player]
+			if session then
+				pushState(session)
+			end
+		end,
+		rootOf = getRoot,
+		canSave = function(player: Player): boolean
+			local session = sessions[player]
+			return session ~= nil and session.canSave
+		end,
+		event = function(player: Player, kind: string, amount: number)
+			ProgressService.event(player, kind, amount)
+		end,
+		refreshGarden = function(player: Player)
+			GardenService.refresh(player)
+		end,
 	})
 	TutorialService.start({
 		pushState = function(session: any)

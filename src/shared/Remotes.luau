@@ -43,6 +43,8 @@ local NAMES = {
 	"ForgeAction", -- Kuźnia Grzybów: połącz 3 grzyby z koszyka według przepisu
 	"ShowcaseView", -- gablota w ogródku: miejsca, wystawy, co można wystawić (i czy otworzyć okno)
 	"ShowcaseAction", -- gablota: kup miejsce, wystaw, zdejmij
+	"ShrineView", -- Ofiara dla Leszego: suma, następny próg, saldo (i czy otworzyć okno); jeden odbiorca ShrinePanel
+	"ShrineAction", -- Ofiara dla Leszego: wpłata (kwota w pełnych milionach; serwer sprawdza wszystko)
 }
 
 local folder: Folder

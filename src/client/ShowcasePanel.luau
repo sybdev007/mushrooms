@@ -25,9 +25,11 @@ type SlotState = { state: string, price: number, item: Exhibit? }
 
 local ShowcasePanel = {}
 
-local WIDTH, HEIGHT = 860, 500
-local TILE_W, TILE_H, GAP = 82, 92, 6
-local ROW_STEP = 120
+-- Cztery półki (las, jaskinia, bagna, Łysa Góra): okno wyższe, kafelki niższe. Na telefonie całe okno
+-- zmniejsza PanelKit.fit, więc liczy się tylko, żeby wszystko zmieściło się w tych liczbach.
+local WIDTH, HEIGHT = 860, 560
+local TILE_W, TILE_H, GAP = 82, 84, 6
+local ROW_STEP = 108
 local RIGHT_X = 6 * TILE_W + 5 * GAP + 16
 local OUTLINE = PanelKit.OUTLINE
 local GREEN = Color3.fromRGB(86, 186, 84)
@@ -165,7 +167,7 @@ for series = 1, #Config.Showcase.series do
 		card.Parent = content
 		PanelKit.corner(card, UDim.new(0, 12))
 		local stroke = PanelKit.stroke(card, OUTLINE, 2)
-		local art = artBox(card, 56, 4)
+		local art = artBox(card, 50, 4)
 		local top = PanelKit.label(card, "Top", UDim2.new(1, -8, 0, 40), UDim2.fromOffset(4, 10), 30, PanelKit.MUTED)
 		top.ZIndex = 7
 		local bottom = PanelKit.label(card, "Bottom", UDim2.new(1, -6, 0, 26), UDim2.new(0, 3, 1, -29), 13, PanelKit.TEXT, PanelKit.BODY_FONT)
@@ -183,7 +185,7 @@ end
 local buyY = 30 + #Config.Showcase.series * ROW_STEP + 6
 local buy = Instance.new("TextButton")
 buy.Name = "Buy"
-buy.Size = UDim2.fromOffset(270, 46)
+buy.Size = UDim2.fromOffset(270, 42)
 buy.Position = UDim2.fromOffset(0, buyY)
 buy.Font = PanelKit.TITLE_FONT
 buy.TextScaled = true
@@ -199,7 +201,7 @@ buyPad.Parent = buy
 local buySize = Instance.new("UITextSizeConstraint")
 buySize.MaxTextSize = 22
 buySize.Parent = buy
-local statusLabel = PanelKit.label(content, "Status", UDim2.fromOffset(6 * TILE_W + 5 * GAP - 284, 46), UDim2.fromOffset(284, buyY), 14, PanelKit.MUTED, PanelKit.BODY_FONT)
+local statusLabel = PanelKit.label(content, "Status", UDim2.fromOffset(6 * TILE_W + 5 * GAP - 284, 42), UDim2.fromOffset(284, buyY), 14, PanelKit.MUTED, PanelKit.BODY_FONT)
 statusLabel.TextXAlignment = Enum.TextXAlignment.Left
 statusLabel.TextWrapped = true
 statusLabel.ZIndex = 5
@@ -431,7 +433,8 @@ selectSlot = function(slot: number)
 		Audio.play("click")
 	else
 		Audio.play("warn")
-		status = t(if state.state == "world" then "SHOWCASE_NEED_WORLD" else "SHOWCASE_BUY_ORDER")
+		local mountain = Showcase.slotOf(slot) == 4
+		status = t(if state.state == "world" then (if mountain then "SHOWCASE_MOUNTAIN_LOCKED" else "SHOWCASE_NEED_WORLD") else "SHOWCASE_BUY_ORDER")
 	end
 	render()
 end

@@ -448,6 +448,8 @@ Config.Showcase = {
 		{ id = "forest", key = "SHOWCASE_SERIES_FOREST", icon = "🌲", color = { 120, 220, 110 } },
 		{ id = "cave", key = "SHOWCASE_SERIES_CAVE", icon = "💎", color = { 110, 200, 255 }, unlock = "caveUnlocked" },
 		{ id = "swamp", key = "SHOWCASE_SERIES_SWAMP", icon = "🐸", color = { 90, 230, 190 }, unlock = "swampUnlocked" },
+		-- Łysa Góra (plan docs/plans/endgame-zlew.md): 5,2 / 10,4 / 20,8 / 41,6 / 83,2 / 166,4 mln = 327,6 mln
+		{ id = "mountain", key = "SHOWCASE_SERIES_MOUNTAIN", icon = "⛰️", color = { 196, 140, 255 }, unlock = "mountainUnlocked" },
 	} :: { { id: string, key: string, icon: string, color: { number }, unlock: string? } },
 	maxTrophies = 40, -- tyle trofeów ze Znaleziska Nocy trzyma zapis (najstarsze wypadają)
 	promptDistance = 8,
@@ -455,6 +457,35 @@ Config.Showcase = {
 	-- strażnika; z karty można od razu wystawić grzyb na wolnym miejscu gabloty (bez podchodzenia)
 	cardRank = 2,
 	cardSeconds = 8,
+}
+
+-- ===== Ofiara dla Leszego (plan docs/plans/endgame-zlew.md, punkt 2) =====
+-- Kapliczka na Placu Portali (naprzeciw Moździerza Zielarki), tylko dla graczy z otwartą Łysą Górą.
+-- Dobrowolny wydatek monet: suma rośnie w data.stats.leszyOffered, progi dają tytuły i obwódkę tabliczki
+-- ogródka. Nic nie wypłaca, nie daje przedmiotów ani szczęścia. Serwer sprawdza kwotę, saldo, Górę,
+-- odległość i limit jednej wpłaty na `cooldown` sekund (Shared/Shrine.check).
+export type ShrineTier = { goal: number, title: string, rarity: string, glow: string? }
+Config.Shrine = {
+	position = { x = 17, z = -69 },
+	reach = 12, -- tak blisko kapliczki trzeba stać, żeby wpłacić
+	cooldown = 2, -- sekund między wpłatami jednego gracza
+	unit = 1000000, -- wpłaty w pełnych milionach
+	maxOffer = 1000000000, -- najwięcej na raz
+	amounts = { 1000000, 10000000, 100000000, 1000000000 }, -- przyciski w oknie
+	tiers = {
+		{ goal = 100000000, title = "TITLE_LESZY_DONOR", rarity = "rare" },
+		{ goal = 500000000, title = "TITLE_LESZY_PATRON", rarity = "epic" },
+		{ goal = 1000000000, title = "TITLE_LESZY_SHRINE", rarity = "epic", glow = "amber" },
+		{ goal = 5000000000, title = "TITLE_LESZY_LEGEND", rarity = "legendary", glow = "silver" },
+		{ goal = 10000000000, title = "TITLE_LESZY_ETERNAL", rarity = "legendary", glow = "moon" },
+		{ goal = 20000000000, title = "TITLE_LESZY_ANCIENT", rarity = "mythic" },
+	} :: { ShrineTier },
+	-- Obwódka imienia na tabliczce furtki ogródka (GardenService)
+	glowColors = {
+		amber = { 255, 170, 60 },
+		silver = { 220, 230, 245 },
+		moon = { 150, 190, 255 },
+	} :: { [string]: { number } },
 }
 
 -- Cechy tylko z pogody w ogródku (nie losują się w lesie). Liczą się w wartości i zapisie (Economy.getTag).

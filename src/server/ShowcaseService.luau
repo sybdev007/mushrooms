@@ -31,8 +31,8 @@ local ShowcaseService = {}
 -- Półki zaczynają się nad zamkniętą szafką (3 studs): niżej zasłaniały je grzyby z grządek obok
 local LENGTH = 14
 local DEPTH = 1.8
-local HEIGHT = 10.4
-local SHELF_Y = { 3, 5.4, 7.8 } -- wierzch półek od dołu: las, jaskinia, bagna
+local HEIGHT = 12.8
+local SHELF_Y = { 3, 5.4, 7.8, 10.2 } -- wierzch półek od dołu: las, jaskinia, bagna, Łysa Góra
 local SLOT_STEP = (LENGTH - 1.4) / Config.Showcase.perSeries
 local FROM_FENCE = 1.4 -- środek regału tyle od bocznego płotu
 local ALONG = 3.5 -- środek regału tyle za środkiem ogródka (w stronę tylnego płotu)
@@ -281,7 +281,11 @@ function ShowcaseService.refreshOf(player: Player, freshSlot: number?)
 end
 
 local function flags(data: any): Showcase.Flags
-	return { caveUnlocked = data.caveUnlocked == true, swampUnlocked = data.swampUnlocked == true }
+	return {
+		caveUnlocked = data.caveUnlocked == true,
+		swampUnlocked = data.swampUnlocked == true,
+		mountainUnlocked = data.mountainUnlocked == true,
+	}
 end
 
 -- Okno: stan każdego miejsca i lista tego, co można wystawić
@@ -366,6 +370,12 @@ local function onAction(player: Player, payload: unknown)
 		end
 		Ledger.spend(player, data, price, "Shop", "ShowcaseSlot" .. slot)
 		save.n = slot
+		-- Górska półka (plan endgame-zlew): pierwsze i ostatnie miejsce do analityki
+		if slot == 3 * Config.Showcase.perSeries + 1 then
+			Analytics.milestone(player, "MountainShowcaseFirst")
+		elseif slot == Showcase.TOTAL and #Config.Showcase.series >= 4 then
+			Analytics.milestone(player, "MountainShowcaseComplete")
+		end
 		api.notify(player, "MSG_SHOWCASE_BOUGHT", { slot, Showcase.TOTAL })
 		api.pushState(player)
 		ShowcaseService.refreshOf(player)

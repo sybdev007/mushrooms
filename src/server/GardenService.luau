@@ -25,6 +25,7 @@ local Cycle = require(ReplicatedStorage.Shared.Cycle)
 local Economy = require(ReplicatedStorage.Shared.Economy)
 local GardenWeather = require(ReplicatedStorage.Shared.GardenWeather)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local Shrine = require(ReplicatedStorage.Shared.Shrine)
 local Ledger = require(script.Parent.Ledger)
 
 type Data = {
@@ -421,6 +422,14 @@ local function refreshGarden(garden: GardenState)
 	local data = owner and api.getData(owner)
 	if garden.ownerSign then
 		garden.ownerSign.Text = if owner then owner.DisplayName else "🌿"
+		-- Ofiara dla Leszego: od 1 mld bursztynowa, od 5 mld srebrna, od 10 mld księżycowa obwódka imienia
+		local stroke = garden.ownerSign:FindFirstChildOfClass("UIStroke")
+		local glow = if data then Shrine.glow(Shrine.readTotal(data.stats.leszyOffered)) else nil
+		local color = if glow then Config.Shrine.glowColors[glow] else nil
+		if stroke then
+			stroke.Color = if color then Color3.fromRGB(color[1], color[2], color[3]) else Color3.fromRGB(60, 36, 20)
+			stroke.Thickness = if color then 3.5 else 2.5
+		end
 	end
 	local beds = bedsOf(garden, owner)
 	local planted = if data then data.planted else {}

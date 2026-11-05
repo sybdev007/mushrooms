@@ -83,8 +83,10 @@ local PROFILE_STORE_NAME = "LanternForager_Profiles_v1"
 -- 7: Łysa Góra (mountainUnlocked, nowe poziomy ulepszeń)
 -- 8: gablota (showcase, trophies), pogoda w ogródku (weatherNight), Znalezisko Nocy, Zima.
 -- 9: settings.forecastSeen (podpowiedź Prognozy nocy).
+-- 10: górska seria gabloty (showcase.n do 24) i Ofiara dla Leszego (stats.leszyOffered).
 -- Podnoś przy każdym nowym polu zapisu: serwer ze starszą wersją nie otworzy nowszego zapisu (load).
-local DATA_VERSION = 9
+local DATA_VERSION = 10
+local LESZY_LIMIT = 9007199254740991 -- jak Shared/Shrine.LIMIT (2^53 - 1)
 local MAX_ATTEMPTS = 3
 -- Ile czekamy na otwarcie zapisu. Przy awarii DataStore Robloxa ProfileStore z własnym Cancel
 -- ponawia w nieskończoność, a gracz stał w grze bez danych (wszędzie „Label”, nic nie działa).
@@ -309,6 +311,12 @@ local function reconcile(raw: any): Data
 				stats[key] = math.max(0, math.floor(value))
 			end
 		end
+		-- Ofiara dla Leszego: tylko całkowita, skończona, nieujemna suma do 2^53 - 1; uszkodzona = 0
+		-- (jak Shared/Shrine.readTotal; tu bez require, bo testy wczytują DataService z atrapą Shared)
+		local offered = raw.stats.leszyOffered
+		stats.leszyOffered = if typeof(offered) == "number" and offered == offered and offered >= 0 and offered <= LESZY_LIMIT and offered == math.floor(offered)
+			then offered
+			else 0
 	else
 		for _, record in data.bestiary do
 			data.stats.steals += record.stolen

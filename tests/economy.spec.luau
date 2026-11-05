@@ -287,7 +287,7 @@ test("DataService ładuje v5 jako v8 bez utraty ekwipunku i kupionych poziomów"
 	})
 	local migrated, canSave = DataService.load({ UserId = 1234, Parent = players })
 	check(canSave, "profil otwarty")
-	eq(migrated.version, 9)
+	eq(migrated.version, 10)
 	eq(migrated.coins, 43210)
 	eq(migrated.upgrades.boots, 8)
 	eq(migrated.upgrades.oil, 10)
@@ -309,13 +309,28 @@ test("DataService ładuje v5 jako v8 bez utraty ekwipunku i kupionych poziomów"
 	eq(migrated.settings.forecastSeen, false, "stary zapis: podpowiedź Prognozy nocy jeszcze się pokaże")
 	migrated.settings.forecastSeen = true
 	local again = DataService.load({ UserId = 1234, Parent = players })
-	eq(again.version, 9)
+	eq(again.version, 10)
 	eq(again.upgrades.boots, 8, "migracja idempotentna")
 	eq(again.coins, 43210)
 	eq(again.settings.forecastSeen, true, "forecastSeen przetrwa ponowne wczytanie")
 	profile.Data.settings.forecastSeen = "tak"
 	eq(DataService.load({ UserId = 1234, Parent = players }).settings.forecastSeen, false, "śmieci = nie widział")
 	profile.Data.settings.forecastSeen = true
+	-- Ofiara dla Leszego (plan endgame-zlew, test 3): stary profil 0, duże sumy zostają, śmieci = 0
+	eq(again.stats.leszyOffered, 0, "stary profil bez wpłat")
+	local function offeredAfter(value: any): any
+		profile.Data.stats.leszyOffered = value
+		return DataService.load({ UserId = 1234, Parent = players }).stats.leszyOffered
+	end
+	eq(offeredAfter(12345000000), 12345000000, "ponad 32 bity")
+	eq(offeredAfter(9007199254740991), 9007199254740991, "dokładnie 2^53 - 1")
+	eq(offeredAfter(-5), 0, "ujemna")
+	eq(offeredAfter(1.5), 0, "ułamek")
+	eq(offeredAfter(0 / 0), 0, "NaN")
+	eq(offeredAfter(math.huge), 0, "nieskończoność")
+	eq(offeredAfter(2 ^ 60), 0, "ponad limit")
+	eq(offeredAfter("100"), 0, "napis")
+	profile.Data.stats.leszyOffered = 0
 	-- Zapis z nowszej wersji gry na starym serwerze: bez nadpisania, gracz wyrzucony (review-petla P0)
 	local newer = { version = 99, coins = 5, showcase = { n = 7 }, futureField = true }
 	profile.Data = newer
@@ -383,7 +398,7 @@ test("DataService: zupełnie nowy gracz (pusty profil, bez starego zapisu) dosta
 	end })
 	check(ok, "load nie wywala się na nowym graczu: " .. tostring(data))
 	check(canSave and not kicked, "nowy gracz gra i zapisuje")
-	eq(data.version, 9)
+	eq(data.version, 10)
 	eq(data.tutorial, 0, "nowy gracz zaczyna od samouczka")
 end)
 
@@ -3856,7 +3871,7 @@ test("gablota: ceny serii i darmowe miejsca", function()
 	local swamp = Progress.rewardScale(true, true, false)
 	eq(Showcase.price(Config.Showcase.freeSlots + 1), Config.Showcase.priceUnits * forest, "pierwsze płatne w lesie")
 	eq(Showcase.price(Config.Showcase.perSeries + 1), Config.Showcase.priceUnits * cave, "pierwsze w jaskini")
-	eq(Showcase.price(Showcase.TOTAL), Config.Showcase.priceUnits * swamp * 2 ^ (Config.Showcase.perSeries - 1), "ostatnie")
+	eq(Showcase.price(3 * Config.Showcase.perSeries), Config.Showcase.priceUnits * swamp * 2 ^ (Config.Showcase.perSeries - 1), "ostatnie bagienne")
 	-- Każde kolejne miejsce w serii dwa razy droższe, każda seria droższa od poprzedniej
 	for slot = 2, Showcase.TOTAL do
 		local series, k = Showcase.slotOf(slot)
@@ -3868,13 +3883,77 @@ test("gablota: ceny serii i darmowe miejsca", function()
 			check(Showcase.price(slot) > Showcase.price(slot - Config.Showcase.perSeries), "seria droższa " .. slot)
 		end
 	end
-	-- Zlew na monety: bagna to kilkadziesiąt godzin dochodu, ostatnie miejsce ponad 50 mln
-	check(Showcase.price(Showcase.TOTAL) > 50e6, "ostatnie ponad 50 mln")
+	-- Zlew na monety: ostatnie bagienne ponad 50 mln, trzy pierwsze serie razem 100–150 mln (bez zmian)
+	check(Showcase.price(3 * Config.Showcase.perSeries) > 50e6, "ostatnie bagienne ponad 50 mln")
 	local total = 0
-	for series = 1, #Config.Showcase.series do
+	for series = 1, 3 do
 		total += Showcase.seriesCost(series)
 	end
-	check(total > 100e6 and total < 150e6, "razem: " .. total)
+	check(total > 100e6 and total < 150e6, "trzy serie razem: " .. total)
+end)
+
+-- Plan docs/plans/endgame-zlew.md, testy 1–2: górska seria gabloty
+test("gablota: górska półka (miejsca 19–24) i stare ceny bez zmian", function()
+	eq(#Config.Showcase.series, 4)
+	eq(Showcase.TOTAL, 24)
+	-- Ceny 1–18 jak przed górską półką (dwa darmowe na początku)
+	local old = { 0, 0, 16000, 32000, 64000, 128000, 320000, 640000, 1280000, 2560000, 5120000, 10240000, 1600000, 3200000, 6400000, 12800000, 25600000, 51200000 }
+	for slot, price in old do
+		eq(Showcase.price(slot), price, "cena " .. slot)
+	end
+	-- Sloty 19–24 to seria 4 (Łysa Góra), razem 327,6 mln
+	local mountain = { 5200000, 10400000, 20800000, 41600000, 83200000, 166400000 }
+	local sum = 0
+	for k, price in mountain do
+		local slot = 18 + k
+		local series, inSeries = Showcase.slotOf(slot)
+		eq(series, 4, "seria " .. slot)
+		eq(inSeries, k)
+		eq(Showcase.price(slot), price, "cena " .. slot)
+		sum += Showcase.price(slot)
+	end
+	eq(sum, 327600000)
+	eq(Showcase.seriesCost(4), 327600000)
+	-- Kolejność: przy 18 miejscach bez Góry „world”, z Górą 19 za 5,2 mln, po 24 „full”
+	local save = Showcase.emptySave()
+	save.n = 18
+	local slot, price, reason = Showcase.nextSlot(save, { caveUnlocked = true, swampUnlocked = true, mountainUnlocked = false })
+	eq(slot, nil)
+	eq(reason, "world")
+	slot, price, reason = Showcase.nextSlot(save, { caveUnlocked = true, swampUnlocked = true, mountainUnlocked = true })
+	eq(slot, 19)
+	eq(price, 5200000)
+	-- Otwarta Góra nie pomija niekupionych miejsc bagiennych
+	save.n = 12
+	slot, price = Showcase.nextSlot(save, { caveUnlocked = true, swampUnlocked = false, mountainUnlocked = true })
+	eq(slot, nil, "bez Bagien nie ma miejsca 13 ani górskich")
+	slot = Showcase.nextSlot(save, { caveUnlocked = true, swampUnlocked = true, mountainUnlocked = true })
+	eq(slot, 13)
+	save.n = 24
+	slot, price, reason = Showcase.nextSlot(save, { caveUnlocked = true, swampUnlocked = true, mountainUnlocked = true })
+	eq(slot, nil)
+	eq(reason, "full")
+	-- Zapis: stare wystawy zostają, slot 24 czytany, 25 i niekupione odrzucone
+	local read = Showcase.readSave({ n = 24, items = { ["3"] = { s = "honey" }, ["24"] = { s = "porcini", v = "gold" }, ["25"] = { s = "honey" } } })
+	eq(read.n, 24)
+	eq(read.items["3"].s, "honey")
+	eq(read.items["24"].v, "gold")
+	eq(read.items["25"], nil, "slot 25 poza gablotą")
+	local small = Showcase.readSave({ n = 18, items = { ["19"] = { s = "honey" }, ["18"] = { s = "honey" } } })
+	eq(small.items["19"], nil, "niekupione miejsce")
+	eq(small.items["18"].s, "honey")
+	eq(Showcase.readSave({ n = 99 }).n, 24, "n przycięte do 24")
+	eq(Showcase.readSave(nil).n, Config.Showcase.freeSlots, "nowy profil: dwa darmowe")
+	-- Karta zdobyczy i trofeum: pierwsze wolne kupione miejsce (także na górskiej półce)
+	local full = Showcase.emptySave()
+	full.n = 20
+	for s = 1, 19 do
+		full.items[tostring(s)] = { s = "honey" }
+	end
+	eq(Showcase.firstEmpty(full), 20)
+	local atlas = {}
+	Progress.discover(atlas, "honey", nil)
+	eq(Showcase.quickSlot(full, atlas, { s = "honey" }), 20)
 end)
 
 test("gablota: kupowanie po kolei, światy, zapis", function()
@@ -4382,6 +4461,107 @@ test("kuźnia: „Ciepło!” przy 2 z 3 składnikach i wskazówki co kilka poł
 	eq(skip[Config.Forge.recipes[2].id], 1)
 	eq(select(2, Forge.hints(every - 2, {})), 2, "ile połączeń do następnej")
 	for _, key in { "FORGE_STATUS_WARM", "FORGE_STATUS_WARM_MORE", "ATLAS_HINT_SECRET_JAGA", "ATLAS_FORGE_NEXT_HINT", "ATLAS_FORGE_ALL_HINTS" } do
+		check(csvHas(key), "brak w CSV: " .. key)
+	end
+end)
+
+-- Ofiara dla Leszego (plan docs/plans/endgame-zlew.md, testy 3–5; tokenów nie ma, więc test 5 to walidacja)
+local Shrine = loadModule("src/shared/Shrine.luau", {
+	script = { Parent = { Config = Config } },
+	require = function(module)
+		return module
+	end,
+})
+
+test("Ofiara dla Leszego: serwer przyjmuje tylko poprawną wpłatę", function()
+	local function req(over: { [string]: any }): any
+		local base = { amount = 100e6, coins = 100e6, total = 0, mountainUnlocked = true, distance = 5, canSave = true, now = 100, lastAt = nil }
+		for k, v in over do
+			base[k] = v
+		end
+		return base
+	end
+	local function why(over: { [string]: any }): string?
+		local ok, key = Shrine.check(req(over))
+		return if ok then "ok" else key
+	end
+	eq(why({}), "ok", "dokładne saldo wystarcza")
+	eq(why({ coins = 100e6 - 1 }), "LESZY_OFFER_NO_COINS")
+	for _, amount in Config.Shrine.amounts do
+		eq(why({ amount = amount, coins = 2e9 }), "ok", "przycisk " .. amount)
+	end
+	eq(why({ amount = 1e6, coins = 1e6 }), "ok", "najmniejsza wpłata")
+	eq(why({ amount = 1e9 + 1e6, coins = 5e9 }), "LESZY_OFFER_LIMIT", "ponad 1 mld")
+	eq(why({ amount = 0 }), "LESZY_OFFER_LIMIT")
+	eq(why({ amount = -1e6 }), "LESZY_OFFER_LIMIT")
+	eq(why({ amount = 1500000 }), "LESZY_OFFER_LIMIT", "nie w pełnych milionach")
+	eq(why({ amount = 0 / 0 }), "LESZY_OFFER_LIMIT", "NaN")
+	eq(why({ amount = math.huge }), "LESZY_OFFER_LIMIT")
+	eq(why({ amount = "100000000" }), "LESZY_OFFER_LIMIT", "napis")
+	eq(why({ amount = false }), "LESZY_OFFER_LIMIT", "brak kwoty")
+	eq(why({ mountainUnlocked = false }), "LESZY_OFFER_LOCKED")
+	eq(why({ distance = Config.Shrine.reach + 0.5 }), "LESZY_OFFER_TOO_FAR")
+	local _, noBody = Shrine.check({ amount = 100e6, coins = 100e6, total = 0, mountainUnlocked = true, canSave = true, now = 100 })
+	eq(noBody, "LESZY_OFFER_TOO_FAR", "bez postaci")
+	eq(why({ canSave = false }), "LESZY_OFFER_UNAVAILABLE", "profil bez zapisu")
+	eq(why({ lastAt = 99 }), nil, "druga wpłata w ciągu 2 s: odmowa bez komunikatu")
+	eq(why({ lastAt = 100 - Config.Shrine.cooldown }), "ok", "po 2 s znowu można")
+	eq(why({ total = Shrine.LIMIT - 1e6 + 1, coins = 2e9 }), "LESZY_OFFER_UNAVAILABLE", "licznik ponad 2^53 - 1")
+	-- Sukces: saldo i licznik zmieniają się o tę samą kwotę, a „zarobione” (ranking najbogatszych) nie
+	local Ledger = loadModule("src/server/Ledger.luau", {
+		script = { Parent = { Analytics = { coins = function() end } } },
+		require = function(module)
+			return module
+		end,
+	})
+	local data = { coins = 250e6, earned = 900e6, stats = Titles.emptyStats() }
+	Ledger.spend({} :: any, data, 100e6, "Shop", "LeszyOffering")
+	Titles.count(data.stats, "leszyOffer", 100e6)
+	eq(data.coins, 150e6)
+	eq(data.stats.leszyOffered, 100e6)
+	eq(data.earned, 900e6, "wydatek nie zmienia zarobionych")
+	-- Progi do analityki i następny cel
+	eq(table.concat(Shrine.crossed(0, 100e6), ","), "100000000")
+	eq(#Shrine.crossed(100e6, 499e6), 0)
+	eq(#Shrine.crossed(0, 20e9), 6, "jedna duża wpłata przekracza kilka progów")
+	eq(Shrine.label(100e6), "100M")
+	eq(Shrine.label(1e9), "1B")
+	eq(Shrine.label(20e9), "20B")
+	eq(Shrine.nextGoal(0), 100e6)
+	eq(Shrine.nextGoal(100e6), 500e6)
+	eq(Shrine.nextGoal(20e9), nil)
+	eq(Shrine.readTotal(-1), 0)
+	eq(Shrine.readTotal(5e9), 5e9)
+end)
+
+test("Ofiara dla Leszego: tytuły i obwódka na progach, suma rośnie dalej", function()
+	local ctx: any = { atlas = {}, bestiary = {}, stats = Titles.emptyStats(), tutorialDone = true }
+	for _, tier in Config.Shrine.tiers do
+		check(Titles.get(tier.title) ~= nil, "tytuł na liście: " .. tier.title)
+		check(csvHas(tier.title) and csvHas(tier.title .. "_HOW"), "tekst w CSV: " .. tier.title)
+		for _, delta in { -1, 0, 1 } do
+			ctx.stats.leszyOffered = tier.goal + delta
+			eq(Titles.earned(ctx)[tier.title] == true, delta >= 0, string.format("%s przy %+d", tier.title, delta))
+		end
+	end
+	-- Obwódka: od 1 mld bursztynowa, od 5 mld srebrna, od 10 mld księżycowa
+	eq(Shrine.glow(1e9 - 1), nil)
+	eq(Shrine.glow(1e9), "amber")
+	eq(Shrine.glow(5e9 - 1), "amber")
+	eq(Shrine.glow(5e9), "silver")
+	eq(Shrine.glow(10e9), "moon")
+	eq(Shrine.glow(25e9), "moon")
+	-- Suma rośnie dalej po 20 mld
+	local stats = Titles.emptyStats()
+	stats.leszyOffered = 20e9
+	Titles.count(stats, "leszyOffer", 1e9)
+	eq(stats.leszyOffered, 21e9)
+	-- Wybrany stary tytuł zostaje wyborem gracza
+	ctx.stats.leszyOffered = 25e9
+	ctx.stats.picked = 100
+	local earned = Titles.earned(ctx)
+	eq(Titles.resolve("TITLE_PICKER", earned), "TITLE_PICKER")
+	for _, key in { "SHOWCASE_SERIES_MOUNTAIN", "SHOWCASE_MOUNTAIN_LOCKED", "LESZY_OFFER_TITLE", "LESZY_OFFER_PROMPT", "LESZY_OFFER_TOTAL", "LESZY_OFFER_NEXT", "LESZY_OFFER_LIMIT", "LESZY_OFFER_CONFIRM", "LESZY_OFFER_CANCEL", "LESZY_OFFER_ACCEPT", "LESZY_OFFER_DONE", "LESZY_OFFER_LOCKED", "LESZY_OFFER_TOO_FAR", "LESZY_OFFER_NO_COINS", "LESZY_OFFER_UNAVAILABLE", "LESZY_OFFER_ALL_REWARDS" } do
 		check(csvHas(key), "brak w CSV: " .. key)
 	end
 end)

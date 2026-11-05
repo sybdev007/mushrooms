@@ -1,6 +1,6 @@
 --!strict
 -- Gablota w ogródku (czysta logika bez Robloxa, testy w Lune). Liczby w Config.Showcase.
---   Miejsca 1..TOTAL idą seriami (las, jaskinia, bagna) po perSeries; gracz kupuje je po kolei.
+--   Miejsca 1..TOTAL idą seriami (las, jaskinia, bagna, Łysa Góra) po perSeries; gracz kupuje je po kolei.
 --   Wystawa = kopia formy gatunku z Grzybopedii (atlas) albo trofeum ze Znaleziska Nocy (z datą).
 --   Zapis: showcase = { n = posiadane miejsca, items = { ["slot"] = Exhibit } }, trophies = { Exhibit }.
 --   Klucze slotów są napisami, bo DataStore nie zapisze tablicy z dziurami.
@@ -13,7 +13,7 @@ local Showcase = {}
 
 export type Exhibit = { s: string, v: string?, t: number? } -- t: data trofeum (os.time), tylko ze Znaleziska
 export type Save = { n: number, items: { [string]: Exhibit } }
-export type Flags = { caveUnlocked: boolean, swampUnlocked: boolean }
+export type Flags = { caveUnlocked: boolean, swampUnlocked: boolean, mountainUnlocked: boolean? }
 
 local PER = Config.Showcase.perSeries
 Showcase.TOTAL = PER * #Config.Showcase.series
@@ -23,9 +23,9 @@ function Showcase.slotOf(slot: number): (number, number)
 	return (slot - 1) // PER + 1, (slot - 1) % PER + 1
 end
 
--- Skala nagród świata serii (las 1600, jaskinia 32 000, bagna 160 000)
+-- Skala nagród świata serii (las 1600, jaskinia 32 000, bagna 160 000, Łysa Góra 520 000)
 function Showcase.seriesScale(series: number): number
-	return Progress.rewardScale(series >= 2, series >= 3, false)
+	return Progress.rewardScale(series >= 2, series >= 3, series >= 4)
 end
 
 -- Cena miejsca (0 = darmowe)

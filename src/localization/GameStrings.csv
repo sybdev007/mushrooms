@@ -1103,3 +1103,31 @@ DELVECALL_LINE,Expedition: {1} · {2}/{3},,,Ekspedycja: {1} · {2}/{3}
 DELVE_INVITE,Invite a friend,,,Zaproś znajomego
 DELVE_STEP_READY,{1} is at the crack,,,{1} przy szczelinie
 DELVE_STEP_ON_WAY,{1} is on the way,,,{1} w drodze
+SHOWCASE_SERIES_MOUNTAIN,Mountain shelf,,,Półka Łysej Góry
+SHOWCASE_MOUNTAIN_LOCKED,Unlock Bald Mountain to buy spots on this shelf,,,Odblokuj Łysą Górę aby kupić miejsca na tej półce
+LESZY_OFFER_TITLE,Offering to Leszy,,,Ofiara dla Leszego
+LESZY_OFFER_PROMPT,Make an offering,,,Złóż ofiarę
+LESZY_OFFER_TOTAL,Total offered: {1},,,Łącznie złożono: {1}
+LESZY_OFFER_NEXT,Next reward at {1} coins offered,,,Następna nagroda po wpłaceniu {1} monet
+LESZY_OFFER_LIMIT,Offer from 1 million to 1 billion coins in whole millions. One offering every 2 seconds.,,,Wpłata od 1 mln do 1 mld monet w pełnych milionach. Jedna wpłata na 2 sekundy.
+LESZY_OFFER_CONFIRM,Offer {1} coins? You will have {2} left. This cannot be undone.,,,Złożyć {1} monet? Zostanie ci {2}. Tej wpłaty nie można cofnąć.
+LESZY_OFFER_CANCEL,Cancel,,,Anuluj
+LESZY_OFFER_ACCEPT,Confirm offering,,,Potwierdź wpłatę
+LESZY_OFFER_DONE,You offered {1} coins,,,Ofiara złożona: {1} monet
+LESZY_OFFER_LOCKED,Unlock Bald Mountain to make an offering,,,Odblokuj Łysą Górę aby złożyć ofiarę
+LESZY_OFFER_TOO_FAR,Move closer to the shrine,,,Podejdź bliżej kapliczki
+LESZY_OFFER_NO_COINS,You do not have enough coins for this offering,,,Masz za mało monet na tę ofiarę
+LESZY_OFFER_UNAVAILABLE,Offerings are temporarily unavailable,,,Wpłaty są chwilowo niedostępne
+LESZY_OFFER_ALL_REWARDS,All rewards unlocked. You can keep making offerings.,,,Wszystkie nagrody odblokowane. Nadal możesz składać ofiary.
+TITLE_LESZY_DONOR,Donor of Leszy,,,Darczyńca Leszego
+TITLE_LESZY_PATRON,Patron of the Woods,,,Patron Puszczy
+TITLE_LESZY_SHRINE,Keeper of the Shrine,,,Opiekun Kapliczki
+TITLE_LESZY_LEGEND,Legend of the Woods,,,Legenda Puszczy
+TITLE_LESZY_ETERNAL,Eternal Patron,,,Wieczny Patron
+TITLE_LESZY_ANCIENT,Guardian of the Ancient Woods,,,Strażnik Prastarej Puszczy
+TITLE_LESZY_DONOR_HOW,Offer {1} coins to Leszy in total,,,Złóż Leszemu łącznie {1} monet
+TITLE_LESZY_PATRON_HOW,Offer {1} coins to Leszy in total,,,Złóż Leszemu łącznie {1} monet
+TITLE_LESZY_SHRINE_HOW,Offer {1} coins to Leszy in total,,,Złóż Leszemu łącznie {1} monet
+TITLE_LESZY_LEGEND_HOW,Offer {1} coins to Leszy in total,,,Złóż Leszemu łącznie {1} monet
+TITLE_LESZY_ETERNAL_HOW,Offer {1} coins to Leszy in total,,,Złóż Leszemu łącznie {1} monet
+TITLE_LESZY_ANCIENT_HOW,Offer {1} coins to Leszy in total,,,Złóż Leszemu łącznie {1} monet

@@ -357,7 +357,11 @@ local function render()
 		card.chip.Text = Localize.t("RARITY_" .. string.upper(def.rarity))
 		card.name.Text = Localize.t(def.id)
 		local n, goal = Titles.progress(def, ctx)
-		card.how.Text = Localize.t(def.id .. "_HOW", { goal })
+		-- Duże cele (Ofiara dla Leszego: 100 000 000) ze spacjami, żeby dało się je przeczytać
+		local goalText: any = if goal >= 10000
+			then (string.format("%.0f", goal):reverse():gsub("(%d%d%d)", "%1 "):reverse():gsub("^ ", ""))
+			else goal
+		card.how.Text = Localize.t(def.id .. "_HOW", { goalText })
 		card.frame.BackgroundColor3 = if equipped then Color3.fromRGB(70, 118, 60) elseif has then PanelKit.CARD else Color3.fromRGB(64, 44, 31)
 		if def.rarity ~= "mythic" then
 			card.frameStroke.Color = if equipped then PanelKit.GOLD elseif has then rarityColor(def.rarity) else OUTLINE
