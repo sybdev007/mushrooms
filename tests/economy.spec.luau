@@ -3454,6 +3454,66 @@ test("kuźnia: przepis i strażnicy dają gatunek z kuźni w 70% (w tym 8% o ran
 	end
 end)
 
+-- Przegląd Codexa (5.11): 12 punktów na próg zaniżało średni wynik i dwa przepisy bez wariantów dawały
+-- zwrot 0,9008 i 0,9001. Opłaty z dokładnego liczenia: co najmniej 2725 i 26330.
+test("kuźnia: średni wynik liczony dokładnie (glasscap i runemorel nie przekraczają maxReturn)", function()
+	for id, minFee in { forge_glasscap = 2725, forge_runemorel = 26330 } do
+		local recipe: any = nil
+		for _, r in Config.Forge.recipes do
+			if r.id == id then
+				recipe = r
+			end
+		end
+		local items = {}
+		for _, input in recipe.inputs do
+			table.insert(items, forgeInput(input, 0))
+		end
+		local preview = Forge.preview(items, OPEN_ALL) :: any
+		check(preview.fee >= minFee, string.format("%s: opłata %d < %d", id, preview.fee, minFee))
+		check(preview.expected / (preview.inputValue + preview.fee) <= Config.Forge.maxReturn + 1e-9, id .. ": zwrot ponad maxReturn")
+		-- Sama runa (bez dostępu do przepisu): dokładna średnia zgadza się z gęstym próbkowaniem przez
+		-- Forge.roll (środek każdego progu, rangi i wybranego gatunku, 2000 celów na próg)
+		local runa = Forge.preview(items, {}) :: any
+		check(runa.match == nil, id .. ": bez dostępu przepis nie działa")
+		local tiers = Config.Forge.tiers
+		local total = 0
+		for _, tier in tiers do
+			total += tier.chance
+		end
+		-- Ranga z rzutu: Forge liczy od najwyższej rangi w dół, reszta to ranga 0
+		local ranks: { { r: number, w: number } } = {}
+		local above = 0
+		for rank = #runa.mutationRanks, 1, -1 do
+			local chance = runa.mutationRanks[rank]
+			table.insert(ranks, { r = above + chance / 2, w = chance })
+			above += chance
+		end
+		table.insert(ranks, { r = above + (1 - above) / 2, w = 1 - above })
+		local dense, before = 0, 0
+		local STEPS = 2000
+		for _, tier in tiers do
+			local tierRoll = (before + tier.chance / 2) / total
+			before += tier.chance
+			for step = 1, STEPS do
+				for _, rank in ranks do
+					for pick = 1, Config.Forge.nearest do
+						local item = Forge.roll(runa, {
+							recipe = 1,
+							tier = tierRoll,
+							spread = (step - 0.5) / STEPS,
+							mutation = rank.r,
+							pick = (pick - 0.5) / Config.Forge.nearest,
+						})
+						dense += tier.chance / total / STEPS * rank.w / Config.Forge.nearest * Economy.itemValue(item :: any)
+					end
+				end
+			end
+		end
+		check(math.abs(dense / runa.expected - 1) < 5e-4,
+			string.format("%s: dokładnie %.1f, próbkowanie %.1f", id, runa.expected, dense))
+	end
+end)
+
 test("kuźnia: średnio nie zarabia — przepisy i strażnicy przy każdej randze, trójki jednego gatunku, losowe trójki", function()
 	local maxRank = Economy.maxVariantRank()
 	local worst = 0

@@ -1598,6 +1598,11 @@ local function onDevAction(player: Player, action: unknown)
 			forge.open(player)
 		end
 	elseif action == "devSnapshot" then
+		-- Najpierw rozliczamy kuźnię w trakcie animacji (Grzybopedia, licznik, zadania), żeby zapamiętany
+		-- stan był pełny, a przy devRestore nic nie dopisało się po 5,8 s do przywróconego zapisu
+		if forge then
+			forge.flush(player)
+		end
 		local snapshot = {}
 		for _, key in DEV_SNAPSHOT_KEYS do
 			snapshot[key] = deepCopy((data :: any)[key])
@@ -1607,6 +1612,9 @@ local function onDevAction(player: Player, action: unknown)
 		local snapshot = devSnapshots[player]
 		if not snapshot then
 			return
+		end
+		if forge then
+			forge.flush(player)
 		end
 		for _, key in DEV_SNAPSHOT_KEYS do
 			(data :: any)[key] = deepCopy(snapshot[key])

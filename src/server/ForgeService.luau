@@ -135,9 +135,12 @@ function ForgeService.start(station: Vector3, prompt: ProximityPrompt?, hooks: H
 		end
 		Players.PlayerAdded:Connect(watch)
 	end
+	-- Kolejki `pending` tu NIE kasujemy: wykonuje ją GameService.onPlayerRemoving (forge.flush), póki sesja
+	-- jest. Roblox nie gwarantuje kolejności obsług PlayerRemoving, a ta podłącza się wcześniej, więc
+	-- kasowanie tutaj gubiło Grzybopedię, licznik kuźni i zadania, gdy gracz wyszedł w trakcie animacji.
+	-- Bez sesji kolejka opróżni się sama po revealDelay (task.delay wyżej).
 	Players.PlayerRemoving:Connect(function(player)
 		nextAt[player] = nil
-		pending[player] = nil
 	end)
 
 	local function refuse(player: Player, key: string, args: { any }?)

@@ -17,7 +17,6 @@ local Economy = require(script.Parent.Economy)
 local Forge = {}
 
 Forge.SLOTS = 3
-local STEPS = 12 -- punktów na próg przy liczeniu szans i średniego wyniku
 
 export type Item = { s: string, v: string?, x: { string }?, d: number? }
 export type Access = { swampUnlocked: boolean?, mountainUnlocked: boolean?, jagaEscapes: number? }
@@ -381,24 +380,44 @@ local function runaStats(preview: Preview): ({ [string]: number }, number, numbe
 		rankChance[rank] = chance
 		rankChance[0] -= chance
 	end
+	-- Liczone dokładnie (było 12 punktów na próg, co zaniżało średnią i przy dwóch przepisach dawało
+	-- zwrot ponad maxReturn). Cel jest równomierny w skali logarytmicznej, ranga wyniku zależy tylko od
+	-- progu (choose), a zbiór `count` najbliższych gatunków to okno kolejnych pozycji drabiny, które
+	-- przesuwa się tylko w średniej geometrycznej wartości list[i] i list[i + count]. Dzielimy więc
+	-- przedział celu w tych punktach i każdy odcinek liczymy z wagą równą jego długości.
+	local count = Config.Forge.nearest
 	local mutation, expected = 0, 0
 	for _, tier in TIERS do
-		local weight = tier.chance / tierTotal / STEPS
-		for step = 1, STEPS do
-			local target = targetFor(inputValue, tier, (step - 0.5) / STEPS)
-			for rolled = 0, preview.cap do
-				local w = weight * (rankChance[rolled] or 0)
-				if w > 0 then
-					local rank, list = choose(preview, rolled, target, tier)
-					local share = w / #list
-					for _, candidate in list do
-						local id = Forge.tierOf(candidate.value / inputValue).id
-						odds[id] += share
-						expected += share * candidate.value
+		local lnLo, lnHi = math.log(inputValue * tier.lo), math.log(inputValue * tier.hi)
+		for rolled = 0, preview.cap do
+			local rolledChance = rankChance[rolled] or 0
+			if rolledChance > 0 then
+				local w = tier.chance / tierTotal * rolledChance
+				local rank = choose(preview, rolled, inputValue * tier.lo, tier)
+				local list = preview.ladder[rank + 1]
+				local cuts = { lnLo }
+				for i = 1, #list - count do
+					local cut = (math.log(list[i].value) + math.log(list[i + count].value)) / 2
+					if cut > lnLo and cut < lnHi then
+						table.insert(cuts, cut)
 					end
-					if rank > 0 then
-						mutation += w
+				end
+				table.sort(cuts)
+				table.insert(cuts, lnHi)
+				for k = 1, #cuts - 1 do
+					local span = (cuts[k + 1] - cuts[k]) / (lnHi - lnLo)
+					if span > 0 then
+						local picks = nearest(list, math.exp((cuts[k] + cuts[k + 1]) / 2), count)
+						local share = w * span / #picks
+						for _, candidate in picks do
+							local id = Forge.tierOf(candidate.value / inputValue).id
+							odds[id] += share
+							expected += share * candidate.value
+						end
 					end
+				end
+				if rank > 0 then
+					mutation += w
 				end
 			end
 		end
