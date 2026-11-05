@@ -97,7 +97,8 @@ Magazyn `LanternForager_Profiles_v1`, klucz `player_1293490018`.
    (51% oszronionych), wyłączenie zimy sprząta wystrój i śnieg. Zostało: odznaka `winter2026` (id = 0).
    Uwagi: przy Halloween i Zimie naraz przycisk Zimy spada pod ekran (1.12 Halloween już nie ma, więc OK);
    `devRestore` nie obejmuje pól zimy (`flakeBag`, `winterClaimed`, `advent`), skórek ani `luckUntil`.
-   Zapis Toma ma zimowe dane z testów: 100 płatków, 5 w kieszeni, 4 progi, otwarte okienko 1 kalendarza.
+   Zimowe dane Toma z testów wyzerowane 5.11 (`winterReset`: płatki, kieszeń, progi, kalendarz, zimowe skórki);
+   zimę 1.12 zaczyna od zera jak wszyscy.
    Przed zimą 2027 wyzerować `advent`, `stats.snowflakes` i `winterClaimed` (zapis nie pamięta roku).
    Drobiazg spoza zimy: `StateUpdate` ma dwóch odbiorców (ExpeditionView i Main.client), zasada 4.
 5. ~~Dodać do repo `loop-research.md` i `review-petla.md`~~: zrobione (`8bc2c69`).
