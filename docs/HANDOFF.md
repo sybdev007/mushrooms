@@ -91,10 +91,14 @@ Magazyn `LanternForager_Profiles_v1`, klucz `player_1293490018`.
 3. **Produkty z id = 0** w `Config.Products`: `x2s / x2m / x2l / x2xl` (19/39/79/149 R$, Unlisted),
    `boomSolo` (Twój Wysyp, zwykły produkt, roboczo 49 R$). Bez numeru karta jest ukryta na żywo.
 4. Zima: kod przejrzany 5.11 (daty, zapis, serwer, okno; bez błędów). Mikstura z nagród zimy zostaje jak
-   w Halloween (zasada 7 w `CLAUDE.md`). Zostało: odznaka `winter2026` (id = 0) i test w Studiu przed 1.12
-   (DEV: `devSnapshot` → `winterToggle`, `flakes50`, `giftTree`, `adventNext`, `frostBoom`, `winterToggle` →
-   `devRestore`; sprawdzić też FPS ze śniegiem na drzewach). Przed zimą 2027 wyzerować `advent`,
-   `stats.snowflakes` i `winterClaimed` (zapis nie pamięta roku).
+   w Halloween (zasada 7 w `CLAUDE.md`). **Test w Studiu 5.11 (przez MCP): wszystko działa.** Wystrój 251
+   części (mapa ok. 29 tys.), śnieg pada w lesie i nie pod dachem chatki, ścieżka płatków, choinka (monety,
+   mikstura, płatki, duplikat skórki → monety, 4 psikusy), kalendarz (drugi raz tego dnia nic), Zamieć
+   (51% oszronionych), wyłączenie zimy sprząta wystrój i śnieg. Zostało: odznaka `winter2026` (id = 0).
+   Uwagi: przy Halloween i Zimie naraz przycisk Zimy spada pod ekran (1.12 Halloween już nie ma, więc OK);
+   `devRestore` nie obejmuje pól zimy (`flakeBag`, `winterClaimed`, `advent`), skórek ani `luckUntil`.
+   Zapis Toma ma zimowe dane z testów: 100 płatków, 5 w kieszeni, 4 progi, otwarte okienko 1 kalendarza.
+   Przed zimą 2027 wyzerować `advent`, `stats.snowflakes` i `winterClaimed` (zapis nie pamięta roku).
    Drobiazg spoza zimy: `StateUpdate` ma dwóch odbiorców (ExpeditionView i Main.client), zasada 4.
 5. ~~Dodać do repo `loop-research.md` i `review-petla.md`~~: zrobione (`8bc2c69`).
 6. Monetyzacja (`docs/plans/monetization-research.md`): NIE dla stałego x2 monet, gatunków za Robux, x2 za monety.
