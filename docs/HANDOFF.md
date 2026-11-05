@@ -40,6 +40,10 @@ las → jaskinia (30 000 monet) → bagna (1 000 000) → **Łysa Góra** (10 00
   albo z kuźni (`Showcase.cardWorthy`) = karta u góry ekranu z modelem 3D i przyciskiem „Wystaw w gablocie”
   (z dowolnego miejsca, tylko na wolne kupione miejsce, `Showcase.quickSlot`). Nad regałem tabliczka
   „🏆 imię · N 🍄”. Analityka `Milestone_FindCardShowcase`.
+- **Prognoza nocy** (od 5.11, `src/client/NightForecast.luau`, `Cycle.upcoming/nextOf/effects`): 🔮 przy zegarze
+  nocy albo klawisz N; bieżąca noc z działaniem, najbliższy Krwawy księżyc, 5 następnych nocy. Zapowiedź
+  Krwawego księżyca w HUD 10 min wcześniej. Do pierwszego otwarcia 🔮 pulsuje z dymkiem (`settings.forecastSeen`,
+  DEV → Samouczek → „Podpowiedź prognozy od nowa”). `tools/night_forecast.luau` do Roblox Events.
 - Eventy (daty w `Config`, UTC): **Halloween do 10.11 00:00** (cukierki, kocioł, Noc Dziadów),
   **Zima 1.12 – 7.01** (płatki, choinka, kalendarz adwentowy). Zima jeszcze nie była na żywo:
   sprawdzić w Studio przed 1.12 (panel DEV).
@@ -91,7 +95,7 @@ Magazyn `LanternForager_Profiles_v1`, klucz `player_1293490018`.
    dni: Analytics kuźni (ile połączeń, które progi), czy gracze nie narzekają na skuchy przy drogich trójkach.
    Lint `selene src` na PC jeszcze nie puszczony. W Studio sprawdzone 5.11: trójka z góry (gorszy 0,53×), przepis (dzwonek mszysty 1,21×), tania trójka
    (skucha), po polsku i po angielsku, konsola czysta. Zapis Toma po teście przywrócony („Przywróć stan”).
-   Nowych pól zapisu nie ma, `DATA_VERSION` bez zmian (8).
+   (Od 5.11 wieczorem `DATA_VERSION` = 9: `settings.forecastSeen` przy Prognozie nocy.)
 2. **Odznaki z id = 0** w `Config.Badges`: `grandmaster`, `cosmic`, `forge_collection`, `winter2026`
    (Tom zakłada w Creator Hub, 5 dziennie za darmo; numery z
    `https://badges.roblox.com/v1/universes/10772830253/badges`). Opisy i obrazki: `docs/Odznaki.md`, `assets/badges/`.
@@ -112,9 +116,9 @@ Magazyn `LanternForager_Profiles_v1`, klucz `player_1293490018`.
 6. Monetyzacja (`docs/plans/monetization-research.md`): NIE dla stałego x2 monet, gatunków za Robux, x2 za monety.
    Do pilotażu po tygodniu obserwacji Analytics: kod 0,25 S raz na konto, kosmetyczny VIP 249 R$.
 7. Pomysły z researchu hitów (`docs/plans/hit-research.md`, Codex 5.11). Zrobione: Ścieżka grzybiarza,
-   karta zdobyczy i tabliczka gabloty. Następne w jego rankingu: wyeksponowany zegar nocy + Roblox Events,
-   wskazówki do przepisów kuźni, zbiórka do ekspedycji. Za ok. tydzień sprawdzić w Analytics `Path_*`
-   i `FindCardShowcase`.
+   karta zdobyczy i tabliczka gabloty, Prognoza nocy. Następne w jego rankingu: wskazówki do przepisów
+   kuźni, zbiórka do ekspedycji. Za ok. tydzień sprawdzić w Analytics `Path_*` i `FindCardShowcase`.
+   Roblox Events (Tom, Creator Hub): wieczorne Krwawe księżyce z `lune run tools/night_forecast.luau`.
 
 ## Numery
 
