@@ -4092,6 +4092,30 @@ do
 	end)
 end
 
+-- Napis BillboardGui z Adornee na części, która wypadła ze świata (streaming, śmierć), Roblox rysuje
+-- w (0, 0, 0) przed chatką (tabliczki grządek, „Znalezisko Nocy”, tytuły graczy). Nowe napisy w PlayerGui
+-- przypinamy przez BillboardGuard.bind; wyjątki mają własną obsługę (opis przy nazwie pliku).
+test("napisy nad częściami świata nie zostają przed chatką (BillboardGuard)", function()
+	local handled: { [string]: string } = {
+		["DisplayMushrooms.luau"] = "attachLabel: AncestryChanged na Root i ponowne przypięcie",
+		["MushroomView.luau"] = "grzyby rysuje klient, nie wypadają ze streamingu",
+		["ShowcaseView.luau"] = "pętla co 0,15 s szuka wystawy z PrimaryPart w zasięgu",
+		["LeaderboardView.luau"] = "SurfaceGui (bez Adornee nic nie rysuje)",
+		["RelicDisplay.luau"] = "BillboardGui jest dzieckiem części i znika razem z nią",
+		["BillboardGuard.luau"] = "sam strażnik",
+	}
+	for _, entry in fs.readDir("src/client") do
+		if string.sub(entry, -5) == ".luau" and not handled[entry] then
+			local source = fs.readFile("src/client/" .. entry)
+			check(string.find(source, "%.Adornee%s*=%s*[%a_]") == nil,
+				entry .. ": Adornee ustawiane wprost, użyj BillboardGuard.bind")
+		end
+	end
+	local nightFind = fs.readFile("src/client/NightFindView.luau")
+	check(string.find(nightFind, "updateMarkers()", 1, true) ~= nil, "NightFindView nie przepina napisu na nowy Root")
+	check(string.find(fs.readFile("src/client/TitleView.luau"), "BillboardGuard.bind", 1, true) ~= nil, "TitleView bez strażnika")
+end)
+
 print(string.format("\n%d ok, %d błędów", passed, failed))
 if failed > 0 then
 	process.exit(1)

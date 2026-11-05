@@ -19,6 +19,7 @@ local UserInputService = game:GetService("UserInputService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local BillboardGuard = require(script.Parent.BillboardGuard)
 local CutsceneKit = require(script.Parent.CutsceneKit)
 local Localize = require(script.Parent.Localize)
 local PanelKit = require(script.Parent.PanelKit)
@@ -533,8 +534,8 @@ local function refreshTag()
 	end
 	local product = model and model:GetAttribute("X2Product")
 	local ready = chest ~= nil and typeof(product) == "string" and product ~= "" and Purchases.available(product)
-	tag.Adornee = chest
-	tag.Enabled = ready
+	-- Skrzynia wypadła ze streamingu = plakietka gaśnie (bez tego wisiałaby przed chatką)
+	BillboardGuard.bind(tag, chest, ready)
 	local key = keyLabel()
 	keyChip.Visible = key ~= nil
 	keyText.Text = key or ""

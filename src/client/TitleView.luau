@@ -9,6 +9,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Titles = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Titles"))
+local BillboardGuard = require(script.Parent.BillboardGuard)
 local Localize = require(script.Parent.Localize)
 
 local TitleView = {}
@@ -53,7 +54,9 @@ local function update(target: Player)
 		gui = created
 	end
 	local billboard = gui :: BillboardGui
-	billboard.Adornee = head :: BasePart
+	-- Głowa poza światem (gracz daleko i wypadł ze streamingu, czeka na odrodzenie): napis gaśnie,
+	-- zamiast wisieć w (0, 0, 0) przed chatką. Pętla niżej przepina go na nową głowę.
+	BillboardGuard.bind(billboard, if head:IsA("BasePart") then head else nil)
 	local text = billboard:FindFirstChild("Text") :: TextLabel
 	text.Text = Localize.t(key)
 	-- Im rzadszy tytuł, tym cenniejszy kolor; mityczny (Arcygrzybiarz) z tęczowym gradientem
@@ -101,6 +104,16 @@ end)
 Localize.onChanged(function()
 	for target in labels do
 		update(target)
+	end
+end)
+-- Postać innego gracza wraca ze streamingu jako nowe części bez CharacterAdded: co sekundę
+-- sprawdzamy bieżącą głowę każdego gracza
+task.spawn(function()
+	while true do
+		task.wait(1)
+		for _, target in Players:GetPlayers() do
+			update(target)
+		end
 	end
 end)
 

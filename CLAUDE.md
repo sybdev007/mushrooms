@@ -51,6 +51,10 @@ każdy klucz z `Localize.t` musi tu być; test to sprawdza). Liczby gry są w `s
 8. `Progress.rewardScale` to jednostka nagrody W MONETACH (las 1600), a nie mnożnik ~1.
 9. Przed nadpisaniem pliku, który mógł zmienić Miłosz albo inna sesja, porównaj z GitHubem (`git fetch`, `git diff`).
 10. Sprawdź gałąź przed pracą (`git status`): raz Rojo wgrał do Studia starą gałąź i Tom opublikował stary kod.
+11. **Napis nad częścią świata** (BillboardGui w PlayerGui z Adornee): przypinaj przez `BillboardGuard.bind`
+    (`src/client/BillboardGuard.luau`) i w pętli przepinaj na bieżącą część. Napis na części, która wypadła ze
+    streamingu albo zginęła z postacią, Roblox rysuje w (0, 0, 0) przed chatką (tak wisiały dochody grządek,
+    „Znalezisko Nocy” i tytuły graczy). Test „napisy nad częściami świata” łapie `.Adornee =` ustawiane wprost.
 
 ## Debugowanie gry na żywo
 

@@ -12,6 +12,7 @@ local Workspace = game:GetService("Workspace")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
+local BillboardGuard = require(script.Parent.BillboardGuard)
 local Localize = require(script.Parent.Localize)
 local PanelKit = require(script.Parent.PanelKit)
 local UiKit = require(script.Parent.UiKit)
@@ -72,14 +73,26 @@ local function markerAdded(marker: Instance)
 	if not (root and root:IsA("BasePart")) or not marker.Parent then
 		return
 	end
+	if markerLabels[marker] or not CollectionService:HasTag(marker, "NightFind") then
+		return -- znacznik zniknął albo dostał napis, kiedy czekaliśmy na Root
+	end
 	local gui, label = textBillboard("NightFindLabel", UDim2.fromOffset(220, 30), 22)
-	gui.Adornee = root
 	gui.StudsOffset = Vector3.new(0, 7.5, 0)
 	gui.AlwaysOnTop = true
 	gui.MaxDistance = 600
 	label.Text = "✨ " .. Localize.t("NIGHTFIND_NAME")
 	gui.Parent = playerGui
 	markerLabels[marker] = gui
+	BillboardGuard.bind(gui, root)
+end
+
+-- Streaming: Root znacznika wypada z klienta (Model z tagiem zostaje), a wraca jako nowa część.
+-- Napis gaśnie od razu (BillboardGuard), a tu przepinamy go na bieżący Root.
+local function updateMarkers()
+	for marker, gui in markerLabels do
+		local root = marker:FindFirstChild("Root")
+		BillboardGuard.bind(gui, if root and root:IsA("BasePart") then root else nil)
+	end
 end
 
 local function markerRemoved(marker: Instance)
@@ -106,16 +119,12 @@ local function updateCarriers(now: number)
 		local character = other.Character
 		local untilTime = untilOf(character)
 		local head = character and character:FindFirstChild("Head")
-		if other ~= player and character and untilTime and head and head:IsA("BasePart") then
+		-- Postać poza światem (streaming, śmierć): bez napisu, inaczej wisiałby przed chatką
+		if other ~= player and character and untilTime and head and head:IsA("BasePart") and BillboardGuard.inWorld(head) then
 			seen[character] = true
 			local entry: CarrierLabel? = carrierLabels[character]
-			if entry and entry.gui.Adornee ~= head then
-				entry.gui:Destroy()
-				entry = nil
-			end
 			if not entry then
 				local gui, label = textBillboard("NightFindCarrier", UDim2.fromOffset(120, 28), 20)
-				gui.Adornee = head
 				gui.StudsOffset = Vector3.new(0, 4.6, 0)
 				gui.MaxDistance = 250
 				gui.Parent = playerGui
@@ -124,6 +133,7 @@ local function updateCarriers(now: number)
 				entry = created
 			end
 			if entry then
+				BillboardGuard.bind(entry.gui, head)
 				entry.label.Text = "✨ " .. clock(untilTime - now)
 			end
 		end
@@ -210,6 +220,7 @@ function NightFindView.start()
 	task.spawn(function()
 		while true do
 			local now = Workspace:GetServerTimeNow()
+			updateMarkers()
 			updateCarriers(now)
 			updateBar(now)
 			task.wait(0.2)

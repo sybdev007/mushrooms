@@ -9,6 +9,7 @@
 
 local Players = game:GetService("Players")
 
+local BillboardGuard = require(script.Parent.BillboardGuard)
 local Localize = require(script.Parent.Localize)
 local UiFx = require(script.Parent.UiFx)
 local UiKit = require(script.Parent.UiKit)
@@ -202,7 +203,7 @@ local function update(target: Player)
 	end
 	local b: Badge = if existing and existing.gui.Parent then existing else makeBillboard(target)
 	badges[target] = b
-	b.gui.Adornee = head
+	BillboardGuard.bind(b.gui, head) -- głowa poza światem (streaming, śmierć) = plakietka gaśnie
 	b.label.Text = Localize.t("BOOM_GIVER")
 	b.timer.Text = formatTime(left)
 	if root and root:IsA("BasePart") and (not b.aura or b.aura.Parent ~= root) then
