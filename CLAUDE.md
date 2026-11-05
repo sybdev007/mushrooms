@@ -48,6 +48,9 @@ każdy klucz z `Localize.t` musi tu być; test to sprawdza). Liczby gry są w `s
    Nowy system przy wejściu dodawaj tak samo.
 6. Nagrody i walidacja tylko na serwerze; klientowi nie ufamy (`docs/REVIEW.md`).
 7. Mikstura szczęścia i Wysyp to płatne produkty: żadnych darmowych zamienników (wyjątek: paczka Old Owl).
+   Świadomy wyjątek (decyzja Toma 5.11): nagrody eventów sezonowych, czyli Halloween (ścieżka cukierków,
+   kocioł) i Zima (ścieżka płatków, kalendarz, choinka), mogą dawać miksturę na kilka–kilkanaście minut.
+   Poza eventami nie dodawaj nowych darmowych źródeł.
 8. `Progress.rewardScale` to jednostka nagrody W MONETACH (las 1600), a nie mnożnik ~1.
 9. Przed nadpisaniem pliku, który mógł zmienić Miłosz albo inna sesja, porównaj z GitHubem (`git fetch`, `git diff`).
 10. Sprawdź gałąź przed pracą (`git status`): raz Rojo wgrał do Studia starą gałąź i Tom opublikował stary kod.
