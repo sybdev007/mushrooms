@@ -1,6 +1,6 @@
 # Handoff — Midnight Mushroom Hunt
 
-Stan na **5.11.2026, po przeróbce kuźni na runę** (czas polski). Zasady pracy i komendy są w `CLAUDE.md` (Claude Code czyta go sam).
+Stan na **6.11.2026, po poszerzeniu map i nowym układzie ogródków** (czas polski). Zasady pracy i komendy są w `CLAUDE.md` (Claude Code czyta go sam).
 Tu: co jest w grze, co zrobiliśmy ostatnio, co jest otwarte. Aktualizuj ten plik po większych zmianach.
 
 ## Gdzie co jest
@@ -70,7 +70,7 @@ las → jaskinia (30 000 monet) → bagna (1 000 000) → **Łysa Góra** (10 00
 - Panel DEV (`Config.DevUserIds`: Tom, Miłosz): na żywo tylko część akcji (`Config.DevLiveActions`),
   reszta w Studio. **Tryb filmowy** (DEV → 🎬): czysty ekran i ujęcia do nagrań; klawisze L / K / J / U.
 
-### Szersze mapy i sześciokąt ogródków (6.11, gałąź `feat/szersze-mapy`, jeszcze nie w `main`)
+### Szersze mapy i sześciokąt ogródków (6.11, `150a0f6` w `main`, czeka na publikację)
 Plan: Codex (xhigh), decyzje Toma: ok. +40% szerokości, ogródki sześciokątem, grzybów tyle, żeby tempo zostało.
 - Połowy szerokości: las 70 → 100, polana 80 → 180, jaskinia 46 → 64, bagna 60 → 84, Łysa Góra 56 → 80.
 - Miejsca na grzyby 176 → 211 (+20%, gęstość ok. 14% mniejsza). Przy +40% (248) symulator dawał szybszą grę
@@ -87,9 +87,10 @@ Plan: Codex (xhigh), decyzje Toma: ok. +40% szerokości, ogródki sześciokątem
 - Ostrzeżenie „Wracaj” bez zmian: obozy zajmują całą szerokość świata, więc droga prosto w −Z jest najkrótsza.
 - Studio 6.11 (Play, liczby, bez obrazu: okno Studia schowane): mapa 33,3 tys. części (było ok. 27,5 tys.),
   223 miejsca (wszystkie się zmieściły), ogródki patrzą na plac, nic nie rośnie w ogródkach, konsola czysta,
-  zapis Toma bez zmian. **Do obejrzenia na oko przed scaleniem**: plac i ścieżki, tło za polaną i przy schodku
-  ściany (z = 40), ściany i strop jaskini, bagna (rozlewiska, kładka), góra (szwy przy ±81, urwisko, chmury),
-  kradzież do sąsiada i naprzeciwko, czas startu serwera.
+  zapis Toma bez zmian. Tom obejrzał mapy w Studiu 6.11: wygląda dobrze; scalone do `main`.
+  Po publikacji (Restart Servers) sprawdzić na żywo: kradzież do sąsiada i naprzeciwko (dwa konta), czas startu
+  serwera, F9 → Server bez czerwonych linii. Za tydzień w Analytics: czy czasy `Path_*` i otwarcia światów się
+  nie przesunęły (symulator mówi, że tempo zostało).
 
 ### Łysa Góra po przeróbce „x1000” (4.11)
 Prawdziwa góra z trójkątów (`src/shared/MountainTerrain.luau`: siatka, profil wysokości, serpentyny, pady pod
