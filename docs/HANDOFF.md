@@ -70,6 +70,27 @@ las → jaskinia (30 000 monet) → bagna (1 000 000) → **Łysa Góra** (10 00
 - Panel DEV (`Config.DevUserIds`: Tom, Miłosz): na żywo tylko część akcji (`Config.DevLiveActions`),
   reszta w Studio. **Tryb filmowy** (DEV → 🎬): czysty ekran i ujęcia do nagrań; klawisze L / K / J / U.
 
+### Szersze mapy i sześciokąt ogródków (6.11, gałąź `feat/szersze-mapy`, jeszcze nie w `main`)
+Plan: Codex (xhigh), decyzje Toma: ok. +40% szerokości, ogródki sześciokątem, grzybów tyle, żeby tempo zostało.
+- Połowy szerokości: las 70 → 100, polana 80 → 180, jaskinia 46 → 64, bagna 60 → 84, Łysa Góra 56 → 80.
+- Miejsca na grzyby 176 → 211 (+20%, gęstość ok. 14% mniejsza). Przy +40% (248) symulator dawał szybszą grę
+  (Jaskinia 1 h 20 zamiast 1 h 29, dochód na szczycie +22%), bo gracz zbiera każde miejsce raz na wyprawę
+  (czas odrastania nic nie zmienia). Teraz: Jaskinia 1 h 26, Bagna 2 h 42, Góra 6 h 35, maks. 9 h 02 (było 9 h 06).
+- Drzewa i ozdoby +20–30% (las, jaskinia, bagna, góra; polana 80 drzew, zachodnia część to zagajnik).
+- **Ogródki**: sześciokąt wokół Placu Ogródków na wschód od chatki (`Config.Garden.plaza` = środek 96, −38,
+  promień 52), furtki do środka placu, każda działka ma te same odległości do pozostałych (kradzież równa).
+  Geometria obróconych działek: `src/shared/GardenLayout.luau` (MapBuilder i testy). Ścieżki na plac z ganku
+  i z Placu Portali (`Config.Garden.entrances`). Zapis nie zna numeru działki: bez zmiany `DATA_VERSION`.
+- Tło lasu w dwóch kawałkach (las i polana, `Backdrop` opcja `exclude`), żeby rzędy drzew i wzgórza nie
+  stanęły na polanie. Siatka góry (`MountainTerrain.XS`) liczona z szerokości (przy 57 = stara siatka);
+  kotły, ogniska, iglice, las w dolinie i chmury przesunięte. Szczelina ekspedycji przy nowej ścianie (x = 60).
+- Ostrzeżenie „Wracaj” bez zmian: obozy zajmują całą szerokość świata, więc droga prosto w −Z jest najkrótsza.
+- Studio 6.11 (Play, liczby, bez obrazu: okno Studia schowane): mapa 33,3 tys. części (było ok. 27,5 tys.),
+  223 miejsca (wszystkie się zmieściły), ogródki patrzą na plac, nic nie rośnie w ogródkach, konsola czysta,
+  zapis Toma bez zmian. **Do obejrzenia na oko przed scaleniem**: plac i ścieżki, tło za polaną i przy schodku
+  ściany (z = 40), ściany i strop jaskini, bagna (rozlewiska, kładka), góra (szwy przy ±81, urwisko, chmury),
+  kradzież do sąsiada i naprzeciwko, czas startu serwera.
+
 ### Łysa Góra po przeróbce „x1000” (4.11)
 Prawdziwa góra z trójkątów (`src/shared/MountainTerrain.luau`: siatka, profil wysokości, serpentyny, pady pod
 bramy i kotły), urwisko nad doliną z rzeką i wioską, kamienna ścieżka z czaszkowymi latarniami, krąg kamieni
@@ -152,7 +173,7 @@ Magazyn `LanternForager_Profiles_v1`, klucz `player_1293490018`.
 - Studio renderuje 3D na szaro/czarno, gdy okno jest schowane; GUI widać normalnie (zrzuty przez MCP).
 - `screen_capture` w Studio nie widzi BillboardGui z `AlwaysOnTop`.
 - `Lighting.GeographicLatitude = 100` + `ClockTime 0` stawia księżyc nisko za szczytem góry (Atmosphere).
-- Mapa ma ok. 27,5 tys. części (sama góra ok. 6 tys.); build serwera jest synchroniczny w `MapBuilder.build`.
+- Mapa ma ok. 33 tys. części (po poszerzeniu 6.11; góra ok. 9,4 tys., bagna 8,6 tys.); build serwera jest synchroniczny w `MapBuilder.build`.
 - Ranking: Studio i deweloperzy nie trafiają na tablice (`LanternForager_Top_v2_*`).
 - Typy: `luau-lsp analyze` z definicjami Robloxa i sourcemapą z `rojo sourcemap` (stare błędy typów są znane;
   porównuj z poprzednim wynikiem, nie licz na zero).

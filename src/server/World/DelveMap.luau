@@ -11,6 +11,7 @@
 local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Config = require(ReplicatedStorage.Shared.Config)
 local Delve = require(ReplicatedStorage.Shared.Delve)
 local Palette = require(script.Parent.Palette)
 local Props = require(script.Parent.Props)
@@ -98,7 +99,7 @@ export type Entrances = {
 }
 
 DelveMap.BOARD = Vector3.new(30, 0, 1028) -- w Obozie, z boku za kramikiem
-DelveMap.PASSAGE = Vector3.new(42, 0, 1398) -- w ścianie Otchłani za rzeką lawy
+DelveMap.PASSAGE = Vector3.new(Config.Cave.halfWidth - 4, 0, 1398) -- w ścianie Otchłani za rzeką lawy
 
 -- Rezerwacja na mapie (nic tam nie wyrośnie)
 function DelveMap.reservedRects(): { { x1: number, x2: number, z1: number, z2: number } }

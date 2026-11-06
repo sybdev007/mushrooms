@@ -64,11 +64,11 @@ local GIANT_CAPS: { [string]: { Color3 } } = {
 }
 -- Ile ozdób w strefie
 local RECIPES: { [string]: { stalactites: number, stalagmites: number, crystals: number, boulders: number, glow: number } } = {
-	camp = { stalactites = 6, stalagmites = 2, crystals = 3, boulders = 4, glow = 2 },
-	crystal = { stalactites = 16, stalagmites = 10, crystals = 22, boulders = 10, glow = 4 },
-	lake = { stalactites = 14, stalagmites = 8, crystals = 10, boulders = 8, glow = 8 },
-	abyss = { stalactites = 18, stalagmites = 12, crystals = 12, boulders = 14, glow = 0 },
-	mine = { stalactites = 12, stalagmites = 6, crystals = 14, boulders = 10, glow = 0 },
+	camp = { stalactites = 8, stalagmites = 3, crystals = 4, boulders = 5, glow = 2 },
+	crystal = { stalactites = 21, stalagmites = 13, crystals = 29, boulders = 13, glow = 5 },
+	lake = { stalactites = 18, stalagmites = 10, crystals = 13, boulders = 10, glow = 10 },
+	abyss = { stalactites = 23, stalagmites = 16, crystals = 16, boulders = 18, glow = 0 },
+	mine = { stalactites = 16, stalagmites = 8, crystals = 18, boulders = 13, glow = 0 },
 }
 -- Gigantyczne świecące grzyby w strefie (najbardziej „grzybowy” widok w całej grze)
 local GIANTS: { [string]: number } = { camp = 2, crystal = 5, lake = 7, abyss = 4, mine = 2 }
@@ -769,7 +769,7 @@ end
 local function floorDetail(parent: Instance, zone: Config.ZoneDef, rng: Random, api: Api)
 	local hw = Config.Cave.halfWidth - 3
 	local rocks = ROCK_COLORS[zone.id] or ROCK_COLORS.crystal
-	for _ = 1, 26 do
+	for _ = 1, 36 do
 		local size = rng:NextNumber(0.6, 1.6)
 		decor(make("Part", {
 			Name = "Pebble",
@@ -783,7 +783,7 @@ local function floorDetail(parent: Instance, zone: Config.ZoneDef, rng: Random, 
 	end
 	if zone.id == "crystal" or zone.id == "lake" then
 		local glow = GLOWWORM_COLORS[zone.id]
-		for _ = 1, 10 do
+		for _ = 1, 14 do
 			local x, z = api.place(rng, -hw, hw, zone.startZ + 4, zone.endZ - 4, 2)
 			if x and z then
 				decor(make("Part", {

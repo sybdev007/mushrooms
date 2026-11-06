@@ -23,7 +23,7 @@ local SNOW = Color3.fromRGB(246, 250, 255)
 local GROUND_AMOUNT = 0.82
 local GREEN_AMOUNT = 0.55
 -- Foldery mapy ze śniegiem (las i polana); reszta (jaskinia, bagna, góra, chatka) bez zmian
-local SNOWY_FOLDERS = { Border = true, Backdrop_Forest = true, Gardens = true }
+local SNOWY_FOLDERS = { Border = true, Backdrop_Forest = true, Backdrop_Clearing = true, Gardens = true }
 
 local originals: { [BasePart]: Color3 } = {}
 local connections: { RBXScriptConnection } = {}

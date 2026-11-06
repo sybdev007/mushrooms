@@ -398,7 +398,7 @@ local function placeOnGround(x: number, z: number, from: number, ignore: { Insta
 end
 
 -- Sekretny zakątek: stary cmentarzyk grzybiarzy przy zachodniej ścianie Skraju Lasu
-HalloweenDecor.SECRET = Vector3.new(-62, 0, 110)
+HalloweenDecor.SECRET = Vector3.new(-Config.ForestHalfWidth + 8, 0, 110)
 
 -- Stałe miejsca. Buzie dyń patrzą na `face` (środek ścieżki albo obozu).
 local function spots(): { { list: { Spot }, face: (x: number, z: number) -> Vector3 } }

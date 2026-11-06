@@ -17,7 +17,7 @@ local Mountain = require(script.Parent.Mountain)
 
 local Terrain = {}
 
-local HALF = Config.Mountain.halfWidth + 1 -- niewidzialne ściany po bokach (x = ±57)
+local HALF = Config.Mountain.halfWidth + 1 -- niewidzialne ściany po bokach (x = ±81)
 local GLADE_END = 3040 -- do tego miejsca polana jest płaska
 local END_Z = 3480 -- koniec świata (ściana za ogródkiem Baby Jagi)
 local CORRIDOR = Config.Mountain.path + 1 -- pół szerokości płaskiego pasa ścieżki
@@ -29,8 +29,31 @@ Terrain.CLOUDS = 30 -- morze chmur (krąg kamieni i szczyt są nad nim)
 Terrain.TOP = 60 -- płaski szczyt z chatką i ogródkiem
 Terrain.CIRCLE_Y = 50 -- wyrównany plac kręgu kamieni
 
--- Kolumny i wiersze siatki. Kolumny ±57 leżą dokładnie na ścianach: tam zaczyna się urwisko i grzbiet.
-Terrain.XS = { -150, -110, -84, -68, -57, -49, -41, -33, -25, -17, -8, 0, 8, 17, 25, 33, 41, 49, 57, 66, 80, 100, 130 }
+-- Kolumny i wiersze siatki. Kolumny ±HALF leżą dokładnie na ścianach: tam zaczyna się urwisko i grzbiet.
+-- W pasie gry co ok. 8 studs (przy ścieżce 8–9), za ścianami coraz rzadziej: po lewej do stóp grzbietu
+-- (HALF + 93), po prawej w dół urwiska do dna doliny (HALF + 73). Przy HALF = 57 to dokładnie stara siatka.
+Terrain.XS = (function(): { number }
+	local inner = { 0, 8, 17, 25, 33, 41, 49 }
+	while inner[#inner] + 8 < HALF - 2 do
+		table.insert(inner, inner[#inner] + 8)
+	end
+	local columns: { number } = {}
+	for _, out in { 93, 53, 27, 11 } do
+		table.insert(columns, -HALF - out)
+	end
+	table.insert(columns, -HALF)
+	for i = #inner, 2, -1 do
+		table.insert(columns, -inner[i])
+	end
+	for _, x in inner do
+		table.insert(columns, x)
+	end
+	table.insert(columns, HALF)
+	for _, out in { 9, 23, 43, 73 } do
+		table.insert(columns, HALF + out)
+	end
+	return columns
+end)()
 Terrain.ZS = (function(): { number }
 	-- Przy polanie rzadziej (środek polany jest płaski), w pasie gry co 10, za szczytem coraz rzadziej
 	local rows = { 2930, 2948, 2964, 2978, 2990, 3002, 3014, 3026 }

@@ -54,23 +54,24 @@ end
 -- ===== Kotły Sabatu =====
 
 -- Stałe miejsca kotłów (x, z): z dala od ścieżki środkiem góry, żeby ścieżka była bezpieczna
+-- (rozsunięte razem z poszerzeniem góry: halfWidth 56 → 80)
 Mountain.CAULDRONS = {
-	{ x = -30, z = 3186 },
-	{ x = 26, z = 3198 },
-	{ x = -16, z = 3222 },
-	{ x = 38, z = 3236 },
-	{ x = -38, z = 3252 },
-	{ x = 18, z = 3266 },
-	{ x = -24, z = 3286 },
+	{ x = -43, z = 3186 },
+	{ x = 37, z = 3198 },
+	{ x = -23, z = 3222 },
+	{ x = 54, z = 3236 },
+	{ x = -54, z = 3252 },
+	{ x = 26, z = 3266 },
+	{ x = -34, z = 3286 },
 }
 
 -- Ogniska sabatu z zielonym ogniem: trzy na polu kotłów (kruki się do nich nie zbliżają, z dala od
 -- oparów i od ścieżki) i wielkie ognisko w kręgu kamieni na szczycie. Stałe miejsca, bo ziemia pod
 -- nimi jest wyrównana (Shared/MountainTerrain).
 Mountain.FIRES = {
-	{ x = 12, z = 3182 },
-	{ x = -12, z = 3246 },
-	{ x = 40, z = 3280 },
+	{ x = 16, z = 3179 }, -- na wyrównanym (tuż przy 3182 przekątna siatki daje pochyłość)
+	{ x = -17, z = 3246 },
+	{ x = 57, z = 3280 },
 	{ x = -7, z = 3354, big = true },
 }
 

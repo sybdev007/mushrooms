@@ -71,7 +71,7 @@ Config.Zones = {
 		fireflies = 5,
 		mist = 0,
 		-- Polana jest szersza niż las (ForestHalfWidth): z tyłu ogródków zostaje miejsce na drzewa z obrzeża
-		halfWidth = 80,
+		halfWidth = 180,
 	},
 	{
 		id = "edge",
@@ -80,8 +80,8 @@ Config.Zones = {
 		endZ = 160,
 		oilDrain = 1.0,
 		darkness = 0.35,
-		spotCount = 18,
-		treeCount = 45,
+		spotCount = 22,
+		treeCount = 54,
 		world = "forest",
 		fireflies = 9,
 		mist = 0.5,
@@ -93,8 +93,8 @@ Config.Zones = {
 		endZ = 300,
 		oilDrain = 1.8,
 		darkness = 0.7,
-		spotCount = 14,
-		treeCount = 75,
+		spotCount = 17,
+		treeCount = 90,
 		world = "forest",
 		fireflies = 12,
 		mist = 2.5,
@@ -106,8 +106,8 @@ Config.Zones = {
 		endZ = 490, -- za Gniazdem Leszego jest jeszcze kawałek drogi do portalu jaskini
 		oilDrain = 3.0,
 		darkness = 1.0,
-		spotCount = 10,
-		treeCount = 95,
+		spotCount = 12,
+		treeCount = 114,
 		world = "forest",
 		fireflies = 4,
 		mist = 6,
@@ -135,7 +135,7 @@ Config.Zones = {
 		endZ = 1160,
 		oilDrain = 3.0,
 		darkness = 0.8,
-		spotCount = 16,
+		spotCount = 19,
 		treeCount = 0,
 		world = "cave",
 		fog = { 18, 22, 44 },
@@ -149,7 +149,7 @@ Config.Zones = {
 		endZ = 1290,
 		oilDrain = 4.5,
 		darkness = 0.9,
-		spotCount = 13,
+		spotCount = 16,
 		treeCount = 0,
 		world = "cave",
 		fog = { 10, 26, 34 },
@@ -163,7 +163,7 @@ Config.Zones = {
 		endZ = 1420,
 		oilDrain = 6.5,
 		darkness = 1.0,
-		spotCount = 10,
+		spotCount = 12,
 		treeCount = 0,
 		world = "cave",
 		fog = { 30, 8, 12 },
@@ -177,7 +177,7 @@ Config.Zones = {
 		endZ = 1610, -- za skarbcem jest jeszcze portal na Bagna
 		oilDrain = 7.5,
 		darkness = 1.0,
-		spotCount = 9,
+		spotCount = 11,
 		treeCount = 0,
 		world = "cave",
 		fog = { 34, 26, 8 },
@@ -208,7 +208,7 @@ Config.Zones = {
 		endZ = 2170,
 		oilDrain = 6,
 		darkness = 0.75,
-		spotCount = 16,
+		spotCount = 19,
 		treeCount = 40,
 		world = "swamp",
 		fog = { 22, 40, 22 },
@@ -222,7 +222,7 @@ Config.Zones = {
 		endZ = 2300,
 		oilDrain = 9,
 		darkness = 0.9,
-		spotCount = 16,
+		spotCount = 19,
 		treeCount = 45,
 		world = "swamp",
 		fog = { 14, 34, 30 },
@@ -236,7 +236,7 @@ Config.Zones = {
 		endZ = 2440,
 		oilDrain = 12,
 		darkness = 1.0,
-		spotCount = 10,
+		spotCount = 12,
 		treeCount = 40,
 		world = "swamp",
 		fog = { 8, 24, 20 },
@@ -268,7 +268,7 @@ Config.Zones = {
 		endZ = 3170,
 		oilDrain = 8,
 		darkness = 0.75,
-		spotCount = 16,
+		spotCount = 19,
 		treeCount = 42,
 		world = "mountain",
 		fog = { 34, 18, 46 },
@@ -282,7 +282,7 @@ Config.Zones = {
 		endZ = 3300,
 		oilDrain = 11,
 		darkness = 0.9,
-		spotCount = 16,
+		spotCount = 19,
 		treeCount = 20,
 		world = "mountain",
 		fog = { 22, 40, 16 },
@@ -296,7 +296,7 @@ Config.Zones = {
 		endZ = 3480,
 		oilDrain = 14,
 		darkness = 1.0,
-		spotCount = 12,
+		spotCount = 14,
 		treeCount = 10,
 		world = "mountain",
 		fog = { 26, 22, 48 },
@@ -316,7 +316,7 @@ Config.WorldOilUpgrade = {
 -- Raz otwarty zostaje otwarty (zapisywane), nawet gdy potem wydasz monety.
 Config.Cave = {
 	unlockCoins = 30000, -- ok. 55 min lasu (tools/economy_sim.luau), razem z maksymalnymi ulepszeniami lasu
-	halfWidth = 46, -- jaskinia jest węższa niż las
+	halfWidth = 64, -- jaskinia jest węższa niż las
 	ceiling = 34, -- wysokość stropu
 	portal = { x = 0, z = 476 }, -- portal w lesie, kawałek za Gniazdem Leszego
 	-- Skrót za chatką: działa tylko dla tych, którzy już raz doszli do portalu za Leszym.
@@ -336,7 +336,7 @@ Config.Cave = {
 	},
 }
 
-Config.ForestHalfWidth = 70 -- las ma szerokość 2 * 70 studs
+Config.ForestHalfWidth = 100 -- las ma szerokość 2 * 100 studs
 Config.OilRefillPerSecond = 25 -- tankowanie latarni w chatce
 Config.OilWarnFraction = 0.5 -- pierwsze, spokojne ostrzeżenie: połowa oleju za tobą
 Config.OilLowFraction = 0.25 -- pilne ostrzeżenie: latarnia zaczyna migać
@@ -777,7 +777,7 @@ Config.DevLiveActions.announce = true -- ogłoszenie na środku ekranu na wszyst
 -- unlockCoins monet (i tylko z jaskini, więc trzeba też mieć otwartą jaskinię).
 Config.Swamp = {
 	unlockCoins = 1000000,
-	halfWidth = 60,
+	halfWidth = 84,
 	portal = { x = 0, z = 1594 }, -- w Sztolni, za posągiem Skarbnika
 	returnPortal = { x = 0, z = 2008 }, -- na przystani, prowadzi do chatki
 	camp = { x = 0, z = 2024 }, -- tu ląduje gracz po przejściu i po zgaśnięciu latarni na bagnach
@@ -791,7 +791,7 @@ Config.Swamp = {
 -- bagna na maks. 5 h 42 min, góra otwarta 6 h 39 min, ulepszenia góry na maks. 9 h 12 min.
 Config.Mountain = {
 	unlockCoins = 10000000,
-	halfWidth = 56,
+	halfWidth = 80,
 	portal = { x = 44, z = 2418 }, -- z boku Stawu Utopca (staw zajmuje środek końca bagien)
 	returnPortal = { x = 0, z = 3008 }, -- na Polanie Zielarki, prowadzi do chatki
 	camp = { x = 0, z = 3024 }, -- tu ląduje gracz po przejściu i po zgaśnięciu latarni na górze
@@ -1416,18 +1416,31 @@ Config.Garden = {
 		tagRadius = 6, -- właściciel bliżej złodzieja = odbiera łup
 		timeout = 60, -- po tylu sekundach łup wraca do właściciela
 	},
-	-- Ogródki na mapie (środki działek): po trzy z każdej strony chatki, furtką do środka polany (dwa
-	-- ostatnie za chatką, po bokach Placu Portali). Furtki stoją przy x = ±27 i ±31; ogródek rośnie w głąb,
-	-- w stronę lasu (polana jest tu szersza, Zones[1].halfWidth). Ile ogródków, tylu graczy ma grządki,
-	-- więc rozmiar serwera w ustawieniach gry (Max Players) musi być taki sam: 6.
-	plots = {
-		{ x = -45, z = -30 },
-		{ x = 45, z = -30 },
-		{ x = -45, z = 10 },
-		{ x = 45, z = 10 },
-		{ x = -49, z = -62 }, -- trochę dalej od środka niż reszta: róg nie może wejść na okrągły bruk placu
-		{ x = 49, z = -62 },
+	-- Ogródki stoją sześciokątem wokół Placu Ogródków na wschód od chatki, każdy furtką do środka placu
+	-- (World/Garden: lokalne -Z ogródka patrzy na plac). Każda działka ma ten sam zestaw odległości do pięciu
+	-- pozostałych, więc kradzież jest tak samo trudna z każdej. radius = od środka placu do środka działki,
+	-- furtki leżą na radius - depth / 2 (34 studs od środka), między narożnikami sąsiadów zostaje ok. 10 studs
+	-- przejścia. Kąty od +X w stronę +Z: pierwsza działka (najbliżej chatki) na 180°, kolejne co 60° (plots
+	-- liczone niżej). paving = promień bruku placu. Ile ogródków, tylu graczy ma grządki, więc rozmiar serwera
+	-- w ustawieniach gry (Max Players) musi być taki sam: 6.
+	plaza = { x = 96, z = -38, radius = 52, paving = 32 },
+	-- Ścieżki na plac przez szczeliny między działkami (kąt szczeliny) do punktu „to”: z ganku chatki
+	-- (dołącza do ścieżki na Plac Portali) i z brzegu Placu Portali
+	entrances = {
+		{ angle = 150, to = { x = 22, z = -7 } },
+		{ angle = 210, to = { x = 26, z = -75 } },
 	},
+	plots = {} :: { { x: number, z: number } },
 }
+do
+	local plaza = Config.Garden.plaza
+	for i = 0, 5 do
+		local angle = math.rad(180 - 60 * i)
+		table.insert(Config.Garden.plots, {
+			x = plaza.x + plaza.radius * math.cos(angle),
+			z = plaza.z + plaza.radius * math.sin(angle),
+		})
+	end
+end
 
 return Config

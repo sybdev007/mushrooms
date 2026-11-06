@@ -400,7 +400,8 @@ local CLOUD_FIELDS = {
 	{ center = Vector3.new(380, 0, 3600), size = Vector3.new(460, 4, 680), rate = 4, scale = 1 },
 	{ center = Vector3.new(0, 0, 3820), size = Vector3.new(900, 4, 560), rate = 5, scale = 1 },
 	{ center = Vector3.new(-370, 0, 3600), size = Vector3.new(380, 4, 680), rate = 3, scale = 1 },
-	{ center = Vector3.new(112, -4, 3420), size = Vector3.new(76, 4, 240), rate = 1.5, scale = 0.6 },
+	-- tuż pod urwiskiem przy szczycie, zaraz za prawą ścianą
+	{ center = Vector3.new(Config.Mountain.halfWidth + 56, -4, 3420), size = Vector3.new(76, 4, 240), rate = 1.5, scale = 0.6 },
 }
 local CLOUD_LIFETIME = 34
 local cloudEmitters: { ParticleEmitter } = {}

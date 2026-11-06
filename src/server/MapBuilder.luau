@@ -22,6 +22,7 @@ local DelveMap = require(World:WaitForChild("DelveMap"))
 local Swamp = require(World:WaitForChild("Swamp"))
 local MountainWorld = require(World:WaitForChild("Mountain"))
 local MountainTerrain = require(ReplicatedStorage.Shared.MountainTerrain)
+local GardenLayout = require(ReplicatedStorage.Shared.GardenLayout)
 local ForgeWorld = require(World:WaitForChild("Forge"))
 local Leszy = require(World:WaitForChild("Leszy"))
 local Backdrop = require(World:WaitForChild("Backdrop"))
@@ -133,7 +134,7 @@ local RECIPES: { [number]: Recipe } = {
 			{ kind = "oak", weight = 3, min = 0.9, max = 1.2 },
 			{ kind = "pine", weight = 3, min = 1, max = 1.3 },
 		},
-		props = { rock = 4, bush = 6, fern = 6, grass = 40, stump = 3 },
+		props = { rock = 7, bush = 11, fern = 11, grass = 75, stump = 5 }, -- polana jest ponad 2 razy większa niż kiedyś
 		glow = 0,
 	},
 	[2] = { -- skraj lasu: jasno, brzozy i jesienne dęby
@@ -170,7 +171,7 @@ local RECIPES: { [number]: Recipe } = {
 local CANOPY: { [string]: number } = { pine = 5.2, birch = 5, oak = 6.8, deadTree = 4.5 }
 local TRUNK = 1.3
 
-local CLEARING_TREES = 50
+local CLEARING_TREES = 80 -- zachodnia część polany (po drugiej stronie chatki niż ogródki) to luźny zagajnik
 local LANTERN_POSTS_Z = { 8, 30, 52, 74, 96 }
 local PATH_END_Z = 125
 
@@ -180,21 +181,40 @@ local PATH_END_Z = 125
 type Occupant = { x: number, z: number, r: number, trunk: number? }
 type Rect = { x1: number, x2: number, z1: number, z2: number }
 
+-- Rezerwacja, która nie jest prostokątem osiowym (obrócony ogródek, okrągły plac, ukośna ścieżka):
+-- zwraca true, gdy koło (x, z, r) na nią wchodzi
+type Blocker = (x: number, z: number, r: number) -> boolean
+
 local occupants: { Occupant } = {}
 local reserved: { Rect } = {}
+local blockers: { Blocker } = {}
 
 local function resetSpace()
 	occupants = {}
 	reserved = {}
+	blockers = {}
+end
+
+-- Czy koło (x, z, r) wchodzi na któreś zarezerwowane miejsce
+local function inReserved(x: number, z: number, r: number): boolean
+	for _, rect in reserved do
+		if x + r > rect.x1 and x - r < rect.x2 and z + r > rect.z1 and z - r < rect.z2 then
+			return true
+		end
+	end
+	for _, blocker in blockers do
+		if blocker(x, z, r) then
+			return true
+		end
+	end
+	return false
 end
 
 -- trunk podany = sprawdzamy drzewo: jego korona (r) nie może wejść na koronę innego drzewa
 -- ani na zarezerwowane miejsca, a do krzaków i grzybów liczy się tylko pień.
 local function isFree(x: number, z: number, r: number, trunk: number?): boolean
-	for _, rect in reserved do
-		if x + r > rect.x1 and x - r < rect.x2 and z + r > rect.z1 and z - r < rect.z2 then
-			return false
-		end
+	if inReserved(x, z, r) then
+		return false
 	end
 	local self = trunk or r
 	if z < PATH_END_Z and z > -6 and math.abs(x - Props.pathX(z)) < 2.6 + self then
@@ -337,10 +357,8 @@ local function buildBorder(parent: Instance, rng: Random)
 
 	-- Pnie nie mogą stać w miejscach zarezerwowanych (gniazdo, chatka); korony mogą nad nimi wisieć
 	local function free(x: number, z: number, canopy: number): boolean
-		for _, rect in reserved do
-			if x + TRUNK > rect.x1 and x - TRUNK < rect.x2 and z + TRUNK > rect.z1 and z - TRUNK < rect.z2 then
-				return false
-			end
+		if inReserved(x, z, TRUNK) then
+			return false
 		end
 		for _, o in occupants do
 			local dx, dz = o.x - x, o.z - z
@@ -431,42 +449,44 @@ local function silhouettePine(parent: Instance, base: Vector3, rng: Random, s: n
 	Backdrop.cone(parent, base + Vector3.new(0, 9 * s, 0), 8.5 * s, 10 * s, yaw + 0.4, color:Lerp(Color3.new(0, 0, 0), 0.08))
 end
 
+-- Las i szersza polana przy chatce to dwa prostokąty ze schodkiem ściany na końcu polany. Każdy ma
+-- własne tło, a tło jednego omija drugi: inaczej dalsze rzędy drzew i wzgórza lasu stanęłyby na polanie
+-- (między ogródkami), a tło polany w lesie.
 local function buildForestBackdrop(parent: Instance, rng: Random)
-	local halfWidth = Config.ForestHalfWidth
-	-- Strefy szersze niż las (polana przy chatce) wchodzą w pierwszy rząd tła
-	local cutouts: { Backdrop.Rect } = {}
-	for _, zoneIndex in FOREST_ZONES do
-		local zone = Config.Zones[zoneIndex]
-		local zoneHalf = zoneHalfWidth(zoneIndex)
-		if zoneHalf > halfWidth then
-			table.insert(cutouts, { x1 = -zoneHalf - 1, x2 = zoneHalf + 1, z1 = zone.startZ - 1, z2 = zone.endZ })
-		end
+	local forestHalf = Config.ForestHalfWidth
+	local clearingIndex = FOREST_ZONES[1]
+	local clearing = Config.Zones[clearingIndex]
+	local clearingHalf = zoneHalfWidth(clearingIndex)
+	local forestRect: Backdrop.Rect = { x1 = -forestHalf - 1, x2 = forestHalf + 1, z1 = clearing.endZ, z2 = FOREST_LAST.endZ + 1 }
+	local clearingRect: Backdrop.Rect = { x1 = -clearingHalf - 1, x2 = clearingHalf + 1, z1 = FOREST_FIRST.startZ - 1, z2 = clearing.endZ }
+	local function style(name: string, lines: { x1: boolean, x2: boolean, z1: boolean, z2: boolean }, ends: { boolean }, exclude: { Backdrop.Rect }): Backdrop.Style
+		return {
+			name = name, -- ziemię za lasem daje już OuterGround
+			near = function(folder: Instance, base: Vector3, treeRng: Random)
+				silhouettePine(folder, base, treeRng, treeRng:NextNumber(1.6, 2.1), 0.55, true)
+			end,
+			nearSpacing = 13,
+			far = function(folder: Instance, base: Vector3, treeRng: Random)
+				silhouettePine(folder, base, treeRng, treeRng:NextNumber(2, 2.6), 0.75, false)
+			end,
+			farthest = function(folder: Instance, base: Vector3, treeRng: Random)
+				local s = treeRng:NextNumber(2.4, 3.2)
+				Backdrop.cone(folder, base, 11 * s, 16 * s, treeRng:NextNumber(0, math.pi * 2), Palette.shade(Palette.pick(Palette.pine, treeRng), 0.9))
+			end,
+			farSpacing = 12,
+			hill = FOREST_HILLS,
+			hillHeight = { 34, 58 },
+			mountain = FOREST_MOUNTAINS,
+			mountainHeight = { 80, 120 },
+			lines = lines,
+			ends = ends,
+			exclude = exclude,
+		}
 	end
-	Backdrop.build(parent, {
-		x1 = -halfWidth - 1,
-		x2 = halfWidth + 1,
-		z1 = FOREST_FIRST.startZ - 1,
-		z2 = FOREST_LAST.endZ + 1,
-	}, {
-		name = "Forest", -- ziemię za lasem daje już OuterGround
-		near = function(folder: Instance, base: Vector3, treeRng: Random)
-			silhouettePine(folder, base, treeRng, treeRng:NextNumber(1.6, 2.1), 0.55, true)
-		end,
-		nearSpacing = 13,
-		far = function(folder: Instance, base: Vector3, treeRng: Random)
-			silhouettePine(folder, base, treeRng, treeRng:NextNumber(2, 2.6), 0.75, false)
-		end,
-		farthest = function(folder: Instance, base: Vector3, treeRng: Random)
-			local s = treeRng:NextNumber(2.4, 3.2)
-			Backdrop.cone(folder, base, 11 * s, 16 * s, treeRng:NextNumber(0, math.pi * 2), Palette.shade(Palette.pick(Palette.pine, treeRng), 0.9))
-		end,
-		farSpacing = 12,
-		hill = FOREST_HILLS,
-		hillHeight = { 34, 58 },
-		mountain = FOREST_MOUNTAINS,
-		mountainHeight = { 80, 120 },
-		cutouts = cutouts,
-	}, rng)
+	-- Las: bez przodu (tam jest polana), góry tylko na końcu za Jarem
+	Backdrop.build(parent, forestRect, style("Forest", { x1 = true, x2 = true, z1 = false, z2 = true }, { false, true }, { clearingRect }), rng)
+	-- Polana: góry za Placem Portali, z tyłu tylko za schodkiem ściany (poza lasem)
+	Backdrop.build(parent, clearingRect, style("Clearing", { x1 = true, x2 = true, z1 = true, z2 = true }, { true, false }, { forestRect }), rng)
 end
 
 local function buildZoneDecor(parent: Instance, zoneIndex: number, rng: Random)
@@ -534,7 +554,7 @@ end
 local function buildSpots(rng: Random): { Spot }
 	local spots: { Spot } = {}
 	for zoneIndex, zone in Config.Zones do
-		local halfWidth = Economy.worldHalfWidth(zone.world) - 8
+		local halfWidth = Economy.zoneHalfWidth(zone) - 8
 		local mountain = zone.world == "mountain"
 		for i = 1, zone.spotCount do
 			local x, z = findSpot(rng, -halfWidth, halfWidth, zone.startZ + 6, zone.endZ - 6, 3, if mountain then gentleSlope else nil)
@@ -614,20 +634,37 @@ local function buildJagaSpots(): { Spot }
 	return spots
 end
 
--- Ogródki graczy po bokach chatki, każdy furtką w stronę środka polany (x = 0)
+-- Ogródki graczy sześciokątem wokół Placu Ogródków, każdy furtką (lokalne -Z) do środka placu
 local function gardenCFrame(plot: { x: number, z: number }): CFrame
-	return CFrame.lookAt(Vector3.new(plot.x, 0, plot.z), Vector3.new(0, 0, plot.z))
+	local plaza = Config.Garden.plaza
+	return CFrame.lookAt(Vector3.new(plot.x, 0, plot.z), Vector3.new(plaza.x, 0, plaza.z))
 end
 
+local GARDEN_MARGIN = 2 -- zapas wokół płotu
+local GARDEN_FRONT = 7 -- wolne miejsce przed furtką
+local GARDEN_PATH_HALF = 3 -- pół szerokości ścieżki na plac (z zapasem na kamienie)
+
 local function reserveGardens()
-	-- Furtka patrzy wzdłuż X (do środka polany), więc głębokość ogródka idzie wzdłuż X, szerokość wzdłuż Z
-	local halfDepth, halfWidth = Config.Garden.depth / 2, Config.Garden.width / 2
 	for _, plot in Config.Garden.plots do
-		-- Ogródek z zapasem i miejsce przed furtką (od strony środka polany)
-		local toward = if plot.x < 0 then 1 else -1
-		local x1 = math.min(plot.x - halfDepth - 2, plot.x + toward * (halfDepth + 7))
-		local x2 = math.max(plot.x + halfDepth + 2, plot.x + toward * (halfDepth + 7))
-		table.insert(reserved, { x1 = x1, x2 = x2, z1 = plot.z - halfWidth - 2, z2 = plot.z + halfWidth + 2 })
+		table.insert(blockers, function(x: number, z: number, r: number): boolean
+			return GardenLayout.contains(plot, x, z, GARDEN_MARGIN + r, GARDEN_FRONT)
+		end)
+	end
+	-- Plac między ogródkami i ścieżki na niego: nic tam nie rośnie
+	local plaza = Config.Garden.plaza
+	local clear = plaza.radius - Config.Garden.depth / 2 -- furtki
+	table.insert(blockers, function(x: number, z: number, r: number): boolean
+		local dx, dz = x - plaza.x, z - plaza.z
+		return dx * dx + dz * dz < (clear + r) * (clear + r)
+	end)
+	for _, entrance in Config.Garden.entrances do
+		local points = GardenLayout.entrancePath(entrance)
+		for i = 1, #points - 1 do
+			local a, b = points[i], points[i + 1]
+			table.insert(blockers, function(x: number, z: number, r: number): boolean
+				return GardenLayout.segmentDistance(x, z, a.x, a.z, b.x, b.z) < GARDEN_PATH_HALF + r
+			end)
+		end
 	end
 end
 
@@ -737,6 +774,47 @@ local function stonePath(parent: Instance, points: { Vector3 }, rng: Random)
 		end
 	end
 	folder.Parent = parent
+end
+
+-- Plac Ogródków: okrągły bruk między furtkami (środek zostaje pusty, żeby było widać wszystkie ogródki),
+-- latarnie przed szczelinami między działkami i kamienne ścieżki z ganku chatki i z Placu Portali
+local function buildGardenPlaza(parent: Instance, rng: Random)
+	local plaza = Config.Garden.plaza
+	local center = Vector3.new(plaza.x, 0, plaza.z)
+	local folder = Instance.new("Folder")
+	folder.Name = "GardenPlaza"
+	local paving = Instance.new("Part")
+	paving.Name = "Paving"
+	paving.Shape = Enum.PartType.Cylinder
+	paving.Anchored = true
+	paving.CanCollide = false
+	paving.CanQuery = false
+	paving.CastShadow = false
+	paving.Size = Vector3.new(0.2, plaza.paving * 2, plaza.paving * 2)
+	paving.CFrame = CFrame.new(center + Vector3.new(0, -0.02, 0)) * CFrame.Angles(0, 0, math.rad(90))
+	paving.Color = Palette.stone:Lerp(Palette.ground[1], 0.45)
+	paving.Material = Enum.Material.Cobblestone
+	paving.Parent = folder
+	-- Latarnie przed szczelinami, którymi nie biegnie ścieżka (szczeliny leżą co 60°, od 30°)
+	local entranceAngles: { [number]: boolean } = {}
+	for _, entrance in Config.Garden.entrances do
+		entranceAngles[entrance.angle % 360] = true
+	end
+	for degrees = 30, 330, 60 do
+		if not entranceAngles[degrees] then
+			local angle = math.rad(degrees)
+			local pos = center + Vector3.new(math.cos(angle), 0, math.sin(angle)) * (plaza.paving - 2)
+			Props.lanternPost(folder, pos, math.atan2(-(center.Z - pos.Z), center.X - pos.X))
+		end
+	end
+	folder.Parent = parent
+	for _, entrance in Config.Garden.entrances do
+		local points: { Vector3 } = {}
+		for _, p in GardenLayout.entrancePath(entrance) do
+			table.insert(points, Vector3.new(p.x, 0, p.z))
+		end
+		stonePath(parent, points, rng)
+	end
 end
 
 -- Plac Portali: okrągły bruk, latarnie dookoła, skrót do jaskini na środku i fundamenty pod kolejne portale.
@@ -868,7 +946,7 @@ function MapBuilder.build(): MapInfo
 	table.insert(reserved, { x1 = -16, x2 = -5, z1 = 24, z2 = 38 })
 	-- Halloween: sekretny zakątek (cmentarzyk grzybiarzy) przy zachodniej ścianie Skraju Lasu
 	-- (HalloweenDecor.SECRET); dookoła rośnie las, więc z daleka go nie widać
-	table.insert(reserved, { x1 = -70, x2 = -54, z1 = 101, z2 = 119 })
+	table.insert(reserved, { x1 = -Config.ForestHalfWidth, x2 = -Config.ForestHalfWidth + 16, z1 = 101, z2 = 119 })
 
 	-- Bramy na początku każdej strefy leśnej
 	for i = 2, #FOREST_ZONES do
@@ -877,9 +955,10 @@ function MapBuilder.build(): MapInfo
 		table.insert(reserved, { x1 = -9.5, x2 = 9.5, z1 = zone.startZ - 2.5, z2 = zone.startZ + 2.5 })
 	end
 
-	-- Ogródki graczy z suszarniami po obu stronach chatki
+	-- Ogródki graczy sześciokątem wokół Placu Ogródków na wschód od chatki
 	reserveGardens()
 	local racks = buildGardens(map)
+	buildGardenPlaza(map, Random.new(Config.SpotSeed + 4))
 
 	local decorRng = Random.new(Config.SpotSeed + 1)
 

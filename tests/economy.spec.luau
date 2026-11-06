@@ -44,6 +44,67 @@ local Achievements = loadModule("src/shared/Achievements.luau", {
 
 local roblox = require("@lune/roblox")
 local Expedition = loadModule("src/shared/Expedition.luau", { Vector3 = roblox.Vector3 })
+local GardenLayout = loadModule("src/shared/GardenLayout.luau", {
+	script = { Parent = { Config = Config } },
+	require = function(module)
+		return module
+	end,
+})
+
+-- Geometria na płaszczyźnie (x, z) do testów ogródków: wielokąty wypukłe jako listy { x, z }
+local function rectPolygon(x1: number, x2: number, z1: number, z2: number): { { x: number, z: number } }
+	return { { x = x1, z = z1 }, { x = x2, z = z1 }, { x = x2, z = z2 }, { x = x1, z = z2 } }
+end
+local function insidePolygon(px: number, pz: number, poly: { { x: number, z: number } }): boolean
+	local sign = 0
+	for i = 1, #poly do
+		local a, b = poly[i], poly[i % #poly + 1]
+		local cross = (b.x - a.x) * (pz - a.z) - (b.z - a.z) * (px - a.x)
+		if cross ~= 0 then
+			local side = if cross > 0 then 1 else -1
+			if sign == 0 then
+				sign = side
+			elseif side ~= sign then
+				return false
+			end
+		end
+	end
+	return true
+end
+local function distanceToPolygon(px: number, pz: number, poly: { { x: number, z: number } }): number
+	if insidePolygon(px, pz, poly) then
+		return 0
+	end
+	local best = math.huge
+	for i = 1, #poly do
+		local a, b = poly[i], poly[i % #poly + 1]
+		best = math.min(best, GardenLayout.segmentDistance(px, pz, a.x, a.z, b.x, b.z))
+	end
+	return best
+end
+-- Twierdzenie o osi rozdzielającej: dwa wielokąty wypukłe nachodzą na siebie, gdy na żadnej osi
+-- (normalnej boku) ich rzuty się nie rozchodzą
+local function polygonsOverlap(a: { { x: number, z: number } }, b: { { x: number, z: number } }): boolean
+	for _, poly in { a, b } do
+		for i = 1, #poly do
+			local p, q = poly[i], poly[i % #poly + 1]
+			local nx, nz = q.z - p.z, p.x - q.x
+			local minA, maxA, minB, maxB = math.huge, -math.huge, math.huge, -math.huge
+			for _, v in a do
+				local d = v.x * nx + v.z * nz
+				minA, maxA = math.min(minA, d), math.max(maxA, d)
+			end
+			for _, v in b do
+				local d = v.x * nx + v.z * nz
+				minB, maxB = math.min(minB, d), math.max(maxB, d)
+			end
+			if maxA <= minB or maxB <= minA then
+				return false
+			end
+		end
+	end
+	return true
+end
 
 -- Skórki eventów (Shared/Skins) z modułami Halloween i Winter, dla testów, które ładują serwer
 local function loadSkins(): any
@@ -957,34 +1018,127 @@ test("grządki: od kilku na start do pełnej siatki ogródka", function()
 	check(Economy.upgradeStat("fertilizer", 0) == 1, "nawóz bez ulepszenia")
 end)
 
-test("ogródki: na polanie, obok chatki, bez nachodzenia na siebie, drzewa z obrzeża i ścieżkę", function()
-	-- Furtka patrzy do środka polany (wzdłuż X): głębokość ogródka leży wzdłuż X, szerokość wzdłuż Z
-	local halfX, halfZ = Config.Garden.depth / 2, Config.Garden.width / 2
+test("ogródki: sześciokąt wokół Placu Ogródków, na polanie, z dala od chatki, ścieżek i drzew z obrzeża", function()
 	-- Przed dziedzińcem jest 11,5 studa na ścieżkę, skrzynię i placyk, za nim półka z reliktami (ok. 5)
 	check(Config.Garden.depth >= 11.5 + 19.2 + 5, "ogródek za płytki na grządki i półkę")
 	check(Config.Garden.width >= 19.2 + 6, "ogródek za wąski na dziedziniec z alejkami")
-	-- Korona drzewa z obrzeża polany sięga do ok. halfWidth - 3 - 5,2 * 1,9
+	eq(#Config.Garden.plots, 6, "sześć ogródków: tyle graczy na serwerze (Max Players)")
 	local clearing = Economy.zoneHalfWidth(Config.Zones[1])
 	check(clearing >= Config.ForestHalfWidth, "polana węższa niż las")
-	local borderReach = clearing - 3 - 5.2 * 1.9
+	-- Korona drzewa z obrzeża polany sięga do ok. 3 + 5,2 * 1,9 od ściany (boki i tył za Placem Portali);
+	-- drzewa z uskoku ściany na końcu polany stoją przy Zones[2].startZ - 3
+	local reach = 3 + 5.2 * 1.9
+	local plaza = Config.Garden.plaza
+	local gateRadius = plaza.radius - Config.Garden.depth / 2
 	for i, plot in Config.Garden.plots do
-		eq(Economy.zoneIndexAt(plot.z - halfZ), 1, "ogródek " .. i .. " (przód) poza polaną")
-		eq(Economy.zoneIndexAt(plot.z + halfZ), 1, "ogródek " .. i .. " (tył) poza polaną")
-		check(math.abs(plot.x) + halfX < borderReach, "ogródek " .. i .. " pod drzewami z obrzeża")
-		check(math.abs(plot.x) - halfX > 17, "ogródek " .. i .. " na chatce")
-		-- Przed furtką (od strony środka) zostaje 7 studs wolnego miejsca, ścieżka do lasu biegnie przy x = 0
-		check(math.abs(plot.x) - halfX - 7 > 4, "furtka ogródka " .. i .. " za blisko ścieżki")
-		check(plot.z + halfZ < Config.Zones[2].startZ - 3, "ogródek " .. i .. " na bramie do lasu")
+		local poly = GardenLayout.corners(plot, 0)
+		for _, corner in poly do
+			eq(Economy.zoneIndexAt(corner.z), 1, "ogródek " .. i .. " poza polaną")
+			check(math.abs(corner.x) < clearing - reach, "ogródek " .. i .. " pod drzewami z obrzeża (bok)")
+			check(corner.z > Config.Zones[1].startZ + reach, "ogródek " .. i .. " pod drzewami z obrzeża (tył)")
+			check(corner.z < Config.Zones[2].startZ - 8, "ogródek " .. i .. " pod drzewami przy bramie do lasu")
+		end
+		-- Furtka na okręgu wokół środka placu i patrzy na środek
+		local gx, gz = GardenLayout.gate(plot)
+		check(math.abs(math.sqrt((gx - plaza.x) ^ 2 + (gz - plaza.z) ^ 2) - gateRadius) < 1e-6, "furtka " .. i .. " na okręgu placu")
+		local fx, fz = GardenLayout.facing(plot)
+		check(math.abs(fx * (plaza.x - gx) + fz * (plaza.z - gz) - gateRadius) < 1e-6, "furtka " .. i .. " patrzy na plac")
+		-- Środek placu jest wolny (bruk sięga do furtek, ale nie wchodzi za płot)
+		check(distanceToPolygon(plaza.x, plaza.z, poly) > plaza.paving, "bruk placu wchodzi na ogródek " .. i)
+		-- Chatka z gankiem i ścieżka wzdłuż jej boku na Plac Portali (x = 22)
+		check(not polygonsOverlap(GardenLayout.corners(plot, 2), rectPolygon(-24, 24, -50, 2)), "ogródek " .. i .. " na chatce")
+		-- Między sąsiednimi działkami zostaje przejście (co najmniej 8 studs między płotami)
 		for j, other in Config.Garden.plots do
 			if j > i then
-				local apart = math.abs(other.x - plot.x) >= halfX * 2 + 1 or math.abs(other.z - plot.z) >= halfZ * 2 + 1
-				check(apart, string.format("ogródki %d i %d na sobie", i, j))
+				local otherPoly = GardenLayout.corners(other, 0)
+				local gap = math.huge
+				if not polygonsOverlap(poly, otherPoly) then
+					for _, v in poly do
+						gap = math.min(gap, distanceToPolygon(v.x, v.z, otherPoly))
+					end
+					for _, v in otherPoly do
+						gap = math.min(gap, distanceToPolygon(v.x, v.z, poly))
+					end
+				else
+					gap = 0
+				end
+				check(gap >= 8, string.format("ogródki %d i %d za blisko (%.1f)", i, j, gap))
 			end
+		end
+	end
+	-- Układ zgadza się z CFrame.lookAt, którym MapBuilder obraca ogródek (lokalne -Z = furtka)
+	for _, plot in Config.Garden.plots do
+		local cf = roblox.CFrame.lookAt(roblox.Vector3.new(plot.x, 0, plot.z), roblox.Vector3.new(plaza.x, 0, plaza.z))
+		for _, l in { { 0, -Config.Garden.depth / 2 }, { 5, 3 }, { -Config.Garden.width / 2, Config.Garden.depth / 2 } } do
+			local p = cf * roblox.Vector3.new(l[1], 0, l[2])
+			local x, z = GardenLayout.toWorld(plot, l[1], l[2])
+			check(math.abs(p.X - x) < 1e-4 and math.abs(p.Z - z) < 1e-4, "toWorld jak CFrame.lookAt")
+			local lx, lz = GardenLayout.toLocal(plot, x, z)
+			check(math.abs(lx - l[1]) < 1e-6 and math.abs(lz - l[2]) < 1e-6, "toLocal odwraca toWorld")
 		end
 	end
 	-- Na szerszej polanie da się kupować ulepszenia aż do ściany (obóz liczy szerokość strefy)
 	eq(Economy.upgradeCampAt(clearing - 1, 3, -30), "forest", "obóz przy ścianie polany")
 	eq(Economy.upgradeCampAt(clearing + 2, 3, -30), nil, "obóz za ścianą polany")
+end)
+
+test("ogródki: każdy ma te same odległości do pozostałych (kradzież jest tak samo trudna z każdego)", function()
+	local function distances(index: number): { number }
+		local list = {}
+		local ax, az = GardenLayout.hub(Config.Garden.plots[index])
+		for j, other in Config.Garden.plots do
+			if j ~= index then
+				local bx, bz = GardenLayout.hub(other)
+				table.insert(list, math.sqrt((ax - bx) ^ 2 + (az - bz) ^ 2))
+			end
+		end
+		table.sort(list)
+		return list
+	end
+	local first = distances(1)
+	for i = 2, #Config.Garden.plots do
+		local other = distances(i)
+		for k = 1, #first do
+			check(math.abs(first[k] - other[k]) < 1e-6, string.format("ogródek %d: inne odległości (%.2f zamiast %.2f)", i, other[k], first[k]))
+		end
+	end
+	-- Do sąsiada nie za blisko (strażnik przy przyciskach, guardRadius) i do najdalszego nie przez pół mapy
+	check(first[1] > Config.Garden.guardRadius * 2, "sąsiedzi za blisko")
+	check(first[#first] < 90, "najdalszy ogródek za daleko")
+end)
+
+test("ogródki: ścieżki na Plac Ogródków biegną szczelinami między działkami", function()
+	local plaza = Config.Garden.plaza
+	for _, entrance in Config.Garden.entrances do
+		local points = GardenLayout.entrancePath(entrance)
+		for k = 1, #points - 1 do
+			local a, b = points[k], points[k + 1]
+			local length = math.sqrt((b.x - a.x) ^ 2 + (b.z - a.z) ^ 2)
+			for step = 0, math.ceil(length / 0.5) do
+				local t = math.min(step * 0.5 / length, 1)
+				local x, z = a.x + (b.x - a.x) * t, a.z + (b.z - a.z) * t
+				eq(Economy.zoneIndexAt(z), 1, "ścieżka poza polaną")
+				for i, plot in Config.Garden.plots do
+					-- Kamienie ścieżki leżą do ok. 2 studs od osi; płot ogródka dalej
+					check(distanceToPolygon(x, z, GardenLayout.corners(plot, 0)) > 2.5, string.format("ścieżka %d przez ogródek %d", entrance.angle, i))
+				end
+				check(distanceToPolygon(x, z, rectPolygon(-19, 19, -46, -12)) > 1, "ścieżka przez chatkę")
+			end
+		end
+		-- Pierwszy punkt na bruku placu
+		local d = math.sqrt((points[1].x - plaza.x) ^ 2 + (points[1].z - plaza.z) ^ 2)
+		check(d < plaza.paving, "ścieżka nie zaczyna się na placu")
+	end
+	-- Jedna ścieżka prowadzi na Plac Portali
+	local portal = Config.PortalPlaza
+	local reaches = false
+	for _, entrance in Config.Garden.entrances do
+		local to = entrance.to
+		if math.sqrt((to.x - portal.center.x) ^ 2 + (to.z - portal.center.z) ^ 2) < portal.radius then
+			reaches = true
+		end
+	end
+	check(reaches, "żadna ścieżka nie prowadzi na Plac Portali")
 end)
 
 test("kłódka: złodziej trzyma przycisk dłużej z każdym poziomem", function()
@@ -1059,23 +1213,14 @@ test("portal leśny stoi wyraźnie za gniazdem, skrót za chatką na polanie", f
 	local plaza = Config.PortalPlaza
 	check(plaza.center.z - plaza.radius > Config.Zones[1].startZ + 4, "plac za ścianą mapy")
 	check(plaza.center.z + plaza.radius < -35 - 5, "plac wchodzi na chatkę")
-	-- Ogródek (prostokąt) nie może nachodzić na okrągły bruk placu (z zapasem na płot i kamienie przy furtce)
-	local halfX, halfZ = Config.Garden.depth / 2, Config.Garden.width / 2
-	for _, plot in Config.Garden.plots do
-		local nearX = math.clamp(plaza.center.x, plot.x - halfX, plot.x + halfX)
-		local nearZ = math.clamp(plaza.center.z, plot.z - halfZ, plot.z + halfZ)
-		local distance = math.sqrt((nearX - plaza.center.x) ^ 2 + (nearZ - plaza.center.z) ^ 2)
-		check(distance > plaza.radius + 2, "plac wchodzi na ogródek")
-	end
-	-- Ogródki nie nachodzą na siebie i nie stoją na chatce
-	for i, a in Config.Garden.plots do
-		check(math.abs(a.x) - halfX > 18 + 6, "ogródek za blisko chatki")
-		check(math.abs(a.x) + halfX < Economy.zoneHalfWidth(Config.Zones[1]) - 6, "ogródek w ścianie mapy")
-		for j, b in Config.Garden.plots do
-			if i < j and math.abs(a.x - b.x) < Config.Garden.depth + 4 then
-				check(math.abs(a.z - b.z) >= Config.Garden.width + 4, "ogródki nachodzą na siebie")
-			end
-		end
+	-- Ogródek (obrócony prostokąt) nie może nachodzić na okrągły bruk placu (z zapasem na płot i kamienie)
+	for i, plot in Config.Garden.plots do
+		local poly = GardenLayout.corners(plot, 0)
+		check(distanceToPolygon(plaza.center.x, plaza.center.z, poly) > plaza.radius + 2, "plac wchodzi na ogródek " .. i)
+		-- Moździerz i kapliczka (naprzeciw moździerza) na Placu Portali też nie
+		local forge = Config.Forge.station
+		check(distanceToPolygon(forge.x, forge.z, poly) > forge.radius + 4, "moździerz przy ogródku " .. i)
+		check(distanceToPolygon(-forge.x, forge.z, poly) > forge.radius + 4, "kapliczka przy ogródku " .. i)
 	end
 	check(table.find(plaza.slots, Config.Cave.shortcut.x) ~= nil, "skrót nie stoi na miejscu na portal")
 end)
@@ -4066,6 +4211,12 @@ do
 			check(ZS[j] > ZS[j - 1], "wiersze rosną " .. j)
 		end
 		check(table.find(XS, HALF) ~= nil and table.find(XS, -HALF) ~= nil, "kolumny na ścianach")
+		-- W pasie gry kolumny co najwyżej 9 studs od siebie (trójkąty są tam drobne, bez kanciastych zboczy)
+		for i = 2, #XS do
+			if XS[i] > -HALF and XS[i] <= HALF then
+				check(XS[i] - XS[i - 1] <= 9, string.format("gęsto w pasie gry %d..%d", XS[i - 1], XS[i]))
+			end
+		end
 		check(table.find(ZS, Terrain.END_Z) ~= nil, "wiersz na końcu świata")
 	end)
 
@@ -4129,7 +4280,7 @@ do
 		check(Terrain.TOP > Terrain.CLOUDS + 20 and Terrain.CIRCLE_Y > Terrain.CLOUDS + 10, "szczyt i krąg nad chmurami")
 		-- Grzbiet za ścianą (lewa strona) nigdy nie przewyższa szczytu
 		for z = 2990, 3480, 10 do
-			for x = -150, -58, 4 do
+			for x = XS[1], -HALF - 1, 4 do
 				check(Terrain.groundY(x, z) < Terrain.TOP, string.format("grzbiet %d,%d", x, z))
 			end
 		end
@@ -4197,12 +4348,13 @@ do
 	test("w pasie gry nie ma urwisk; za ścianą po prawej urwisko do doliny, a za szczytem morze chmur", function()
 		local steepest = 0
 		for z = 3000, 3478, 1 do
-			for x = -55, 55, 1 do
+			for x = -(HALF - 2), HALF - 2, 1 do
 				steepest = math.max(steepest, Terrain.slope(x, z))
 			end
 		end
 		check(steepest < 1.2, string.format("najstromiej w pasie gry %.2f", steepest))
-		eq(Terrain.groundY(130, 3300), Terrain.FLOOR, "dno doliny")
+		-- Dno doliny: za ostatnią kolumną po prawej (HALF + 73) urwisko już się skończyło
+		eq(Terrain.groundY(XS[#XS] + 5, 3300), Terrain.FLOOR, "dno doliny")
 		eq(Terrain.groundY(900, 3300), Terrain.FLOOR, "poza siatką też dno")
 		eq(Terrain.groundY(0, 3620), Terrain.FLOOR, "za szczytem")
 		check(Terrain.groundY(HALF, 3400) - Terrain.groundY(HALF + 7, 3400) > 25, "urwisko tuż za ścianą")
@@ -4213,8 +4365,9 @@ do
 		for _, zone in Config.Zones do
 			if zone.world == "mountain" and not zone.safe then
 				local gentle, total = 0, 0
+				local spread = Config.Mountain.halfWidth - 8 -- tak jak MapBuilder.buildSpots
 				for z = zone.startZ + 6, zone.endZ - 6, 3 do
-					for x = -48, 48, 3 do
+					for x = -spread, spread, 3 do
 						total += 1
 						if Terrain.slope(x, z) <= 0.45 then
 							gentle += 1
@@ -4229,7 +4382,7 @@ do
 	test("normalna ziemi ma długość 1 i patrzy w górę", function()
 		math.randomseed(11)
 		for _ = 1, 500 do
-			local x, z = -150 + 280 * math.random(), 2930 + 690 * math.random()
+			local x, z = XS[1] + (XS[#XS] - XS[1]) * math.random(), ZS[1] + (ZS[#ZS] - ZS[1]) * math.random()
 			local nx, ny, nz = Terrain.normal(x, z)
 			check(near(nx * nx + ny * ny + nz * nz, 1, 1e-9), "długość")
 			check(ny > 0, "w górę")

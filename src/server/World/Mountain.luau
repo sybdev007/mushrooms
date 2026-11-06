@@ -87,9 +87,9 @@ type Recipe = {
 	brooms: number,
 }
 local RECIPES: { [string]: Recipe } = {
-	witchwood = { crooked = 22, pines = 10, rocks = 9, stumps = 5, bones = 6, glow = 6, tufts = 18, brooms = 3 },
-	cauldrons = { crooked = 8, pines = 4, rocks = 7, stumps = 3, bones = 8, glow = 4, tufts = 10, brooms = 8 },
-	summit = { crooked = 6, pines = 0, rocks = 16, stumps = 2, bones = 4, glow = 4, tufts = 6, brooms = 0 },
+	witchwood = { crooked = 26, pines = 12, rocks = 12, stumps = 6, bones = 8, glow = 8, tufts = 24, brooms = 4 },
+	cauldrons = { crooked = 10, pines = 5, rocks = 9, stumps = 4, bones = 10, glow = 5, tufts = 13, brooms = 10 },
+	summit = { crooked = 7, pines = 0, rocks = 21, stumps = 3, bones = 5, glow = 5, tufts = 8, brooms = 0 },
 }
 
 local function make(className: string, props: { [string]: any }): BasePart
@@ -980,7 +980,7 @@ local function buildEdges(parent: Instance, rng: Random)
 	-- Skalne iglice na grzbiecie: postrzępiona sylwetka na tle nieba (słup skały ze spiczastym czubem)
 	z = 3050
 	while z < 3370 do
-		local cx = -rng:NextNumber(88, 112)
+		local cx = -(hw + rng:NextNumber(32, 56)) -- grzbiet jest ok. 46 studs za ścianą
 		local base = groundAt(cx, z)
 		local height = rng:NextNumber(10, 22)
 		local width, depth = rng:NextNumber(5, 8), rng:NextNumber(4, 7)
@@ -1207,9 +1207,10 @@ local function buildScenery(parent: Instance, rng: Random)
 			end
 		end
 	end
-	forest(70, 420, 2930, 3700, 90)
+	-- Po prawej zaraz za urwiskiem, po lewej dopiero za grzbietem (stopy grzbietu ok. HALF + 93)
+	forest(hw + 14, 420, 2930, 3700, 90)
 	forest(-320, 320, 3540, 3900, 50)
-	forest(-420, -150, 3000, 3700, 40)
+	forest(-420, -(hw + 94), 3000, 3700, 40)
 
 	-- Rzeka wijąca się dnem doliny (lekko świeci w świetle księżyca)
 	local points = {

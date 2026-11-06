@@ -54,9 +54,9 @@ type Recipe = {
 	stumps: number,
 }
 local RECIPES: { [string]: Recipe } = {
-	bog = { willows = 8, dead = 10, reeds = 22, pools = 6, wisps = 4, logs = 5, glow = 6, rocks = 6, tufts = 26, patches = 10, stumps = 4 },
-	wisps = { willows = 6, dead = 14, reeds = 18, pools = 6, wisps = 14, logs = 4, glow = 10, rocks = 5, tufts = 22, patches = 9, stumps = 4 },
-	pond = { willows = 6, dead = 12, reeds = 16, pools = 3, wisps = 8, logs = 3, glow = 8, rocks = 6, tufts = 18, patches = 8, stumps = 3 },
+	bog = { willows = 10, dead = 12, reeds = 29, pools = 8, wisps = 5, logs = 6, glow = 8, rocks = 8, tufts = 34, patches = 13, stumps = 5 },
+	wisps = { willows = 7, dead = 17, reeds = 24, pools = 8, wisps = 18, logs = 5, glow = 13, rocks = 7, tufts = 29, patches = 12, stumps = 5 },
+	pond = { willows = 7, dead = 14, reeds = 21, pools = 4, wisps = 10, logs = 4, glow = 10, rocks = 8, tufts = 23, patches = 10, stumps = 4 },
 }
 -- Brodaczka: szarozielony mech zwisający z gałęzi
 local MOSS = { Color3.fromRGB(112, 128, 96), Color3.fromRGB(98, 114, 84), Color3.fromRGB(86, 104, 78) }

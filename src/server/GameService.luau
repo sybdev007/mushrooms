@@ -1540,7 +1540,8 @@ local DEV_TELEPORTS: { [string]: () -> CFrame? } = {
 	end,
 	tpDelve = function()
 		-- Przed szczeliną do Głębokich Komór (ściana Otchłani), twarzą do niej
-		return CFrame.lookAt(Vector3.new(32, 4, 1398), Vector3.new(44, 4, 1398))
+		local wall = Config.Cave.halfWidth -- szczelina stoi w ścianie (World/DelveMap.PASSAGE)
+		return CFrame.lookAt(Vector3.new(wall - 14, 4, 1398), Vector3.new(wall - 2, 4, 1398))
 	end,
 }
 

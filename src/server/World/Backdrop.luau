@@ -21,8 +21,9 @@ export type Style = {
 	mountain: { Color3 }, -- góry na końcach świata
 	mountainHeight: { number },
 	ends: { boolean }?, -- które końce mają góry: { początek (z1), koniec (z2) }; domyślnie oba
-	-- Fragmenty świata wystające poza rect (np. szersza polana): tam nie stawiamy drzew pierwszego rzędu
-	cutouts: { Rect }?,
+	-- Inne kawałki świata obok rect (np. szersza polana przy lesie): tam nie stawiamy niczego z tła
+	-- (żadnego rzędu drzew, wzgórz ani gór), z zapasem na korony
+	exclude: { Rect }?,
 	-- Przy których brzegach stoją rzędy drzew i wzgórza (domyślnie wszystkie). Łysa Góra ma tło tylko
 	-- za polaną, bo z boków i za szczytem są urwiska i dolina.
 	lines: { x1: boolean, x2: boolean, z1: boolean, z2: boolean }?,
@@ -127,12 +128,13 @@ function Backdrop.build(parent: Instance, rect: Rect, style: Style, rng: Random)
 		})
 	end
 
-	-- Pierwszy rząd: pełne drzewa tuż za ścianą (z bliska widać je w szczegółach). Nie w wycięciach:
-	-- tam za ścianą jest jeszcze świat (z zapasem na koronę)
-	local cutouts: { Rect } = style.cutouts or {}
-	local function insideCutout(p: Vector3): boolean
-		for _, c in cutouts do
-			if p.X > c.x1 - 3 and p.X < c.x2 + 3 and p.Z > c.z1 - 3 and p.Z < c.z2 + 3 then
+	-- Tam, gdzie obok jest inny kawałek świata (style.exclude), nic nie stawiamy. reach = jak daleko
+	-- od punktu sięga ozdoba (korona, wzgórze), x/z osobno, bo wzgórza są wydłużone.
+	local exclude: { Rect } = style.exclude or {}
+	local function excluded(p: Vector3, reachX: number, reachZ: number?): boolean
+		local rz = reachZ or reachX
+		for _, c in exclude do
+			if p.X + reachX > c.x1 and p.X - reachX < c.x2 and p.Z + rz > c.z1 and p.Z - rz < c.z2 then
 				return true
 			end
 		end
@@ -143,18 +145,23 @@ function Backdrop.build(parent: Instance, rect: Rect, style: Style, rng: Random)
 	local function onGround(p: Vector3): Vector3
 		return if groundY then Vector3.new(p.X, groundY(p.X, p.Z), p.Z) else p
 	end
+	-- Pierwszy rząd: pełne drzewa tuż za ścianą (z bliska widać je w szczegółach)
 	ring(rect, 7, style.nearSpacing, rng, function(base: Vector3)
-		if not insideCutout(base) then
+		if not excluded(base, 4) then
 			style.near(folder, onGround(base), rng)
 		end
 	end, lines)
 	-- Drugi i trzeci rząd: wyższe sylwetki, przesunięte, żeby zasłaniały prześwity pierwszego
 	ring(rect, 19, style.farSpacing, rng, function(base: Vector3)
-		style.far(folder, onGround(base), rng)
+		if not excluded(base, 10) then
+			style.far(folder, onGround(base), rng)
+		end
 	end, lines)
 	local farthest: (Instance, Vector3, Random) -> () = style.farthest or style.far
 	ring(rect, 33, style.farSpacing * 1.15, rng, function(base: Vector3)
-		farthest(folder, onGround(base), rng)
+		if not excluded(base, 12) then
+			farthest(folder, onGround(base), rng)
+		end
 	end, lines)
 
 	-- Wzgórza po bokach (do połowy w ziemi), zasłaniają horyzont
@@ -168,7 +175,11 @@ function Backdrop.build(parent: Instance, rect: Rect, style: Style, rng: Random)
 		while z < rect.z2 + 90 do
 			local height = rng:NextNumber(hillMin, hillMax)
 			local along = rng:NextNumber(80, 130)
-			Backdrop.blob(folder, Vector3.new(x + side * rng:NextNumber(-8, 14), -height * 0.12, z + along / 2), Vector3.new(rng:NextNumber(70, 100), height * 2, along), pick(style.hill, rng))
+			local center = Vector3.new(x + side * rng:NextNumber(-8, 14), -height * 0.12, z + along / 2)
+			local size = Vector3.new(rng:NextNumber(70, 100), height * 2, along)
+			if not excluded(center, size.X / 2, along / 2) then
+				Backdrop.blob(folder, center, size, pick(style.hill, rng))
+			end
 			z += along * 0.7
 		end
 	end
@@ -186,7 +197,9 @@ function Backdrop.build(parent: Instance, rect: Rect, style: Style, rng: Random)
 				local z = edgeZ + outward * (78 + rng:NextNumber(0, 30))
 				local cx = x + base / 2
 				local floor = if groundY then math.min(groundY(cx, z), 0) else 0
-				Backdrop.cone(folder, Vector3.new(cx, floor - 2, z), base, height, rng:NextNumber(0, TAU), pick(style.mountain, rng))
+				if not excluded(Vector3.new(cx, 0, z), base / 2) then
+					Backdrop.cone(folder, Vector3.new(cx, floor - 2, z), base, height, rng:NextNumber(0, TAU), pick(style.mountain, rng))
+				end
 				x += base * 0.55
 			end
 			-- Między górami a lasem jeszcze rząd wzgórz, żeby nie było widać stóp gór
@@ -196,7 +209,10 @@ function Backdrop.build(parent: Instance, rect: Rect, style: Style, rng: Random)
 				local along = rng:NextNumber(70, 110)
 				local cx, cz = hx + along / 2, edgeZ + outward * 58
 				local floor = if groundY then math.min(groundY(cx, cz), 0) else 0
-				Backdrop.blob(folder, Vector3.new(cx, floor - height * 0.12, cz), Vector3.new(along, height * 2, rng:NextNumber(60, 80)), pick(style.hill, rng))
+				local depth = rng:NextNumber(60, 80)
+				if not excluded(Vector3.new(cx, 0, cz), along / 2, depth / 2) then
+					Backdrop.blob(folder, Vector3.new(cx, floor - height * 0.12, cz), Vector3.new(along, height * 2, depth), pick(style.hill, rng))
+				end
 				hx += along * 0.7
 			end
 		end

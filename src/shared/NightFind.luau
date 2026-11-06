@@ -50,7 +50,7 @@ NightFind.GROUND_Y = { -10, 40 }
 function NightFind.delivered(position: Vector3): boolean
 	local cabin = Config.Zones[1]
 	return Economy.zoneIndexAt(position.Z) == 1
-		and math.abs(position.X) <= (cabin.halfWidth or 80)
+		and math.abs(position.X) <= Economy.zoneHalfWidth(cabin)
 		and position.Y >= NightFind.GROUND_Y[1]
 		and position.Y <= NightFind.GROUND_Y[2]
 end
